@@ -66,6 +66,10 @@
 - 已执行 `cd apps/control-console; npm.cmd run build`，结果：TypeScript 编译和 Vite build 成功。
 - 已启动本地 Platform API 与 Vite dev server，使用浏览器执行手工 E2E：创建项目 -> 创建任务 -> Pause -> Resume -> Cancel -> Task Detail / Timeline 展示 `TaskCreated`、`TaskPaused`、`TaskResumed`、`TaskCancelled`。
 - 浏览器验证最终状态：页面无 Vite/framework error overlay，console error/warn 为空，移动宽度首屏包含标题、Project Sidebar 和 Task Board。
+- 已用 `yaml.safe_load` 验证 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`，确认版本为 `0.2.1` 且包含 `/api/tasks`。
+- 已执行 `git diff --cached --check`，发现并修复资料归档尾随空格后通过。
+- 已在 `dev` 提交 `6631383`：`feat: 完成 M3 控制台任务主流程`。
+- 已执行 `git push origin dev`，远端 `dev` 更新到 `6631383`。
 
 ## 2026-07-08（M2 完成：数据模型、API 与事件底座）
 
