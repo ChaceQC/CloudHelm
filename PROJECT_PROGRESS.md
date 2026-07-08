@@ -14,7 +14,7 @@
 
 ### 进行中
 
-- 本次测试规范补充已完成本地文档检查，准备提交并同步推送 `dev`。
+- 本次测试规范补充已提交并同步到 `origin/dev` 与 `origin/main`。
 
 ### 阻塞与风险
 
@@ -22,8 +22,6 @@
 
 ### 下一步
 
-- 提交并 push `dev`。
-- 验证后同步 `main`。
 - 下一阶段继续从 `dev` 执行 M2。
 
 ### 涉及文件
@@ -37,6 +35,10 @@
 - 已用 `apply_patch` 更新 `AGENTS.md` 和 `PROJECT_PROGRESS.md`。
 - 已执行 `git diff --check`，结果通过。
 - 已执行 `git diff --stat`，确认本次只修改 `AGENTS.md` 和 `PROJECT_PROGRESS.md`。
+- 已在 `dev` 提交 `91313ce`：`docs: 补充黑盒与白盒测试流程规范`。
+- 已执行 `git push origin dev`，远端 `dev` 更新到 `91313ce`。
+- 已执行 `git diff main..dev --stat`，确认同步 `main` 前差异只包含 `AGENTS.md` 和 `PROJECT_PROGRESS.md`。
+- 已执行 `git push origin main`，远端 `main` 更新到 `91313ce`。
 
 ## 2026-07-08（Git 管理约束补充）
 
