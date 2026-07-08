@@ -2,6 +2,42 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-08（测试流程规范补充）
+
+### 已完成
+
+- 根据用户要求更新 `AGENTS.md` 的“测试与验证”章节，明确软件测试必须同时符合黑盒测试和白盒测试流程。
+- 补充测试流程总要求：测试对象、范围、测试类型、测试数据、通过标准、不测范围、需求追溯和缺陷闭环。
+- 补充黑盒测试要求：从用户、控制台、API 调用方、Agent 调用方或运维人员视角覆盖正常路径、边界值、异常输入、状态码、错误码、权限、分页、幂等和事件副作用。
+- 补充白盒测试要求：从源码、状态机、事务边界、service/repository/workflow/policy 和工具风险等级视角覆盖分支、异常、回滚、事件写入、审批拦截和失败恢复。
+- 补充提交与合并前测试门禁：提交到 `dev` 前必须执行匹配范围的黑盒/白盒测试，从 `dev` 合并到 `main` 前必须执行当前阶段完整验证。
+
+### 进行中
+
+- 本次测试规范补充已完成本地文档检查，准备提交并同步推送 `dev`。
+
+### 阻塞与风险
+
+- 本次为文档规范变更，不涉及生产代码；代码级黑盒/白盒测试不适用，但仍需做文档 diff 和 Git 状态检查。
+
+### 下一步
+
+- 提交并 push `dev`。
+- 验证后同步 `main`。
+- 下一阶段继续从 `dev` 执行 M2。
+
+### 涉及文件
+
+- `AGENTS.md`
+- `PROJECT_PROGRESS.md`
+
+### 验证
+
+- 已用 UTF-8 读取 `AGENTS.md` 的测试章节。
+- 已用 `apply_patch` 更新 `AGENTS.md` 和 `PROJECT_PROGRESS.md`。
+- 已执行 `git diff --check`，结果通过。
+- 已执行 `git diff --stat`，确认本次只修改 `AGENTS.md` 和 `PROJECT_PROGRESS.md`。
+
 ## 2026-07-08（Git 管理约束补充）
 
 ### 已完成
@@ -15,10 +51,13 @@
 - 已执行 `git switch -c dev`，当前工作分支切换为 `dev`；此前 `main` 尚无提交，未把未验证改动提交到 `main`。
 - 根据用户要求创建公开 GitHub 仓库：`https://github.com/ChaceQC/CloudHelm`，并将远端命名为 `origin`。
 - 根据用户要求更新 `AGENTS.md`，补充 GitHub 同步和 push 规则：本地提交后必须同步 push `dev`，`main` 只接收已验证 `dev` 合并，创建远端后记录 URL、可见性和推送分支。
+- 已在 `dev` 创建初始提交 `f3973b2`：`feat: 初始化 CloudHelm M1 工程基线`，并执行 `git push -u origin dev` 同步到 GitHub。
+- 已在重新验证后将已验证的 `dev` 同步为 `main` 稳定分支，并执行 `git push -u origin main`。
+- 已将 GitHub 默认分支设置为 `main`，远端 `dev` 和 `main` 当前都指向 `f3973b2`。
 
 ### 进行中
 
-- 准备重新暂存 `AGENTS.md` / `PROJECT_PROGRESS.md` 追加修改，复查暂存区统计后创建初始提交并 push 到 `origin/dev`。
+- M1 基线已同步到 GitHub；当前补记同步结果，补记后需要再次提交并推送 `dev`，再同步 `main`。
 
 ### 阻塞与风险
 
@@ -28,9 +67,9 @@
 
 ### 下一步
 
-- 在 `dev` 分支执行 `git add -A`，复查暂存区统计，完成初始提交。
-- 执行 `git push -u origin dev` 同步开发分支。
-- 如需要发布稳定基线，完整验证通过并更新进度后，再从 `dev` 合并入 `main` 并 `git push origin main`。
+- 提交本次 `PROJECT_PROGRESS.md` 补记，并推送 `dev`。
+- 重新同步 `main` 到已验证的 `dev` 最新提交。
+- 下一阶段从 `dev` 开始执行 M2。
 
 ### 涉及文件
 
@@ -47,6 +86,13 @@
 - 已执行 `git status --short`，确认当前仓库进入 Git 管理且改动仍未提交。
 - 已执行 `gh repo create CloudHelm --public --description 'CloudHelm graduation design multi-agent DevOps system' --source . --remote origin`。
 - 已执行 `git remote -v`，确认 `origin` 指向 `https://github.com/ChaceQC/CloudHelm.git`。
+- 已执行 `git diff --cached --stat` 和 `git status --ignored --short`，确认暂存内容并确认 `.obsidian/`、`node_modules/`、`dist/`、`.venv/` 已被忽略。
+- 已执行 `uv run pytest`，结果：`1 passed, 1 warning`。
+- 已执行 `npm.cmd run build`，结果：TypeScript 编译和 Vite build 成功。
+- 已执行 `git push -u origin dev`，远端创建 `dev`。
+- 已执行 `git push -u origin main`，远端创建 `main`。
+- 已执行 `gh repo edit ChaceQC/CloudHelm --default-branch main`。
+- 已执行 `gh repo view ChaceQC/CloudHelm --json nameWithOwner,visibility,url,defaultBranchRef`，确认仓库 `PUBLIC`、默认分支 `main`。
 
 ## 2026-07-08（M1 完成）
 
