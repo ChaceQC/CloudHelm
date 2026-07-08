@@ -1,0 +1,65 @@
+openapi: 3.1.0
+info:
+  title: CloudHelm Platform API
+  version: 0.1.0
+  description: |
+    CloudHelm 平台 API 契约。M1 只声明真实 /health，业务 API 将在 M2
+    按 Project、Task、Requirement、Design 和 Event 底座逐步扩展。
+servers:
+  - url: http://127.0.0.1:18080
+    description: 本地开发平台 API
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: 读取平台 API 健康状态
+      description: 返回服务名、状态、版本、运行环境和服务端 UTC 时间。
+      operationId: getHealth
+      responses:
+        "200":
+          description: 平台 API 进程健康。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                ok:
+                  value:
+                    service: cloudhelm-platform-api
+                    status: ok
+                    version: 0.1.0
+                    environment: development
+                    timestamp: "2026-07-08T00:00:00Z"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - service
+        - status
+        - version
+        - environment
+        - timestamp
+      properties:
+        service:
+          type: string
+          description: 服务名称。
+          example: cloudhelm-platform-api
+        status:
+          type: string
+          enum:
+            - ok
+          description: 服务健康状态。
+        version:
+          type: string
+          description: 服务版本。
+          example: 0.1.0
+        environment:
+          type: string
+          description: 运行环境。
+          example: development
+        timestamp:
+          type: string
+          format: date-time
+          description: 服务端当前 UTC 时间。

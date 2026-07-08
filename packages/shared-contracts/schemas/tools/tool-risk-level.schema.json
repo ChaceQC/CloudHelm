@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/tool-risk-level.schema.json",
+  "title": "CloudHelm Tool Risk Level",
+  "description": "Tool Gateway 工具风险等级定义。L3/L4 后续必须接入审批和审计。",
+  "type": "object",
+  "required": ["risk_level", "name", "requires_approval", "description"],
+  "properties": {
+    "risk_level": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4"],
+      "description": "工具风险等级。"
+    },
+    "name": {
+      "type": "string",
+      "description": "风险等级名称。"
+    },
+    "requires_approval": {
+      "type": "boolean",
+      "description": "是否必须在执行前创建 ApprovalRequest。"
+    },
+    "description": {
+      "type": "string",
+      "description": "该风险等级的边界说明。"
+    },
+    "examples": {
+      "type": "array",
+      "description": "典型工具调用示例。",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "risk_level": {
+            "enum": ["L3", "L4"]
+          }
+        },
+        "required": ["risk_level"]
+      },
+      "then": {
+        "properties": {
+          "requires_approval": {
+            "const": true
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

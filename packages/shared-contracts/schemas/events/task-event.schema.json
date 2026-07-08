@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/events/task-event.schema.json",
+  "title": "CloudHelm Task Event",
+  "description": "CloudHelm 任务事件流的基础结构。M1 只定义公共字段，具体事件类型在 M2 以后扩展。",
+  "type": "object",
+  "required": ["event_id", "task_id", "type", "created_at", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "事件唯一标识，后续使用 UUID。"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "事件所属任务标识。"
+    },
+    "type": {
+      "type": "string",
+      "description": "事件类型，例如 TaskCreated、RequirementApproved。"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "事件创建时间，使用 UTC ISO 8601。"
+    },
+    "payload": {
+      "type": "object",
+      "description": "事件载荷。具体字段由事件类型决定。",
+      "additionalProperties": true
+    },
+    "actor": {
+      "type": "string",
+      "description": "触发事件的用户、Agent 或系统组件。"
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "跨 API、Agent 和 Tool Gateway 的链路追踪标识。"
+    }
+  },
+  "additionalProperties": false
+}

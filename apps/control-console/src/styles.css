@@ -1,0 +1,152 @@
+:root {
+  color: #dbeafe;
+  background: #06101f;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  border: 1px solid rgba(125, 211, 252, 0.55);
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.18);
+  color: #e0f2fe;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.7rem 1.1rem;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+button:hover {
+  background: rgba(14, 165, 233, 0.28);
+  transform: translateY(-1px);
+}
+
+.app-shell {
+  display: grid;
+  gap: 1.5rem;
+  margin: 0 auto;
+  max-width: 960px;
+  padding: 5rem 1.5rem;
+}
+
+.hero,
+.health-card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.22), transparent 34rem),
+    rgba(15, 23, 42, 0.78);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.32);
+  padding: 2rem;
+}
+
+.eyebrow {
+  color: #7dd3fc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin: 0 0 0.7rem;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  color: #f8fafc;
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  line-height: 0.96;
+  margin-bottom: 1rem;
+}
+
+h2 {
+  color: #f8fafc;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  margin-bottom: 0;
+}
+
+.hero-copy {
+  color: #bfdbfe;
+  font-size: 1.08rem;
+  line-height: 1.8;
+  max-width: 720px;
+}
+
+.card-heading {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.status-line,
+.hint {
+  color: #93c5fd;
+}
+
+.status-error {
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 18px;
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+  padding: 1rem;
+}
+
+.health-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: 0;
+}
+
+.health-grid div {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.62);
+  padding: 1rem;
+}
+
+.health-grid .wide {
+  grid-column: 1 / -1;
+}
+
+dt {
+  color: #93c5fd;
+  font-size: 0.82rem;
+  margin-bottom: 0.4rem;
+}
+
+dd {
+  color: #f8fafc;
+  font-size: 1rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 2rem 1rem;
+  }
+
+  .card-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

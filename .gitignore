@@ -1,0 +1,36 @@
+# 环境变量与本地密钥
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / Vite
+node_modules/
+dist/
+build/
+.vite/
+
+# 日志与临时文件
+*.log
+*.tmp
+*.bak
+*.swp
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.obsidian/
+
+# Rust / Tauri 后续接入产物
+target/
