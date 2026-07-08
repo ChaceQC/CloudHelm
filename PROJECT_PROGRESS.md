@@ -2,6 +2,75 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-08（M2 完成：数据模型、API 与事件底座）
+
+### 已完成
+
+- 按 `PROJECT_PLAN.md` 完成 M2：数据模型、API 与事件底座。
+- 新增 `infra/docker-compose.dev.yml`，提供本地 PostgreSQL 开发服务；Redis 仅通过 optional profile 预留，M2 生产代码路径未接入。
+- 在 `modules/platform-api` 中接入 SQLAlchemy 2.x、Alembic、`psycopg[binary]`，版本同步为 `0.2.0`。
+- 新增数据库分层：`db`、`models`、`repositories`、`services`、`schemas`、`api`。
+- 新增 Alembic 迁移 `20260708_0001_create_core_m2_tables.py`，创建 `projects`、`tasks`、`requirement_specs`、`technical_designs`、`agent_runs`、`tool_calls`、`approval_requests`、`event_logs`。
+- 实现 Project API、Task API、Requirement / Design API、AgentRun API、ToolCall API、Approval API、Event Timeline / SSE API。
+- 写操作由 service 层在同一事务内写业务表和 `event_logs`；Task 创建、暂停、恢复、取消均写入真实事件。
+- 实现统一错误结构 `code/message/detail/trace_id` 和 offset cursor 分页响应。
+- 扩展测试：新增数据库迁移、Project、Task、Requirement / Design、AgentRun / ToolCall / Approval、Timeline / SSE 覆盖，共 11 个后端测试。
+- 同步 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`、事件 schema、工具风险等级 schema、`docs/08-api/`、`docs/15-detailed-design/`、数据表文档、README 和本地开发命令。
+- 创建 `informations/m2-data-api/official-references.md`，归档 FastAPI、SQLAlchemy、Alembic、PostgreSQL、Pydantic、pytest 和 StreamingResponse 官方资料。
+- 更新 `docs/14-roadmap/03-implementation-milestone-flow.md`，将 M2 任务全部打钩，并把当前下一步改为 M3。
+- 重写 `PROJECT_PLAN.md`，生成 M3“控制台任务主流程”的详细执行计划。
+
+### 进行中
+
+- M2 已完成并通过验证；下一阶段从 `dev` 执行 M3 控制台任务主流程。
+
+### 阻塞与风险
+
+- FastAPI TestClient 仍触发 Starlette 关于 `httpx` 的弃用提示；当前不影响测试结果，后续可在依赖升级或测试客户端调整时处理。
+- M2 SSE 端点基于真实 `event_logs` 输出当前事件和 heartbeat，不维护长连接实时推送；该边界已写入文档，M3 控制台可先采用轮询或重连刷新。
+- AgentRun、ToolCall、Approval 的创建接口仅用于内部联调和真实记录，不代表 Agent 或 Tool Gateway 已经自动执行。
+
+### 下一步
+
+- 按新的 `PROJECT_PLAN.md` 执行 M3：实现 Project Sidebar、Task Board、Task Detail、需求输入表单、Timeline、ToolCall 和 Approval 基础交互。
+- 创建 `informations/m3-control-console/official-references.md`，归档 React、TypeScript、Vite、SSE 和前端测试资料。
+- 前端必须调用真实 M2 API，不得使用静态假任务或假事件。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `README.md`
+- `.env.example`
+- `apps/control-console/README.md`
+- `apps/control-console/src/App.tsx`
+- `infra/docker-compose.dev.yml`
+- `informations/m2-data-api/official-references.md`
+- `modules/platform-api/**`
+- `packages/shared-contracts/**`
+- `docs/03-modules/modules/platform-api.md`
+- `docs/03-modules/packages/shared-contracts.md`
+- `docs/07-data/01-database-schema.md`
+- `docs/08-api/*.md`
+- `docs/12-deployment/00-local-development.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/03-api-detail.md`
+- `docs/15-detailed-design/04-data-detail.md`
+- `docs/15-detailed-design/05-workflow-state-events.md`
+
+### 验证
+
+- 已执行 `git branch --show-current`，确认当前分支为 `dev`。
+- 已执行 `git status --short`，确认开始前工作区干净。
+- 已执行 `uv --version`、`python --version`、`docker --version`、`docker compose version`、`git --version`，确认本机工具可用。
+- 已执行 `docker compose -f infra/docker-compose.dev.yml up -d postgres` 和 `docker compose -f infra/docker-compose.dev.yml ps`，PostgreSQL 容器状态 `healthy`。
+- 已执行 `cd modules/platform-api; $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'; uv run alembic upgrade head`，迁移应用成功。
+- 已执行 `uv run pytest`，结果：`11 passed, 1 warning`。
+- 已执行 `cd apps/control-console; npm.cmd run build`，结果：TypeScript 编译和 Vite build 成功。
+- 已执行 `python -m json.tool` 验证事件 schema 和工具风险等级 schema。
+- 已用 `yaml.safe_load` 验证 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`，确认版本为 `0.2.0` 且包含 `/api/tasks`。
+- 已执行 `git diff --check`，结果通过。
+
 ## 2026-07-08（测试流程规范补充）
 
 ### 已完成

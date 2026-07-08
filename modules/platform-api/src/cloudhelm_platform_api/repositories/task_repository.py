@@ -1,0 +1,41 @@
+"""Task 数据访问。"""
+
+from uuid import UUID
+
+from sqlalchemy import Select, select
+from sqlalchemy.orm import Session
+
+from cloudhelm_platform_api.models.task import Task
+from cloudhelm_platform_api.repositories.pagination import fetch_page
+
+
+class TaskRepository:
+    """Task 表访问对象。"""
+
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def create(self, task: Task) -> Task:
+        """新增 Task 并刷新主键。"""
+
+        self.session.add(task)
+        self.session.flush()
+        return task
+
+    def get(self, task_id: UUID) -> Task | None:
+        """按 ID 读取 Task。"""
+
+        return self.session.get(Task, task_id)
+
+    def list(
+        self,
+        limit: int,
+        cursor: str | None,
+        project_id: UUID | None = None,
+    ) -> tuple[list[Task], str | None]:
+        """分页读取 Task，可按 Project 过滤。"""
+
+        statement: Select[tuple[Task]] = select(Task).order_by(Task.created_at, Task.id)
+        if project_id is not None:
+            statement = statement.where(Task.project_id == project_id)
+        return fetch_page(self.session, statement, limit, cursor)

@@ -4,9 +4,9 @@
 
 ## 当前内容
 
-- `openapi/cloudhelm.openapi.yaml`：M1 API 标题、版本和 `/health` 路径。
-- `schemas/events/task-event.schema.json`：后续任务事件流的基础字段。
-- `schemas/tools/tool-risk-level.schema.json`：Tool Gateway 风险等级 `L0` 到 `L4`。
+- `openapi/cloudhelm.openapi.yaml`：M2 Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、AgentRun、ToolCall、Approval 和 Event Timeline。
+- `schemas/events/task-event.schema.json`：M2 真实 `event_logs` 事件字段和事件类型枚举。
+- `schemas/tools/tool-risk-level.schema.json`：Tool Gateway 风险等级 `L0` 到 `L4`；M2 仅记录 ToolCall 和 ApprovalRequest。
 - `types/README.md`：后续生成类型的存放说明。
 
 ## 使用方

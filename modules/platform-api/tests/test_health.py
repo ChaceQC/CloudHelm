@@ -2,13 +2,9 @@
 
 from fastapi.testclient import TestClient
 
-from cloudhelm_platform_api.main import create_app
 
-
-def test_health_returns_runtime_metadata() -> None:
+def test_health_returns_runtime_metadata(client: TestClient) -> None:
     """验证健康检查返回真实服务元数据。"""
-
-    client = TestClient(create_app())
 
     response = client.get("/health")
 
@@ -16,6 +12,6 @@ def test_health_returns_runtime_metadata() -> None:
     data = response.json()
     assert data["service"] == "cloudhelm-platform-api"
     assert data["status"] == "ok"
-    assert data["version"] == "0.1.0"
-    assert data["environment"] == "development"
+    assert data["version"] == "0.2.0"
+    assert data["environment"] == "test"
     assert isinstance(data["timestamp"], str)

@@ -3,6 +3,17 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`modules/platform-api`
 
+## M2 实现状态
+
+`modules/platform-api` 已从 M1 `/health` 扩展为真实数据库 API：
+
+- 技术组合：FastAPI、Pydantic v2、SQLAlchemy 2.x、Alembic、PostgreSQL。
+- 分层：`api`、`schemas`、`services`、`repositories`、`models`、`db`。
+- 已实现：Project、Task、Requirement、Technical Design、AgentRun、ToolCall、Approval、Event Timeline。
+- 未实现：Agent 自动执行、Tool Gateway 真实工具执行、Git PR、远端部署和监控。
+
+写操作必须通过 service 层在同一事务内写业务表和 `event_logs`。
+
 ## 职责
 
 统一 API 服务，对桌面端提供需求、任务、设计、事件、审批、配置接口。

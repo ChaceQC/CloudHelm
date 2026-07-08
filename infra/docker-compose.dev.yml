@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cloudhelm-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${CLOUDHELM_POSTGRES_USER:-cloudhelm}
+      POSTGRES_PASSWORD: ${CLOUDHELM_POSTGRES_PASSWORD:-cloudhelm_dev}
+      POSTGRES_DB: ${CLOUDHELM_POSTGRES_DB:-cloudhelm}
+    ports:
+      - "${CLOUDHELM_POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - cloudhelm_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CLOUDHELM_POSTGRES_USER:-cloudhelm} -d ${CLOUDHELM_POSTGRES_DB:-cloudhelm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cloudhelm-redis-dev
+    restart: unless-stopped
+    profiles:
+      - optional
+    ports:
+      - "${CLOUDHELM_REDIS_PORT:-16379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - cloudhelm_redis_data:/data
+
+volumes:
+  cloudhelm_postgres_data:
+  cloudhelm_redis_data:

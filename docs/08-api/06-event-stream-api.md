@@ -2,6 +2,18 @@
 
 > 来源：[设计书 12 章](../../云舵 CloudHelm 毕设设计书.md)  
 > 目的：给出该 API 分组的端点清单和实现注意点。
+
+## M2 已实现接口
+
+```text
+GET    /api/tasks/{task_id}/timeline
+GET    /api/tasks/{task_id}/events/stream
+```
+
+- Timeline 从 PostgreSQL `event_logs` 按 `created_at`、`id` 升序返回。
+- SSE 端点基于真实事件输出当前已有事件并追加 heartbeat。
+- M2 暂不维护长连接实时推送；M3 控制台可通过重连或轮询刷新，后续事件总线阶段再升级为实时推送。
+
 ## 实现注意点
 
 - 请求和响应模型应写入 OpenAPI，并同步生成前端类型。

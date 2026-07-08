@@ -3,6 +3,37 @@
 > 来源：设计书 11 章  
 > 目的：补充实体关系、状态字段、索引建议、事件类型和数据生命周期。
 
+## M2 落地状态
+
+M2 已通过 Alembic 创建以下 PostgreSQL 基础表：
+
+```text
+projects
+tasks
+requirement_specs
+technical_designs
+agent_runs
+tool_calls
+approval_requests
+event_logs
+```
+
+实现位置：
+
+- ORM：`modules/platform-api/src/cloudhelm_platform_api/models/`
+- 迁移：`modules/platform-api/migrations/versions/20260708_0001_create_core_m2_tables.py`
+- 连接配置：`CLOUDHELM_DATABASE_URL`
+
+关键落地规则：
+
+- 主键使用 PostgreSQL UUID，应用层生成 UUID。
+- JSON 结构字段使用 JSONB。
+- 时间字段使用 timezone-aware UTC datetime 和 PostgreSQL `TIMESTAMPTZ`。
+- `tasks(project_id,status)`、`event_logs(task_id,created_at)` 等控制台常用查询已建索引。
+- 写业务状态和写 `event_logs` 必须在同一 service 事务中提交。
+
+M2 未创建 environments、deployments、remote_targets、monitoring 等远端运维表；这些表保留到部署和监控里程碑。
+
 ## 1. 核心 ER 关系
 
 ```mermaid
@@ -250,4 +281,3 @@ suppressed
 - 删除字段必须先弃用，再清理。
 - destructive migration 必须生成 ApprovalRequest。
 - 生产扩展时对 event_logs 和 tool_calls 考虑分区表。
-

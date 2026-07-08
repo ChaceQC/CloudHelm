@@ -33,6 +33,29 @@ npm.cmd run build
 
 Windows PowerShell 如拦截 `npm.ps1`，使用 `npm.cmd`。Tauri 桌面壳在控制台主流程阶段接入；当前 M1 只验证 React/TypeScript 骨架。
 
+## M2 本地数据库与 API 命令
+
+M2 开始需要本地 PostgreSQL。开发环境使用 `infra/docker-compose.dev.yml`，
+示例凭据只用于本地开发，不代表真实服务器凭据。
+
+```powershell
+docker compose -f infra/docker-compose.dev.yml up -d postgres
+docker compose -f infra/docker-compose.dev.yml ps
+cd modules/platform-api
+$env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
+uv run alembic upgrade head
+uv run pytest
+uv run uvicorn cloudhelm_platform_api.main:app --host 127.0.0.1 --port 18080
+```
+
+M2 的 Redis 服务仅通过 Compose profile 预留：
+
+```powershell
+docker compose -f infra/docker-compose.dev.yml --profile optional up -d redis
+```
+
+当前生产代码路径未使用 Redis。
+
 ## 设计书摘录
 
 ### 16.1 本地开发部署

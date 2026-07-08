@@ -1,65 +1,3033 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  version: 0.1.0
-  description: |
-    CloudHelm 平台 API 契约。M1 只声明真实 /health，业务 API 将在 M2
-    按 Project、Task、Requirement、Design 和 Event 底座逐步扩展。
-servers:
-  - url: http://127.0.0.1:18080
-    description: 本地开发平台 API
+  description: CloudHelm 平台 API。M2 提供真实数据库驱动的项目、任务、需求、设计、审批和事件底座。
+  version: 0.2.0
 paths:
   /health:
     get:
       tags:
-        - health
+      - health
       summary: 读取平台 API 健康状态
-      description: 返回服务名、状态、版本、运行环境和服务端 UTC 时间。
-      operationId: getHealth
+      description: "返回平台 API 的真实运行元数据。\n\n参数:\n    settings: 由环境变量解析得到的服务配置。\n\n返回:\n\
+        \    服务名、状态、版本、运行环境和服务端当前 UTC 时间。"
+      operationId: read_health_health_get
       responses:
-        "200":
-          description: 平台 API 进程健康。
+        '200':
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthResponse"
-              examples:
-                ok:
-                  value:
-                    service: cloudhelm-platform-api
-                    status: ok
-                    version: 0.1.0
-                    environment: development
-                    timestamp: "2026-07-08T00:00:00Z"
+                $ref: '#/components/schemas/HealthResponse'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/projects:
+    post:
+      tags:
+      - projects
+      summary: 创建项目
+      description: 创建 Project，并在同一事务中追加 ProjectCreated 事件。
+      operationId: create_project_api_projects_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - projects
+      summary: 分页读取项目
+      description: 分页读取项目列表。
+      operationId: list_projects_api_projects_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ProjectRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{project_id}:
+    get:
+      tags:
+      - projects
+      summary: 读取项目详情
+      description: 读取单个 Project。
+      operationId: get_project_api_projects__project_id__get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks:
+    post:
+      tags:
+      - tasks
+      summary: 创建任务
+      description: 创建 Task，校验项目存在，并写入 TaskCreated 事件。
+      operationId: create_task_api_tasks_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - tasks
+      summary: 分页读取任务
+      description: 分页读取任务列表。
+      operationId: list_tasks_api_tasks_get
+      parameters:
+      - name: project_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          description: 按项目过滤。
+          title: Project Id
+        description: 按项目过滤。
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_TaskRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}:
+    get:
+      tags:
+      - tasks
+      summary: 读取任务详情
+      description: 读取单个 Task。
+      operationId: get_task_api_tasks__task_id__get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/pause:
+    post:
+      tags:
+      - tasks
+      summary: 暂停任务
+      description: 暂停任务并写入 TaskPaused 事件。
+      operationId: pause_task_api_tasks__task_id__pause_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/resume:
+    post:
+      tags:
+      - tasks
+      summary: 恢复任务
+      description: 恢复暂停任务并写入 TaskResumed 事件。
+      operationId: resume_task_api_tasks__task_id__resume_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/cancel:
+    post:
+      tags:
+      - tasks
+      summary: 取消任务
+      description: 取消任务并写入 TaskCancelled 事件。
+      operationId: cancel_task_api_tasks__task_id__cancel_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/requirements:
+    post:
+      tags:
+      - requirements
+      summary: 创建需求规格
+      description: 保存真实需求规格，不自动生成或伪造 Agent 输出。
+      operationId: create_requirement_api_tasks__task_id__requirements_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequirementSpecCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementSpecRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - requirements
+      summary: 分页读取任务需求规格
+      description: 读取某任务下的需求规格列表。
+      operationId: list_requirements_api_tasks__task_id__requirements_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_RequirementSpecRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/requirements/{requirement_id}:
+    get:
+      tags:
+      - requirements
+      summary: 读取需求规格
+      description: 读取单个需求规格。
+      operationId: get_requirement_api_requirements__requirement_id__get
+      parameters:
+      - name: requirement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Requirement Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementSpecRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/requirements/{requirement_id}/approve:
+    post:
+      tags:
+      - requirements
+      summary: 通过需求规格
+      description: 通过需求规格并写入 RequirementSpecApproved 事件。
+      operationId: approve_requirement_api_requirements__requirement_id__approve_post
+      parameters:
+      - name: requirement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Requirement Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementSpecRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/requirements/{requirement_id}/request-changes:
+    post:
+      tags:
+      - requirements
+      summary: 要求修改需求规格
+      description: 要求修改需求规格并写入事件。
+      operationId: request_requirement_changes_api_requirements__requirement_id__request_changes_post
+      parameters:
+      - name: requirement_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Requirement Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequirementSpecRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/technical-designs:
+    post:
+      tags:
+      - technical-designs
+      summary: 创建技术设计
+      description: 保存真实技术设计内容，不触发自动 Architect Agent。
+      operationId: create_design_api_tasks__task_id__technical_designs_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicalDesignCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalDesignRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - technical-designs
+      summary: 分页读取任务技术设计
+      description: 读取某任务下的技术设计列表。
+      operationId: list_designs_api_tasks__task_id__technical_designs_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_TechnicalDesignRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/technical-designs/{design_id}:
+    get:
+      tags:
+      - technical-designs
+      summary: 读取技术设计
+      description: 读取单个技术设计。
+      operationId: get_design_api_technical_designs__design_id__get
+      parameters:
+      - name: design_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Design Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalDesignRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/technical-designs/{design_id}/approve:
+    post:
+      tags:
+      - technical-designs
+      summary: 通过技术设计
+      description: 通过技术设计并写入 TechnicalDesignApproved 事件。
+      operationId: approve_design_api_technical_designs__design_id__approve_post
+      parameters:
+      - name: design_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Design Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalDesignRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/technical-designs/{design_id}/request-changes:
+    post:
+      tags:
+      - technical-designs
+      summary: 要求修改技术设计
+      description: 要求修改技术设计并写入事件。
+      operationId: request_design_changes_api_technical_designs__design_id__request_changes_post
+      parameters:
+      - name: design_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Design Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TechnicalDesignRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/agent-runs:
+    post:
+      tags:
+      - agent-runs
+      summary: 创建 AgentRun 记录（M2 内部联调）
+      description: 写入 AgentRun 记录；不表示 Agent 已自动执行。
+      operationId: create_agent_run_api_tasks__task_id__agent_runs_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRunCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRunRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - agent-runs
+      summary: 分页读取任务 AgentRun
+      description: 读取某任务下的 AgentRun 记录。
+      operationId: list_agent_runs_api_tasks__task_id__agent_runs_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_AgentRunRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/agent-runs/{run_id}:
+    get:
+      tags:
+      - agent-runs
+      summary: 读取 AgentRun
+      description: 读取单个 AgentRun。
+      operationId: get_agent_run_api_agent_runs__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRunRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/tool-calls:
+    post:
+      tags:
+      - tool-calls
+      summary: 创建 ToolCall 记录（M2 内部联调）
+      description: 写入 ToolCall 记录；M2 不执行真实工具。
+      operationId: create_tool_call_api_tasks__task_id__tool_calls_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolCallCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCallRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - tool-calls
+      summary: 分页读取任务 ToolCall
+      description: 读取某任务下的 ToolCall 记录。
+      operationId: list_tool_calls_api_tasks__task_id__tool_calls_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ToolCallRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tool-calls/{tool_call_id}:
+    get:
+      tags:
+      - tool-calls
+      summary: 读取 ToolCall
+      description: 读取单个 ToolCall。
+      operationId: get_tool_call_api_tool_calls__tool_call_id__get
+      parameters:
+      - name: tool_call_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Tool Call Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCallRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/approvals:
+    post:
+      tags:
+      - approvals
+      summary: 创建审批请求（M2 内部联调）
+      description: 创建 ApprovalRequest；M2 不自动触发工具执行。
+      operationId: create_approval_api_tasks__task_id__approvals_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequestCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/approvals:
+    get:
+      tags:
+      - approvals
+      summary: 分页读取审批请求
+      description: 分页读取审批请求。
+      operationId: list_approvals_api_approvals_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ApprovalStatus'
+          - type: 'null'
+          description: 按状态过滤。
+          title: Status
+        description: 按状态过滤。
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ApprovalRequestRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/approvals/{approval_id}:
+    get:
+      tags:
+      - approvals
+      summary: 读取审批请求
+      description: 读取单个 ApprovalRequest。
+      operationId: get_approval_api_approvals__approval_id__get
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Approval Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/approvals/{approval_id}/approve:
+    post:
+      tags:
+      - approvals
+      summary: 通过审批请求
+      description: 通过审批并写入 ApprovalApproved 事件。
+      operationId: approve_approval_api_approvals__approval_id__approve_post
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Approval Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/approvals/{approval_id}/reject:
+    post:
+      tags:
+      - approvals
+      summary: 拒绝审批请求
+      description: 拒绝审批并写入 ApprovalRejected 事件。
+      operationId: reject_approval_api_approvals__approval_id__reject_post
+      parameters:
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Approval Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/DecisionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/timeline:
+    get:
+      tags:
+      - events
+      summary: 读取任务事件时间线
+      description: 按创建时间读取某任务真实 EventLog。
+      operationId: get_timeline_api_tasks__task_id__timeline_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_EventLogRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/events/stream:
+    get:
+      tags:
+      - events
+      summary: 读取任务事件流
+      description: '返回基于真实 EventLog 的 SSE 响应。
+
+
+        M2 暂不维护长连接实时推送；本端点输出当前已有事件后追加一次 heartbeat，
+
+        控制台可在 M3 通过重连或轮询方式刷新。'
+      operationId: stream_task_events_api_tasks__task_id__events_stream_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    HealthResponse:
+    AgentRunCreate:
+      properties:
+        agent_type:
+          type: string
+          minLength: 1
+          title: Agent Type
+          description: Agent 类型。
+        status:
+          $ref: '#/components/schemas/AgentRunStatus'
+          description: 运行状态。
+          default: pending
+        model_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Name
+          description: 模型名称。
+        prompt_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prompt Hash
+          description: Prompt 哈希。
+        input_tokens:
+          type: integer
+          minimum: 0.0
+          title: Input Tokens
+          description: 输入 token 数。
+          default: 0
+        output_tokens:
+          type: integer
+          minimum: 0.0
+          title: Output Tokens
+          description: 输出 token 数。
+          default: 0
+        cost_usd:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+            pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Cost Usd
+          description: 估算成本。
+          default: '0'
       type: object
       required:
-        - service
-        - status
-        - version
-        - environment
-        - timestamp
+      - agent_type
+      title: AgentRunCreate
+      description: '开发/内部联调用 AgentRun 创建请求体。
+
+
+        M2 该接口只写入运行记录，不表示 Agent 已具备自动执行能力。'
+    AgentRunRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        agent_type:
+          type: string
+          title: Agent Type
+        status:
+          $ref: '#/components/schemas/AgentRunStatus'
+        model_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Name
+        prompt_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prompt Hash
+        input_tokens:
+          type: integer
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          title: Output Tokens
+        cost_usd:
+          type: string
+          pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+          title: Cost Usd
+        started_at:
+          type: string
+          format: date-time
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+      type: object
+      required:
+      - id
+      - task_id
+      - agent_type
+      - status
+      - model_name
+      - prompt_hash
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - started_at
+      - finished_at
+      title: AgentRunRead
+      description: AgentRun 响应结构。
+    AgentRunStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - succeeded
+      - failed
+      - cancelled
+      title: AgentRunStatus
+      description: AgentRun 状态。
+    ApprovalRequestCreate:
+      properties:
+        action:
+          type: string
+          minLength: 1
+          title: Action
+          description: 申请执行的动作。
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+          description: 动作风险等级。
+        reason:
+          type: string
+          minLength: 1
+          title: Reason
+          description: 申请原因。
+        requested_by_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Requested By Agent Run Id
+          description: 发起审批的 AgentRun。
+      type: object
+      required:
+      - action
+      - risk_level
+      - reason
+      title: ApprovalRequestCreate
+      description: 开发/内部联调用审批创建请求体。
+    ApprovalRequestRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        action:
+          type: string
+          title: Action
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        reason:
+          type: string
+          title: Reason
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        requested_by_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Requested By Agent Run Id
+        decided_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Decided By
+        decided_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Decided At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - task_id
+      - action
+      - risk_level
+      - reason
+      - status
+      - requested_by_agent_run_id
+      - decided_by
+      - decided_at
+      - created_at
+      title: ApprovalRequestRead
+      description: 审批请求响应结构。
+    ApprovalStatus:
+      type: string
+      enum:
+      - pending
+      - approved
+      - rejected
+      - expired
+      title: ApprovalStatus
+      description: ApprovalRequest 状态。
+    DecisionRequest:
+      properties:
+        actor_id:
+          type: string
+          minLength: 1
+          title: Actor Id
+          description: 操作人或组件标识。
+          default: user
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: 操作原因。
+      type: object
+      title: DecisionRequest
+      description: 审批、通过或要求修改类动作的请求体。
+    ErrorResponse:
+      properties:
+        code:
+          type: string
+          title: Code
+          description: 稳定错误码。
+        message:
+          type: string
+          title: Message
+          description: 面向调用方的错误描述。
+        detail:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Detail
+          description: 调试细节或字段错误。
+        trace_id:
+          type: string
+          title: Trace Id
+          description: 链路追踪 ID。
+      type: object
+      required:
+      - code
+      - message
+      - trace_id
+      title: ErrorResponse
+      description: 统一错误响应结构。
+    EventLogRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Task Id
+        event_type:
+          type: string
+          title: Event Type
+        actor_type:
+          type: string
+          title: Actor Type
+        actor_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Id
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - task_id
+      - event_type
+      - actor_type
+      - actor_id
+      - payload
+      - created_at
+      title: EventLogRead
+      description: 事件日志响应结构。
+    HealthResponse:
       properties:
         service:
           type: string
+          title: Service
           description: 服务名称。
-          example: cloudhelm-platform-api
         status:
           type: string
-          enum:
-            - ok
+          const: ok
+          title: Status
           description: 服务健康状态。
         version:
           type: string
+          title: Version
           description: 服务版本。
-          example: 0.1.0
         environment:
           type: string
+          title: Environment
           description: 运行环境。
-          example: development
         timestamp:
           type: string
           format: date-time
+          title: Timestamp
           description: 服务端当前 UTC 时间。
+      type: object
+      required:
+      - service
+      - status
+      - version
+      - environment
+      - timestamp
+      title: HealthResponse
+      description: '`/health` 响应 DTO。
+
+
+        字段需要与 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+
+        保持一致，确保前端和后续部署健康检查使用同一契约。'
+    PageInfo:
+      properties:
+        limit:
+          type: integer
+          maximum: 100.0
+          minimum: 1.0
+          title: Limit
+          description: 本次最多返回条数。
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: 下一页游标；为空表示无更多数据。
+      type: object
+      required:
+      - limit
+      title: PageInfo
+      description: '分页元数据。
+
+
+        M2 使用 offset cursor 的最小实现，后续如需高并发滚动查询可升级为
+
+        基于 `created_at,id` 的稳定游标。'
+    PageResponse_AgentRunRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AgentRunRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[AgentRunRead]
+    PageResponse_ApprovalRequestRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ApprovalRequestRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[ApprovalRequestRead]
+    PageResponse_EventLogRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/EventLogRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[EventLogRead]
+    PageResponse_ProjectRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ProjectRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[ProjectRead]
+    PageResponse_RequirementSpecRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RequirementSpecRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[RequirementSpecRead]
+    PageResponse_TaskRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/TaskRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[TaskRead]
+    PageResponse_TechnicalDesignRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/TechnicalDesignRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[TechnicalDesignRead]
+    PageResponse_ToolCallRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ToolCallRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[ToolCallRead]
+    ProjectCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Name
+          description: 项目显示名称。
+        repo_url:
+          type: string
+          minLength: 1
+          title: Repo Url
+          description: 仓库地址或本地仓库路径。
+        default_branch:
+          type: string
+          minLength: 1
+          title: Default Branch
+          description: 默认分支。
+          default: main
+        provider:
+          type: string
+          minLength: 1
+          title: Provider
+          description: 仓库提供方。
+          default: git
+      type: object
+      required:
+      - name
+      - repo_url
+      title: ProjectCreate
+      description: 创建 Project 的请求体。
+    ProjectRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        repo_url:
+          type: string
+          title: Repo Url
+        default_branch:
+          type: string
+          title: Default Branch
+        provider:
+          type: string
+          title: Provider
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - repo_url
+      - default_branch
+      - provider
+      - created_at
+      - updated_at
+      title: ProjectRead
+      description: Project 响应结构。
+    RequirementSpecCreate:
+      properties:
+        source_type:
+          type: string
+          minLength: 1
+          title: Source Type
+          description: 需求来源类型。
+          default: manual
+        raw_input:
+          type: string
+          minLength: 1
+          title: Raw Input
+          description: 原始需求输入。
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+          description: 用户故事。
+        constraints_json:
+          items: {}
+          type: array
+          title: Constraints Json
+          description: 约束条件 JSON 数组。
+        acceptance_criteria_json:
+          items: {}
+          type: array
+          title: Acceptance Criteria Json
+          description: 验收标准 JSON 数组。
+      type: object
+      required:
+      - raw_input
+      title: RequirementSpecCreate
+      description: 创建需求规格的请求体。
+    RequirementSpecRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        source_type:
+          type: string
+          title: Source Type
+        raw_input:
+          type: string
+          title: Raw Input
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+        constraints_json:
+          items: {}
+          type: array
+          title: Constraints Json
+        acceptance_criteria_json:
+          items: {}
+          type: array
+          title: Acceptance Criteria Json
+        status:
+          $ref: '#/components/schemas/ReviewStatus'
+        version:
+          type: integer
+          title: Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - task_id
+      - project_id
+      - source_type
+      - raw_input
+      - user_story
+      - constraints_json
+      - acceptance_criteria_json
+      - status
+      - version
+      - created_at
+      - updated_at
+      title: RequirementSpecRead
+      description: 需求规格响应结构。
+    ReviewStatus:
+      type: string
+      enum:
+      - draft
+      - approved
+      - changes_requested
+      title: ReviewStatus
+      description: 需求和技术设计的人工评审状态。
+    RiskLevel:
+      type: string
+      enum:
+      - L0
+      - L1
+      - L2
+      - L3
+      - L4
+      title: RiskLevel
+      description: CloudHelm 工具和任务风险等级。
+    TaskCreate:
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: 所属项目 ID，必须已存在。
+        title:
+          type: string
+          maxLength: 160
+          minLength: 1
+          title: Title
+          description: 任务标题。
+        description:
+          type: string
+          minLength: 1
+          title: Description
+          description: 任务描述。
+        source_type:
+          type: string
+          minLength: 1
+          title: Source Type
+          description: 任务来源类型。
+          default: manual
+        source_ref:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Ref
+          description: 来源引用。
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+          description: 任务初始风险等级。
+          default: L0
+        created_by:
+          type: string
+          minLength: 1
+          title: Created By
+          description: 创建人或组件。
+          default: user
+      type: object
+      required:
+      - project_id
+      - title
+      - description
+      title: TaskCreate
+      description: 创建 Task 的请求体。
+    TaskRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        title:
+          type: string
+          title: Title
+        description:
+          type: string
+          title: Description
+        source_type:
+          type: string
+          title: Source Type
+        source_ref:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Ref
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        current_phase:
+          type: string
+          title: Current Phase
+        created_by:
+          type: string
+          title: Created By
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - project_id
+      - title
+      - description
+      - source_type
+      - source_ref
+      - status
+      - risk_level
+      - current_phase
+      - created_by
+      - created_at
+      - updated_at
+      title: TaskRead
+      description: Task 响应结构。
+    TaskStatus:
+      type: string
+      enum:
+      - created
+      - running
+      - waiting_approval
+      - paused
+      - failed
+      - done
+      - cancelled
+      title: TaskStatus
+      description: 任务状态枚举，与设计文档数据层保持一致。
+    TechnicalDesignCreate:
+      properties:
+        requirement_spec_id:
+          type: string
+          format: uuid
+          title: Requirement Spec Id
+          description: 关联需求规格 ID。
+        design_type:
+          type: string
+          minLength: 1
+          title: Design Type
+          description: 设计类型。
+          default: mvp
+        content_markdown:
+          type: string
+          minLength: 1
+          title: Content Markdown
+          description: 技术设计正文。
+        openapi_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Openapi Json
+          description: OpenAPI 草案 JSON。
+        db_schema_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Db Schema Json
+          description: 数据库 schema 草案 JSON。
+        mermaid_diagram:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mermaid Diagram
+          description: Mermaid 图。
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+          description: 设计涉及风险等级。
+          default: L0
+        created_by_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Created By Agent Run Id
+          description: 创建该设计的 AgentRun。
+      type: object
+      required:
+      - requirement_spec_id
+      - content_markdown
+      title: TechnicalDesignCreate
+      description: 创建技术设计的请求体。
+    TechnicalDesignRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        requirement_spec_id:
+          type: string
+          format: uuid
+          title: Requirement Spec Id
+        design_type:
+          type: string
+          title: Design Type
+        content_markdown:
+          type: string
+          title: Content Markdown
+        openapi_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Openapi Json
+        db_schema_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Db Schema Json
+        mermaid_diagram:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mermaid Diagram
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        status:
+          $ref: '#/components/schemas/ReviewStatus'
+        created_by_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Created By Agent Run Id
+        version:
+          type: integer
+          title: Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - task_id
+      - requirement_spec_id
+      - design_type
+      - content_markdown
+      - openapi_json
+      - db_schema_json
+      - mermaid_diagram
+      - risk_level
+      - status
+      - created_by_agent_run_id
+      - version
+      - created_at
+      - updated_at
+      title: TechnicalDesignRead
+      description: 技术设计响应结构。
+    ToolCallCreate:
+      properties:
+        agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Run Id
+          description: 关联 AgentRun。
+        tool_name:
+          type: string
+          minLength: 1
+          title: Tool Name
+          description: 工具名称。
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+          description: 工具风险等级。
+        arguments_json:
+          additionalProperties: true
+          type: object
+          title: Arguments Json
+          description: 工具参数 JSON。
+        result_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Result Json
+          description: 工具结果 JSON。
+        status:
+          $ref: '#/components/schemas/ToolCallStatus'
+          description: 工具调用状态。
+          default: pending
+        approval_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Approval Id
+          description: 关联审批请求。
+      type: object
+      required:
+      - tool_name
+      - risk_level
+      title: ToolCallCreate
+      description: '开发/内部联调用 ToolCall 创建请求体。
+
+
+        M2 仅记录工具调用元数据和参数摘要，不执行真实工具调用。'
+    ToolCallRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Run Id
+        tool_name:
+          type: string
+          title: Tool Name
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        arguments_summary:
+          type: string
+          title: Arguments Summary
+        result_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Result Json
+        status:
+          $ref: '#/components/schemas/ToolCallStatus'
+        approval_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Approval Id
+        started_at:
+          type: string
+          format: date-time
+          title: Started At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+      type: object
+      required:
+      - id
+      - task_id
+      - agent_run_id
+      - tool_name
+      - risk_level
+      - arguments_summary
+      - result_json
+      - status
+      - approval_id
+      - started_at
+      - finished_at
+      title: ToolCallRead
+      description: 'ToolCall 响应结构。
+
+
+        响应只暴露 `arguments_summary`，避免把潜在敏感参数原样展示给控制台。
+
+        完整参数仍保存在数据库，后续审计视图可按权限读取。'
+    ToolCallStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - succeeded
+      - failed
+      - waiting_approval
+      - cancelled
+      title: ToolCallStatus
+      description: ToolCall 状态。
+servers:
+- url: http://127.0.0.1:18080
+  description: 本地开发平台 API

@@ -2,6 +2,25 @@
 
 > 来源：[设计书 11.2](../../云舵 CloudHelm 毕设设计书.md)  
 > 目的：汇总所有关键表结构；单表文档放在 tables 目录。
+
+## M2 实现状态
+
+`modules/platform-api/migrations/versions/20260708_0001_create_core_m2_tables.py`
+已创建 `projects`、`tasks`、`requirement_specs`、`technical_designs`、
+`agent_runs`、`tool_calls`、`approval_requests`、`event_logs`。迁移连接串来自
+`CLOUDHELM_DATABASE_URL`，本地开发默认使用
+`postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm`。
+
+M2 已落地索引：
+
+- `ix_tasks_project_status`
+- `ix_event_logs_task_created_at`
+- `ix_requirement_specs_task_status`
+- `ix_technical_designs_task_status`
+- `ix_agent_runs_task_status`
+- `ix_tool_calls_task_status`
+- `ix_approval_requests_task_status`
+
 ## 迁移要求
 
 - 使用 Alembic / Prisma Migrate 管理 schema 变更。

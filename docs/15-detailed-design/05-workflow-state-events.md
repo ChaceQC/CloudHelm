@@ -3,6 +3,32 @@
 > 来源：设计书 8.2、10 章、15 章  
 > 目的：把核心业务流程拆成状态、事件、参与模块和失败恢复路径。
 
+## M2 事件落地状态
+
+M2 已把以下事件写入真实 PostgreSQL `event_logs`：
+
+```text
+ProjectCreated
+TaskCreated
+TaskPaused
+TaskResumed
+TaskCancelled
+RequirementSpecCreated
+RequirementSpecApproved
+RequirementSpecChangesRequested
+TechnicalDesignCreated
+TechnicalDesignApproved
+TechnicalDesignChangesRequested
+AgentRunRecorded
+ToolCallRecorded
+ApprovalRequested
+ApprovalApproved
+ApprovalRejected
+```
+
+Timeline API 从 `event_logs` 按时间升序读取；SSE 端点输出当前已有事件并
+追加 heartbeat。M2 不做长连接实时推送，不使用内存事件队列模拟生产事件流。
+
 ## 1. 状态机总表
 
 |状态|进入条件|执行者|主要动作|退出条件|

@@ -54,13 +54,13 @@
 
 ### M2 数据模型、API 与事件底座
 
-- [ ] 实现 projects、tasks、requirement_specs、technical_designs、agent_runs、tool_calls、approval_requests、event_logs 基础表。
-- [ ] 建立 API、schemas、services、repositories、models 分层。
-- [ ] 实现 Project API 和 Task API。
-- [ ] 实现 Requirement / Design API。
-- [ ] 实现 Agent Run、Tool Call、Approval、Event Stream API。
-- [ ] 每次任务状态变化写入 `event_logs`。
-- [ ] 同步更新 `docs/08-api/` 和数据表文档。
+- [x] 实现 projects、tasks、requirement_specs、technical_designs、agent_runs、tool_calls、approval_requests、event_logs 基础表。
+- [x] 建立 API、schemas、services、repositories、models 分层。
+- [x] 实现 Project API 和 Task API。
+- [x] 实现 Requirement / Design API。
+- [x] 实现 Agent Run、Tool Call、Approval、Event Stream API。
+- [x] 每次任务状态变化写入 `event_logs`。
+- [x] 同步更新 `docs/08-api/` 和数据表文档。
 
 完成判定：能通过真实 API 创建项目和任务，并持久化事件日志。
 
@@ -158,4 +158,4 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1 已完成。下一步执行 M2：数据模型、API 与事件底座。详细执行计划见根目录 `PROJECT_PLAN.md`。
+当前 M0、M1、M2 已完成。下一步执行 M3：控制台任务主流程。详细执行计划见根目录 `PROJECT_PLAN.md`。

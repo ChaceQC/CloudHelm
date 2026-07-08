@@ -3,6 +3,28 @@
 > 来源：设计书 12 章  
 > 目的：把端点清单细化为资源模型、请求响应、状态码和事件副作用。
 
+## M2 落地状态
+
+- 后端模块：`modules/platform-api`。
+- API 根路径：`/api`，健康检查仍为 `/health`。
+- 已实现接口：Project、Task、Requirement、Technical Design、AgentRun、ToolCall、Approval、Timeline、SSE。
+- 响应契约：见 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`。
+- 错误结构：`code`、`message`、`detail`、`trace_id`。
+- 分页结构：`items` + `page.limit` + `page.next_cursor`。
+- 事件副作用：创建/状态变更类写操作必须追加 `event_logs`。
+- 边界：M2 不自动执行 Agent、不执行工具、不创建 Git PR、不部署远端环境。
+
+### M2 内部联调创建接口
+
+以下接口用于 M4/M5 接入前写入真实数据库记录，不能表述为 Agent 或 Tool
+Gateway 已经自动运行：
+
+```text
+POST /api/tasks/{task_id}/agent-runs
+POST /api/tasks/{task_id}/tool-calls
+POST /api/tasks/{task_id}/approvals
+```
+
 ## 1. API 通用规范
 
 ### 1.1 URL 与版本

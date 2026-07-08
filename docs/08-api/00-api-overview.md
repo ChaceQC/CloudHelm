@@ -2,6 +2,41 @@
 
 > 来源：[设计书 12 章](../../云舵 CloudHelm 毕设设计书.md)  
 > 目的：汇总平台对桌面端、Agent、部署和远端运维提供的 API 分组。
+
+## M2 实现状态
+
+M2 已在 `modules/platform-api` 接入真实 PostgreSQL 数据库，完成 Project、
+Task、Requirement、Technical Design、AgentRun、ToolCall、Approval 和 Event
+Timeline API。所有业务写操作由 service 层在同一事务中写业务表和
+`event_logs`；路由层不直接访问数据库。
+
+M2 统一错误响应：
+
+```json
+{
+  "code": "task_not_found",
+  "message": "任务不存在。",
+  "detail": null,
+  "trace_id": "请求链路 ID"
+}
+```
+
+分页响应使用 offset cursor 最小实现：
+
+```json
+{
+  "items": [],
+  "page": {
+    "limit": 50,
+    "next_cursor": null
+  }
+}
+```
+
+M2 明确不包含 Agent 自动执行、Tool Gateway 真实工具执行、Git PR、远端部署
+或监控业务逻辑；AgentRun、ToolCall 和 Approval 的创建接口仅用于后续模块
+接入前的内部联调和真实数据库记录。
+
 ## API 约定
 
 - REST 用于创建和查询资源。
