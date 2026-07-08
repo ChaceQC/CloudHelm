@@ -24,6 +24,12 @@
 - 新增 Development Plan 面板，读取 `GET /api/tasks/{task_id}/development-plans`，展示 Planner Agent 写入的任务图和风险 JSON。
 - 控制台文案明确 M4 不执行代码修改、Tool Gateway 工具、Git PR、远端部署或监控告警。
 
+## M5 落地状态
+
+- Tool Calls 面板展示真实 `tool_calls` 的工具名、风险等级、状态、参数摘要、幂等键、耗时、错误码、审批 ID、stdout/stderr 摘要和 `result_json`。
+- UI 继续参考 Codex 桌面端：低饱和深色面板、紧凑按钮、清晰边框和真实空态，不加入营销式大视觉。
+- 控制台不提供任意工具调用调试入口，避免用户从 UI 直接发起高风险动作；工具执行入口由 Platform API 和后续 Agent 流程控制。
+
 ## 设计书摘录
 
 ### 13.1 页面结构

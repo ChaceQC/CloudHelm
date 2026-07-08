@@ -17,6 +17,8 @@ import type {
   TaskCreateInput,
   TechnicalDesign,
   ToolCall,
+  ToolDeclaration,
+  ToolGatewayCallInput,
 } from '../types/api'
 import { TASK_EVENT_TYPES, parseTaskEvent } from '../types/events'
 
@@ -117,6 +119,14 @@ export function listAgentRuns(taskId: string): Promise<PageResponse<AgentRun>> {
 
 export function listToolCalls(taskId: string): Promise<PageResponse<ToolCall>> {
   return apiGet<PageResponse<ToolCall>>(`/api/tasks/${taskId}/tool-calls`)
+}
+
+export function listToolGatewayTools(): Promise<PageResponse<ToolDeclaration>> {
+  return apiGet<PageResponse<ToolDeclaration>>('/api/tool-gateway/tools')
+}
+
+export function callToolGateway(taskId: string, payload: ToolGatewayCallInput): Promise<ToolCall> {
+  return apiPost<ToolCall>(`/api/tasks/${taskId}/tool-gateway/call`, payload)
 }
 
 export function listApprovals(status?: ApprovalStatus): Promise<PageResponse<ApprovalRequest>> {

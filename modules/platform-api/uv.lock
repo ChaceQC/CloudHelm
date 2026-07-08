@@ -98,12 +98,13 @@ dev = [{ name = "pytest", specifier = ">=8.4.0" }]
 
 [[package]]
 name = "cloudhelm-platform-api"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "cloudhelm-agent-runtime" },
     { name = "cloudhelm-orchestrator" },
+    { name = "cloudhelm-tool-gateway" },
     { name = "fastapi" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -123,6 +124,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.18.5" },
     { name = "cloudhelm-agent-runtime", editable = "../agent-runtime" },
     { name = "cloudhelm-orchestrator", editable = "../orchestrator" },
+    { name = "cloudhelm-tool-gateway", editable = "../tool-gateway" },
     { name = "fastapi", specifier = ">=0.116.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pydantic", specifier = ">=2.11.0" },
@@ -136,6 +138,20 @@ dev = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "pytest", specifier = ">=8.4.0" },
 ]
+
+[[package]]
+name = "cloudhelm-tool-gateway"
+version = "0.4.0"
+source = { editable = "../tool-gateway" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.4.0" }]
 
 [[package]]
 name = "colorama"

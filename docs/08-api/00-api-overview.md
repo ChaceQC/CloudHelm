@@ -51,9 +51,16 @@ M2 统一错误响应：
 }
 ```
 
-M4 明确不包含 Tool Gateway 真实工具执行、Git PR、远端部署或监控业务逻辑；
-ToolCall 和 Approval 的创建接口仍仅用于后续模块接入前的内部联调和真实
-数据库记录。
+## M5 实现状态
+
+M5 新增 Tool Gateway API：
+
+```text
+GET    /api/tool-gateway/tools
+POST   /api/tasks/{task_id}/tool-gateway/call
+```
+
+低风险工具调用会通过 `modules/tool-gateway` 完成参数校验、策略检查和本地执行，并写入 `tool_calls` 与 `event_logs`。L3/L4 或工具声明要求审批时，只创建 `approval_requests`，不执行 handler。`POST /api/tasks/{task_id}/tool-calls` 仍保留为内部联调用记录接口，不建议作为真实工具执行入口。
 
 ## API 约定
 

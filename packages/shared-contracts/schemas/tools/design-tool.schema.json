@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/design-tool.schema.json",
+  "title": "CloudHelm Design Tool",
+  "description": "M5 Design Tool 将结构化设计要点渲染为 Markdown 草案。",
+  "type": "object",
+  "required": ["name", "risk_level", "requires_approval", "arguments"],
+  "properties": {
+    "name": { "type": "string", "const": "design.render_markdown" },
+    "risk_level": { "type": "string", "const": "L0" },
+    "requires_approval": { "type": "boolean", "const": false },
+    "arguments": {
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "decisions": { "type": "array", "items": { "type": "string" } },
+        "interfaces": { "type": "array", "items": { "type": "string" } },
+        "risks": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

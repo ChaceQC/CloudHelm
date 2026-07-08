@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,6 +23,13 @@ class ToolCall(UUIDPrimaryKeyMixin, Base):
         Index("ix_tool_calls_task_status", "task_id", "status"),
         Index("ix_tool_calls_agent_run_id", "agent_run_id"),
         Index("ix_tool_calls_started_at", "started_at"),
+        Index(
+            "ux_tool_calls_task_idempotency",
+            "task_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
     )
 
     task_id: Mapped[UUID] = mapped_column(
@@ -46,6 +53,13 @@ class ToolCall(UUIDPrimaryKeyMixin, Base):
     )
     result_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, comment="工具结果 JSON。")
     status: Mapped[str] = mapped_column(Text, nullable=False, comment="工具调用状态。")
+    idempotency_key: Mapped[str | None] = mapped_column(Text, comment="任务内幂等键。")
+    arguments_summary: Mapped[str | None] = mapped_column(Text, comment="脱敏参数摘要。")
+    result_summary: Mapped[str | None] = mapped_column(Text, comment="工具结果摘要。")
+    stdout_summary: Mapped[str | None] = mapped_column(Text, comment="stdout 截断摘要。")
+    stderr_summary: Mapped[str | None] = mapped_column(Text, comment="stderr 截断摘要。")
+    duration_ms: Mapped[int | None] = mapped_column(Integer, comment="工具调用耗时毫秒数。")
+    error_code: Mapped[str | None] = mapped_column(Text, comment="失败错误码。")
     approval_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("approval_requests.id", ondelete="SET NULL"),

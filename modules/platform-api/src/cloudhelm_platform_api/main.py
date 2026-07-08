@@ -23,6 +23,7 @@ from cloudhelm_platform_api.api.projects import router as project_router
 from cloudhelm_platform_api.api.requirements import router as requirement_router
 from cloudhelm_platform_api.api.tasks import router as task_router
 from cloudhelm_platform_api.api.tool_calls import router as tool_call_router
+from cloudhelm_platform_api.api.tool_gateway import router as tool_gateway_router
 from cloudhelm_platform_api.core.config import get_settings
 from cloudhelm_platform_api.schemas.common import ErrorResponse
 
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(development_plan_router)
     app.include_router(agent_run_router)
     app.include_router(tool_call_router)
+    app.include_router(tool_gateway_router)
     app.include_router(approval_router)
     app.include_router(event_router)
     app.include_router(orchestration_router)

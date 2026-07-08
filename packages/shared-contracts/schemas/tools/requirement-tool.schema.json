@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/requirement-tool.schema.json",
+  "title": "CloudHelm Requirement Tool",
+  "description": "M5 Requirement Tool 用于整理原始需求为结构化片段，不写库、不部署。",
+  "type": "object",
+  "required": ["name", "risk_level", "requires_approval", "arguments"],
+  "properties": {
+    "name": { "type": "string", "const": "requirement.normalize" },
+    "risk_level": { "type": "string", "const": "L0" },
+    "requires_approval": { "type": "boolean", "const": false },
+    "arguments": {
+      "type": "object",
+      "required": ["raw_input"],
+      "properties": {
+        "raw_input": { "type": "string", "minLength": 1 },
+        "constraints": { "type": "array", "items": { "type": "string" } },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

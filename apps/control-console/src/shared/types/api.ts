@@ -179,10 +179,34 @@ export interface ToolCall {
   risk_level: RiskLevel
   arguments_summary: string
   result_json: Record<string, JsonValue> | null
+  result_summary: string | null
+  stdout_summary: string | null
+  stderr_summary: string | null
+  duration_ms: number | null
+  error_code: string | null
   status: ToolCallStatus
   approval_id: string | null
+  idempotency_key: string | null
   started_at: string
   finished_at: string | null
+}
+
+export interface ToolDeclaration {
+  name: string
+  description: string
+  risk_level: RiskLevel
+  requires_approval: boolean
+  audit_fields: string[]
+  arguments_schema: Record<string, JsonValue>
+}
+
+export interface ToolGatewayCallInput {
+  agent_run_id?: string | null
+  tool_name: string
+  risk_level: RiskLevel
+  idempotency_key: string
+  arguments: Record<string, JsonValue>
+  reason: string
 }
 
 export interface ApprovalRequest {

@@ -1,0 +1,145 @@
+"""M5 Tool Gateway API 黑盒与事务副作用测试。"""
+
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from conftest import create_project, create_task
+
+
+def _task(client: TestClient) -> dict:
+    """创建测试任务。"""
+
+    project = create_project(client, "Tool Gateway 项目")
+    return create_task(client, project["id"], "执行 Tool Gateway")
+
+
+def test_list_tool_gateway_tools(client: TestClient) -> None:
+    """控制台能读取真实工具注册表。"""
+
+    response = client.get("/api/tool-gateway/tools")
+    assert response.status_code == 200, response.text
+    tool_names = {item["name"] for item in response.json()["items"]}
+    assert {"repo.read_file", "sandbox.run_command", "git.commit", "approval.request_remote_action"} <= tool_names
+
+
+def test_repo_tool_gateway_call_writes_tool_call_and_events(client: TestClient, tmp_path: Path) -> None:
+    """通过 API 调用 Repo Tool 会写 ToolCall 和事件。"""
+
+    task = _task(client)
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "tool_name": "repo.write_file",
+            "risk_level": "L1",
+            "idempotency_key": "repo-write-1",
+            "reason": "测试受控写入",
+            "arguments": {
+                "workspace_root": str(tmp_path),
+                "path": "notes/result.md",
+                "content": "CloudHelm M5",
+                "create_parent": True,
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert payload["tool_name"] == "repo.write_file"
+    assert payload["result_summary"]
+    assert (tmp_path / "notes" / "result.md").read_text(encoding="utf-8") == "CloudHelm M5"
+
+    timeline = client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
+    event_types = {event["event_type"] for event in timeline}
+    assert {"ToolCallStarted", "ToolCallSucceeded"} <= event_types
+
+
+def test_sandbox_tool_gateway_call_records_output_summary(client: TestClient, tmp_path: Path) -> None:
+    """Sandbox Tool 输出应摘要化写入 ToolCall。"""
+
+    task = _task(client)
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "tool_name": "sandbox.run_command",
+            "risk_level": "L1",
+            "idempotency_key": "sandbox-1",
+            "reason": "测试命令执行",
+            "arguments": {"workspace_root": str(tmp_path), "command": ["python", "-c", "print('api-sandbox-ok')"]},
+        },
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["status"] == "succeeded"
+    assert "api-sandbox-ok" in payload["stdout_summary"]
+
+
+def test_l3_tool_gateway_call_creates_approval_without_execution(client: TestClient) -> None:
+    """L3 工具只创建审批请求，ToolCall 保持 waiting_approval。"""
+
+    task = _task(client)
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "tool_name": "approval.request_remote_action",
+            "risk_level": "L3",
+            "idempotency_key": "approval-1",
+            "reason": "演示远端动作审批拦截",
+            "arguments": {
+                "action": "restart-demo-service",
+                "target_environment": "staging",
+                "reason": "验证审批链路",
+            },
+        },
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["status"] == "waiting_approval"
+    assert payload["approval_id"] is not None
+    assert payload["finished_at"] is None
+
+    approvals = client.get("/api/approvals", params={"status": "pending"}).json()["items"]
+    assert approvals[0]["id"] == payload["approval_id"]
+    assert approvals[0]["action"] == "approval.request_remote_action"
+
+
+def test_duplicate_idempotency_key_returns_traceable_conflict(client: TestClient, tmp_path: Path) -> None:
+    """重复幂等键返回稳定 409 错误和 trace_id。"""
+
+    task = _task(client)
+    body = {
+        "tool_name": "repo.read_file",
+        "risk_level": "L0",
+        "idempotency_key": "same-key",
+        "reason": "测试幂等键",
+        "arguments": {"workspace_root": str(tmp_path), "path": "README.md"},
+    }
+    (tmp_path / "README.md").write_text("# demo\n", encoding="utf-8")
+    first = client.post(f"/api/tasks/{task['id']}/tool-gateway/call", json=body)
+    assert first.status_code == 201, first.text
+    second = client.post(f"/api/tasks/{task['id']}/tool-gateway/call", json=body)
+    assert second.status_code == 409
+    error = second.json()
+    assert error["code"] == "duplicate_idempotency_key"
+    assert error["trace_id"]
+
+
+def test_sensitive_path_is_recorded_as_failed_tool_call(client: TestClient, tmp_path: Path) -> None:
+    """敏感文件访问被策略拒绝，并形成失败 ToolCall。"""
+
+    task = _task(client)
+    (tmp_path / ".env").write_text("TOKEN=secret", encoding="utf-8")
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "tool_name": "repo.read_file",
+            "risk_level": "L0",
+            "idempotency_key": "sensitive-1",
+            "reason": "验证敏感文件拒绝",
+            "arguments": {"workspace_root": str(tmp_path), "path": ".env"},
+        },
+    )
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload["status"] == "failed"
+    assert payload["error_code"] == "path_sensitive_file"

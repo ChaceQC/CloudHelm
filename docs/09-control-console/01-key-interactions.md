@@ -25,6 +25,12 @@
 - 推进 Planner：点击“推进一步”，Planner Agent 生成真实 `development_plans` 并创建开发计划审查审批。
 - 异常路径：缺少外部模型配置、非法状态或结构化输出失败时，控制台展示后端统一错误和 `trace_id`，不展示假结果。
 
+## M5 落地状态
+
+- Tool Calls 面板展示 M5 新增字段：`idempotency_key`、`duration_ms`、`result_summary`、`stdout_summary`、`stderr_summary`、`error_code` 和 `approval_id`。
+- L3 工具调用通过 Platform API 写入 `approval_requests` 后，控制台可在 Approval Panel 中看到真实待审批记录；审批通过不自动执行远端动作。
+- 无 ToolCall 记录时保持真实空态，不构造假命令、假 diff 或假测试输出。
+
 ## 设计书摘录
 
 ### 13.2 关键交互

@@ -492,3 +492,19 @@ SSE 事件类型：
   }
 }
 ```
+## M5 实现同步：Tool Gateway API
+
+### `GET /api/tool-gateway/tools`
+
+- 调用方：控制台、Agent Runtime、调试脚本。
+- 返回：分页结构，`items` 中包含工具名、描述、风险等级、是否需要审批、审计字段和参数 JSON Schema。
+- 权限：M5 单用户演示环境默认可读；后续按项目/角色过滤。
+
+### `POST /api/tasks/{task_id}/tool-gateway/call`
+
+- 调用方：后续 Agent Runtime 或开发调试脚本。
+- 请求：`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。
+- 成功响应：`ToolCallRead`，包含状态、参数摘要、结果摘要、stdout/stderr 摘要、耗时、错误码和审批 ID。
+- 幂等：同一 `task_id` 下重复 `idempotency_key` 返回 `409 duplicate_idempotency_key`。
+- 事件副作用：写入 `ToolCallStarted`，随后写入 `ToolCallSucceeded`、`ToolCallFailed` 或 `ApprovalRequested`。
+- 审批：L3/L4 或声明 `requires_approval=true` 时创建 `approval_requests`，ToolCall 状态为 `waiting_approval`，不执行工具。

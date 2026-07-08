@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: CloudHelm Platform API
   description: CloudHelm 平台 API。M4 提供真实数据库驱动的项目、任务、需求、设计、开发计划、审批、事件和 Agent 编排底座。
-  version: 0.3.0
+  version: 0.4.0
 paths:
   /health:
     get:
@@ -1667,6 +1667,108 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/tool-gateway/tools:
+    get:
+      tags:
+      - tool-gateway
+      summary: 列出 Tool Gateway 工具
+      description: 读取当前注册的本地工具声明。
+      operationId: list_tool_gateway_tools_api_tool_gateway_tools_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ToolDeclarationRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/tool-gateway/call:
+    post:
+      tags:
+      - tool-gateway
+      summary: 通过 Tool Gateway 执行本地工具
+      description: 执行低风险工具；L3/L4 或策略要求审批时只创建审批请求。
+      operationId: call_tool_gateway_api_tasks__task_id__tool_gateway_call_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ToolGatewayCallCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolCallRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/tasks/{task_id}/approvals:
     post:
       tags:
@@ -3015,6 +3117,22 @@ components:
       - items
       - page
       title: PageResponse[ToolCallRead]
+    PageResponse_ToolDeclarationRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ToolDeclarationRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[ToolDeclarationRead]
     ProjectCreate:
       properties:
         name:
@@ -3485,6 +3603,49 @@ components:
           - type: 'null'
           title: Approval Id
           description: 关联审批请求。
+        idempotency_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency Key
+          description: 任务内幂等键。
+        arguments_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Arguments Summary
+          description: 参数摘要。
+        result_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Summary
+          description: 结果摘要。
+        stdout_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stdout Summary
+          description: stdout 摘要。
+        stderr_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stderr Summary
+          description: stderr 摘要。
+        duration_ms:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Duration Ms
+          description: 执行耗时毫秒。
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+          description: 失败错误码。
       type: object
       required:
       - tool_name
@@ -3524,6 +3685,31 @@ components:
             type: object
           - type: 'null'
           title: Result Json
+        result_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Summary
+        stdout_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stdout Summary
+        stderr_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stderr Summary
+        duration_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Ms
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
         status:
           $ref: '#/components/schemas/ToolCallStatus'
         approval_id:
@@ -3532,6 +3718,11 @@ components:
             format: uuid
           - type: 'null'
           title: Approval Id
+        idempotency_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency Key
         started_at:
           type: string
           format: date-time
@@ -3551,8 +3742,14 @@ components:
       - risk_level
       - arguments_summary
       - result_json
+      - result_summary
+      - stdout_summary
+      - stderr_summary
+      - duration_ms
+      - error_code
       - status
       - approval_id
+      - idempotency_key
       - started_at
       - finished_at
       title: ToolCallRead
@@ -3573,3 +3770,76 @@ components:
       - cancelled
       title: ToolCallStatus
       description: ToolCall 状态。
+    ToolDeclarationRead:
+      properties:
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+        requires_approval:
+          type: boolean
+          title: Requires Approval
+        audit_fields:
+          items:
+            type: string
+          type: array
+          title: Audit Fields
+        arguments_schema:
+          additionalProperties: true
+          type: object
+          title: Arguments Schema
+      type: object
+      required:
+      - name
+      - description
+      - risk_level
+      - requires_approval
+      - audit_fields
+      - arguments_schema
+      title: ToolDeclarationRead
+      description: 控制台和 Agent 可见的工具声明。
+    ToolGatewayCallCreate:
+      properties:
+        agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Run Id
+          description: 触发工具调用的 AgentRun。
+        tool_name:
+          type: string
+          minLength: 1
+          title: Tool Name
+          description: 工具名称。
+        risk_level:
+          $ref: '#/components/schemas/RiskLevel'
+          description: 工具风险等级，必须与注册声明一致。
+        idempotency_key:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Idempotency Key
+          description: 任务内幂等键。
+        arguments:
+          additionalProperties: true
+          type: object
+          title: Arguments
+          description: 工具参数 JSON。
+        reason:
+          type: string
+          minLength: 1
+          title: Reason
+          description: 调用原因或审批说明。
+      type: object
+      required:
+      - tool_name
+      - risk_level
+      - idempotency_key
+      - reason
+      title: ToolGatewayCallCreate
+      description: 执行 Tool Gateway 调用的请求体。

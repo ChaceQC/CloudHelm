@@ -27,6 +27,12 @@ M4 自动创建两类审批请求：
 
 审批本身不执行工具、不修改代码、不部署远端环境；后续推进仍需调用 Orchestration API 或进入后续里程碑。
 
+## M5 Tool Gateway 使用方式
+
+- Tool Gateway 遇到 L3/L4 或工具声明 `requires_approval=true` 时，在同一事务内创建 `approval_requests`。
+- 关联 ToolCall 的 `status=waiting_approval`，`approval_id` 指向审批请求。
+- M5 审批通过或拒绝仍只记录决策，不自动补执行高风险工具；补执行语义留到后续 Release / Deploy 和审批恢复流程。
+
 ## 实现注意点
 
 - 请求和响应模型应写入 OpenAPI，并同步生成前端类型。

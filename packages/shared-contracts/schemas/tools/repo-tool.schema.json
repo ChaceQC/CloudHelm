@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/repo-tool.schema.json",
+  "title": "CloudHelm Repo Tool",
+  "description": "M5 Repo Tool 只允许在受控 workspace_root 内读、搜、列出和写入 UTF-8 文本文件。",
+  "type": "object",
+  "required": ["tools"],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "risk_level", "requires_approval", "arguments"],
+        "properties": {
+          "name": { "type": "string", "enum": ["repo.read_file", "repo.search_text", "repo.write_file", "repo.list_files"] },
+          "risk_level": { "type": "string", "enum": ["L0", "L1"] },
+          "requires_approval": { "type": "boolean", "const": false },
+          "arguments": {
+            "type": "object",
+            "required": ["workspace_root"],
+            "properties": {
+              "workspace_root": { "type": "string" },
+              "path": { "type": "string" },
+              "pattern": { "type": "string" },
+              "content": { "type": "string" },
+              "mode": { "type": "string", "enum": ["replace", "append"] },
+              "create_parent": { "type": "boolean" },
+              "glob": { "type": "string" },
+              "max_bytes": { "type": "integer", "minimum": 1 },
+              "max_matches": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

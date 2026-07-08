@@ -27,3 +27,9 @@ design.render_mermaid(diagram_spec)
     2. 工具调用必须记录到 `tool_calls`。
     3. 失败结果必须返回结构化错误，供 Orchestrator 判断重试、暂停或请求人工接管。
     4. 涉及远端环境、部署、回滚、删除、生产数据的操作必须走审批。
+
+## M5 落地
+
+- 已实现：`design.render_markdown`。
+- 该工具只将结构化设计字段渲染为 Markdown 草案，不写数据库、不生成迁移。
+- 风险等级为 L0，执行结果仍写入 ToolCall 审计。

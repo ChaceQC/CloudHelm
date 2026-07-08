@@ -10,6 +10,16 @@
 - L3：远端业务项目环境变更，必须审批。
 - L4：production 高危操作，必须人工审批。
 
+## M5 工具映射
+
+|工具|风险等级|M5 执行策略|
+|---|---|---|
+|`requirement.normalize` / `design.render_markdown`|L0|本地结构化转换，直接执行并审计。|
+|`repo.read_file` / `repo.search_text` / `repo.list_files`|L0|只读访问受控 `workspace_root`，敏感文件和越界路径拒绝。|
+|`repo.write_file` / `sandbox.run_command`|L1|本地开发写入或命令执行，默认允许但写入 ToolCall 和 EventLog。|
+|`git.create_branch` / `git.commit`|L2|只执行本地分支和本地提交，不 push、不创建远端 PR。|
+|`approval.request_remote_action`|L3|只创建 ApprovalRequest，不执行远端动作。|
+
 ## 设计书摘录
 
 ### 9.3 工具风险等级

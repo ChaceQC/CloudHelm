@@ -26,3 +26,9 @@ approval.takeover(task_id)
     2. 工具调用必须记录到 `tool_calls`。
     3. 失败结果必须返回结构化错误，供 Orchestrator 判断重试、暂停或请求人工接管。
     4. 涉及远端环境、部署、回滚、删除、生产数据的操作必须走审批。
+
+## M5 落地
+
+- 已实现：`approval.request_remote_action`。
+- 该工具是 L3 审批占位工具，只验证参数并创建 `ApprovalRequest`，不执行远端命令。
+- 审批通过或拒绝只改变审批状态；M5 不自动恢复执行高风险动作。

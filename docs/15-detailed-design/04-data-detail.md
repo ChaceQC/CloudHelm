@@ -322,3 +322,17 @@ suppressed
 - 删除字段必须先弃用，再清理。
 - destructive migration 必须生成 ApprovalRequest。
 - 生产扩展时对 event_logs 和 tool_calls 考虑分区表。
+## M5 实现同步：tool_calls 字段扩展
+
+M5 为 `tool_calls` 增加以下字段：
+
+|字段|类型|说明|
+|---|---|---|
+|`idempotency_key`|text nullable|同一任务内幂等键；非空时 `(task_id, idempotency_key)` 唯一。|
+|`arguments_summary`|text nullable|脱敏参数摘要。|
+|`result_summary`|text nullable|工具结果摘要。|
+|`stdout_summary` / `stderr_summary`|text nullable|命令输出截断摘要。|
+|`duration_ms`|integer nullable|执行耗时。|
+|`error_code`|text nullable|稳定失败码，例如 `path_sensitive_file`、`command_timeout`。|
+
+审批拦截时，`tool_calls.approval_id` 指向同事务创建的 `approval_requests.id`，状态为 `waiting_approval`，`finished_at` 为空。

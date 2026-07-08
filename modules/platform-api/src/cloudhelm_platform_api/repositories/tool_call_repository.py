@@ -27,6 +27,13 @@ class ToolCallRepository:
 
         return self.session.get(ToolCall, tool_call_id)
 
+    def get_by_task_idempotency_key(self, task_id: UUID, idempotency_key: str) -> ToolCall | None:
+        """按任务内幂等键读取 ToolCall。"""
+
+        return self.session.execute(
+            select(ToolCall).where(ToolCall.task_id == task_id, ToolCall.idempotency_key == idempotency_key).limit(1)
+        ).scalar_one_or_none()
+
     def list_by_task(self, task_id: UUID, limit: int, cursor: str | None) -> tuple[list[ToolCall], str | None]:
         """分页读取某个任务的工具调用。"""
 

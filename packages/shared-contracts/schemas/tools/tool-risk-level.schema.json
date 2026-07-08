@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/tools/tool-risk-level.schema.json",
   "title": "CloudHelm Tool Risk Level",
-  "description": "Tool Gateway 工具风险等级定义。M2 仅记录 ToolCall 与 ApprovalRequest；L3/L4 真实执行拦截在后续 Tool Gateway 阶段接入。",
+  "description": "Tool Gateway 工具风险等级定义。M5 已接入本地 Tool Gateway；L3/L4 只创建 ApprovalRequest，不执行真实动作。",
   "type": "object",
   "required": ["risk_level", "name", "requires_approval", "description"],
   "properties": {

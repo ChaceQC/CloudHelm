@@ -9,6 +9,14 @@
 - 执行前后都写入 tool_calls / event_logs。
 - 工具结果返回前需要脱敏和摘要化。
 
+## M5 落地状态
+
+- 新增 `modules/tool-gateway`，提供 `ToolRegistry`、`ToolGateway`、`ToolPolicy` 和默认本地工具集。
+- 执行流程为：查找工具声明 -> Pydantic 参数校验 -> 风险等级比对 -> L3/L4 审批拦截 -> handler 执行 -> 输出摘要和审计 hash。
+- Platform API 新增 `GET /api/tool-gateway/tools` 与 `POST /api/tasks/{task_id}/tool-gateway/call`，所有调用写入 `tool_calls` 和 `event_logs`。
+- L3/L4 或工具声明要求审批时，只创建 `approval_requests`，ToolCall 状态为 `waiting_approval`，不执行 handler。
+- M5 Sandbox Tool 暂用本地受控目录 + `subprocess` 超时，Docker sandbox、网络隔离和资源 quota 留到 M6 前置增强。
+
 ## 设计书摘录
 
 ### 9.1 为什么要单独设计 Tool Layer

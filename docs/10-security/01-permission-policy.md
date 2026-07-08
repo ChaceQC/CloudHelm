@@ -6,6 +6,12 @@
 
 MVP 可先用自研 Policy Engine；规则稳定后可迁移到 OPA/Rego。
 
+## M5 落地状态
+
+- `modules/tool-gateway/policies.py` 已实现本地 Tool Policy：路径边界、敏感文件拒绝、命令 denylist、环境变量白名单、超时上限和 L3/L4 审批判定。
+- Requirement / Architect / Planner 仍不直接调用工具；后续 Agent 接入时必须通过 Platform API 的 Tool Gateway service。
+- Coder Agent、Release Agent 和远端部署权限尚未开放，`approval.request_remote_action` 只用于验证 L3 审批链路。
+
 ## 设计书摘录
 
 ### 14.2 权限策略示例

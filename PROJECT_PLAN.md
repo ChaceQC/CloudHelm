@@ -4,26 +4,27 @@
 
 ## 1. 当前阶段
 
-M5：Tool Gateway 与本地工具层。
+M6：本地代码实现、测试与 PR 闭环。
 
 ## 2. 阶段目标
 
-在 M4 已完成 Requirement / Architect / Planner 结构化编排的基础上，建立所有后续 Agent 工具调用的统一入口。M5 只实现本地开发闭环所需的低风险工具底座，不执行远端部署、不接生产权限、不绕过审批。
+在 M5 已完成 Tool Gateway、Repo/Sandbox/Git 本地工具、审批拦截和审计记录的基础上，让 CloudHelm 能对一个受控 sample repo 完成最小本地开发闭环：
 
-本阶段目标：
+```text
+已审批的 Development Plan
+  -> Coder Agent 读取需求/设计/计划
+  -> 通过 Tool Gateway 修改 sample repo
+  -> Tester Agent 运行真实测试并记录报告
+  -> Reviewer Agent 检查 diff、测试结果和验收标准
+  -> Security Agent 执行本地可用安全检查
+  -> Git Tool 创建本地 branch/commit
+  -> Platform API 记录 PR 或等价 PR record
+  -> 控制台展示 diff、测试报告、审查结论、安全结果和 PR record
+```
 
-- 新增 `modules/tool-gateway`，实现工具注册、参数校验、风险等级、审批拦截、审计记录和执行结果脱敏摘要。
-- 新增最小 Tool Server / Adapter：Requirement Tool、Design Tool、Repo Tool、Sandbox Tool、Git Tool。
-- Repo Tool 支持在受控 worktree 内真实读取、搜索和写入文件；必须限制路径越界和敏感文件。
-- Sandbox Tool 支持在本地隔离目录执行命令、超时、中断、stdout/stderr 摘要和 artifact 记录；M5 可先不接 Docker，但必须说明隔离边界。
-- Git Tool 支持 `status`、`diff`、`branch`、`commit` 的本地受控操作；不自动 push，不创建远端 PR。
-- Platform API 新增 Tool Gateway 调用入口或内部 service，所有工具调用写入 `tool_calls` 和 `event_logs`。
-- 控制台展示真实 ToolCall 参数摘要、风险等级、状态、输出摘要和审批状态。
-- 同步 OpenAPI、工具 schema、模块契约、安全文档、测试记录、总排期和进度。
+M6 只做本地 sandbox / sample repo 闭环，不执行远端部署、不 push 到远端、不创建真实 GitHub/Gitea PR、不操作生产环境。若没有真实 Git 服务，必须生成等价 PR record 并在文档中说明边界。
 
-M5 不实现 Coder/Tester/Reviewer 的完整自动开发闭环，不执行远端 SSH、Docker Compose 部署、CI/CD、监控告警和生产环境操作。所有 L3/L4 动作只能创建 ApprovalRequest，不得自动执行。
-
-版本影响：M5 新增 Tool Gateway、工具 schema、ToolCall 执行语义和可能的新 API，属于兼容新增能力。完成后建议提升到 `0.4.0`，同步 `README.md`、`.env.example`、模块版本、OpenAPI 和相关文档。
+版本影响：M6 新增 Coder/Tester/Reviewer/Security Agent、sample repo、artifact/test/security report、PR record 或等价 API，属于兼容新增能力。完成后建议提升到 `0.5.0`，同步 `README.md`、`.env.example`、OpenAPI、控制台和相关文档。
 
 ## 3. 必须先参考的资料
 
@@ -31,49 +32,47 @@ M5 不实现 Coder/Tester/Reviewer 的完整自动开发闭环，不执行远端
 
 - `AGENTS.md`
 - `docs/14-roadmap/03-implementation-milestone-flow.md`
-- `docs/05-tool-layer/00-tool-gateway.md`
-- `docs/05-tool-layer/01-risk-levels.md`
-- `docs/05-tool-layer/02-mcp-tool-server-structure.md`
-- `docs/08-api/04-tool-call-api.md`
-- `docs/08-api/05-approval-api.md`
-- `docs/10-security/00-security-boundary.md`
-- `docs/10-security/01-permission-model.md`
-- `docs/10-security/02-audit-log.md`
 - `docs/15-detailed-design/00-mvp-scope-and-cutline.md`
 - `docs/15-detailed-design/01-module-contracts.md`
 - `docs/15-detailed-design/02-agent-tool-contract.md`
 - `docs/15-detailed-design/03-api-detail.md`
 - `docs/15-detailed-design/04-data-detail.md`
 - `docs/15-detailed-design/05-workflow-state-events.md`
-- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
-- `packages/shared-contracts/schemas/tools/tool-risk-level.schema.json`
+- `docs/15-detailed-design/07-testing-acceptance-matrix.md`
+- `docs/04-agents/` 下 Coder、Tester、Reviewer、Security 相关文档
+- `docs/05-tool-layer/00-tool-gateway.md`
+- `docs/05-tool-layer/tools/repo-tool.md`
+- `docs/05-tool-layer/tools/sandbox-tool.md`
+- `docs/05-tool-layer/tools/git-tool.md`
+- `docs/06-workflows/00-development-to-pr.md`
+- `docs/08-api/04-tool-call-api.md`
+- `docs/10-security/00-security-boundary.md`
+- `modules/tool-gateway/README.md`
 - `modules/platform-api/README.md`
-- `modules/orchestrator/README.md`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
 
 实现时应参考成熟方案和官方文档：
 
-- Pydantic / JSON Schema 参数校验。
-- Python `pathlib`、`subprocess`、`tempfile` 安全用法。
-- Git CLI 本地状态、diff、commit 的可审计调用方式。
-- Docker / sandbox 执行隔离实践；若暂不接 Docker，必须说明原因和替代边界。
-- MCP Tool Server 的工具声明、参数 schema、返回 schema 和错误结构。
-- pytest 对文件系统、命令超时、路径越界、审批拦截和事务副作用的测试实践。
+- FastAPI / SQLAlchemy 事务内写入 artifact、review、PR record 的做法。
+- pytest 测试报告和临时目录实践。
+- Git CLI 分支、diff、commit、format-patch 或本地 PR record 的可审计流程。
+- Semgrep / Python 安全检查或依赖审计的本地最小接入方式；如果工具不可用，应记录替代验证。
+- Docker sandbox 资源隔离实践；M6 前必须评估是否把 M5 本地 subprocess 边界增强为 Docker sandbox。
 
-本阶段搜索或查阅到的外部资料应归档到：
+本阶段检索或查阅到的外部资料应归档到：
 
 ```text
-informations/m5-tool-gateway/official-references.md
+informations/m6-code-test-pr/official-references.md
 ```
 
 ## 4. 本阶段不做的事项
 
-- 不让 Agent 直接调用 `subprocess`、Git、文件系统或 Docker；所有生产路径必须经 Tool Gateway。
-- 不执行远端 SSH、远端部署、服务重启、回滚、数据库 destructive migration 或生产环境动作。
-- 不自动 push、创建远端 PR、操作 GitHub/Gitea 远端。
-- 不把工具执行失败吞掉或伪装成功。
-- 不在生产代码中使用固定 ToolCall 结果、mock repo、假 stdout 或假 diff。
-- 不读取或写入 `.env`、密钥、私钥、证书、依赖目录、构建产物和工作区外路径。
-- 不新增复杂插件市场、多租户权限或分布式队列；M5 先完成本地可验证工具底座。
+- 不 push 到 GitHub/Gitea，不创建真实远端 PR；除非用户另行明确要求并提供远端。
+- 不执行远端 SSH、远端部署、Docker Compose 上线、服务重启、回滚或监控告警。
+- 不把 Agent 的代码修改写在 Platform API 路由或前端组件中。
+- 不让 Agent 绕过 Tool Gateway 直接读写文件、执行命令或调用 Git。
+- 不用 mock 代码、固定 diff、假测试报告、假 PR 链接冒充完成。
+- 不在 sample repo、测试报告、日志或 PR record 中写入真实密钥、Token、Cookie 或服务器地址。
 
 ## 5. 预检步骤
 
@@ -86,263 +85,7 @@ git status --short
 
 确认当前分支为 `dev`。若在 `main`，必须先切回 `dev` 或从 `dev` 拉出功能分支。
 
-### 5.2 后端 M4 基线
-
-```powershell
-docker compose -f infra/docker-compose.dev.yml up -d postgres
-cd modules/platform-api
-$env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
-uv run alembic upgrade head
-uv run pytest
-```
-
-### 5.3 Agent / Orchestrator 基线
-
-```powershell
-cd modules/agent-runtime
-uv run pytest
-
-cd ..\orchestrator
-uv run pytest
-```
-
-### 5.4 前端 M4 基线
-
-```powershell
-cd apps/control-console
-npm.cmd install
-npm.cmd run build
-```
-
-### 5.5 工具执行边界预检
-
-确认本地工具只作用于仓库内测试目录或 `examples/`：
-
-```powershell
-Get-ChildItem examples -Force
-Get-ChildItem modules -Force
-git status --short
-```
-
-若需要创建 sample worktree 或 sandbox 目录，优先放在 `examples/`、`tests/fixtures/` 或模块内临时目录，不得污染系统全局路径。
-
-## 6. 详细任务拆分
-
-### 6.1 创建 M5 资料归档
-
-创建：
-
-```text
-informations/m5-tool-gateway/official-references.md
-```
-
-必须覆盖：
-
-- Pydantic / JSON Schema 参数校验。
-- Python 安全路径处理和 subprocess 超时。
-- Git CLI 本地操作参考。
-- Docker / sandbox 隔离参考与取舍。
-- MCP Tool Server 工具契约参考。
-- pytest 文件系统和命令执行测试参考。
-
-完成后在 `PROJECT_PROGRESS.md` 记录已查阅资料和采用结论。
-
-### 6.2 补充共享工具契约
-
-建议新增或更新：
-
-```text
-packages/shared-contracts/schemas/tools/
-  tool-call-request.schema.json
-  tool-call-result.schema.json
-  repo-tool.schema.json
-  sandbox-tool.schema.json
-  git-tool.schema.json
-  requirement-tool.schema.json
-  design-tool.schema.json
-packages/shared-contracts/openapi/cloudhelm.openapi.yaml
-docs/15-detailed-design/02-agent-tool-contract.md
-docs/15-detailed-design/03-api-detail.md
-docs/15-detailed-design/04-data-detail.md
-```
-
-要求：
-
-- 每个工具声明工具名、参数 schema、返回 schema、风险等级、是否需要审批、审计字段。
-- ToolCallRequest 必须包含 `task_id`、`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。
-- ToolResult 必须包含 `status`、`summary`、`result_json`、`stdout_summary`、`stderr_summary`、`duration_ms`、`started_at`、`finished_at`、`error_code`。
-- L3/L4 工具 schema 必须标记 `requires_approval=true`，M5 只创建审批，不执行动作。
-
-### 6.3 建立 `modules/tool-gateway`
-
-建议新增：
-
-```text
-modules/tool-gateway/
-  pyproject.toml
-  README.md
-  src/cloudhelm_tool_gateway/
-    __init__.py
-    registry.py
-    gateway.py
-    policies.py
-    audit.py
-    schemas/
-      tool_call.py
-      repo.py
-      sandbox.py
-      git.py
-      requirement.py
-      design.py
-    tools/
-      repo_tool.py
-      sandbox_tool.py
-      git_tool.py
-      requirement_tool.py
-      design_tool.py
-    tests/
-      test_registry.py
-      test_policy.py
-      test_repo_tool.py
-      test_sandbox_tool.py
-      test_git_tool.py
-```
-
-要求：
-
-- `registry.py` 只负责注册和查找工具声明。
-- `gateway.py` 负责统一执行流程：校验参数 -> 判定风险 -> 审批拦截 -> 执行工具 -> 摘要脱敏 -> 返回结果。
-- `policies.py` 负责路径边界、风险等级、敏感文件、命令 allowlist/denylist、超时上限。
-- `audit.py` 负责形成可写入 Platform API 的审计摘要，不直接写数据库。
-- 工具实现不得直接依赖 FastAPI 路由；Platform API 通过 service 调用 Gateway。
-
-### 6.4 实现 Repo Tool
-
-建议工具：
-
-```text
-repo.read_file
-repo.search_text
-repo.write_file
-repo.list_files
-```
-
-要求：
-
-- 所有路径必须解析到允许的 `workspace_root` 内，禁止 `..` 越界、绝对路径越界和 symlink 越界。
-- 禁止读取或写入 `.env`、密钥、私钥、证书、依赖目录、构建产物、`.git` 内部文件。
-- `repo.write_file` 默认 L1；覆盖大量文件或敏感目录必须升级风险或拒绝。
-- 返回内容必须支持大小限制和摘要，避免把巨大文件完整写入 `tool_calls.result_json`。
-
-### 6.5 实现 Sandbox Tool
-
-建议工具：
-
-```text
-sandbox.run_command
-sandbox.collect_artifact
-```
-
-要求：
-
-- M5 可先使用本地受控工作目录 + `subprocess` 超时实现，并在 README 和进度中标明 Docker sandbox 留到 M6 前增强。
-- 命令必须包含 `cwd`、`timeout_seconds`、`env` 白名单和输出大小限制。
-- 默认禁止交互式命令、后台常驻服务、网络扫描、系统全局安装和删除工作区外文件。
-- stdout/stderr 必须摘要化，完整输出如需保存只能写入 artifact 路径。
-
-### 6.6 实现 Git Tool
-
-建议工具：
-
-```text
-git.status
-git.diff
-git.create_branch
-git.commit
-```
-
-要求：
-
-- 只操作受控 repo 根目录。
-- `git.status`、`git.diff` 为 L0/L1。
-- `git.create_branch`、`git.commit` 为 L2，M5 可执行本地操作但必须写审计。
-- 不允许 `push`、远端 PR、force reset、clean -fdx、rebase、tag release；这些留到后续阶段并需审批。
-
-### 6.7 扩展 Platform API ToolCall 执行入口
-
-建议新增或修改：
-
-```text
-modules/platform-api/src/cloudhelm_platform_api/api/tool_gateway.py
-modules/platform-api/src/cloudhelm_platform_api/schemas/tool_gateway.py
-modules/platform-api/src/cloudhelm_platform_api/services/tool_gateway_service.py
-modules/platform-api/src/cloudhelm_platform_api/services/tool_call_service.py
-```
-
-建议接口：
-
-```text
-POST /api/tasks/{task_id}/tool-gateway/call
-GET  /api/tool-gateway/tools
-```
-
-要求：
-
-- 写操作必须在 service 层完成事务和事件副作用。
-- 每次工具调用必须写 `tool_calls`，并写 `ToolCallStarted`、`ToolCallSucceeded`、`ToolCallFailed` 或 `ApprovalRequested`。
-- L3/L4 或策略要求审批时，创建 `approval_requests`，ToolCall 状态为 `waiting_approval`，不得执行工具。
-- API 返回统一错误结构和 `trace_id`。
-
-### 6.8 控制台接入 ToolCall 展示
-
-建议修改：
-
-```text
-apps/control-console/src/shared/types/api.ts
-apps/control-console/src/shared/api/cloudhelmApi.ts
-apps/control-console/src/features/tool-calls/ToolCallList.tsx
-apps/control-console/src/features/tasks/TaskDetail.tsx
-```
-
-要求：
-
-- 展示 ToolCall 的 `tool_name`、`risk_level`、`arguments_summary`、`status`、`approval_id`、`result_summary`、`error_code`。
-- 若新增工具调用演示入口，只能面向开发/调试，且必须清楚标注真实工具执行范围和风险等级。
-- 不展示假 ToolCall；无记录时保持真实空态。
-- UI 风格继续参考 Codex 桌面端：低饱和、面板式、紧凑按钮、清晰边框，不使用营销式大视觉。
-
-### 6.9 测试与验证设计
-
-后端至少新增：
-
-```text
-modules/tool-gateway/tests/test_registry.py
-modules/tool-gateway/tests/test_policy.py
-modules/tool-gateway/tests/test_repo_tool.py
-modules/tool-gateway/tests/test_sandbox_tool.py
-modules/tool-gateway/tests/test_git_tool.py
-modules/platform-api/tests/test_tool_gateway_api.py
-```
-
-黑盒测试要求：
-
-- 查询工具注册表。
-- 调用 `repo.read_file` 读取测试 fixture。
-- 调用 `repo.write_file` 写入受控临时文件。
-- 调用 `sandbox.run_command` 执行安全命令并记录输出摘要。
-- 调用 L3/L4 示例动作时只创建 ApprovalRequest，不执行工具。
-- 路径越界、敏感文件、非法命令、超时、重复 idempotency key 返回稳定错误和 `trace_id`。
-
-白盒测试要求：
-
-- Registry 重复注册、未知工具和 schema 校验分支。
-- Policy 风险升级、路径越界、敏感文件拒绝、命令拒绝。
-- Repo Tool symlink/绝对路径/`..` 越界分支。
-- Sandbox Tool 超时、stderr、非零退出码、输出截断。
-- Git Tool 非 repo、脏工作区、commit message 校验和禁止 push。
-- Platform API 事务：ToolCall、ApprovalRequest、EventLog 同步写入或同步回滚。
-
-至少执行：
+### 5.2 M5 基线验证
 
 ```powershell
 cd modules/tool-gateway
@@ -357,6 +100,204 @@ cd ..\..\apps\control-console
 npm.cmd run build
 ```
 
+### 5.3 sample repo 边界预检
+
+```powershell
+Get-ChildItem examples -Force
+Get-ChildItem modules/tool-gateway -Force
+```
+
+如果需要创建或重置 sample repo，必须放在 `examples/sample-repo-python/`，不得污染当前 CloudHelm 仓库根目录。
+
+## 6. 详细任务拆分
+
+### 6.1 创建 M6 资料归档
+
+创建：
+
+```text
+informations/m6-code-test-pr/official-references.md
+```
+
+至少覆盖：
+
+- FastAPI 示例项目结构。
+- pytest 命令、测试报告和临时目录。
+- Git 本地 branch/commit/format-patch/PR record 参考。
+- Semgrep 或替代本地安全检查方式。
+- Docker sandbox 增强取舍。
+
+完成后在 `PROJECT_PROGRESS.md` 记录已查阅资料和采用结论。
+
+### 6.2 准备 `examples/sample-repo-python`
+
+建议创建：
+
+```text
+examples/sample-repo-python/
+  README.md
+  pyproject.toml
+  src/sample_service/
+    __init__.py
+    main.py
+  tests/
+    test_health.py
+  Dockerfile
+  docker-compose.yml
+  demo-issues/
+    001-auth-profile.md
+```
+
+要求：
+
+- 提供真实 FastAPI `/health` 和 `/metrics` 起点。
+- 提供真实 pytest 测试，初始至少覆盖 `/health`。
+- `demo-issues/001-auth-profile.md` 描述后续演示需求：用户注册、登录、个人资料。
+- 初始化 sample repo 的独立 Git 仓库或可由 Git Tool 操作的受控目录；若嵌套 Git 不适合提交到主仓库，应记录原因并使用可复制初始化脚本。
+
+### 6.3 扩展共享契约与数据模型
+
+建议新增或更新：
+
+```text
+packages/shared-contracts/schemas/agents/coder-agent-output.schema.json
+packages/shared-contracts/schemas/agents/tester-agent-output.schema.json
+packages/shared-contracts/schemas/agents/reviewer-agent-output.schema.json
+packages/shared-contracts/schemas/agents/security-agent-output.schema.json
+packages/shared-contracts/schemas/artifacts/*.schema.json
+packages/shared-contracts/openapi/cloudhelm.openapi.yaml
+docs/15-detailed-design/03-api-detail.md
+docs/15-detailed-design/04-data-detail.md
+```
+
+数据层建议新增：
+
+- `artifacts`：保存 diff、测试报告、安全扫描报告、review 结果、PR record 等产物元数据。
+- `pull_request_records`：保存本地等价 PR record，包含 base/head、commit hash、diff summary、review status、artifact refs。
+- 必要时扩展 `agent_runs.structured_output_type` 枚举说明，不需要新增枚举表。
+
+### 6.4 实现 Agent Runtime 扩展
+
+建议新增：
+
+```text
+modules/agent-runtime/src/cloudhelm_agent_runtime/agents/
+  coder_agent.py
+  tester_agent.py
+  reviewer_agent.py
+  security_agent.py
+modules/agent-runtime/tests/
+  test_coder_agent.py
+  test_tester_agent.py
+  test_reviewer_agent.py
+  test_security_agent.py
+```
+
+要求：
+
+- Agent 输出必须结构化，使用 Pydantic model 校验。
+- Coder Agent 只生成可执行的文件修改计划和 Tool Gateway 调用请求，不直接写文件。
+- Tester Agent 输出测试命令、通过标准、报告路径和失败摘要。
+- Reviewer Agent 输出 diff 覆盖、验收标准匹配、风险和是否建议创建 PR record。
+- Security Agent 输出本地可用安全检查命令、结果摘要和剩余风险。
+
+### 6.5 扩展 Orchestrator 状态机
+
+建议新增 M6 阶段：
+
+```text
+PlanningApproved -> Implementing -> Testing -> Reviewing -> SecurityChecking -> ReadyForPR
+ReadyForPR -> Done
+```
+
+要求：
+
+- 只有开发计划审批通过后才能进入 Implementing。
+- 任一阶段失败必须进入 `failed` 或可重试状态，并写入 EventLog。
+- 状态机纯函数测试必须覆盖非法迁移、失败恢复和审批缺失。
+
+### 6.6 Platform API 编排与产物服务
+
+建议新增或修改：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/models/artifact.py
+modules/platform-api/src/cloudhelm_platform_api/models/pull_request_record.py
+modules/platform-api/src/cloudhelm_platform_api/services/local_development_service.py
+modules/platform-api/src/cloudhelm_platform_api/api/artifacts.py
+modules/platform-api/src/cloudhelm_platform_api/api/pull_request_records.py
+modules/platform-api/tests/test_local_development_workflow_api.py
+```
+
+要求：
+
+- service 层通过 M5 Tool Gateway 调用 Repo/Sandbox/Git Tool，不在路由里直接执行工具。
+- 每个阶段写入 AgentRun、ToolCall、Artifact、EventLog。
+- 测试报告、安全报告和 review 结论必须来自真实命令或真实 diff，不得固定返回。
+- PR record 必须关联任务、分支、commit hash、diff summary、测试报告、安全报告和 review 结论。
+
+### 6.7 控制台展示本地开发闭环
+
+建议修改：
+
+```text
+apps/control-console/src/features/diff-viewer/
+apps/control-console/src/features/tasks/TaskDetail.tsx
+apps/control-console/src/shared/types/api.ts
+apps/control-console/src/shared/api/cloudhelmApi.ts
+```
+
+要求：
+
+- 展示真实 diff summary、changed files、测试报告、安全报告、review 结论和 PR record。
+- 无记录时保持真实空态，不展示假 diff、假测试或假 PR 链接。
+- UI 继续参考 Codex 桌面端：低饱和、面板式、紧凑按钮、清晰边框。
+
+### 6.8 测试与验证设计
+
+黑盒测试至少覆盖：
+
+- 从 demo issue 创建任务并进入 M6 本地开发流程。
+- Coder 通过 Tool Gateway 修改 sample repo 文件。
+- Tester 运行 sample repo 的真实 pytest。
+- Reviewer 读取真实 diff 并输出 review 结论。
+- Git Tool 创建本地 branch/commit。
+- Platform API 返回真实 PR record。
+- 控制台构建通过并能展示真实产物字段。
+
+白盒测试至少覆盖：
+
+- Agent 输出 schema 成功与失败分支。
+- Orchestrator M6 状态迁移和非法迁移。
+- Artifact / PR record service 的事务一致性。
+- Tool Gateway 调用失败时 workflow 的失败记录和 EventLog。
+- Git Tool 脏工作区、无变更、commit message 校验。
+- Tester 命令失败、超时、stderr、报告截断。
+
+至少执行：
+
+```powershell
+cd modules/tool-gateway
+uv run pytest
+
+cd ..\agent-runtime
+uv run pytest
+
+cd ..\orchestrator
+uv run pytest
+
+cd ..\platform-api
+$env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
+uv run alembic upgrade head
+uv run pytest
+
+cd ..\..\examples\sample-repo-python
+uv run pytest
+
+cd ..\..\apps\control-console
+npm.cmd run build
+```
+
 ## 7. 文档同步
 
 必须更新：
@@ -364,45 +305,43 @@ npm.cmd run build
 ```text
 README.md
 .env.example
-modules/tool-gateway/README.md
+examples/sample-repo-python/README.md
+modules/agent-runtime/README.md
+modules/orchestrator/README.md
 modules/platform-api/README.md
 apps/control-console/README.md
-docs/05-tool-layer/*.md
-docs/08-api/04-tool-call-api.md
+docs/04-agents/*.md
+docs/06-workflows/00-development-to-pr.md
+docs/08-api/*.md
 docs/09-control-console/*.md
 docs/10-security/*.md
-docs/15-detailed-design/01-module-contracts.md
-docs/15-detailed-design/02-agent-tool-contract.md
-docs/15-detailed-design/03-api-detail.md
-docs/15-detailed-design/04-data-detail.md
-docs/15-detailed-design/05-workflow-state-events.md
+docs/15-detailed-design/*.md
 docs/14-roadmap/03-implementation-milestone-flow.md
 PROJECT_PROGRESS.md
 ```
 
 要求：
 
-- 文档必须说明 M5 能力边界：只完成本地工具入口和审计，不执行远端部署。
-- 若 Sandbox 暂不接 Docker，必须说明临时隔离边界和 M6 前补强计划。
-- OpenAPI、工具 schema、事件名称和控制台展示字段必须保持一致。
+- 文档必须说明 M6 是本地 sample repo 闭环，不是远端部署闭环。
+- 如果没有真实远端 Git 服务，PR record 必须明确是等价记录。
+- 如果 Docker sandbox 仍未接入，必须写明原因、边界和 M7 前风险。
 
-## 8. M5 完成判定
+## 8. M6 完成判定
 
-只有全部满足才算 M5 完成：
+只有全部满足才算 M6 完成：
 
-- Tool Gateway 能注册工具并统一执行校验、策略、审批、审计和结果摘要。
-- Repo Tool、Sandbox Tool、Git Tool 至少完成 M5 要求的真实本地功能。
-- L3/L4 或策略要求审批的工具不会执行，只创建 ApprovalRequest 和 waiting_approval ToolCall。
-- 每次工具调用都写入真实 `tool_calls` 和 `event_logs`。
-- 控制台能展示真实 ToolCall 记录、风险等级、状态、输出摘要和审批关联。
-- 路径越界、敏感文件、非法命令、超时和工具失败均可追溯。
-- `modules/tool-gateway`、`modules/platform-api`、`apps/control-console` 验证通过。
+- sample repo 可独立运行 `/health` 和 pytest。
+- Coder/Tester/Reviewer/Security Agent 都有结构化输出和测试。
+- 代码修改、测试命令和 Git 操作都经过 Tool Gateway。
+- sample repo 产生真实 diff、测试报告、review 结论、安全结果和本地 commit。
+- Platform API 记录 artifact 和 PR record，并写入 EventLog。
+- 控制台展示真实 diff/test/security/review/PR record 信息。
+- `modules/tool-gateway`、`modules/agent-runtime`、`modules/orchestrator`、`modules/platform-api`、`examples/sample-repo-python`、`apps/control-console` 验证通过。
 - `PROJECT_PROGRESS.md`、总排期流程和下一阶段 `PROJECT_PLAN.md` 已同步。
 
 ## 9. 风险与处理
 
-- 如果 Docker sandbox 引入成本过高：M5 可先使用本地受控目录 + subprocess 超时，但必须在 README、进度和安全文档标明边界，并把 Docker 隔离补强列入 M6 前置任务。
-- 如果 Repo Tool 路径边界不稳定：先停止写工具，仅保留只读工具，修复路径策略后再开放写入。
-- 如果 Git Tool 可能混入无关改动：commit 工具必须要求显式文件列表并复查 diff；验证失败不得提交。
-- 如果 Tool Gateway 与 Platform API 事务冲突：先补 service 契约，确保 ToolCall、ApprovalRequest、EventLog 在同一事务内一致。
-- 如果验证失败：不得把 M5 任务打钩，不得提交“完成”类 commit；修复后必须执行回归测试。
+- 如果 Docker sandbox 增强成本过高：M6 可以继续使用 M5 本地受控目录，但必须限制在 sample repo，并把 Docker 隔离列为 M7 前置风险。
+- 如果真实安全扫描工具不可用：先实现可复现的本地静态检查或依赖检查，并记录替代验证和后续补强。
+- 如果 Git Tool 可能影响 CloudHelm 主仓库：sample repo 必须使用独立目录和显式 `repo_root`，测试前后检查 `git status --short`。
+- 如果 workflow 任一工具失败：必须写失败 AgentRun、ToolCall 和 EventLog，不得伪装成功。

@@ -203,3 +203,15 @@ TakeoverRequested
 - 重试工具调用不得重复创建多个 PR 或重复部署同一版本。
 - 等待审批的 workflow 恢复时应重新读取 approval 状态。
 - 服务重启、回滚等动作执行前再次检查目标环境和版本。
+## M5 实现同步：Tool Gateway 事件
+
+Tool Gateway API 在同一数据库事务中写入以下事件：
+
+|事件|触发条件|关键载荷|
+|---|---|---|
+|`ToolCallStarted`|收到有效工具调用并通过任务/AgentRun/幂等校验|`tool_call_id`、`tool_name`、`risk_level`|
+|`ToolCallSucceeded`|低风险工具执行成功|`summary`、`tool_call_id`、`risk_level`|
+|`ToolCallFailed`|参数、策略或执行失败并形成失败 ToolCall|`summary`、`error_code`、`tool_call_id`|
+|`ApprovalRequested`|L3/L4 或工具声明要求审批|`approval_id`、`tool_call_id`、`tool_name`、`risk_level`|
+
+M5 不实现审批通过后的自动恢复执行；审批决策仍由 Approval API 记录，后续里程碑再补高风险动作恢复语义。

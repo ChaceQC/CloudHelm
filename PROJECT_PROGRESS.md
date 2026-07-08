@@ -433,3 +433,66 @@
 - 已同步当前 M1 计划中的工具/依赖安装约束。
 - 已用 UTF-8 检查并更新 `AGENTS.md`、`PROJECT_PLAN.md`、`PROJECT_PROGRESS.md` 和总排期流程中的 `informations/` 资料归档规则。
 - 已对 `informations/m1-foundation/official-references.md` 中的官方链接执行 HTTP HEAD 检查，FastAPI、uv、Vite、Tauri、OpenAPI、JSON Schema 链接均返回 200。
+
+## 2026-07-08
+
+### 已完成
+
+- 完成 M5：新增 `modules/tool-gateway` 独立模块，包含 `ToolRegistry`、`ToolGateway`、`ToolPolicy`、审计摘要和默认本地工具注册。
+- 实现 Requirement Tool、Design Tool、Repo Tool、Sandbox Tool、Git Tool 和 L3 审批占位工具 `approval.request_remote_action`。
+- Repo Tool 支持受控 `workspace_root` 内真实读、搜、列、写，并拒绝越界、symlink 越界、敏感文件、依赖目录和构建产物。
+- Sandbox Tool 支持本地受控目录命令执行、超时、环境变量白名单、stdout/stderr 摘要和 artifact 元数据收集；Docker sandbox 暂未接入，已记录为 M6 前置增强。
+- Git Tool 支持本地 `status`、`diff`、`create_branch`、`commit`，不实现 push、rebase、tag、远端 PR。
+- Platform API 新增 `GET /api/tool-gateway/tools` 和 `POST /api/tasks/{task_id}/tool-gateway/call`，工具调用写入 `tool_calls` 与 `event_logs`，L3 调用创建 `approval_requests` 且 ToolCall 为 `waiting_approval`。
+- 为 `tool_calls` 增加 `idempotency_key`、`arguments_summary`、`result_summary`、`stdout_summary`、`stderr_summary`、`duration_ms`、`error_code` 字段和任务内幂等唯一索引。
+- 控制台 ToolCall 面板展示真实工具名、风险等级、状态、参数摘要、幂等键、耗时、错误码、审批 ID、stdout/stderr 摘要和 result JSON；UI 保持 Codex 式低饱和面板风格。
+- 新增 M5 工具 schema、更新 OpenAPI、README、`.env.example`、Tool Layer、安全、API、控制台、详细设计和共享契约文档。
+- 创建 `informations/m5-tool-gateway/official-references.md`，归档 Pydantic、Python pathlib/subprocess、Git、Docker、MCP、pytest 官方资料和采用结论。
+- 更新总排期流程，将 M5 任务标记完成；重写 `PROJECT_PLAN.md` 指向 M6“本地代码实现、测试与 PR 闭环”详细计划。
+
+### 进行中
+
+- M6 尚未开始实现；当前已准备好 M6 的文档依据、任务拆分、预检步骤和完成判定。
+
+### 阻塞与风险
+
+- Sandbox Tool 目前是本地受控目录 + `subprocess` 超时，并非 Docker sandbox；已在 README、M5 资料归档、安全文档和 M6 计划中记录，M6 前需评估是否增强隔离。
+- `uv run pytest` 仍出现 FastAPI/Starlette TestClient 关于 `httpx` 的弃用提示，不影响 M5 通过；后续可在依赖升级阶段处理。
+- M5 不执行远端部署、不 push、不创建真实远端 PR；这些能力留到 M6/M7 后续阶段。
+
+### 下一步
+
+- 按 `PROJECT_PLAN.md` 执行 M6，创建 `examples/sample-repo-python` 和 M6 资料归档。
+- 扩展 Coder/Tester/Reviewer/Security Agent 结构化输出和 Orchestrator M6 状态机。
+- 在 Platform API 增加 artifact、test/security report、review 结论和 PR record 数据流。
+- 控制台展示真实 diff、测试报告、安全结果、review 结论和 PR record。
+
+### 涉及文件
+
+- `modules/tool-gateway/**`
+- `modules/platform-api/**`
+- `apps/control-console/**`
+- `packages/shared-contracts/**`
+- `informations/m5-tool-gateway/official-references.md`
+- `docs/05-tool-layer/**`
+- `docs/08-api/**`
+- `docs/09-control-console/**`
+- `docs/10-security/**`
+- `docs/15-detailed-design/**`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `README.md`
+- `.env.example`
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+
+### 验证
+
+- 已执行 `docker compose -f infra/docker-compose.dev.yml up -d postgres`，PostgreSQL 容器处于 Running。
+- 已执行 `cd modules/tool-gateway; uv run pytest`，结果：`14 passed`。
+- 已执行 `cd modules/platform-api; uv run alembic upgrade head`，结果：迁移到 head 成功。
+- 已执行 `cd modules/platform-api; uv run pytest`，结果：`21 passed, 1 warning`。
+- 已执行 `cd modules/agent-runtime; uv run pytest`，结果：`5 passed`。
+- 已执行 `cd modules/orchestrator; uv run pytest`，结果：`3 passed`。
+- 已执行 `cd apps/control-console; npm.cmd run build`，结果：TypeScript 编译和 Vite build 成功。
+- 已执行 `python -m json.tool` 验证 `packages/shared-contracts/schemas/**/*.json`，结果：15 个 JSON schema 文件语法有效。
+- 已用 PyYAML 解析 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`，结果：`version=0.4.0`，paths 数量为 34。

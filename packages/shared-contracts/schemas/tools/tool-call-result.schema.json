@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/tool-call-result.schema.json",
+  "title": "CloudHelm ToolCallResult",
+  "description": "M5 Tool Gateway 执行结果。waiting_approval 表示工具未执行，只应创建 ApprovalRequest。",
+  "type": "object",
+  "required": ["status", "summary", "started_at", "arguments_summary"],
+  "properties": {
+    "status": { "type": "string", "enum": ["succeeded", "failed", "waiting_approval"] },
+    "summary": { "type": "string" },
+    "result_json": { "type": ["object", "null"], "additionalProperties": true },
+    "stdout_summary": { "type": ["string", "null"] },
+    "stderr_summary": { "type": ["string", "null"] },
+    "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "error_code": { "type": ["string", "null"] },
+    "requires_approval": { "type": "boolean" },
+    "approval_reason": { "type": ["string", "null"] },
+    "arguments_summary": { "type": "string" },
+    "audit_json": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

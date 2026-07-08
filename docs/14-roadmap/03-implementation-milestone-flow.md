@@ -88,12 +88,12 @@
 
 ### M5 Tool Gateway 与本地工具层
 
-- [ ] 实现 Tool Gateway 参数校验、权限判断、风险等级、限流和审计记录。
-- [ ] 实现 Requirement Tool 和 Design Tool。
-- [ ] 实现 Repo Tool，支持真实读取和写入 worktree。
-- [ ] 实现 Sandbox Tool，支持 Docker sandbox 命令执行、超时和 artifact 收集。
-- [ ] 实现 Git Tool，支持 diff、branch、commit。
-- [ ] 控制台展示 tool_calls 的工具名、参数摘要、风险等级、状态和输出摘要。
+- [x] 实现 Tool Gateway 参数校验、权限判断、风险等级、限流和审计记录。
+- [x] 实现 Requirement Tool 和 Design Tool。
+- [x] 实现 Repo Tool，支持真实读取和写入 worktree。
+- [x] 实现 Sandbox Tool，支持本地受控目录命令执行、超时和 artifact 收集；Docker sandbox 留到 M6 前置增强。
+- [x] 实现 Git Tool，支持 diff、branch、commit。
+- [x] 控制台展示 tool_calls 的工具名、参数摘要、风险等级、状态和输出摘要。
 
 完成判定：Agent 工具调用必须经过 Tool Gateway，且 `tool_calls` 有完整记录。
 
@@ -158,4 +158,4 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1、M2、M3、M4 已完成。下一步执行 M5：Tool Gateway 与本地工具层。详细执行计划见根目录 `PROJECT_PLAN.md`。
+当前 M0、M1、M2、M3、M4、M5 已完成。下一步执行 M6：本地代码实现、测试与 PR 闭环。详细执行计划见根目录 `PROJECT_PLAN.md`。

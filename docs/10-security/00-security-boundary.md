@@ -8,6 +8,13 @@
 - 代码修改只允许发生在 sandbox worktree。
 - 密钥不落日志，高风险数据库和部署动作必须审批。
 
+## M5 本地工具边界
+
+- Repo Tool 使用 `Path.resolve()` 与 `relative_to()` 限制在 `workspace_root` 内，并拒绝 `.env`、私钥、证书、`.git`、依赖目录和构建产物。
+- Sandbox Tool 使用命令数组和环境变量白名单，不允许 shell 字符串、高危命令、全局安装、网络扫描或后台常驻服务。
+- Git Tool 只允许本地 `status`、`diff`、`switch -c`、显式路径 `commit`；不允许 push、force reset、clean、rebase、tag release。
+- L3/L4 工具只创建审批请求，不执行远端副作用。
+
 ## 设计书摘录
 
 ### 14.1 安全边界

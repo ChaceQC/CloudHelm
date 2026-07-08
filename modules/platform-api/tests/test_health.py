@@ -12,6 +12,6 @@ def test_health_returns_runtime_metadata(client: TestClient) -> None:
     data = response.json()
     assert data["service"] == "cloudhelm-platform-api"
     assert data["status"] == "ok"
-    assert data["version"] == "0.3.0"
+    assert data["version"] == "0.4.0"
     assert data["environment"] == "test"
     assert isinstance(data["timestamp"], str)

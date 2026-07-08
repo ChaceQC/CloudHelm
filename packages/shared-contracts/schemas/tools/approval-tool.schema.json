@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/approval-tool.schema.json",
+  "title": "CloudHelm Approval Tool",
+  "description": "M5 L3 审批占位工具，只创建 ApprovalRequest，不执行远端动作。",
+  "type": "object",
+  "required": ["name", "risk_level", "requires_approval", "arguments"],
+  "properties": {
+    "name": { "type": "string", "const": "approval.request_remote_action" },
+    "risk_level": { "type": "string", "const": "L3" },
+    "requires_approval": { "type": "boolean", "const": true },
+    "arguments": {
+      "type": "object",
+      "required": ["action", "target_environment", "reason"],
+      "properties": {
+        "action": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "target_environment": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

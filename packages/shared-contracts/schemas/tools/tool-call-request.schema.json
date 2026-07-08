@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/tool-call-request.schema.json",
+  "title": "CloudHelm ToolCallRequest",
+  "description": "M5 Tool Gateway 统一工具调用请求。调用方必须提供任务、工具名、风险等级、幂等键、参数和调用原因。",
+  "type": "object",
+  "required": ["task_id", "tool_name", "risk_level", "idempotency_key", "arguments", "reason"],
+  "properties": {
+    "task_id": { "type": "string", "format": "uuid" },
+    "agent_run_id": { "type": ["string", "null"], "format": "uuid" },
+    "tool_name": { "type": "string", "minLength": 1 },
+    "risk_level": { "type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"] },
+    "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "arguments": { "type": "object", "additionalProperties": true },
+    "reason": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

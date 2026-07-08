@@ -1,13 +1,14 @@
 [project]
 name = "cloudhelm-platform-api"
-version = "0.3.0"
-description = "CloudHelm 平台 API 数据模型、API、事件与 M4 Agent 编排底座。"
+version = "0.4.0"
+description = "CloudHelm 平台 API 数据模型、API、事件、Agent 编排与 M5 Tool Gateway 入口。"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.18.5",
   "cloudhelm-agent-runtime",
   "cloudhelm-orchestrator",
+  "cloudhelm-tool-gateway",
   "fastapi>=0.116.0",
   "psycopg[binary]>=3.3.4",
   "pydantic>=2.11.0",
@@ -32,6 +33,7 @@ packages = ["src/cloudhelm_platform_api"]
 [tool.uv.sources]
 cloudhelm-agent-runtime = { path = "../agent-runtime", editable = true }
 cloudhelm-orchestrator = { path = "../orchestrator", editable = true }
+cloudhelm-tool-gateway = { path = "../tool-gateway", editable = true }
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

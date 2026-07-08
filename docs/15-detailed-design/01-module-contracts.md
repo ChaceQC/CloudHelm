@@ -304,3 +304,15 @@ flowchart LR
 
 - 输入：工具调用、审批、远端会话、部署、回滚、人工接管。
 - 输出：append-only EventLog，可按 task/project/environment 查询。
+## M5 实现同步：Tool Gateway 模块契约
+
+`modules/tool-gateway` 已作为独立 Python 包接入 Platform API，模块边界如下：
+
+- `registry.py`：只负责注册和查找 `ToolDeclaration`，不执行工具、不写数据库。
+- `gateway.py`：统一执行查找、参数校验、风险等级比对、审批拦截、handler 调用和审计摘要。
+- `policies.py`：统一处理 workspace 路径边界、敏感文件、命令 denylist、环境变量白名单和超时上限。
+- `audit.py`：生成参数摘要、hash 和输出截断，不直接持久化。
+- `tools/`：实现 Requirement、Design、Repo、Sandbox、Git 以及 L3 审批占位工具。
+- Platform API 只能通过 `ToolGatewayService` 调用本模块，并在同一事务内写入 `tool_calls`、`approval_requests` 和 `event_logs`。
+
+M5 Sandbox Tool 的隔离边界是本地受控目录 + `subprocess` 超时；Docker sandbox 留到 M6 前置增强。

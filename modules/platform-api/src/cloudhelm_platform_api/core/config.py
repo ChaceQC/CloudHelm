@@ -3,7 +3,8 @@
 配置通过环境变量注入，避免把数据库地址、端口、环境、版本和后续外部
 服务地址写死在业务代码中。M2 开始接入 PostgreSQL，所有数据库连接均
 从 `CLOUDHELM_DATABASE_URL` 读取，便于本地开发、测试和后续部署环境
-使用不同配置。M4 增加 Agent provider 配置；真实密钥只允许通过环境变量
+使用不同配置。M4 增加 Agent provider 配置；M5 增加 Tool Gateway 入口。
+真实密钥只允许通过环境变量
 注入，不能提交到 Git。
 """
 
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.3.0", description="当前服务版本。")
+    version: str = Field(default="0.4.0", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",

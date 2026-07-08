@@ -220,3 +220,20 @@ M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。Im
 - `result_summary`
 - `error_code`
 - `created_at`
+## M5 实现同步：工具声明与风险等级
+
+M5 默认工具声明如下：
+
+|工具名|风险|审批|说明|
+|---|---|---|---|
+|`requirement.normalize`|L0|否|整理原始需求为结构化片段。|
+|`design.render_markdown`|L0|否|渲染设计 Markdown 草案。|
+|`repo.read_file` / `repo.search_text` / `repo.list_files`|L0|否|只读访问受控 worktree。|
+|`repo.write_file`|L1|否|写入受控 worktree 内 UTF-8 文件。|
+|`sandbox.run_command`|L1|否|在本地受控目录执行非交互命令，支持超时和输出摘要。|
+|`sandbox.collect_artifact`|L0|否|收集本地 sandbox 产物元数据。|
+|`git.status` / `git.diff`|L0|否|读取本地 Git 状态和 diff。|
+|`git.create_branch` / `git.commit`|L2|否|创建本地分支和显式文件列表提交，不 push。|
+|`approval.request_remote_action`|L3|是|只创建审批请求，不执行远端动作。|
+
+ToolCallRequest 必须包含 `task_id`、`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。ToolCallResult 必须包含 `status`、`summary`、`result_json`、`stdout_summary`、`stderr_summary`、`duration_ms`、`started_at`、`finished_at`、`error_code`、`arguments_summary` 和审计摘要。

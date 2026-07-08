@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/git-tool.schema.json",
+  "title": "CloudHelm Git Tool",
+  "description": "M5 Git Tool 只允许 status、diff、create_branch、commit，不允许 push、force reset、rebase 或 tag release。",
+  "type": "object",
+  "required": ["tools"],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "risk_level", "requires_approval", "arguments"],
+        "properties": {
+          "name": { "type": "string", "enum": ["git.status", "git.diff", "git.create_branch", "git.commit"] },
+          "risk_level": { "type": "string", "enum": ["L0", "L2"] },
+          "requires_approval": { "type": "boolean", "const": false },
+          "arguments": {
+            "type": "object",
+            "required": ["repo_root"],
+            "properties": {
+              "repo_root": { "type": "string" },
+              "porcelain": { "type": "boolean" },
+              "paths": { "type": "array", "items": { "type": "string" } },
+              "context_lines": { "type": "integer", "minimum": 0, "maximum": 20 },
+              "branch_name": { "type": "string", "minLength": 1, "maxLength": 80 },
+              "message": { "type": "string", "minLength": 3, "maxLength": 200 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

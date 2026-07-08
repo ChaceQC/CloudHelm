@@ -26,3 +26,9 @@ requirement.ask_clarification(task_id, questions)
     2. 工具调用必须记录到 `tool_calls`。
     3. 失败结果必须返回结构化错误，供 Orchestrator 判断重试、暂停或请求人工接管。
     4. 涉及远端环境、部署、回滚、删除、生产数据的操作必须走审批。
+
+## M5 落地
+
+- 已实现：`requirement.normalize`。
+- 该工具只根据输入整理 `user_story`、`constraints` 和 `acceptance_criteria`，不写数据库。
+- 风险等级为 L0，执行结果仍写入 ToolCall 审计。

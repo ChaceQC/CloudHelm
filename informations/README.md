@@ -11,7 +11,7 @@ informations/
 ├── m1-foundation/
 │   └── official-references.md
 ├── m5-tool-gateway/
-│   └── reference-projects.md
+│   └── official-references.md
 └── m7-deployment/
     └── remote-deploy-references.md
 ```
@@ -31,4 +31,3 @@ informations/
 - 真实服务器管理入口、数据库连接串或敏感运维信息。
 - 许可证不明的大段代码。
 - 第三方文档、博客或书籍的全文复制。
-

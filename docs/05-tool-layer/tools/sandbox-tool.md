@@ -26,3 +26,10 @@ sandbox.reset()
     2. 工具调用必须记录到 `tool_calls`。
     3. 失败结果必须返回结构化错误，供 Orchestrator 判断重试、暂停或请求人工接管。
     4. 涉及远端环境、部署、回滚、删除、生产数据的操作必须走审批。
+
+## M5 落地
+
+- 已实现：`sandbox.run_command`、`sandbox.collect_artifact`。
+- M5 暂用本地受控目录 + `subprocess` 超时，不接 Docker，不提供 shell 接管。
+- 命令必须是数组形式，默认拒绝 shell、高危删除、网络扫描、SSH、全局依赖安装和后台常驻命令。
+- stdout/stderr 只保存摘要，完整 artifact 只允许在 workspace 内收集元数据。
