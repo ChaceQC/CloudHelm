@@ -70,6 +70,11 @@
 - 已执行 `python -m json.tool` 验证事件 schema 和工具风险等级 schema。
 - 已用 `yaml.safe_load` 验证 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`，确认版本为 `0.2.0` 且包含 `/api/tasks`。
 - 已执行 `git diff --check`，结果通过。
+- 已在 `dev` 提交 `d163eb2`：`feat: 完成 M2 数据模型与 API 底座`。
+- 首次执行 `git push origin dev` 遇到 TLS 握手失败，已立即重试成功，远端 `dev` 更新到 `d163eb2`。
+- 合并 `dev` 到 `main` 前已再次执行 `uv run pytest`（`11 passed, 1 warning`）和 `npm.cmd run build`（成功）。
+- 已执行 `git diff main..dev --stat`、`git log --oneline --decorate --graph --max-count=20` 和 `git status --short`，确认合并前差异与 M2 范围一致且工作区干净。
+- 已执行 `git switch main; git merge --ff-only dev; git push origin main; git switch dev`，远端 `main` 更新到 `d163eb2`，当前工作分支恢复为 `dev`。
 
 ## 2026-07-08（测试流程规范补充）
 
