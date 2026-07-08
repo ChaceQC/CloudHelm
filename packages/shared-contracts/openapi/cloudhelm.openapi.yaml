@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M2/M3 提供真实数据库驱动的项目、任务、需求、设计、审批、事件底座和控制台主流程。
-  version: 0.2.1
+  description: CloudHelm 平台 API。M4 提供真实数据库驱动的项目、任务、需求、设计、开发计划、审批、事件和 Agent 编排底座。
+  version: 0.3.0
 paths:
   /health:
     get:
@@ -1178,6 +1178,131 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/development-plans:
+    get:
+      tags:
+      - development-plans
+      summary: 分页读取任务开发计划
+      description: 读取 Planner Agent 写入的真实 DevelopmentPlan。
+      operationId: list_development_plans_api_tasks__task_id__development_plans_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: offset cursor。
+          title: Cursor
+        description: offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_DevelopmentPlanRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/development-plans/{plan_id}:
+    get:
+      tags:
+      - development-plans
+      summary: 读取开发计划
+      description: 读取单个 DevelopmentPlan。
+      operationId: get_development_plan_api_development_plans__plan_id__get
+      parameters:
+      - name: plan_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Plan Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevelopmentPlanRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/tasks/{task_id}/agent-runs:
     post:
       tags:
@@ -1977,6 +2102,178 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/orchestration:
+    get:
+      tags:
+      - orchestration
+      summary: 读取 M4 编排状态
+      description: 读取任务当前 M4 阶段和下一步动作。
+      operationId: get_orchestration_state_api_tasks__task_id__orchestration_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationStateRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/start:
+    post:
+      tags:
+      - orchestration
+      summary: 启动 M4 编排
+      description: 从 Created 进入 RequirementClarifying，不执行工具。
+      operationId: start_orchestration_api_tasks__task_id__start_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/OrchestrationActionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationStepRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/run-next:
+    post:
+      tags:
+      - orchestration
+      summary: 推进一个 M4 Agent 步骤
+      description: 根据当前阶段运行 Requirement / Architect / Planner 的一个最小步骤。
+      operationId: run_next_orchestration_step_api_tasks__task_id__run_next_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/OrchestrationActionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestrationStepRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     AgentRunCreate:
@@ -2002,6 +2299,37 @@ components:
           - type: 'null'
           title: Prompt Hash
           description: Prompt 哈希。
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+          description: 结构化输出或失败摘要。
+        structured_output_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Structured Output Type
+          description: 结构化输出类型。
+        structured_output_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Structured Output Json
+          description: 结构化输出 JSON。
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+          description: 失败错误码。
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Message
+          description: 失败错误信息。
         input_tokens:
           type: integer
           minimum: 0.0
@@ -2056,6 +2384,32 @@ components:
           - type: string
           - type: 'null'
           title: Prompt Hash
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+        structured_output_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Structured Output Type
+        structured_output_json:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Structured Output Json
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Message
         input_tokens:
           type: integer
           title: Input Tokens
@@ -2084,6 +2438,11 @@ components:
       - status
       - model_name
       - prompt_hash
+      - summary
+      - structured_output_type
+      - structured_output_json
+      - error_code
+      - error_message
       - input_tokens
       - output_tokens
       - cost_usd
@@ -2211,6 +2570,82 @@ components:
       type: object
       title: DecisionRequest
       description: 审批、通过或要求修改类动作的请求体。
+    DevelopmentPlanRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        technical_design_id:
+          type: string
+          format: uuid
+          title: Technical Design Id
+        summary:
+          type: string
+          title: Summary
+        steps_json:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Steps Json
+        risks_json:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Risks Json
+        status:
+          $ref: '#/components/schemas/DevelopmentPlanStatus'
+        version:
+          type: integer
+          title: Version
+        created_by_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Created By Agent Run Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - task_id
+      - project_id
+      - technical_design_id
+      - summary
+      - steps_json
+      - risks_json
+      - status
+      - version
+      - created_by_agent_run_id
+      - created_at
+      - updated_at
+      title: DevelopmentPlanRead
+      description: DevelopmentPlan 响应结构。
+    DevelopmentPlanStatus:
+      type: string
+      enum:
+      - ready_for_review
+      - approved
+      - changes_requested
+      title: DevelopmentPlanStatus
+      description: DevelopmentPlan 审查状态。
     ErrorResponse:
       properties:
         code:
@@ -2318,6 +2753,100 @@ components:
         字段需要与 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
 
         保持一致，确保前端和后续部署健康检查使用同一契约。'
+    OrchestrationActionRequest:
+      properties:
+        actor_id:
+          type: string
+          minLength: 1
+          title: Actor Id
+          description: 操作人或调用组件。
+          default: control-console
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: 用户或系统给出的推进原因。
+      type: object
+      title: OrchestrationActionRequest
+      description: 启动或推进编排的请求体。
+    OrchestrationStateRead:
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+          description: 任务 ID。
+        current_phase:
+          type: string
+          title: Current Phase
+          description: 当前阶段。
+        next_action:
+          type: string
+          title: Next Action
+          description: 下一步可执行动作。
+        plan_exists:
+          type: boolean
+          title: Plan Exists
+          description: 是否已有 DevelopmentPlan。
+        design_approved:
+          type: boolean
+          title: Design Approved
+          description: 是否已有通过的设计。
+      type: object
+      required:
+      - task_id
+      - current_phase
+      - next_action
+      - plan_exists
+      - design_approved
+      title: OrchestrationStateRead
+      description: 任务当前 M4 编排状态摘要。
+    OrchestrationStepRead:
+      properties:
+        task:
+          $ref: '#/components/schemas/TaskRead'
+          description: 推进后的任务状态。
+        action:
+          type: string
+          title: Action
+          description: 实际执行或等待的动作。
+        message:
+          type: string
+          title: Message
+          description: 面向控制台的说明。
+        agent_run:
+          anyOf:
+          - $ref: '#/components/schemas/AgentRunRead'
+          - type: 'null'
+          description: 本次生成的 AgentRun。
+        requirement:
+          anyOf:
+          - $ref: '#/components/schemas/RequirementSpecRead'
+          - type: 'null'
+          description: 本次生成的 RequirementSpec。
+        technical_design:
+          anyOf:
+          - $ref: '#/components/schemas/TechnicalDesignRead'
+          - type: 'null'
+          description: 本次生成的 TechnicalDesign。
+        development_plan:
+          anyOf:
+          - $ref: '#/components/schemas/DevelopmentPlanRead'
+          - type: 'null'
+          description: 本次生成的 DevelopmentPlan。
+        approval:
+          anyOf:
+          - $ref: '#/components/schemas/ApprovalRequestRead'
+          - type: 'null'
+          description: 本次创建或等待的审批。
+      type: object
+      required:
+      - task
+      - action
+      - message
+      title: OrchestrationStepRead
+      description: 一次 M4 编排推进结果。
     PageInfo:
       properties:
         limit:
@@ -2374,6 +2903,22 @@ components:
       - items
       - page
       title: PageResponse[ApprovalRequestRead]
+    PageResponse_DevelopmentPlanRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/DevelopmentPlanRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[DevelopmentPlanRead]
     PageResponse_EventLogRead_:
       properties:
         items:
@@ -3028,6 +3573,3 @@ components:
       - cancelled
       title: ToolCallStatus
       description: ToolCall 状态。
-servers:
-- url: http://127.0.0.1:18080
-  description: 本地开发平台 API

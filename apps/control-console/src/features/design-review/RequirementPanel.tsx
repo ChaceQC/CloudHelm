@@ -15,7 +15,7 @@ interface RequirementPanelProps {
  * Requirement Spec 展示和评审面板。
  *
  * 只展示数据库中已有的 `requirement_specs` 记录；为空时明确提示当前
- * 未接入 M4 Requirement Agent。
+ * 尚未运行 M4 Requirement Agent。
  */
 export function RequirementPanel({ requirements, onDecideRequirement }: RequirementPanelProps) {
   const [comment, setComment] = useState('')
@@ -39,7 +39,7 @@ export function RequirementPanel({ requirements, onDecideRequirement }: Requirem
     <section className="sub-panel" aria-labelledby="requirement-title">
       <h3 id="requirement-title">Requirement Spec / Acceptance Criteria</h3>
       {requirements.length === 0 ? (
-        <p className="empty-state">暂无真实 Requirement Spec。M3 不自动生成假需求规格。</p>
+        <p className="empty-state">暂无真实 Requirement Spec。请先在 M4 编排区启动并推进 Requirement Agent。</p>
       ) : null}
       <label className="decision-comment">
         评审意见

@@ -8,6 +8,16 @@
 - Scaffold / Coder / Tester / Reviewer 负责本地开发闭环。
 - Security / Release / Deploy / SRE 负责安全、Agent 化发布部署和远端业务运维闭环。
 
+## M4 落地状态
+
+M4 已新增 `modules/agent-runtime`，实现 Requirement、Architect、Planner 三类 Agent 的结构化输入输出和 provider 边界：
+
+- Requirement Agent 读取真实 Task，输出 `requirement_specs` 所需的 `user_story`、`constraints_json` 和 `acceptance_criteria_json`。
+- Architect Agent 读取最新 RequirementSpec，输出 `technical_designs` 所需的 ADR 正文、OpenAPI 草案、DB schema 草案、Mermaid 和风险等级。
+- Planner Agent 读取已通过 TechnicalDesign，输出 `development_plans` 的任务图和风险说明。
+
+M4 默认 provider 为 `local_structured`，它基于真实输入生成结构化草案并通过 Pydantic 校验；`openai_compatible` provider 仅在提供外部模型配置后启用。M4 不允许上述 Agent 调用 Repo、Sandbox、Git、Docker、SSH、部署或监控工具。
+
 ## 设计书摘录
 
 ### 8.1 Agent 角色

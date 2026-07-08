@@ -10,6 +10,24 @@ Task、Requirement、Technical Design、AgentRun、ToolCall、Approval 和 Event
 Timeline API。所有业务写操作由 service 层在同一事务中写业务表和
 `event_logs`；路由层不直接访问数据库。
 
+## M4 实现状态
+
+M4 在 M2/M3 基础上新增 Orchestration 与 DevelopmentPlan API：
+
+```text
+GET    /api/tasks/{task_id}/orchestration
+POST   /api/tasks/{task_id}/start
+POST   /api/tasks/{task_id}/run-next
+GET    /api/tasks/{task_id}/development-plans
+GET    /api/development-plans/{plan_id}
+```
+
+`start` 只负责把任务从 `Created` 推到 `RequirementClarifying`；`run-next`
+一次只推进 Requirement、Architect 或 Planner 的一个最小步骤。所有 Agent
+输出写入真实 `agent_runs`、`requirement_specs`、`technical_designs`、
+`development_plans` 和 `event_logs`。M4 不执行 Tool Gateway、Git、部署
+或监控动作。
+
 M2 统一错误响应：
 
 ```json
@@ -33,9 +51,9 @@ M2 统一错误响应：
 }
 ```
 
-M2 明确不包含 Agent 自动执行、Tool Gateway 真实工具执行、Git PR、远端部署
-或监控业务逻辑；AgentRun、ToolCall 和 Approval 的创建接口仅用于后续模块
-接入前的内部联调和真实数据库记录。
+M4 明确不包含 Tool Gateway 真实工具执行、Git PR、远端部署或监控业务逻辑；
+ToolCall 和 Approval 的创建接口仍仅用于后续模块接入前的内部联调和真实
+数据库记录。
 
 ## API 约定
 

@@ -38,6 +38,14 @@ class ReviewStatus(str, Enum):
     CHANGES_REQUESTED = "changes_requested"
 
 
+class DevelopmentPlanStatus(str, Enum):
+    """DevelopmentPlan 审查状态。"""
+
+    READY_FOR_REVIEW = "ready_for_review"
+    APPROVED = "approved"
+    CHANGES_REQUESTED = "changes_requested"
+
+
 class AgentRunStatus(str, Enum):
     """AgentRun 状态。"""
 

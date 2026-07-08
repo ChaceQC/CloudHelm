@@ -77,12 +77,12 @@
 
 ### M4 Agent 编排与规格化闭环
 
-- [ ] 实现 Orchestrator 状态机：Created -> Requirement -> Design -> Planning -> Waiting Approval。
-- [ ] 实现 Requirement Agent，输出需求规格和验收标准。
-- [ ] 实现 Architect Agent，输出 ADR、OpenAPI 草案、DB schema 草案和风险点。
-- [ ] 实现 Planner Agent，输出开发任务图和风险说明。
-- [ ] 定义并验证结构化输出 schema。
-- [ ] 控制台支持审批或要求修改需求/方案。
+- [x] 实现 Orchestrator 状态机：Created -> Requirement -> Design -> Planning -> Waiting Approval。
+- [x] 实现 Requirement Agent，输出需求规格和验收标准。
+- [x] 实现 Architect Agent，输出 ADR、OpenAPI 草案、DB schema 草案和风险点。
+- [x] 实现 Planner Agent，输出开发任务图和风险说明。
+- [x] 定义并验证结构化输出 schema。
+- [x] 控制台支持审批或要求修改需求/方案。
 
 完成判定：输入真实需求后，系统能生成结构化需求、技术方案和开发计划，并进入审批状态。
 
@@ -158,4 +158,4 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1、M2、M3 已完成。下一步执行 M4：Agent 编排与规格化闭环。详细执行计划见根目录 `PROJECT_PLAN.md`。
+当前 M0、M1、M2、M3、M4 已完成。下一步执行 M5：Tool Gateway 与本地工具层。详细执行计划见根目录 `PROJECT_PLAN.md`。

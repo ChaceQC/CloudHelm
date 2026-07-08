@@ -44,6 +44,9 @@ export function TaskTimeline({ agentRuns, events, streamStatus }: TaskTimelinePr
               <small>
                 tokens: {run.input_tokens}/{run.output_tokens} · cost: {run.cost_usd}
               </small>
+              {run.summary !== null ? <small>summary: {run.summary}</small> : null}
+              {run.structured_output_type !== null ? <small>output: {run.structured_output_type}</small> : null}
+              {run.error_code !== null ? <small className="error-text">error: {run.error_code}</small> : null}
             </article>
           ))}
         </div>

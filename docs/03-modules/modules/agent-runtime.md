@@ -7,6 +7,16 @@
 
 具体 Agent 实现，包括 Requirement、Planner、Architect、Coder、Tester、Reviewer、Security、Release、SRE 等角色。
 
+## M4 实现状态
+
+`modules/agent-runtime` 已实现 Requirement、Architect、Planner 三类 Agent：
+
+- Requirement Agent：生成需求规格、约束和验收标准。
+- Architect Agent：生成技术设计、OpenAPI 草案、DB schema 草案、Mermaid 和风险点。
+- Planner Agent：生成 Development Plan 任务图和风险说明。
+
+默认 provider 为 `local_structured`，基于真实任务输入规则化生成结构化草案；`openai_compatible` provider 预留外部模型 JSON Schema 输出路径。M4 中 Agent Runtime 不写数据库、不调用工具。
+
 ## 技术栈
 
 Python + LiteLLM + Pydantic structured output + LangGraph node。

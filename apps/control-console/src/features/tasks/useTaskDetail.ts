@@ -5,8 +5,10 @@ import {
   approveTechnicalDesign,
   getTask,
   getTimeline,
+  getOrchestrationState,
   listAgentRuns,
   listApprovals,
+  listDevelopmentPlans,
   listRequirements,
   listTechnicalDesigns,
   listToolCalls,
@@ -14,13 +16,18 @@ import {
   rejectApproval,
   requestRequirementChanges,
   requestTechnicalDesignChanges,
+  runNextTaskOrchestration,
+  startTaskOrchestration,
 } from '../../shared/api/cloudhelmApi'
 import { formatApiError } from '../../shared/api/formatters'
 import type {
   AgentRun,
   ApprovalRequest,
+  DevelopmentPlan,
   DecisionRequest,
   EventLog,
+  OrchestrationState,
+  OrchestrationStepResult,
   RequirementSpec,
   Task,
   TechnicalDesign,
@@ -31,10 +38,12 @@ interface TaskDetailData {
   task: Task
   requirements: RequirementSpec[]
   designs: TechnicalDesign[]
+  developmentPlans: DevelopmentPlan[]
   agentRuns: AgentRun[]
   toolCalls: ToolCall[]
   approvals: ApprovalRequest[]
   timeline: EventLog[]
+  orchestration: OrchestrationState | null
 }
 
 interface TaskDetailState {
@@ -47,7 +56,7 @@ interface TaskDetailState {
 /**
  * Task Detail 聚合 Hook。
  *
- * 详情页需要读取多个互不依赖的 M2 真实接口；使用 `Promise.all` 并发
+ * 详情页需要读取多个互不依赖的 M2-M4 真实接口；使用 `Promise.all` 并发
  * 请求，避免串行瀑布。审批和评审动作完成后重新读取详情，保证界面与
  * 数据库状态一致。
  */
@@ -67,14 +76,17 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
 
     setState((current) => ({ ...current, status: 'loading', error: null }))
     try {
-      const [task, requirements, designs, agentRuns, toolCalls, approvals, timeline] = await Promise.all([
+      const [task, requirements, designs, developmentPlans, agentRuns, toolCalls, approvals, timeline, orchestration] =
+        await Promise.all([
         getTask(taskId),
         listRequirements(taskId),
         listTechnicalDesigns(taskId),
+        listDevelopmentPlans(taskId),
         listAgentRuns(taskId),
         listToolCalls(taskId),
         listApprovals(),
         getTimeline(taskId),
+        getOrchestrationState(taskId),
       ])
       setState((current) => ({
         ...current,
@@ -83,10 +95,12 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
           task,
           requirements: requirements.items,
           designs: designs.items,
+          developmentPlans: developmentPlans.items,
           agentRuns: agentRuns.items,
           toolCalls: toolCalls.items,
           approvals: approvals.items.filter((approval) => approval.task_id === taskId),
           timeline: timeline.items,
+          orchestration,
         },
         error: null,
       }))
@@ -128,6 +142,30 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
     [refresh],
   )
 
+  const startOrchestration = useCallback(async (): Promise<OrchestrationStepResult> => {
+    if (taskId === null) {
+      throw new Error('未选择任务，无法启动编排。')
+    }
+    const result = await startTaskOrchestration(taskId, {
+      actor_id: 'control-console',
+      reason: '用户在控制台启动 M4 编排',
+    })
+    await refresh()
+    return result
+  }, [refresh, taskId])
+
+  const runNextOrchestration = useCallback(async (): Promise<OrchestrationStepResult> => {
+    if (taskId === null) {
+      throw new Error('未选择任务，无法推进编排。')
+    }
+    const result = await runNextTaskOrchestration(taskId, {
+      actor_id: 'control-console',
+      reason: '用户在控制台推进 M4 编排',
+    })
+    await refresh()
+    return result
+  }, [refresh, taskId])
+
   useEffect(() => {
     void refresh()
   }, [refresh, refreshKey])
@@ -153,5 +191,7 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
     decideRequirement,
     decideDesign,
     decideApproval,
+    startOrchestration,
+    runNextOrchestration,
   }
 }

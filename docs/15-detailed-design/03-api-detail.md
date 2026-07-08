@@ -14,6 +14,14 @@
 - 事件副作用：创建/状态变更类写操作必须追加 `event_logs`。
 - 边界：M2 不自动执行 Agent、不执行工具、不创建 Git PR、不部署远端环境。
 
+## M4 落地状态
+
+- 新增接口：`GET /api/tasks/{task_id}/orchestration`、`POST /api/tasks/{task_id}/start`、`POST /api/tasks/{task_id}/run-next`、`GET /api/tasks/{task_id}/development-plans`、`GET /api/development-plans/{plan_id}`。
+- `run-next` 一次只推进 Requirement、Architect 或 Planner 的一个步骤。
+- 结构化输出写入 `agent_runs.structured_output_json`，并同步落到 `requirement_specs`、`technical_designs` 或 `development_plans`。
+- 缺少外部 provider 配置、结构化输出校验失败和非法状态迁移均返回统一错误结构并写入可追溯事件。
+- 边界：M4 不执行 Tool Gateway、Repo/Git/Docker/SSH、PR、部署或监控动作。
+
 ### M2 内部联调创建接口
 
 以下接口用于 M4/M5 接入前写入真实数据库记录，不能表述为 Agent 或 Tool
@@ -253,6 +261,39 @@ MVP 使用：
 - 写入 `technical_designs`。
 - 写入 `TechnicalDesignProposed`。
 - 如果风险等级高，创建 ApprovalRequest。
+
+## 4.1 Development Plan API
+
+### GET /api/tasks/{task_id}/development-plans
+
+返回 Planner Agent 生成的开发计划列表：
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "task_id": "uuid",
+      "project_id": "uuid",
+      "technical_design_id": "uuid",
+      "summary": "M4 后续实现任务图",
+      "steps_json": [],
+      "risks_json": [],
+      "status": "ready_for_review",
+      "version": 1,
+      "created_by_agent_run_id": "uuid"
+    }
+  ],
+  "page": {
+    "limit": 50,
+    "next_cursor": null
+  }
+}
+```
+
+### GET /api/development-plans/{plan_id}
+
+读取单个 DevelopmentPlan。M4 不提供外部创建接口；计划只能由 Planner Agent 经 Orchestrator 写入。
 
 ## 5. Agent Run API
 

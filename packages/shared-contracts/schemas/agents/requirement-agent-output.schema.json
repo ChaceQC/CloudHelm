@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "AcceptanceCriterion": {
+      "description": "验收标准项。",
+      "properties": {
+        "id": {
+          "description": "稳定验收标准编号。",
+          "pattern": "^AC-[0-9]{3}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "description": "从用户视角可验证的验收描述。",
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "verification": {
+          "description": "建议验证方式，例如 pytest、API、manual。",
+          "minLength": 1,
+          "title": "Verification",
+          "type": "string"
+        },
+        "status": {
+          "default": "pending",
+          "description": "验收状态，M4 仅生成 pending。",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "verification"
+      ],
+      "title": "AcceptanceCriterion",
+      "type": "object"
+    },
+    "RequirementConstraint": {
+      "description": "需求约束项。\n\n约束必须说明类型、内容和是否硬性要求，避免后续 Architect / Planner\n只能依赖自然语言猜测边界。",
+      "properties": {
+        "type": {
+          "description": "约束类型，例如 technology、security、testing。",
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "description": "约束内容。",
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "description": "是否为必须满足的硬约束。",
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "RequirementConstraint",
+      "type": "object"
+    },
+    "RiskLevel": {
+      "description": "CloudHelm M4 复用的风险等级。\n\nL0/L1 可在 M4 内自动推进；L2 及以上需要进入设计审批或后续工具审批。",
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "title": "RiskLevel",
+      "type": "string"
+    }
+  },
+  "description": "Requirement Agent 输出。\n\nPlatform API 会把该对象映射到 `requirement_specs`，其中 JSON 数组字段\n直接由 `constraints` 和 `acceptance_criteria` 序列化得到。",
+  "properties": {
+    "summary": {
+      "description": "需求规格摘要。",
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "raw_input": {
+      "description": "保留的原始输入。",
+      "minLength": 1,
+      "title": "Raw Input",
+      "type": "string"
+    },
+    "user_story": {
+      "description": "用户故事。",
+      "minLength": 1,
+      "title": "User Story",
+      "type": "string"
+    },
+    "constraints": {
+      "description": "约束条件。",
+      "items": {
+        "$ref": "#/$defs/RequirementConstraint"
+      },
+      "minItems": 1,
+      "title": "Constraints",
+      "type": "array"
+    },
+    "acceptance_criteria": {
+      "description": "验收标准。",
+      "items": {
+        "$ref": "#/$defs/AcceptanceCriterion"
+      },
+      "minItems": 1,
+      "title": "Acceptance Criteria",
+      "type": "array"
+    },
+    "risk_level": {
+      "$ref": "#/$defs/RiskLevel",
+      "description": "需求阶段识别出的最高风险。"
+    }
+  },
+  "required": [
+    "summary",
+    "raw_input",
+    "user_story",
+    "constraints",
+    "acceptance_criteria",
+    "risk_level"
+  ],
+  "title": "RequirementAgentOutput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/requirement-agent-output.schema.json"
+}

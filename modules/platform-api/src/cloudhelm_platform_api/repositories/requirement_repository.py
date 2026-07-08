@@ -36,3 +36,13 @@ class RequirementRepository:
             .order_by(RequirementSpec.created_at, RequirementSpec.id)
         )
         return fetch_page(self.session, statement, limit, cursor)
+
+    def latest_by_task(self, task_id: UUID) -> RequirementSpec | None:
+        """读取任务最新需求规格。"""
+
+        return self.session.execute(
+            select(RequirementSpec)
+            .where(RequirementSpec.task_id == task_id)
+            .order_by(RequirementSpec.created_at.desc(), RequirementSpec.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()

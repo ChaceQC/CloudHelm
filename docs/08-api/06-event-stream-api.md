@@ -14,6 +14,18 @@ GET    /api/tasks/{task_id}/events/stream
 - SSE 端点基于真实事件输出当前已有事件并追加 heartbeat。
 - M2 暂不维护长连接实时推送；M3 控制台可通过重连或轮询刷新，后续事件总线阶段再升级为实时推送。
 
+## M4 新增事件
+
+M4 编排会追加以下事件：
+
+- `TaskPhaseChanged`
+- `AgentRunStarted`
+- `AgentRunCompleted`
+- `AgentRunFailed`
+- `DevelopmentPlanCreated`
+
+Requirement、Technical Design 和 Approval 继续复用 M2 已有事件类型。当前 SSE 仍基于 `event_logs` 回放已有事件并追加 heartbeat，不实现生产级事件总线。
+
 ## 实现注意点
 
 - 请求和响应模型应写入 OpenAPI，并同步生成前端类型。

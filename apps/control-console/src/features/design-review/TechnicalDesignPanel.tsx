@@ -38,7 +38,9 @@ export function TechnicalDesignPanel({ designs, onDecideDesign }: TechnicalDesig
   return (
     <section className="sub-panel" aria-labelledby="design-title">
       <h3 id="design-title">Technical Design / ADR</h3>
-      {designs.length === 0 ? <p className="empty-state">暂无真实 Technical Design。M3 不展示假 ADR。</p> : null}
+      {designs.length === 0 ? (
+        <p className="empty-state">暂无真实 Technical Design。请先完成 Requirement Agent 后继续推进 Architect Agent。</p>
+      ) : null}
       <label className="decision-comment">
         评审意见
         <textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={2} />

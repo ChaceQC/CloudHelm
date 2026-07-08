@@ -1,5 +1,5 @@
 /**
- * CloudHelm M2/M3 API 类型。
+ * CloudHelm M2-M4 API 类型。
  *
  * 本文件手写映射 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
  * 中当前控制台需要的 DTO。后续如接入 OpenAPI 类型生成器，应以该契约为
@@ -135,6 +135,23 @@ export interface TechnicalDesign {
   updated_at: string
 }
 
+export type DevelopmentPlanStatus = 'ready_for_review' | 'approved' | 'changes_requested'
+
+export interface DevelopmentPlan {
+  id: string
+  task_id: string
+  project_id: string
+  technical_design_id: string
+  summary: string
+  steps_json: Record<string, JsonValue>[]
+  risks_json: Record<string, JsonValue>[]
+  status: DevelopmentPlanStatus
+  version: number
+  created_by_agent_run_id: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface AgentRun {
   id: string
   task_id: string
@@ -142,6 +159,11 @@ export interface AgentRun {
   status: AgentRunStatus
   model_name: string | null
   prompt_hash: string | null
+  summary: string | null
+  structured_output_type: string | null
+  structured_output_json: Record<string, JsonValue> | null
+  error_code: string | null
+  error_message: string | null
   input_tokens: number
   output_tokens: number
   cost_usd: string
@@ -184,4 +206,28 @@ export interface EventLog {
   actor_id: string | null
   payload: Record<string, JsonValue>
   created_at: string
+}
+
+export interface OrchestrationActionRequest {
+  actor_id?: string
+  reason?: string | null
+}
+
+export interface OrchestrationState {
+  task_id: string
+  current_phase: string
+  next_action: string
+  plan_exists: boolean
+  design_approved: boolean
+}
+
+export interface OrchestrationStepResult {
+  task: Task
+  action: string
+  message: string
+  agent_run: AgentRun | null
+  requirement: RequirementSpec | null
+  technical_design: TechnicalDesign | null
+  development_plan: DevelopmentPlan | null
+  approval: ApprovalRequest | null
 }

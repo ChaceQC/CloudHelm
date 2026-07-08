@@ -3,8 +3,12 @@ import type {
   AgentRun,
   ApprovalRequest,
   ApprovalStatus,
+  DevelopmentPlan,
   DecisionRequest,
   EventLog,
+  OrchestrationActionRequest,
+  OrchestrationState,
+  OrchestrationStepResult,
   PageResponse,
   Project,
   ProjectCreateInput,
@@ -55,6 +59,24 @@ export function cancelTask(taskId: string, payload: DecisionRequest): Promise<Ta
   return apiPost<Task>(`/api/tasks/${taskId}/cancel`, payload)
 }
 
+export function getOrchestrationState(taskId: string): Promise<OrchestrationState> {
+  return apiGet<OrchestrationState>(`/api/tasks/${taskId}/orchestration`)
+}
+
+export function startTaskOrchestration(
+  taskId: string,
+  payload: OrchestrationActionRequest,
+): Promise<OrchestrationStepResult> {
+  return apiPost<OrchestrationStepResult>(`/api/tasks/${taskId}/start`, payload)
+}
+
+export function runNextTaskOrchestration(
+  taskId: string,
+  payload: OrchestrationActionRequest,
+): Promise<OrchestrationStepResult> {
+  return apiPost<OrchestrationStepResult>(`/api/tasks/${taskId}/run-next`, payload)
+}
+
 export function listRequirements(taskId: string): Promise<PageResponse<RequirementSpec>> {
   return apiGet<PageResponse<RequirementSpec>>(`/api/tasks/${taskId}/requirements`)
 }
@@ -72,6 +94,10 @@ export function requestRequirementChanges(
 
 export function listTechnicalDesigns(taskId: string): Promise<PageResponse<TechnicalDesign>> {
   return apiGet<PageResponse<TechnicalDesign>>(`/api/tasks/${taskId}/technical-designs`)
+}
+
+export function listDevelopmentPlans(taskId: string): Promise<PageResponse<DevelopmentPlan>> {
+  return apiGet<PageResponse<DevelopmentPlan>>(`/api/tasks/${taskId}/development-plans`)
 }
 
 export function approveTechnicalDesign(designId: string, payload: DecisionRequest): Promise<TechnicalDesign> {

@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "RiskLevel": {
+      "description": "CloudHelm M4 复用的风险等级。\n\nL0/L1 可在 M4 内自动推进；L2 及以上需要进入设计审批或后续工具审批。",
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "title": "RiskLevel",
+      "type": "string"
+    }
+  },
+  "description": "Architect Agent 输出。\n\n输出映射到 `technical_designs`。OpenAPI / DB schema 是草案，不执行迁移\n或真实工具调用。",
+  "properties": {
+    "summary": {
+      "description": "设计摘要。",
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "content_markdown": {
+      "description": "ADR / 技术设计正文。",
+      "minLength": 1,
+      "title": "Content Markdown",
+      "type": "string"
+    },
+    "openapi_json": {
+      "additionalProperties": true,
+      "description": "OpenAPI 草案 JSON。",
+      "title": "Openapi Json",
+      "type": "object"
+    },
+    "db_schema_json": {
+      "additionalProperties": true,
+      "description": "数据库 schema 草案 JSON。",
+      "title": "Db Schema Json",
+      "type": "object"
+    },
+    "mermaid_diagram": {
+      "description": "Mermaid 流程或模块图。",
+      "minLength": 1,
+      "title": "Mermaid Diagram",
+      "type": "string"
+    },
+    "risk_level": {
+      "$ref": "#/$defs/RiskLevel",
+      "description": "设计阶段最高风险。"
+    },
+    "risks": {
+      "description": "设计风险说明。",
+      "items": {
+        "type": "string"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "approval_recommended": {
+      "default": false,
+      "description": "是否建议进入人工设计审批。",
+      "title": "Approval Recommended",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "summary",
+    "content_markdown",
+    "openapi_json",
+    "db_schema_json",
+    "mermaid_diagram",
+    "risk_level"
+  ],
+  "title": "ArchitectAgentOutput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/architect-agent-output.schema.json"
+}

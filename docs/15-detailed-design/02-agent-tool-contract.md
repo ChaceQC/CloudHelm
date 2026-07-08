@@ -71,6 +71,19 @@
 |risks|风险列表|
 |artifacts|产物引用|
 
+## 2.1 M4 结构化输出落地
+
+M4 已将以下 schema 落地到共享契约：
+
+|文件|生产者|入库位置|
+|---|---|---|
+|`packages/shared-contracts/schemas/agents/requirement-agent-output.schema.json`|Requirement Agent|`requirement_specs`、`agent_runs.structured_output_json`|
+|`packages/shared-contracts/schemas/agents/architect-agent-output.schema.json`|Architect Agent|`technical_designs`、`agent_runs.structured_output_json`|
+|`packages/shared-contracts/schemas/agents/planner-agent-output.schema.json`|Planner Agent|`development_plans`、`agent_runs.structured_output_json`|
+|`packages/shared-contracts/schemas/agents/agent-run-output.schema.json`|Orchestrator|`agent_runs.structured_output_json`|
+
+M4 中 `tool_requests` 必须为空；任何 Repo、Sandbox、Git、Docker、SSH 或部署动作只能写入 DevelopmentPlan 或 ApprovalRequest，不能自动执行。
+
 ## 3. ToolCallRequest 契约
 
 ```json
@@ -178,6 +191,8 @@ ApprovalRequest 示例：
 |ReviewReport|Reviewer Agent|Orchestrator、Console|
 |SecurityReport|Security Agent|Reviewer、Release / Deploy Agent|
 |ReleasePlan|Release / Deploy Agent|Approval、Deployment Controller|
+
+M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。ImplementationResult 及之后的执行类 schema 留到 M5-M8。
 |IncidentAnalysis|SRE Agent|Console、Runbook|
 
 ## 8. Prompt 与输出稳定性要求

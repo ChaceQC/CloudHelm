@@ -36,3 +36,13 @@ class DesignRepository:
             .order_by(TechnicalDesign.created_at, TechnicalDesign.id)
         )
         return fetch_page(self.session, statement, limit, cursor)
+
+    def latest_by_task(self, task_id: UUID) -> TechnicalDesign | None:
+        """读取任务最新技术设计。"""
+
+        return self.session.execute(
+            select(TechnicalDesign)
+            .where(TechnicalDesign.task_id == task_id)
+            .order_by(TechnicalDesign.created_at.desc(), TechnicalDesign.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()

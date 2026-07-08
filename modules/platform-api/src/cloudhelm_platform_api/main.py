@@ -14,9 +14,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from cloudhelm_platform_api.api.agent_runs import router as agent_run_router
 from cloudhelm_platform_api.api.approvals import router as approval_router
 from cloudhelm_platform_api.api.designs import router as design_router
+from cloudhelm_platform_api.api.development_plans import router as development_plan_router
 from cloudhelm_platform_api.api.errors import register_exception_handlers
 from cloudhelm_platform_api.api.events import router as event_router
 from cloudhelm_platform_api.api.health import router as health_router
+from cloudhelm_platform_api.api.orchestration import router as orchestration_router
 from cloudhelm_platform_api.api.projects import router as project_router
 from cloudhelm_platform_api.api.requirements import router as requirement_router
 from cloudhelm_platform_api.api.tasks import router as task_router
@@ -35,7 +37,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="CloudHelm Platform API",
-        description="CloudHelm 平台 API。M2 提供真实数据库驱动的项目、任务、需求、设计、审批和事件底座。",
+        description="CloudHelm 平台 API。M4 提供真实数据库驱动的项目、任务、需求、设计、开发计划、审批、事件和 Agent 编排底座。",
         version=settings.version,
         responses={
             400: {"model": ErrorResponse, "description": "业务请求错误。"},
@@ -68,10 +70,12 @@ def create_app() -> FastAPI:
     app.include_router(task_router)
     app.include_router(requirement_router)
     app.include_router(design_router)
+    app.include_router(development_plan_router)
     app.include_router(agent_run_router)
     app.include_router(tool_call_router)
     app.include_router(approval_router)
     app.include_router(event_router)
+    app.include_router(orchestration_router)
     return app
 
 

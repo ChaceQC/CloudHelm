@@ -24,6 +24,17 @@ POST   /api/technical-designs/{design_id}/request-changes
 - 创建、审批通过和要求修改均写入 `event_logs`。
 - `clarify`、`acceptance-criteria`、`generate-openapi`、`generate-db-schema` 属于后续 Agent/Tool 阶段，M2 暂不实现。
 
+## M4 自动生成路径
+
+M4 的 Requirement / Architect Agent 不绕过 Platform API service：
+
+- Requirement Agent 成功后写入 `requirement_specs`，事件为 `RequirementSpecCreated`。
+- Architect Agent 成功后写入 `technical_designs`，事件为 `TechnicalDesignCreated`。
+- 低风险设计自动标记为 `approved` 并进入 `Planning`。
+- L2 及以上风险设计保持 `draft`，创建 `ApprovalRequest(action=approve_technical_design)`，任务进入 `WaitingDesignApproval`。
+
+控制台仍可使用既有 `approve` / `request-changes` API 完成人工评审；审批后再次调用 `run-next` 恢复到 Planning。
+
 ## 实现注意点
 
 - 请求和响应模型应写入 OpenAPI，并同步生成前端类型。

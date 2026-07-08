@@ -24,6 +24,18 @@ POST   /api/tasks/{task_id}/cancel
 - `GET /api/tasks` 支持 `limit`、`cursor` 和可选 `project_id` 过滤。
 - `takeover` 属于远程接管能力，M2 暂不实现。
 
+## M4 编排入口
+
+```text
+GET    /api/tasks/{task_id}/orchestration
+POST   /api/tasks/{task_id}/start
+POST   /api/tasks/{task_id}/run-next
+```
+
+- `start`：只允许从 `created` / `Created` 启动，进入 `running` / `RequirementClarifying`；重复调用已处于 M4 的任务返回幂等结果。
+- `run-next`：按当前阶段推进一个 Agent 步骤；未 start、非法阶段或缺少外部 provider 配置返回统一错误结构和 `trace_id`。
+- 副作用：写入 `TaskPhaseChanged`、`AgentRunStarted`、`AgentRunCompleted`、`AgentRunFailed` 等事件。
+
 ## 实现注意点
 
 - 请求和响应模型应写入 OpenAPI，并同步生成前端类型。

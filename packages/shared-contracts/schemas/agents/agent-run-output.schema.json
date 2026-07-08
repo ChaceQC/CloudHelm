@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/agent-run-output.schema.json",
+  "title": "AgentRunStructuredOutput",
+  "description": "AgentRun.structured_output_json ???? M4 ??????????",
+  "oneOf": [
+    {
+      "$ref": "./requirement-agent-output.schema.json"
+    },
+    {
+      "$ref": "./architect-agent-output.schema.json"
+    },
+    {
+      "$ref": "./planner-agent-output.schema.json"
+    }
+  ]
+}

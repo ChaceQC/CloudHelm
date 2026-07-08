@@ -14,8 +14,8 @@ const riskLevels: RiskLevel[] = ['L0', 'L1', 'L2', 'L3', 'L4']
 /**
  * 需求输入表单。
  *
- * 当前 M3 只调用 `POST /api/tasks` 创建任务记录；Requirement Agent 自动
- * 规格化属于 M4，因此不在提交后生成任何假 Requirement/Design。
+ * 当前表单只调用 `POST /api/tasks` 创建任务记录；Requirement Agent 自动
+ * 规格化需要用户在 M4 编排区显式启动和推进。
  */
 export function TaskCreateForm({ disabled, onCreate, onCreated }: TaskCreateFormProps) {
   const [title, setTitle] = useState('')
@@ -92,7 +92,7 @@ export function TaskCreateForm({ disabled, onCreate, onCreated }: TaskCreateForm
       <button type="submit" disabled={disabled || submitting}>
         {submitting ? '提交中...' : '创建任务'}
       </button>
-      <p className="form-hint">M3 仅创建真实 Task 记录；自动 Agent 规格化将在 M4 接入。</p>
+      <p className="form-hint">创建真实 Task 后，可在详情页 M4 编排区启动 Requirement / Architect / Planner。</p>
     </form>
   )
 }

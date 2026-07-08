@@ -8,6 +8,18 @@
 - 结构化对象必须保存到数据库或 spec-store，供后续 Agent 和控制台复用。
 - 解析失败应进入重试或澄清状态，而不是继续执行危险操作。
 
+## M4 落地状态
+
+M4 已提供以下结构化输出契约：
+
+- `packages/shared-contracts/schemas/agents/requirement-agent-output.schema.json`
+- `packages/shared-contracts/schemas/agents/architect-agent-output.schema.json`
+- `packages/shared-contracts/schemas/agents/planner-agent-output.schema.json`
+- `packages/shared-contracts/schemas/agents/development-plan.schema.json`
+- `packages/shared-contracts/schemas/agents/agent-run-output.schema.json`
+
+后端对应 Pydantic model 位于 `modules/agent-runtime/src/cloudhelm_agent_runtime/schemas/`。Platform API 入库前会再次校验输出，并将通过校验的对象保存到 `agent_runs.structured_output_json` 与对应业务表。
+
 ## 设计书摘录
 
 ### 8.3 Agent 输出必须结构化

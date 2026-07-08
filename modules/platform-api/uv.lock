@@ -69,11 +69,41 @@ wheels = [
 ]
 
 [[package]]
+name = "cloudhelm-agent-runtime"
+version = "0.3.0"
+source = { editable = "../agent-runtime" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.4.0" }]
+
+[[package]]
+name = "cloudhelm-orchestrator"
+version = "0.3.0"
+source = { editable = "../orchestrator" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.4.0" }]
+
+[[package]]
 name = "cloudhelm-platform-api"
-version = "0.2.1"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "cloudhelm-agent-runtime" },
+    { name = "cloudhelm-orchestrator" },
     { name = "fastapi" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -91,6 +121,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.5" },
+    { name = "cloudhelm-agent-runtime", editable = "../agent-runtime" },
+    { name = "cloudhelm-orchestrator", editable = "../orchestrator" },
     { name = "fastapi", specifier = ">=0.116.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pydantic", specifier = ">=2.11.0" },

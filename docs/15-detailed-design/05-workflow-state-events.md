@@ -26,6 +26,20 @@ ApprovalApproved
 ApprovalRejected
 ```
 
+## M4 事件落地状态
+
+M4 新增以下真实事件：
+
+```text
+TaskPhaseChanged
+AgentRunStarted
+AgentRunCompleted
+AgentRunFailed
+DevelopmentPlanCreated
+```
+
+Requirement Agent 成功后写 `RequirementSpecCreated` 并进入 `Designing`；Architect Agent 成功后写 `TechnicalDesignCreated`，低风险进入 `Planning`，L2 及以上写 `ApprovalRequested` 并进入 `WaitingDesignApproval`；Planner Agent 成功后写 `DevelopmentPlanCreated`，并创建 `approve_development_plan` 审批请求。M4 不写代码、不执行工具、不部署远端环境。
+
 Timeline API 从 `event_logs` 按时间升序读取；SSE 端点输出当前已有事件并
 追加 heartbeat。M2 不做长连接实时推送，不使用内存事件队列模拟生产事件流。
 

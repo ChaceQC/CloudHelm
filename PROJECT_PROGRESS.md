@@ -2,6 +2,75 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-08（M4 完成：Agent 编排与规格化闭环）
+
+### 已完成
+
+- 按 `PROJECT_PLAN.md` 完成 M4：Agent 编排与规格化闭环。
+- 创建 `informations/m4-agent-orchestration/official-references.md`，归档 LangGraph、Pydantic、OpenAI structured outputs、FastAPI 后台任务和 pytest 资料及采用结论。
+- 新增 `modules/agent-runtime`，实现 Requirement / Architect / Planner Agent、Pydantic 结构化输出 schema、`local_structured` provider 和 `openai_compatible` provider 配置错误路径。
+- 新增 `modules/orchestrator`，实现 M4 显式状态机：`Created -> RequirementClarifying -> Designing -> WaitingDesignApproval / Planning`。
+- 扩展 `modules/platform-api` 到 `0.3.0`，新增 Orchestration API、DevelopmentPlan API、`development_plans` 表、AgentRun 结构化输出字段和 M4 事务副作用事件。
+- 新增迁移 `20260708_0002_create_m4_agent_tables.py`，新增 `development_plans` 和 AgentRun 错误/结构化输出字段。
+- 新增共享 Agent 输出 JSON Schema：`packages/shared-contracts/schemas/agents/*.schema.json`。
+- 重新生成 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`，版本为 `0.3.0`，覆盖 M4 新接口。
+- 扩展控制台 Task Detail，新增 M4 编排区和 Development Plan 面板，调用真实 `start` / `run-next` / `development-plans` API。
+- 按用户要求调整控制台 UI 参考 Codex 桌面端风格：低饱和、面板式布局、紧凑按钮、清晰边框，移除霓虹和玻璃拟态。
+- 同步 README、`.env.example`、模块 README、Agent/API/控制台/详细设计文档和总排期。
+- 将 `docs/14-roadmap/03-implementation-milestone-flow.md` 的 M4 任务全部打钩。
+- 重写 `PROJECT_PLAN.md`，生成 M5“Tool Gateway 与本地工具层”的详细执行计划。
+
+### 进行中
+
+- M4 已完成并通过后端、Agent Runtime、Orchestrator、前端构建和浏览器主流程验证；下一阶段从 `dev` 执行 M5 Tool Gateway 与本地工具层。
+
+### 阻塞与风险
+
+- M4 默认使用 `local_structured` provider，以真实输入规则化生成结构化草案；未配置外部 LLM 时不阻塞 M4。若切换 `openai_compatible` 但缺少 `CLOUDHELM_LLM_API_BASE`、`CLOUDHELM_LLM_MODEL` 或 `CLOUDHELM_LLM_API_KEY`，会写入失败 AgentRun 和错误事件。
+- M4 不执行 Coder/Tester/Reviewer、Tool Gateway、Git PR、远端部署或监控告警；这些能力进入 M5-M8。
+- M2 SSE 仍为事件回放 + heartbeat，控制台继续通过操作后刷新详情和 Timeline 保证可见性。
+- Platform API 测试仍有 Starlette/httpx 弃用提示，不影响测试结果，后续依赖升级时处理。
+
+### 下一步
+
+- 按新的 `PROJECT_PLAN.md` 执行 M5：创建 `modules/tool-gateway`，实现工具注册、参数校验、风险等级、审批拦截、审计和本地 Repo/Sandbox/Git 工具。
+- 为 Tool Gateway 建立共享 tool schema、Platform API 调用入口、ToolCall 事件副作用和控制台真实 ToolCall 展示。
+- 完成路径越界、敏感文件、命令超时、审批拦截和事务一致性的黑盒/白盒测试。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `README.md`
+- `.env.example`
+- `.gitignore`
+- `apps/control-console/**`
+- `modules/agent-runtime/**`
+- `modules/orchestrator/**`
+- `modules/platform-api/**`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `packages/shared-contracts/schemas/agents/**`
+- `informations/m4-agent-orchestration/official-references.md`
+- `docs/03-modules/modules/{agent-runtime,orchestrator,platform-api}.md`
+- `docs/04-agents/**`
+- `docs/08-api/**`
+- `docs/09-control-console/**`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/**`
+
+### 验证
+
+- 已执行 `git branch --show-current`，确认当前分支为 `dev`。
+- 已执行 `git status --short`，确认开始前工作区干净。
+- 已阅读 M4 计划要求的 Agent、Tool Gateway、API、控制台、MVP、模块契约、数据和工作流文档；`docs/05-tool-layer/00-tool-gateway-overview.md` 在仓库中对应为 `docs/05-tool-layer/00-tool-gateway.md`。
+- 已执行 `cd modules/agent-runtime; uv run pytest`，结果：`5 passed`。
+- 已执行 `cd modules/orchestrator; uv run pytest`，结果：`3 passed`。
+- 已执行 `cd modules/platform-api; $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'; uv run alembic upgrade head; uv run pytest`，结果：`15 passed, 1 warning`。
+- 已执行 `cd apps/control-console; npm.cmd run build`，结果：TypeScript 编译和 Vite build 成功。
+- 已启动本地 Platform API 与 Vite dev server，使用 Playwright 浏览器执行手工 E2E：创建项目 -> 创建任务 -> 启动编排 -> 推进 Requirement -> 推进 Architect -> 审批 Design -> 恢复 Planning -> 推进 Planner -> 展示 Development Plan `STEP-001`。
+- 浏览器验证最终状态：无 console error/warn，截图保存到本地忽略目录 `output/m4-codex-style-browser.png`。
+- 已用 `app.openapi()` 重新生成 OpenAPI，确认版本为 `0.3.0` 且包含 32 个 paths。
+
 ## 2026-07-08（M3 完成：控制台任务主流程）
 
 ### 已完成

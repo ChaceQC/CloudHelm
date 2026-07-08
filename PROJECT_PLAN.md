@@ -4,25 +4,26 @@
 
 ## 1. 当前阶段
 
-M4：Agent 编排与规格化闭环。
+M5：Tool Gateway 与本地工具层。
 
 ## 2. 阶段目标
 
-在 M2 真实数据 API 与 M3 控制台主流程之上，实现从 Task 创建后进入 Requirement / Architect / Planner 的最小可验收编排闭环。M4 必须产生可校验、可持久化、可在控制台展示的真实结构化记录，不得用前端假数据、固定返回、空实现或测试夹具冒充 Agent 输出。
+在 M4 已完成 Requirement / Architect / Planner 结构化编排的基础上，建立所有后续 Agent 工具调用的统一入口。M5 只实现本地开发闭环所需的低风险工具底座，不执行远端部署、不接生产权限、不绕过审批。
 
 本阶段目标：
 
-- 实现 Orchestrator 状态机：`Created -> RequirementClarifying -> Designing -> WaitingDesignApproval / Planning`。
-- 实现 Requirement Agent，读取真实 Task 输入并写入 `requirement_specs`。
-- 实现 Architect Agent，基于已通过或最新 Requirement 写入 `technical_designs`。
-- 实现 Planner Agent，输出可持久化的 Development Plan / task graph。
-- 为 Agent 输入、输出、运行结果、失败恢复和结构化输出 schema 建立后端契约。
-- 控制台新增“启动/推进编排”入口，并能展示 Requirement、Technical Design、Development Plan 与状态迁移事件。
-- 同步 OpenAPI、数据库文档、Agent/Tool 契约、控制台说明、测试记录和总排期。
+- 新增 `modules/tool-gateway`，实现工具注册、参数校验、风险等级、审批拦截、审计记录和执行结果脱敏摘要。
+- 新增最小 Tool Server / Adapter：Requirement Tool、Design Tool、Repo Tool、Sandbox Tool、Git Tool。
+- Repo Tool 支持在受控 worktree 内真实读取、搜索和写入文件；必须限制路径越界和敏感文件。
+- Sandbox Tool 支持在本地隔离目录执行命令、超时、中断、stdout/stderr 摘要和 artifact 记录；M5 可先不接 Docker，但必须说明隔离边界。
+- Git Tool 支持 `status`、`diff`、`branch`、`commit` 的本地受控操作；不自动 push，不创建远端 PR。
+- Platform API 新增 Tool Gateway 调用入口或内部 service，所有工具调用写入 `tool_calls` 和 `event_logs`。
+- 控制台展示真实 ToolCall 参数摘要、风险等级、状态、输出摘要和审批状态。
+- 同步 OpenAPI、工具 schema、模块契约、安全文档、测试记录、总排期和进度。
 
-本阶段不实现 Coder/Tester/Reviewer，不执行 Repo 写入、Sandbox 命令、Git PR、Tool Gateway 真实工具调用、远端部署、监控告警或生产级多租户权限。M4 中 Agent 只允许写入需求、设计和开发计划类数据库记录；任何需要真实工具执行的动作只能生成后续计划或审批建议。
+M5 不实现 Coder/Tester/Reviewer 的完整自动开发闭环，不执行远端 SSH、Docker Compose 部署、CI/CD、监控告警和生产环境操作。所有 L3/L4 动作只能创建 ApprovalRequest，不得自动执行。
 
-版本影响：M4 新增 Agent 编排、Development Plan、状态迁移和可能的新 API / DB schema，属于兼容新增能力。完成后建议将项目版本提升到 `0.3.0`，并同步 `README.md`、`.env.example`、`modules/platform-api/pyproject.toml`、`apps/control-console/package.json`、OpenAPI 和相关文档。
+版本影响：M5 新增 Tool Gateway、工具 schema、ToolCall 执行语义和可能的新 API，属于兼容新增能力。完成后建议提升到 `0.4.0`，同步 `README.md`、`.env.example`、模块版本、OpenAPI 和相关文档。
 
 ## 3. 必须先参考的资料
 
@@ -30,18 +31,14 @@ M4：Agent 编排与规格化闭环。
 
 - `AGENTS.md`
 - `docs/14-roadmap/03-implementation-milestone-flow.md`
-- `docs/04-agents/00-agent-layer.md`
-- `docs/04-agents/01-collaboration-state-machine.md`
-- `docs/04-agents/02-structured-output-contract.md`
-- `docs/05-tool-layer/00-tool-gateway-overview.md`
-- `docs/08-api/00-api-overview.md`
-- `docs/08-api/01-task-api.md`
-- `docs/08-api/02-requirement-design-api.md`
-- `docs/08-api/03-agent-run-api.md`
+- `docs/05-tool-layer/00-tool-gateway.md`
+- `docs/05-tool-layer/01-risk-levels.md`
+- `docs/05-tool-layer/02-mcp-tool-server-structure.md`
+- `docs/08-api/04-tool-call-api.md`
 - `docs/08-api/05-approval-api.md`
-- `docs/08-api/06-event-stream-api.md`
-- `docs/09-control-console/00-page-structure.md`
-- `docs/09-control-console/01-key-interactions.md`
+- `docs/10-security/00-security-boundary.md`
+- `docs/10-security/01-permission-model.md`
+- `docs/10-security/02-audit-log.md`
 - `docs/15-detailed-design/00-mvp-scope-and-cutline.md`
 - `docs/15-detailed-design/01-module-contracts.md`
 - `docs/15-detailed-design/02-agent-tool-contract.md`
@@ -49,33 +46,34 @@ M4：Agent 编排与规格化闭环。
 - `docs/15-detailed-design/04-data-detail.md`
 - `docs/15-detailed-design/05-workflow-state-events.md`
 - `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
-- `apps/control-console/README.md`
+- `packages/shared-contracts/schemas/tools/tool-risk-level.schema.json`
 - `modules/platform-api/README.md`
+- `modules/orchestrator/README.md`
 
 实现时应参考成熟方案和官方文档：
 
-- LangGraph / LangChain 状态图和 checkpoint 思路；如果暂不引入依赖，必须说明取舍原因。
-- Pydantic 2 结构化输出、JSON Schema 与模型校验。
-- OpenAI / 兼容 LLM 的 structured outputs 或 JSON schema 输出实践；不得把未校验自然语言直接写入核心字段。
-- FastAPI dependency、service/repository 分层和后台任务边界。
-- React 表单、状态同步和错误边界实践。
-- pytest 对状态机、schema 校验、异常分支和事务副作用的白盒测试实践。
+- Pydantic / JSON Schema 参数校验。
+- Python `pathlib`、`subprocess`、`tempfile` 安全用法。
+- Git CLI 本地状态、diff、commit 的可审计调用方式。
+- Docker / sandbox 执行隔离实践；若暂不接 Docker，必须说明原因和替代边界。
+- MCP Tool Server 的工具声明、参数 schema、返回 schema 和错误结构。
+- pytest 对文件系统、命令超时、路径越界、审批拦截和事务副作用的测试实践。
 
 本阶段搜索或查阅到的外部资料应归档到：
 
 ```text
-informations/m4-agent-orchestration/official-references.md
+informations/m5-tool-gateway/official-references.md
 ```
 
 ## 4. 本阶段不做的事项
 
-- 不实现 Coder、Tester、Reviewer、Security、Release / Deploy、SRE Agent 的真实执行。
-- 不让 Agent 绕过 Orchestrator 或 Platform API 直接写数据库。
-- 不让 Agent 绕过 Tool Gateway 调用命令、文件、Git、Docker、SSH 或远端服务。
-- 不在生产代码中写固定 Requirement / Design / Plan 作为“自动生成”结果。
-- 不把缺少 LLM 凭据时的测试 fake 当作生产 fallback。
-- 不新增大型状态库、消息队列或插件系统，除非先补充取舍说明和验证计划。
-- 不把 `approval_requests` 的内部联调记录包装成真实高风险动作已自动执行。
+- 不让 Agent 直接调用 `subprocess`、Git、文件系统或 Docker；所有生产路径必须经 Tool Gateway。
+- 不执行远端 SSH、远端部署、服务重启、回滚、数据库 destructive migration 或生产环境动作。
+- 不自动 push、创建远端 PR、操作 GitHub/Gitea 远端。
+- 不把工具执行失败吞掉或伪装成功。
+- 不在生产代码中使用固定 ToolCall 结果、mock repo、假 stdout 或假 diff。
+- 不读取或写入 `.env`、密钥、私钥、证书、依赖目录、构建产物和工作区外路径。
+- 不新增复杂插件市场、多租户权限或分布式队列；M5 先完成本地可验证工具底座。
 
 ## 5. 预检步骤
 
@@ -88,7 +86,7 @@ git status --short
 
 确认当前分支为 `dev`。若在 `main`，必须先切回 `dev` 或从 `dev` 拉出功能分支。
 
-### 5.2 后端 M3 基线
+### 5.2 后端 M4 基线
 
 ```powershell
 docker compose -f infra/docker-compose.dev.yml up -d postgres
@@ -98,7 +96,17 @@ uv run alembic upgrade head
 uv run pytest
 ```
 
-### 5.3 前端 M3 基线
+### 5.3 Agent / Orchestrator 基线
+
+```powershell
+cd modules/agent-runtime
+uv run pytest
+
+cd ..\orchestrator
+uv run pytest
+```
+
+### 5.4 前端 M4 基线
 
 ```powershell
 cd apps/control-console
@@ -106,218 +114,241 @@ npm.cmd install
 npm.cmd run build
 ```
 
-### 5.4 配置预检
+### 5.5 工具执行边界预检
 
-检查是否存在本阶段需要的模型配置。推荐预留但不提交真实密钥：
+确认本地工具只作用于仓库内测试目录或 `examples/`：
 
 ```powershell
-$env:CLOUDHELM_LLM_PROVIDER
-$env:CLOUDHELM_LLM_MODEL
-$env:CLOUDHELM_LLM_API_KEY
+Get-ChildItem examples -Force
+Get-ChildItem modules -Force
+git status --short
 ```
 
-如果缺少真实模型凭据，M4 生产路径不得标记为完整完成；可以先实现 provider 接口、schema、状态机和测试 fake，并在 `PROJECT_PROGRESS.md` 记录阻塞范围。
+若需要创建 sample worktree 或 sandbox 目录，优先放在 `examples/`、`tests/fixtures/` 或模块内临时目录，不得污染系统全局路径。
 
 ## 6. 详细任务拆分
 
-### 6.1 创建 M4 资料归档
+### 6.1 创建 M5 资料归档
 
-创建或更新：
+创建：
 
 ```text
-informations/m4-agent-orchestration/official-references.md
+informations/m5-tool-gateway/official-references.md
 ```
 
 必须覆盖：
 
-- LangGraph / 状态机实践。
-- Pydantic JSON Schema / validation。
-- LLM structured outputs / JSON schema 输出。
-- FastAPI 后台任务或同步 service 调用边界。
-- pytest 状态机与 schema 测试参考。
+- Pydantic / JSON Schema 参数校验。
+- Python 安全路径处理和 subprocess 超时。
+- Git CLI 本地操作参考。
+- Docker / sandbox 隔离参考与取舍。
+- MCP Tool Server 工具契约参考。
+- pytest 文件系统和命令执行测试参考。
 
 完成后在 `PROJECT_PROGRESS.md` 记录已查阅资料和采用结论。
 
-### 6.2 补充共享契约与数据库 schema
+### 6.2 补充共享工具契约
 
 建议新增或更新：
 
 ```text
-packages/shared-contracts/schemas/agents/
-  agent-run-output.schema.json
-  requirement-agent-output.schema.json
-  architect-agent-output.schema.json
-  planner-agent-output.schema.json
-  development-plan.schema.json
+packages/shared-contracts/schemas/tools/
+  tool-call-request.schema.json
+  tool-call-result.schema.json
+  repo-tool.schema.json
+  sandbox-tool.schema.json
+  git-tool.schema.json
+  requirement-tool.schema.json
+  design-tool.schema.json
 packages/shared-contracts/openapi/cloudhelm.openapi.yaml
 docs/15-detailed-design/02-agent-tool-contract.md
+docs/15-detailed-design/03-api-detail.md
 docs/15-detailed-design/04-data-detail.md
 ```
 
-后端建议新增：
-
-```text
-modules/platform-api/src/cloudhelm_platform_api/models/development_plan.py
-modules/platform-api/src/cloudhelm_platform_api/schemas/development_plan.py
-modules/platform-api/src/cloudhelm_platform_api/repositories/development_plan_repository.py
-modules/platform-api/src/cloudhelm_platform_api/services/development_plan_service.py
-modules/platform-api/src/cloudhelm_platform_api/api/development_plans.py
-migrations/versions/20260708_0002_create_m4_agent_tables.py
-```
-
 要求：
 
-- 新增 `development_plans` 表，至少包含 `id`、`task_id`、`project_id`、`technical_design_id`、`summary`、`steps_json`、`risks_json`、`status`、`version`、`created_by_agent_run_id`、`created_at`、`updated_at`。
-- 评估是否给 `agent_runs` 增加 `summary`、`structured_output_type`、`structured_output_json`、`error_code`、`error_message`；如果不改表，必须说明输出落库位置。
-- 所有 JSON 字段使用 PostgreSQL JSONB，并在 Pydantic 层校验结构。
-- 更新 OpenAPI 和数据文档，说明版本影响。
+- 每个工具声明工具名、参数 schema、返回 schema、风险等级、是否需要审批、审计字段。
+- ToolCallRequest 必须包含 `task_id`、`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。
+- ToolResult 必须包含 `status`、`summary`、`result_json`、`stdout_summary`、`stderr_summary`、`duration_ms`、`started_at`、`finished_at`、`error_code`。
+- L3/L4 工具 schema 必须标记 `requires_approval=true`，M5 只创建审批，不执行动作。
 
-### 6.3 建立 agent-runtime 模块
+### 6.3 建立 `modules/tool-gateway`
 
 建议新增：
 
 ```text
-modules/agent-runtime/
+modules/tool-gateway/
   pyproject.toml
   README.md
-  src/cloudhelm_agent_runtime/
+  src/cloudhelm_tool_gateway/
     __init__.py
-    agents/
-      requirement_agent.py
-      architect_agent.py
-      planner_agent.py
+    registry.py
+    gateway.py
+    policies.py
+    audit.py
     schemas/
-      agent_io.py
+      tool_call.py
+      repo.py
+      sandbox.py
+      git.py
       requirement.py
       design.py
-      development_plan.py
-    providers/
-      base.py
-      openai_compatible.py
-    prompts/
-      requirement.md
-      architect.md
-      planner.md
+    tools/
+      repo_tool.py
+      sandbox_tool.py
+      git_tool.py
+      requirement_tool.py
+      design_tool.py
     tests/
-      test_agent_output_validation.py
+      test_registry.py
+      test_policy.py
+      test_repo_tool.py
+      test_sandbox_tool.py
+      test_git_tool.py
 ```
 
 要求：
 
-- 每个 Agent 必须有职责说明、输入结构、输出结构和允许工具列表注释。
-- Agent 输出必须先过 Pydantic / JSON Schema 校验，再交给 Orchestrator 写入 Platform API。
-- Provider 层只负责模型调用和返回文本/JSON，不写业务表。
-- 测试 fake 只能放在 `tests` 或测试夹具中，不得进入生产路径作为默认 Agent。
-- 缺少真实 LLM 配置时，生产运行应返回明确错误并进入可恢复状态，不得静默写固定内容。
+- `registry.py` 只负责注册和查找工具声明。
+- `gateway.py` 负责统一执行流程：校验参数 -> 判定风险 -> 审批拦截 -> 执行工具 -> 摘要脱敏 -> 返回结果。
+- `policies.py` 负责路径边界、风险等级、敏感文件、命令 allowlist/denylist、超时上限。
+- `audit.py` 负责形成可写入 Platform API 的审计摘要，不直接写数据库。
+- 工具实现不得直接依赖 FastAPI 路由；Platform API 通过 service 调用 Gateway。
 
-### 6.4 建立 orchestrator 模块与状态机
+### 6.4 实现 Repo Tool
 
-建议新增：
+建议工具：
 
 ```text
-modules/orchestrator/
-  pyproject.toml
-  README.md
-  src/cloudhelm_orchestrator/
-    __init__.py
-    state_machine.py
-    services/
-      orchestration_service.py
-      task_context_loader.py
-      agent_result_applier.py
-    tests/
-      test_state_machine.py
-      test_orchestration_service.py
+repo.read_file
+repo.search_text
+repo.write_file
+repo.list_files
 ```
 
 要求：
 
-- 状态机只覆盖 M4 范围：`Created`、`RequirementClarifying`、`Designing`、`WaitingDesignApproval`、`Planning`。
-- 每次迁移必须调用 Platform API service 写入 Task 状态/阶段和 EventLog。
-- Requirement Agent 成功后写 `RequirementSpecCreated`，进入 `Designing`。
-- Architect Agent 成功后写 `TechnicalDesignCreated`；若风险等级为 `L2` 及以上或设计包含 migration / deployment 相关风险，进入 `WaitingDesignApproval` 并创建 ApprovalRequest，否则进入 `Planning`。
-- Planner Agent 成功后写 `DevelopmentPlanCreated`，任务进入 M4 定义的等待后续实现状态。
-- 失败时写结构化失败事件，任务不得直接伪装为完成。
+- 所有路径必须解析到允许的 `workspace_root` 内，禁止 `..` 越界、绝对路径越界和 symlink 越界。
+- 禁止读取或写入 `.env`、密钥、私钥、证书、依赖目录、构建产物、`.git` 内部文件。
+- `repo.write_file` 默认 L1；覆盖大量文件或敏感目录必须升级风险或拒绝。
+- 返回内容必须支持大小限制和摘要，避免把巨大文件完整写入 `tool_calls.result_json`。
 
-### 6.5 扩展 Platform API 编排入口
+### 6.5 实现 Sandbox Tool
+
+建议工具：
+
+```text
+sandbox.run_command
+sandbox.collect_artifact
+```
+
+要求：
+
+- M5 可先使用本地受控工作目录 + `subprocess` 超时实现，并在 README 和进度中标明 Docker sandbox 留到 M6 前增强。
+- 命令必须包含 `cwd`、`timeout_seconds`、`env` 白名单和输出大小限制。
+- 默认禁止交互式命令、后台常驻服务、网络扫描、系统全局安装和删除工作区外文件。
+- stdout/stderr 必须摘要化，完整输出如需保存只能写入 artifact 路径。
+
+### 6.6 实现 Git Tool
+
+建议工具：
+
+```text
+git.status
+git.diff
+git.create_branch
+git.commit
+```
+
+要求：
+
+- 只操作受控 repo 根目录。
+- `git.status`、`git.diff` 为 L0/L1。
+- `git.create_branch`、`git.commit` 为 L2，M5 可执行本地操作但必须写审计。
+- 不允许 `push`、远端 PR、force reset、clean -fdx、rebase、tag release；这些留到后续阶段并需审批。
+
+### 6.7 扩展 Platform API ToolCall 执行入口
 
 建议新增或修改：
 
 ```text
-modules/platform-api/src/cloudhelm_platform_api/api/orchestration.py
-modules/platform-api/src/cloudhelm_platform_api/schemas/orchestration.py
-modules/platform-api/src/cloudhelm_platform_api/services/task_service.py
-modules/platform-api/src/cloudhelm_platform_api/services/event_service.py
+modules/platform-api/src/cloudhelm_platform_api/api/tool_gateway.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/tool_gateway.py
+modules/platform-api/src/cloudhelm_platform_api/services/tool_gateway_service.py
+modules/platform-api/src/cloudhelm_platform_api/services/tool_call_service.py
 ```
 
 建议接口：
 
 ```text
-POST /api/tasks/{task_id}/start
-POST /api/tasks/{task_id}/run-next
-GET  /api/tasks/{task_id}/development-plans
-GET  /api/development-plans/{plan_id}
+POST /api/tasks/{task_id}/tool-gateway/call
+GET  /api/tool-gateway/tools
 ```
 
 要求：
 
-- `start` 只能从 `created` 或可恢复状态启动，重复启动必须返回状态冲突或幂等结果。
-- `run-next` 根据当前阶段推进一个最小 Agent 步骤，便于 M4 验证和答辩演示。
-- API 必须返回真实 DTO，并保留 `trace_id` 错误结构。
-- 写操作必须在 service 层完成事务与事件副作用，路由层不得直接写数据库。
+- 写操作必须在 service 层完成事务和事件副作用。
+- 每次工具调用必须写 `tool_calls`，并写 `ToolCallStarted`、`ToolCallSucceeded`、`ToolCallFailed` 或 `ApprovalRequested`。
+- L3/L4 或策略要求审批时，创建 `approval_requests`，ToolCall 状态为 `waiting_approval`，不得执行工具。
+- API 返回统一错误结构和 `trace_id`。
 
-### 6.6 控制台接入 M4 编排交互
+### 6.8 控制台接入 ToolCall 展示
 
-建议新增或修改：
+建议修改：
 
 ```text
 apps/control-console/src/shared/types/api.ts
 apps/control-console/src/shared/api/cloudhelmApi.ts
-apps/control-console/src/features/tasks/TaskBoard.tsx
+apps/control-console/src/features/tool-calls/ToolCallList.tsx
 apps/control-console/src/features/tasks/TaskDetail.tsx
-apps/control-console/src/features/design-review/
-apps/control-console/src/features/planning/
-  DevelopmentPlanPanel.tsx
 ```
 
 要求：
 
-- Task Board 或 Task Detail 提供“启动编排 / 推进一步”按钮，调用真实 `start` / `run-next` API。
-- 控制台展示 Requirement、Technical Design 和 Development Plan 的真实结构化内容。
-- 若缺少模型配置或 Agent 输出失败，展示真实错误和 trace_id，不展示假结果。
-- Design Review Panel 继续复用 approve / request-changes API；审批后允许继续推进到 Planning。
-- 明确 UI 文案：M4 只覆盖 Requirement / Architect / Planner，不执行代码修改和工具调用。
+- 展示 ToolCall 的 `tool_name`、`risk_level`、`arguments_summary`、`status`、`approval_id`、`result_summary`、`error_code`。
+- 若新增工具调用演示入口，只能面向开发/调试，且必须清楚标注真实工具执行范围和风险等级。
+- 不展示假 ToolCall；无记录时保持真实空态。
+- UI 风格继续参考 Codex 桌面端：低饱和、面板式、紧凑按钮、清晰边框，不使用营销式大视觉。
 
-### 6.7 测试与验证设计
+### 6.9 测试与验证设计
 
 后端至少新增：
 
 ```text
-modules/platform-api/tests/test_orchestration_api.py
-modules/platform-api/tests/test_development_plan_api.py
-modules/orchestrator/tests/test_state_machine.py
-modules/agent-runtime/tests/test_agent_output_validation.py
+modules/tool-gateway/tests/test_registry.py
+modules/tool-gateway/tests/test_policy.py
+modules/tool-gateway/tests/test_repo_tool.py
+modules/tool-gateway/tests/test_sandbox_tool.py
+modules/tool-gateway/tests/test_git_tool.py
+modules/platform-api/tests/test_tool_gateway_api.py
 ```
 
 黑盒测试要求：
 
-- 创建 Project -> Task -> start -> 查询 Requirement / Timeline。
-- 通过 Requirement -> run-next -> 查询 Technical Design。
-- 审批 Design 或低风险自动进入 Planning -> 查询 Development Plan。
-- 缺少 LLM 配置时返回明确错误，状态和事件可追溯。
-- 非法状态重复 start / run-next 返回稳定错误码和 trace_id。
+- 查询工具注册表。
+- 调用 `repo.read_file` 读取测试 fixture。
+- 调用 `repo.write_file` 写入受控临时文件。
+- 调用 `sandbox.run_command` 执行安全命令并记录输出摘要。
+- 调用 L3/L4 示例动作时只创建 ApprovalRequest，不执行工具。
+- 路径越界、敏感文件、非法命令、超时、重复 idempotency key 返回稳定错误和 `trace_id`。
 
 白盒测试要求：
 
-- Pydantic schema 校验正常、边界和异常 JSON。
-- 状态机每个允许迁移和禁止迁移分支。
-- service 事务：AgentRun、业务记录、EventLog 同步写入或同步回滚。
-- 审批触发规则：高风险设计进入 `waiting_approval`，低风险设计可进入 `planning`。
+- Registry 重复注册、未知工具和 schema 校验分支。
+- Policy 风险升级、路径越界、敏感文件拒绝、命令拒绝。
+- Repo Tool symlink/绝对路径/`..` 越界分支。
+- Sandbox Tool 超时、stderr、非零退出码、输出截断。
+- Git Tool 非 repo、脏工作区、commit message 校验和禁止 push。
+- Platform API 事务：ToolCall、ApprovalRequest、EventLog 同步写入或同步回滚。
 
 至少执行：
 
 ```powershell
-cd modules/platform-api
+cd modules/tool-gateway
+uv run pytest
+
+cd ..\platform-api
 $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
 uv run alembic upgrade head
 uv run pytest
@@ -326,20 +357,20 @@ cd ..\..\apps\control-console
 npm.cmd run build
 ```
 
-如果新增 `modules/orchestrator` 或 `modules/agent-runtime` 独立环境，还必须执行对应模块测试命令，并写入 README。
-
-### 6.8 文档同步
+## 7. 文档同步
 
 必须更新：
 
 ```text
 README.md
 .env.example
-apps/control-console/README.md
+modules/tool-gateway/README.md
 modules/platform-api/README.md
-docs/04-agents/*.md
-docs/08-api/*.md
+apps/control-console/README.md
+docs/05-tool-layer/*.md
+docs/08-api/04-tool-call-api.md
 docs/09-control-console/*.md
+docs/10-security/*.md
 docs/15-detailed-design/01-module-contracts.md
 docs/15-detailed-design/02-agent-tool-contract.md
 docs/15-detailed-design/03-api-detail.md
@@ -351,39 +382,27 @@ PROJECT_PROGRESS.md
 
 要求：
 
-- 文档必须说明 M4 能力边界：只完成需求、设计、计划闭环，不写代码、不执行工具。
-- 若引入 LLM provider、LangGraph 或新依赖，必须说明用途、替代方案和维护成本。
-- OpenAPI、数据库 schema、事件名称和控制台文案必须保持一致。
+- 文档必须说明 M5 能力边界：只完成本地工具入口和审计，不执行远端部署。
+- 若 Sandbox 暂不接 Docker，必须说明临时隔离边界和 M6 前补强计划。
+- OpenAPI、工具 schema、事件名称和控制台展示字段必须保持一致。
 
-## 7. 完成后的同步动作
+## 8. M5 完成判定
 
-M4 所有任务完成后必须：
+只有全部满足才算 M5 完成：
 
-1. 更新 `docs/14-roadmap/03-implementation-milestone-flow.md`，将 M4 下所有任务打钩。
-2. 更新 `PROJECT_PROGRESS.md`，记录创建或修改的文件、验证命令、失败修复、遗留风险和模型配置状态。
-3. 根据下一个未完成阶段 M5 重写或更新 `PROJECT_PLAN.md`。
-4. 同步 `README.md`、模块 README、控制台 README、API 文档、Agent/Tool 契约和 OpenAPI。
-5. 如提升版本到 `0.3.0`，同步所有版本字段并说明版本影响。
-
-## 8. M4 完成判定
-
-只有全部满足才算 M4 完成：
-
-- Orchestrator 能从真实 Task 推进 Requirement / Architect / Planner 状态。
-- Requirement Agent 输出通过 schema 校验并写入真实 `requirement_specs`。
-- Architect Agent 输出通过 schema 校验并写入真实 `technical_designs`。
-- Planner Agent 输出通过 schema 校验并写入真实 Development Plan。
-- 每次状态迁移、AgentRun 和业务记录写入真实 EventLog。
-- 控制台能通过真实 API 启动/推进编排并展示 Requirement、Design、Plan、Timeline。
-- 缺少模型配置、结构化输出失败、非法状态迁移等异常路径可见且可追溯。
-- 后端、Agent Runtime、Orchestrator 和前端构建/测试通过。
+- Tool Gateway 能注册工具并统一执行校验、策略、审批、审计和结果摘要。
+- Repo Tool、Sandbox Tool、Git Tool 至少完成 M5 要求的真实本地功能。
+- L3/L4 或策略要求审批的工具不会执行，只创建 ApprovalRequest 和 waiting_approval ToolCall。
+- 每次工具调用都写入真实 `tool_calls` 和 `event_logs`。
+- 控制台能展示真实 ToolCall 记录、风险等级、状态、输出摘要和审批关联。
+- 路径越界、敏感文件、非法命令、超时和工具失败均可追溯。
+- `modules/tool-gateway`、`modules/platform-api`、`apps/control-console` 验证通过。
 - `PROJECT_PROGRESS.md`、总排期流程和下一阶段 `PROJECT_PLAN.md` 已同步。
 
 ## 9. 风险与处理
 
-- 如果没有真实 LLM 凭据：生产 Agent 路径不得标记完成；先完成 schema、状态机、API、测试 fake 和阻塞记录。
-- 如果 LangGraph 引入成本过高：可以先用显式状态机实现 M4 最小闭环，但必须在资料归档和进度中说明取舍。
-- 如果 Agent 输出 schema 不稳定：增加格式修复重试和失败事件，不得把解析失败的自然语言写入核心表。
-- 如果状态机和现有 TaskService 冲突：先补模块契约和 API 文档，再改 service。
-- 如果控制台状态刷新出现滞后：以 Timeline 和详情刷新为准，记录 SSE 边界，不展示本地推测状态。
-- 如果验证失败：不得把 M4 任务打钩，不得提交“完成”类 commit；修复后必须执行回归测试。
+- 如果 Docker sandbox 引入成本过高：M5 可先使用本地受控目录 + subprocess 超时，但必须在 README、进度和安全文档标明边界，并把 Docker 隔离补强列入 M6 前置任务。
+- 如果 Repo Tool 路径边界不稳定：先停止写工具，仅保留只读工具，修复路径策略后再开放写入。
+- 如果 Git Tool 可能混入无关改动：commit 工具必须要求显式文件列表并复查 diff；验证失败不得提交。
+- 如果 Tool Gateway 与 Platform API 事务冲突：先补 service 契约，确保 ToolCall、ApprovalRequest、EventLog 在同一事务内一致。
+- 如果验证失败：不得把 M5 任务打钩，不得提交“完成”类 commit；修复后必须执行回归测试。

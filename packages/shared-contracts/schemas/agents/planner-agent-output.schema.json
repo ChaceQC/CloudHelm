@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "DevelopmentPlanRisk": {
+      "description": "开发计划风险项。",
+      "properties": {
+        "id": {
+          "description": "风险编号。",
+          "pattern": "^RISK-[0-9]{3}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "description": {
+          "description": "风险描述。",
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "mitigation": {
+          "description": "缓解措施。",
+          "minLength": 1,
+          "title": "Mitigation",
+          "type": "string"
+        },
+        "risk_level": {
+          "$ref": "#/$defs/RiskLevel",
+          "description": "风险等级。"
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "mitigation",
+        "risk_level"
+      ],
+      "title": "DevelopmentPlanRisk",
+      "type": "object"
+    },
+    "DevelopmentPlanStep": {
+      "description": "开发计划步骤。\n\nM4 只生成任务图，不执行代码、工具或 Git 操作。",
+      "properties": {
+        "id": {
+          "description": "步骤编号。",
+          "pattern": "^STEP-[0-9]{3}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "description": "步骤标题。",
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "description": "步骤说明。",
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "agent": {
+          "description": "建议负责的后续 Agent。",
+          "minLength": 1,
+          "title": "Agent",
+          "type": "string"
+        },
+        "expected_artifact": {
+          "description": "预期产物。",
+          "minLength": 1,
+          "title": "Expected Artifact",
+          "type": "string"
+        },
+        "depends_on": {
+          "description": "依赖的步骤编号。",
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "status": {
+          "default": "pending",
+          "description": "M4 仅生成 pending 状态。",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "agent",
+        "expected_artifact"
+      ],
+      "title": "DevelopmentPlanStep",
+      "type": "object"
+    },
+    "RiskLevel": {
+      "description": "CloudHelm M4 复用的风险等级。\n\nL0/L1 可在 M4 内自动推进；L2 及以上需要进入设计审批或后续工具审批。",
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "title": "RiskLevel",
+      "type": "string"
+    }
+  },
+  "description": "Planner Agent 输出。\n\n输出映射到 `development_plans`，作为 M5 工具层前的可审查计划。",
+  "properties": {
+    "summary": {
+      "description": "开发计划摘要。",
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "steps": {
+      "description": "任务图步骤。",
+      "items": {
+        "$ref": "#/$defs/DevelopmentPlanStep"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    },
+    "risks": {
+      "description": "计划风险。",
+      "items": {
+        "$ref": "#/$defs/DevelopmentPlanRisk"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "status": {
+      "default": "ready_for_review",
+      "description": "计划状态。",
+      "title": "Status",
+      "type": "string"
+    },
+    "risk_level": {
+      "$ref": "#/$defs/RiskLevel",
+      "description": "计划最高风险。"
+    }
+  },
+  "required": [
+    "summary",
+    "steps",
+    "risk_level"
+  ],
+  "title": "PlannerAgentOutput",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/planner-agent-output.schema.json"
+}

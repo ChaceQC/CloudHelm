@@ -16,6 +16,15 @@
 - Timeline 面板读取 `GET /api/tasks/{task_id}/timeline`，并优先连接 M2 SSE 端点；因 M2 SSE 只回放已有事件和 heartbeat，界面在事件或操作后重新读取 Timeline。
 - Tool Calls 与 Approval Panel 读取真实记录；审批按钮调用真实 approve / reject API，但 L3/L4 操作恢复执行仍留到 Tool Gateway 阶段。
 
+## M4 落地状态
+
+- 启动编排：在 Task Detail 点击“启动编排”，任务从 `Created` 进入 `RequirementClarifying`。
+- 推进 Requirement：点击“推进一步”，Requirement Agent 生成真实 `requirement_specs` 并进入 `Designing`。
+- 推进 Architect：点击“推进一步”，Architect Agent 生成真实 `technical_designs`；低风险自动进入 `Planning`，L2 及以上进入 `WaitingDesignApproval` 并展示审批。
+- 恢复 Planning：通过 Design Review 或 Approval Panel 审批后，再次点击“推进一步”进入 `Planning`。
+- 推进 Planner：点击“推进一步”，Planner Agent 生成真实 `development_plans` 并创建开发计划审查审批。
+- 异常路径：缺少外部模型配置、非法状态或结构化输出失败时，控制台展示后端统一错误和 `trace_id`，不展示假结果。
+
 ## 设计书摘录
 
 ### 13.2 关键交互

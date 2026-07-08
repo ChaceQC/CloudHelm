@@ -34,6 +34,15 @@ event_logs
 
 M2 未创建 environments、deployments、remote_targets、monitoring 等远端运维表；这些表保留到部署和监控里程碑。
 
+## M4 落地状态
+
+M4 新增迁移 `modules/platform-api/migrations/versions/20260708_0002_create_m4_agent_tables.py`：
+
+- `development_plans` 表。
+- `agent_runs.summary`、`structured_output_type`、`structured_output_json`、`error_code`、`error_message`。
+
+`development_plans` 至少包含 `id`、`task_id`、`project_id`、`technical_design_id`、`summary`、`steps_json`、`risks_json`、`status`、`version`、`created_by_agent_run_id`、`created_at`、`updated_at`。`steps_json` 和 `risks_json` 使用 PostgreSQL JSONB，并由 Pydantic schema 校验。
+
 ## 1. 核心 ER 关系
 
 ```mermaid
@@ -42,6 +51,7 @@ erDiagram
     projects ||--o{ environments : has
     tasks ||--o{ requirement_specs : produces
     requirement_specs ||--o{ technical_designs : informs
+    technical_designs ||--o{ development_plans : plans
     tasks ||--o{ agent_runs : runs
     agent_runs ||--o{ tool_calls : invokes
     tasks ||--o{ approval_requests : requires
@@ -135,6 +145,7 @@ suppressed
 |tasks|`idx_tasks_phase(current_phase)`|任务看板过滤|
 |requirement_specs|`idx_requirement_specs_task_version(task_id, version)`|需求版本查询|
 |technical_designs|`idx_technical_designs_task_status(task_id, status)`|设计审查查询|
+|development_plans|`idx_development_plans_task_status(task_id, status)`|开发计划查询|
 |agent_runs|`idx_agent_runs_task_started(task_id, started_at DESC)`|Agent timeline|
 |tool_calls|`idx_tool_calls_task_started(task_id, started_at DESC)`|工具调用列表|
 |tool_calls|`idx_tool_calls_agent(agent_run_id)`|Agent 详情|
@@ -191,6 +202,35 @@ suppressed
 }
 ```
 
+### development_plans.steps_json
+
+```json
+[
+  {
+    "id": "STEP-001",
+    "title": "补齐契约和迁移",
+    "description": "同步 schema、OpenAPI 和 migration",
+    "agent": "architect",
+    "expected_artifact": "schema_and_migration",
+    "depends_on": [],
+    "status": "pending"
+  }
+]
+```
+
+### development_plans.risks_json
+
+```json
+[
+  {
+    "id": "RISK-001",
+    "description": "外部模型配置缺失",
+    "mitigation": "保留 local_structured provider 或写入失败事件",
+    "risk_level": "L1"
+  }
+]
+```
+
 ### event_logs.payload
 
 必须包含可回放状态所需字段：
@@ -217,6 +257,7 @@ suppressed
 - AgentRunStarted
 - AgentRunCompleted
 - AgentRunFailed
+- DevelopmentPlanCreated
 
 ### 需求与设计
 

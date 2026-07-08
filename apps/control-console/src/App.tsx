@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 /**
  * 控制台应用根组件。
  *
- * M3 根组件只负责组合 Project Sidebar、Task Board、Task Detail 和
+ * M4 根组件只负责组合 Project Sidebar、Task Board、Task Detail 和
  * 健康检查；真实数据加载、表单提交和审批操作拆分到 feature hooks，
  * 避免页面层堆积业务逻辑。
  */
@@ -61,12 +61,13 @@ export function App() {
   return (
     <main className="app-shell">
       <section className="hero">
-        <p className="eyebrow">CloudHelm M3</p>
-        <h1>云舵控制台任务主流程</h1>
+        <p className="eyebrow">CloudHelm M4</p>
+        <h1>云舵控制台 Agent 编排闭环</h1>
         <p className="hero-copy">
           当前阶段接入真实 Platform API，可创建项目和任务、查看任务详情、
-          Timeline、Tool Calls 与审批记录。自动 Agent 编排、真实工具执行、
-          PR、部署和监控仍按后续 M4-M8 里程碑推进。
+          启动/推进 Requirement、Architect、Planner 编排，并展示 Timeline、
+          Tool Calls 与审批记录。真实工具执行、PR、部署和监控仍按后续 M5-M8
+          里程碑推进。
         </p>
       </section>
 
@@ -94,7 +95,7 @@ export function App() {
             onRunTaskAction={handleRunTaskAction}
             onRefresh={tasks.refresh}
           />
-          <TaskDetail taskId={selectedTaskId} refreshKey={detailRefreshKey} />
+          <TaskDetail taskId={selectedTaskId} refreshKey={detailRefreshKey} onTaskChanged={tasks.refresh} />
         </div>
       </div>
 

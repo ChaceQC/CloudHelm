@@ -14,6 +14,16 @@
 
 写操作必须通过 service 层在同一事务内写业务表和 `event_logs`。
 
+## M4 实现状态
+
+`modules/platform-api` 已扩展到 `0.3.0`：
+
+- 新增 Orchestration API：`start`、`run-next`、`orchestration state`。
+- 新增 DevelopmentPlan API 和 `development_plans` 表。
+- 扩展 `agent_runs`，记录结构化输出、摘要和失败错误。
+- 每个 M4 Agent 步骤在同一事务中写入 AgentRun、业务产物、Task 状态和 EventLog。
+- M4 仍不执行 Tool Gateway、Git PR、远端部署或监控动作。
+
 ## 职责
 
 统一 API 服务，对桌面端提供需求、任务、设计、事件、审批、配置接口。

@@ -7,6 +7,17 @@
 
 核心编排器，定义需求到设计、实现、测试、PR、部署、监控的状态机和 Agent 协作流程。
 
+## M4 实现状态
+
+`modules/orchestrator` 已实现 M4 显式状态机，当前覆盖：
+
+```text
+Created -> RequirementClarifying -> Designing -> WaitingDesignApproval -> Planning
+Designing -> Planning
+```
+
+该模块保持纯状态机和边界类型，不直接写数据库；Platform API 的 `OrchestrationService` 负责事务内持久化 Task、AgentRun、业务产物和 EventLog。LangGraph / Redis worker 暂未引入，后续如需要异步图执行再按 M5+ 计划补充。
+
 ## 技术栈
 
 LangGraph + Python workers + Redis queue。

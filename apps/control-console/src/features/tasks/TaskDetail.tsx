@@ -1,7 +1,9 @@
 import { DesignReviewPanel } from '../design-review/DesignReviewPanel'
 import { ApprovalPanel } from '../approvals/ApprovalPanel'
+import { DevelopmentPlanPanel } from '../planning/DevelopmentPlanPanel'
 import { ToolCallList } from '../tool-calls/ToolCallList'
 import { formatDateTime } from '../../shared/api/formatters'
+import { OrchestrationControls } from './OrchestrationControls'
 import { TaskStatusBadge } from './TaskStatusBadge'
 import { TaskTimeline } from './TaskTimeline'
 import { useTaskDetail } from './useTaskDetail'
@@ -9,6 +11,7 @@ import { useTaskDetail } from './useTaskDetail'
 interface TaskDetailProps {
   taskId: string | null
   refreshKey: number
+  onTaskChanged: () => void
 }
 
 /**
@@ -17,7 +20,7 @@ interface TaskDetailProps {
  * 聚合任务详情、Requirement、Technical Design、Timeline、ToolCall 和
  * Approval。所有数据均来自 Platform API；空状态表示数据库当前没有记录。
  */
-export function TaskDetail({ taskId, refreshKey }: TaskDetailProps) {
+export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProps) {
   const detail = useTaskDetail(taskId, refreshKey)
 
   if (taskId === null) {
@@ -56,7 +59,8 @@ export function TaskDetail({ taskId, refreshKey }: TaskDetailProps) {
     return null
   }
 
-  const { task, requirements, designs, agentRuns, toolCalls, approvals, timeline } = detail.data
+  const { task, requirements, designs, developmentPlans, agentRuns, toolCalls, approvals, timeline, orchestration } =
+    detail.data
 
   return (
     <section className="panel detail-panel" aria-labelledby="task-detail-title">
@@ -95,12 +99,20 @@ export function TaskDetail({ taskId, refreshKey }: TaskDetailProps) {
         </div>
       </dl>
 
+      <OrchestrationControls
+        task={task}
+        orchestration={orchestration}
+        onStart={detail.startOrchestration}
+        onRunNext={detail.runNextOrchestration}
+        onTaskChanged={onTaskChanged}
+      />
       <DesignReviewPanel
         requirements={requirements}
         designs={designs}
         onDecideRequirement={detail.decideRequirement}
         onDecideDesign={detail.decideDesign}
       />
+      <DevelopmentPlanPanel developmentPlans={developmentPlans} />
       <TaskTimeline agentRuns={agentRuns} events={timeline} streamStatus={detail.streamStatus} />
       <ToolCallList toolCalls={toolCalls} />
       <ApprovalPanel approvals={approvals} onDecideApproval={detail.decideApproval} />

@@ -37,3 +37,13 @@ class ApprovalRepository:
         if status is not None:
             statement = statement.where(ApprovalRequest.status == status)
         return fetch_page(self.session, statement, limit, cursor)
+
+    def latest_by_task_and_action(self, task_id: UUID, action: str) -> ApprovalRequest | None:
+        """读取某任务某动作的最新审批请求。"""
+
+        return self.session.execute(
+            select(ApprovalRequest)
+            .where(ApprovalRequest.task_id == task_id, ApprovalRequest.action == action)
+            .order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()

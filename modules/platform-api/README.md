@@ -1,6 +1,6 @@
 # modules/platform-api
 
-CloudHelm 平台 API 服务。M2 使用 FastAPI + SQLAlchemy + Alembic + PostgreSQL 提供真实数据库驱动的 Project、Task、Requirement、Technical Design、AgentRun、ToolCall、Approval 和 Event Timeline API。
+CloudHelm 平台 API 服务。M4 使用 FastAPI + SQLAlchemy + Alembic + PostgreSQL 提供真实数据库驱动的 Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、ToolCall、Approval、Event Timeline 和 Orchestration API。
 
 ## 命令
 
@@ -21,7 +21,9 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 ## 环境变量
 
 - `CLOUDHELM_ENV`：运行环境，默认 `development`。
-- `CLOUDHELM_VERSION`：服务版本，默认 `0.2.0`。
+- `CLOUDHELM_VERSION`：服务版本，默认 `0.3.0`。
+- `CLOUDHELM_AGENT_PROVIDER`：M4 Agent provider，默认 `local_structured`。
+- `CLOUDHELM_LLM_PROVIDER`、`CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE`、`CLOUDHELM_LLM_API_KEY`：切换 `openai_compatible` provider 时使用；真实 Key 不得提交。
 - `CLOUDHELM_DATABASE_URL`：SQLAlchemy 数据库连接串，本地默认指向 `infra/docker-compose.dev.yml` 的 PostgreSQL。
 - `CLOUDHELM_REDIS_URL`：Redis 预留配置；M2 暂不接入生产路径。
 
@@ -41,4 +43,4 @@ src/cloudhelm_platform_api/
 
 ## 当前边界
 
-M2 提供 AgentRun、ToolCall 和 Approval 的真实记录接口，但不自动执行 Agent、不调用真实 Tool Gateway、不执行 Git/部署/监控操作。`/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 输出当前事件和 heartbeat，暂不实现长连接实时推送。
+M4 提供 `start` / `run-next` 编排入口，能把真实 Task 推进到 Requirement、Technical Design 和 DevelopmentPlan，并写入 AgentRun 与 EventLog。M4 不调用真实 Tool Gateway，不执行 Repo/Git/Docker/SSH/部署/监控操作。`/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 输出当前事件和 heartbeat，暂不实现生产级事件总线推送。

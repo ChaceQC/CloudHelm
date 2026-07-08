@@ -32,7 +32,7 @@ def migrated_database() -> Generator[None, None, None]:
     )
     os.environ["CLOUDHELM_DATABASE_URL"] = database_url
     os.environ["CLOUDHELM_ENV"] = "test"
-    os.environ["CLOUDHELM_VERSION"] = "0.2.0"
+    os.environ["CLOUDHELM_VERSION"] = "0.3.0"
     get_settings.cache_clear()
     reset_engine_cache()
 
@@ -62,6 +62,7 @@ def clean_business_tables(migrated_database: None) -> Generator[None, None, None
                 TRUNCATE TABLE
                   event_logs,
                   tool_calls,
+                  development_plans,
                   technical_designs,
                   approval_requests,
                   requirement_specs,

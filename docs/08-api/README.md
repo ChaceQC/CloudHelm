@@ -1,6 +1,6 @@
 # API 文档
 
-Task、Requirement/Design、Agent Run、Tool Call、Approval、Event、Deployment、Remote Ops、Monitoring API。
+Task、Requirement/Design、Agent Run、Tool Call、Approval、Event、Development Plan、Deployment、Remote Ops、Monitoring API。
 
 ## 细化参考
 
@@ -18,3 +18,4 @@ Task、Requirement/Design、Agent Run、Tool Call、Approval、Event、Deploymen
 - [07-environment-deployment-api.md](07-environment-deployment-api.md)
 - [08-remote-ops-api.md](08-remote-ops-api.md)
 - [09-monitoring-incident-api.md](09-monitoring-incident-api.md)
+- [10-development-plan-api.md](10-development-plan-api.md)

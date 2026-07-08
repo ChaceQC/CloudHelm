@@ -16,6 +16,14 @@
 - Task Detail 已展示真实 Requirement Spec、Technical Design、AgentRun、ToolCall、Approval 和 Event Log 空态或记录。
 - M3 不包含 Diff Viewer、Terminal Panel、真实 Git PR、真实 Tool Gateway 执行和远端接管；这些能力在后续 M5-M8 接入。
 
+## M4 落地状态
+
+- Task Detail 顶部新增 Agent 编排区，展示当前阶段、下一步动作、设计审批状态和计划是否存在。
+- “启动编排”调用 `POST /api/tasks/{task_id}/start`。
+- “推进一步”调用 `POST /api/tasks/{task_id}/run-next`，一次只推进 Requirement、Architect 或 Planner 的一个最小步骤。
+- 新增 Development Plan 面板，读取 `GET /api/tasks/{task_id}/development-plans`，展示 Planner Agent 写入的任务图和风险 JSON。
+- 控制台文案明确 M4 不执行代码修改、Tool Gateway 工具、Git PR、远端部署或监控告警。
+
 ## 设计书摘录
 
 ### 13.1 页面结构

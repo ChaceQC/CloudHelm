@@ -3,7 +3,8 @@
 配置通过环境变量注入，避免把数据库地址、端口、环境、版本和后续外部
 服务地址写死在业务代码中。M2 开始接入 PostgreSQL，所有数据库连接均
 从 `CLOUDHELM_DATABASE_URL` 读取，便于本地开发、测试和后续部署环境
-使用不同配置。
+使用不同配置。M4 增加 Agent provider 配置；真实密钥只允许通过环境变量
+注入，不能提交到 Git。
 """
 
 from functools import lru_cache
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.2.1", description="当前服务版本。")
+    version: str = Field(default="0.3.0", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",
@@ -34,6 +35,26 @@ class Settings(BaseSettings):
     redis_url: str | None = Field(
         default=None,
         description="Redis 预留连接串；M2 暂不接入生产路径。",
+    )
+    agent_provider: str = Field(
+        default="local_structured",
+        description="M4 Agent provider，支持 local_structured 或 openai_compatible。",
+    )
+    llm_provider: str | None = Field(
+        default=None,
+        description="外部 LLM 供应商名称，仅用于审计和运行记录。",
+    )
+    llm_model: str | None = Field(
+        default=None,
+        description="外部 LLM 模型名称；local_structured provider 可为空。",
+    )
+    llm_api_base: str | None = Field(
+        default=None,
+        description="OpenAI 兼容 API 根地址；不提交真实私有地址。",
+    )
+    llm_api_key: str | None = Field(
+        default=None,
+        description="OpenAI 兼容 API Key；只能由环境变量注入。",
     )
     cors_origins: list[str] = Field(
         default=["http://127.0.0.1:5173", "http://localhost:5173"],

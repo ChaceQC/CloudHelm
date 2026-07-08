@@ -95,6 +95,8 @@ flowchart LR
 |TaskService|任务创建、状态查询、暂停/恢复/取消|
 |RequirementService|需求规格保存、版本管理、审批|
 |DesignService|技术设计保存、设计审查、OpenAPI/DB schema 关联|
+|DevelopmentPlanService|Planner Agent 产物查询和内部创建|
+|OrchestrationService|M4 start/run-next 编排、AgentRun、状态迁移和事件副作用|
 |ApprovalService|审批请求、批准、拒绝、过期处理|
 |EventService|append event、timeline 查询、SSE 广播|
 |DeploymentService|部署记录、健康检查、回滚请求|
@@ -126,6 +128,12 @@ flowchart LR
 - 等待人工审批时不得继续执行风险动作。
 - 失败后优先进入可恢复状态，而不是直接 Failed。
 
+### M4 落地
+
+- `modules/orchestrator` 当前实现纯状态机：`Created -> RequirementClarifying -> Designing -> WaitingDesignApproval -> Planning`。
+- Platform API 的 `OrchestrationService` 负责事务内写入 Task、AgentRun、RequirementSpec、TechnicalDesign、DevelopmentPlan、ApprovalRequest 和 EventLog。
+- `run-next` 一次只推进一个最小 Agent 步骤，便于黑盒测试和答辩演示。
+
 ## 5. modules/agent-runtime
 
 ### 职责
@@ -150,6 +158,12 @@ flowchart LR
 - JSON 解析失败：要求模型修复输出，最多重试固定次数。
 - 工具失败：把结构化错误交回 Orchestrator。
 - 上下文不足：生成 clarification request，不继续实现。
+
+### M4 落地
+
+- `modules/agent-runtime` 已提供 Requirement、Architect、Planner Agent。
+- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 预留外部模型 JSON Schema 输出。
+- Agent Runtime 不写数据库、不调用工具；所有输出由 Platform API 入库前再次校验。
 
 ## 6. modules/tool-gateway
 

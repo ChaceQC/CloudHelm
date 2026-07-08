@@ -1,4 +1,4 @@
-"""M2 核心 ORM 模型集合。
+"""CloudHelm 核心 ORM 模型集合。
 
 Alembic env 会导入该模块以注册所有表 metadata。新增模型时必须在这里
 导入，避免迁移漏表。
@@ -8,6 +8,7 @@ from cloudhelm_platform_api.db.base import Base
 from cloudhelm_platform_api.models.agent_run import AgentRun
 from cloudhelm_platform_api.models.approval import ApprovalRequest
 from cloudhelm_platform_api.models.design import TechnicalDesign
+from cloudhelm_platform_api.models.development_plan import DevelopmentPlan
 from cloudhelm_platform_api.models.event_log import EventLog
 from cloudhelm_platform_api.models.project import Project
 from cloudhelm_platform_api.models.requirement import RequirementSpec
@@ -18,6 +19,7 @@ __all__ = [
     "AgentRun",
     "ApprovalRequest",
     "Base",
+    "DevelopmentPlan",
     "EventLog",
     "Project",
     "RequirementSpec",

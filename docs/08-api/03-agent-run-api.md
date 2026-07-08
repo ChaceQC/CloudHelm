@@ -12,8 +12,20 @@ GET    /api/agent-runs/{run_id}
 ```
 
 - `POST /api/tasks/{task_id}/agent-runs` 是内部联调用记录接口，只写入数据库和 `AgentRunRecorded` 事件。
-- M2 不实现 Agent 自动执行、消息流、模型调用或工具调用编排。
+- M4 已实现 Requirement / Architect / Planner 的同步 `run-next` 编排；M4 仍不执行工具调用。
 - `messages` 和 `agent-runs/{run_id}/tool-calls` 聚合视图在后续 Agent 编排与 Tool Gateway 阶段实现。
+
+## M4 字段扩展
+
+`agent_runs` 新增以下字段用于结构化输出和失败追踪：
+
+- `summary`
+- `structured_output_type`
+- `structured_output_json`
+- `error_code`
+- `error_message`
+
+M4 编排产生的 AgentRun 会写入 `AgentRunStarted`、`AgentRunCompleted` 或 `AgentRunFailed`。缺少 `openai_compatible` provider 配置时，AgentRun 状态为 `failed`，错误码为 `missing_agent_provider_config`。
 
 ## 实现注意点
 
