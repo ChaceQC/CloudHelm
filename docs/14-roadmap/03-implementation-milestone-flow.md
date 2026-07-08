@@ -66,12 +66,12 @@
 
 ### M3 控制台任务主流程
 
-- [ ] 实现 Project Sidebar。
-- [ ] 实现 Task Board 和 Task Detail。
-- [ ] 实现需求输入表单，并调用真实 Task API。
-- [ ] 展示 Requirement Spec、Acceptance Criteria、Technical Design 的真实后端数据结构。
-- [ ] 接入事件流，展示 Agent Timeline、Tool Calls、Event Log。
-- [ ] 实现 Design Review Panel 和 Approval Panel 的基础交互。
+- [x] 实现 Project Sidebar。
+- [x] 实现 Task Board 和 Task Detail。
+- [x] 实现需求输入表单，并调用真实 Task API。
+- [x] 展示 Requirement Spec、Acceptance Criteria、Technical Design 的真实后端数据结构。
+- [x] 接入事件流，展示 Agent Timeline、Tool Calls、Event Log。
+- [x] 实现 Design Review Panel 和 Approval Panel 的基础交互。
 
 完成判定：控制台能创建任务、查看任务状态变化和任务详情，不使用静态假数据冒充完成。
 
@@ -158,4 +158,4 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1、M2 已完成。下一步执行 M3：控制台任务主流程。详细执行计划见根目录 `PROJECT_PLAN.md`。
+当前 M0、M1、M2、M3 已完成。下一步执行 M4：Agent 编排与规格化闭环。详细执行计划见根目录 `PROJECT_PLAN.md`。

@@ -4,25 +4,25 @@
 
 ## 1. 当前阶段
 
-M3：控制台任务主流程。
+M4：Agent 编排与规格化闭环。
 
 ## 2. 阶段目标
 
-在 M2 数据模型、API 与事件底座之上，让 `apps/control-console` 从最小健康检查界面升级为可操作的任务主流程控制台。M3 必须调用真实 Platform API，不得使用静态假数据、内存 mock 或固定任务列表冒充完成。
+在 M2 真实数据 API 与 M3 控制台主流程之上，实现从 Task 创建后进入 Requirement / Architect / Planner 的最小可验收编排闭环。M4 必须产生可校验、可持久化、可在控制台展示的真实结构化记录，不得用前端假数据、固定返回、空实现或测试夹具冒充 Agent 输出。
 
 本阶段目标：
 
-- 实现 Project Sidebar，展示真实 Project 列表并支持创建/选择项目。
-- 实现 Task Board 和 Task Detail，展示真实 Task 列表、状态、风险等级、阶段和详情。
-- 实现需求输入表单，调用真实 `POST /api/tasks` 创建任务。
-- 展示 Requirement Spec、Acceptance Criteria、Technical Design 的真实后端数据结构。
-- 接入 Timeline / SSE，展示 Agent Timeline、Tool Calls、Event Log。
-- 实现 Design Review Panel 和 Approval Panel 的基础交互，调用真实 approve / reject / request-changes API。
-- 同步更新控制台 README、API client 类型、共享契约使用说明、测试记录和总排期。
+- 实现 Orchestrator 状态机：`Created -> RequirementClarifying -> Designing -> WaitingDesignApproval / Planning`。
+- 实现 Requirement Agent，读取真实 Task 输入并写入 `requirement_specs`。
+- 实现 Architect Agent，基于已通过或最新 Requirement 写入 `technical_designs`。
+- 实现 Planner Agent，输出可持久化的 Development Plan / task graph。
+- 为 Agent 输入、输出、运行结果、失败恢复和结构化输出 schema 建立后端契约。
+- 控制台新增“启动/推进编排”入口，并能展示 Requirement、Technical Design、Development Plan 与状态迁移事件。
+- 同步 OpenAPI、数据库文档、Agent/Tool 契约、控制台说明、测试记录和总排期。
 
-本阶段不实现 Agent 自动生成 Requirement / Design，不实现 Tool Gateway 真实工具执行，不实现 Git PR、远端部署、监控告警或 Tauri 完整桌面壳。如需展示 AgentRun、ToolCall、Approval，只能读取 M2 数据库真实记录或调用明确标注为“内部联调”的创建接口。
+本阶段不实现 Coder/Tester/Reviewer，不执行 Repo 写入、Sandbox 命令、Git PR、Tool Gateway 真实工具调用、远端部署、监控告警或生产级多租户权限。M4 中 Agent 只允许写入需求、设计和开发计划类数据库记录；任何需要真实工具执行的动作只能生成后续计划或审批建议。
 
-版本影响：本阶段属于兼容新增前端能力；如仅修改控制台和文档，可保持项目版本 `0.2.x`，完成后建议提升补丁版本到 `0.2.1` 并同步 `README.md`、`apps/control-console/package.json`、必要的 OpenAPI/文档说明。
+版本影响：M4 新增 Agent 编排、Development Plan、状态迁移和可能的新 API / DB schema，属于兼容新增能力。完成后建议将项目版本提升到 `0.3.0`，并同步 `README.md`、`.env.example`、`modules/platform-api/pyproject.toml`、`apps/control-console/package.json`、OpenAPI 和相关文档。
 
 ## 3. 必须先参考的资料
 
@@ -30,41 +30,52 @@ M3：控制台任务主流程。
 
 - `AGENTS.md`
 - `docs/14-roadmap/03-implementation-milestone-flow.md`
-- `docs/09-control-console/00-page-structure.md`
-- `docs/09-control-console/01-key-interactions.md`
+- `docs/04-agents/00-agent-layer.md`
+- `docs/04-agents/01-collaboration-state-machine.md`
+- `docs/04-agents/02-structured-output-contract.md`
+- `docs/05-tool-layer/00-tool-gateway-overview.md`
 - `docs/08-api/00-api-overview.md`
 - `docs/08-api/01-task-api.md`
 - `docs/08-api/02-requirement-design-api.md`
 - `docs/08-api/03-agent-run-api.md`
-- `docs/08-api/04-tool-call-api.md`
 - `docs/08-api/05-approval-api.md`
 - `docs/08-api/06-event-stream-api.md`
+- `docs/09-control-console/00-page-structure.md`
+- `docs/09-control-console/01-key-interactions.md`
 - `docs/15-detailed-design/00-mvp-scope-and-cutline.md`
+- `docs/15-detailed-design/01-module-contracts.md`
+- `docs/15-detailed-design/02-agent-tool-contract.md`
 - `docs/15-detailed-design/03-api-detail.md`
+- `docs/15-detailed-design/04-data-detail.md`
 - `docs/15-detailed-design/05-workflow-state-events.md`
 - `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
 - `apps/control-console/README.md`
+- `modules/platform-api/README.md`
 
 实现时应参考成熟方案和官方文档：
 
-- React 官方组件、state、effect、表单和错误边界实践。
-- TypeScript 类型建模和 API client 类型推导。
-- Vite 环境变量和构建配置。
-- 浏览器 `EventSource` / SSE 或 fetch 轮询实践。
-- 前端测试：Vitest / React Testing Library 或 Playwright。若暂未引入测试框架，必须记录原因和替代验证步骤。
+- LangGraph / LangChain 状态图和 checkpoint 思路；如果暂不引入依赖，必须说明取舍原因。
+- Pydantic 2 结构化输出、JSON Schema 与模型校验。
+- OpenAI / 兼容 LLM 的 structured outputs 或 JSON schema 输出实践；不得把未校验自然语言直接写入核心字段。
+- FastAPI dependency、service/repository 分层和后台任务边界。
+- React 表单、状态同步和错误边界实践。
+- pytest 对状态机、schema 校验、异常分支和事务副作用的白盒测试实践。
 
 本阶段搜索或查阅到的外部资料应归档到：
 
-- `informations/m3-control-console/official-references.md`
+```text
+informations/m4-agent-orchestration/official-references.md
+```
 
 ## 4. 本阶段不做的事项
 
-- 不实现真实 Agent 自动运行。
-- 不在前端硬编码假项目、假任务、假事件、假审批作为完成状态。
-- 不绕过 Platform API 直接访问数据库。
-- 不实现真实 Git diff、PR、Tool Gateway 执行、远端部署、监控告警。
-- 不把 M2 内部联调创建接口包装成“Agent 已自动完成”。
-- 不引入大型 UI 框架或状态库，除非先说明用途、替代方案和维护成本。
+- 不实现 Coder、Tester、Reviewer、Security、Release / Deploy、SRE Agent 的真实执行。
+- 不让 Agent 绕过 Orchestrator 或 Platform API 直接写数据库。
+- 不让 Agent 绕过 Tool Gateway 调用命令、文件、Git、Docker、SSH 或远端服务。
+- 不在生产代码中写固定 Requirement / Design / Plan 作为“自动生成”结果。
+- 不把缺少 LLM 凭据时的测试 fake 当作生产 fallback。
+- 不新增大型状态库、消息队列或插件系统，除非先补充取舍说明和验证计划。
+- 不把 `approval_requests` 的内部联调记录包装成真实高风险动作已自动执行。
 
 ## 5. 预检步骤
 
@@ -75,9 +86,9 @@ git branch --show-current
 git status --short
 ```
 
-确认当前分支为 `dev`。若在 `main`，必须先切回 `dev`。
+确认当前分支为 `dev`。若在 `main`，必须先切回 `dev` 或从 `dev` 拉出功能分支。
 
-### 5.2 后端 M2 基线
+### 5.2 后端 M3 基线
 
 ```powershell
 docker compose -f infra/docker-compose.dev.yml up -d postgres
@@ -85,16 +96,9 @@ cd modules/platform-api
 $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
 uv run alembic upgrade head
 uv run pytest
-uv run uvicorn cloudhelm_platform_api.main:app --host 127.0.0.1 --port 18080
 ```
 
-在另一个终端验证：
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:18080/health
-```
-
-### 5.3 前端基线
+### 5.3 前端 M3 基线
 
 ```powershell
 cd apps/control-console
@@ -102,216 +106,284 @@ npm.cmd install
 npm.cmd run build
 ```
 
-确认 M1 控制台仍可构建。
+### 5.4 配置预检
+
+检查是否存在本阶段需要的模型配置。推荐预留但不提交真实密钥：
+
+```powershell
+$env:CLOUDHELM_LLM_PROVIDER
+$env:CLOUDHELM_LLM_MODEL
+$env:CLOUDHELM_LLM_API_KEY
+```
+
+如果缺少真实模型凭据，M4 生产路径不得标记为完整完成；可以先实现 provider 接口、schema、状态机和测试 fake，并在 `PROJECT_PROGRESS.md` 记录阻塞范围。
 
 ## 6. 详细任务拆分
 
-### 6.1 创建 M3 资料归档
+### 6.1 创建 M4 资料归档
 
 创建或更新：
 
 ```text
-informations/m3-control-console/official-references.md
+informations/m4-agent-orchestration/official-references.md
 ```
 
 必须覆盖：
 
-- React state/effect/form 官方实践。
-- TypeScript 类型和 Vite 环境变量。
-- EventSource / SSE 或 fetch 轮询参考。
-- 前端测试或浏览器验证方案。
+- LangGraph / 状态机实践。
+- Pydantic JSON Schema / validation。
+- LLM structured outputs / JSON schema 输出。
+- FastAPI 后台任务或同步 service 调用边界。
+- pytest 状态机与 schema 测试参考。
 
 完成后在 `PROJECT_PROGRESS.md` 记录已查阅资料和采用结论。
 
-### 6.2 建立前端 API client 和类型
+### 6.2 补充共享契约与数据库 schema
 
-建议新增：
+建议新增或更新：
 
 ```text
-apps/control-console/src/shared/api/
-  client.ts
-  cloudhelmApi.ts
-apps/control-console/src/shared/types/
-  api.ts
-  events.ts
+packages/shared-contracts/schemas/agents/
+  agent-run-output.schema.json
+  requirement-agent-output.schema.json
+  architect-agent-output.schema.json
+  planner-agent-output.schema.json
+  development-plan.schema.json
+packages/shared-contracts/openapi/cloudhelm.openapi.yaml
+docs/15-detailed-design/02-agent-tool-contract.md
+docs/15-detailed-design/04-data-detail.md
+```
+
+后端建议新增：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/models/development_plan.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/development_plan.py
+modules/platform-api/src/cloudhelm_platform_api/repositories/development_plan_repository.py
+modules/platform-api/src/cloudhelm_platform_api/services/development_plan_service.py
+modules/platform-api/src/cloudhelm_platform_api/api/development_plans.py
+migrations/versions/20260708_0002_create_m4_agent_tables.py
 ```
 
 要求：
 
-- API base URL 来自 `VITE_CLOUDHELM_API_BASE_URL`。
-- 所有请求必须处理 HTTP 错误结构 `code/message/detail/trace_id`。
-- 类型与 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml` 保持字段一致。
-- 不在组件里散落 `fetch` URL 拼接；统一通过 API client 调用。
-- 记录必要注释：调用方、返回值、错误边界、M2/M3 功能边界。
+- 新增 `development_plans` 表，至少包含 `id`、`task_id`、`project_id`、`technical_design_id`、`summary`、`steps_json`、`risks_json`、`status`、`version`、`created_by_agent_run_id`、`created_at`、`updated_at`。
+- 评估是否给 `agent_runs` 增加 `summary`、`structured_output_type`、`structured_output_json`、`error_code`、`error_message`；如果不改表，必须说明输出落库位置。
+- 所有 JSON 字段使用 PostgreSQL JSONB，并在 Pydantic 层校验结构。
+- 更新 OpenAPI 和数据文档，说明版本影响。
 
-### 6.3 实现 Project Sidebar
+### 6.3 建立 agent-runtime 模块
 
 建议新增：
 
 ```text
-apps/control-console/src/features/projects/
-  ProjectSidebar.tsx
-  ProjectCreateForm.tsx
-  useProjects.ts
+modules/agent-runtime/
+  pyproject.toml
+  README.md
+  src/cloudhelm_agent_runtime/
+    __init__.py
+    agents/
+      requirement_agent.py
+      architect_agent.py
+      planner_agent.py
+    schemas/
+      agent_io.py
+      requirement.py
+      design.py
+      development_plan.py
+    providers/
+      base.py
+      openai_compatible.py
+    prompts/
+      requirement.md
+      architect.md
+      planner.md
+    tests/
+      test_agent_output_validation.py
 ```
 
 要求：
 
-- 调用 `GET /api/projects` 展示真实项目列表。
-- 调用 `POST /api/projects` 创建项目。
-- 支持选择当前项目，并把 `project_id` 传给任务列表。
-- 覆盖加载态、空状态、错误态和创建成功刷新。
+- 每个 Agent 必须有职责说明、输入结构、输出结构和允许工具列表注释。
+- Agent 输出必须先过 Pydantic / JSON Schema 校验，再交给 Orchestrator 写入 Platform API。
+- Provider 层只负责模型调用和返回文本/JSON，不写业务表。
+- 测试 fake 只能放在 `tests` 或测试夹具中，不得进入生产路径作为默认 Agent。
+- 缺少真实 LLM 配置时，生产运行应返回明确错误并进入可恢复状态，不得静默写固定内容。
 
-完成后在总流程中勾选：
-
-```markdown
-- [x] 实现 Project Sidebar。
-```
-
-### 6.4 实现 Task Board 和 Task Detail
+### 6.4 建立 orchestrator 模块与状态机
 
 建议新增：
 
 ```text
-apps/control-console/src/features/tasks/
-  TaskBoard.tsx
-  TaskDetail.tsx
-  TaskCreateForm.tsx
-  TaskStatusBadge.tsx
-  useTasks.ts
+modules/orchestrator/
+  pyproject.toml
+  README.md
+  src/cloudhelm_orchestrator/
+    __init__.py
+    state_machine.py
+    services/
+      orchestration_service.py
+      task_context_loader.py
+      agent_result_applier.py
+    tests/
+      test_state_machine.py
+      test_orchestration_service.py
 ```
 
 要求：
 
-- 调用 `GET /api/tasks?project_id=...` 展示真实任务。
-- 调用 `GET /api/tasks/{task_id}` 展示任务详情。
-- 调用 `POST /api/tasks` 创建任务。
-- 支持 pause / resume / cancel 操作，并刷新任务和时间线。
-- 状态、风险等级和阶段展示必须来自后端响应。
+- 状态机只覆盖 M4 范围：`Created`、`RequirementClarifying`、`Designing`、`WaitingDesignApproval`、`Planning`。
+- 每次迁移必须调用 Platform API service 写入 Task 状态/阶段和 EventLog。
+- Requirement Agent 成功后写 `RequirementSpecCreated`，进入 `Designing`。
+- Architect Agent 成功后写 `TechnicalDesignCreated`；若风险等级为 `L2` 及以上或设计包含 migration / deployment 相关风险，进入 `WaitingDesignApproval` 并创建 ApprovalRequest，否则进入 `Planning`。
+- Planner Agent 成功后写 `DevelopmentPlanCreated`，任务进入 M4 定义的等待后续实现状态。
+- 失败时写结构化失败事件，任务不得直接伪装为完成。
 
-完成后在总流程中勾选：
+### 6.5 扩展 Platform API 编排入口
 
-```markdown
-- [x] 实现 Task Board 和 Task Detail。
-- [x] 实现需求输入表单，并调用真实 Task API。
-```
-
-### 6.5 展示 Requirement / Design 数据
-
-建议新增：
+建议新增或修改：
 
 ```text
+modules/platform-api/src/cloudhelm_platform_api/api/orchestration.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/orchestration.py
+modules/platform-api/src/cloudhelm_platform_api/services/task_service.py
+modules/platform-api/src/cloudhelm_platform_api/services/event_service.py
+```
+
+建议接口：
+
+```text
+POST /api/tasks/{task_id}/start
+POST /api/tasks/{task_id}/run-next
+GET  /api/tasks/{task_id}/development-plans
+GET  /api/development-plans/{plan_id}
+```
+
+要求：
+
+- `start` 只能从 `created` 或可恢复状态启动，重复启动必须返回状态冲突或幂等结果。
+- `run-next` 根据当前阶段推进一个最小 Agent 步骤，便于 M4 验证和答辩演示。
+- API 必须返回真实 DTO，并保留 `trace_id` 错误结构。
+- 写操作必须在 service 层完成事务与事件副作用，路由层不得直接写数据库。
+
+### 6.6 控制台接入 M4 编排交互
+
+建议新增或修改：
+
+```text
+apps/control-console/src/shared/types/api.ts
+apps/control-console/src/shared/api/cloudhelmApi.ts
+apps/control-console/src/features/tasks/TaskBoard.tsx
+apps/control-console/src/features/tasks/TaskDetail.tsx
 apps/control-console/src/features/design-review/
-  RequirementPanel.tsx
-  TechnicalDesignPanel.tsx
-  DesignReviewPanel.tsx
+apps/control-console/src/features/planning/
+  DevelopmentPlanPanel.tsx
 ```
 
 要求：
 
-- 调用 `GET /api/tasks/{task_id}/requirements`。
-- 调用 `GET /api/tasks/{task_id}/technical-designs`。
-- 展示 `raw_input`、`user_story`、`acceptance_criteria_json`、`constraints_json`、`content_markdown`、`openapi_json`、`db_schema_json`。
-- 支持 approve / request-changes 基础交互，调用真实 API。
-- 若当前任务没有 Requirement / Design，显示真实空状态，不展示假内容。
+- Task Board 或 Task Detail 提供“启动编排 / 推进一步”按钮，调用真实 `start` / `run-next` API。
+- 控制台展示 Requirement、Technical Design 和 Development Plan 的真实结构化内容。
+- 若缺少模型配置或 Agent 输出失败，展示真实错误和 trace_id，不展示假结果。
+- Design Review Panel 继续复用 approve / request-changes API；审批后允许继续推进到 Planning。
+- 明确 UI 文案：M4 只覆盖 Requirement / Architect / Planner，不执行代码修改和工具调用。
 
-完成后在总流程中勾选：
+### 6.7 测试与验证设计
 
-```markdown
-- [x] 展示 Requirement Spec、Acceptance Criteria、Technical Design 的真实后端数据结构。
-```
-
-### 6.6 接入 Timeline、Tool Calls 和 Approval
-
-建议新增：
+后端至少新增：
 
 ```text
-apps/control-console/src/features/tasks/
-  TaskTimeline.tsx
-apps/control-console/src/features/approvals/
-  ApprovalPanel.tsx
-apps/control-console/src/features/tool-calls/
-  ToolCallList.tsx
+modules/platform-api/tests/test_orchestration_api.py
+modules/platform-api/tests/test_development_plan_api.py
+modules/orchestrator/tests/test_state_machine.py
+modules/agent-runtime/tests/test_agent_output_validation.py
 ```
 
-要求：
+黑盒测试要求：
 
-- 调用 `GET /api/tasks/{task_id}/timeline` 展示事件。
-- 优先尝试 `EventSource` 连接 `GET /api/tasks/{task_id}/events/stream`；若 M2 SSE 只输出当前事件和 heartbeat，则记录为“轮询/重连式事件流边界”。
-- 调用 `GET /api/tasks/{task_id}/tool-calls` 展示工具名、风险等级、状态、参数摘要。
-- 调用 `GET /api/approvals` 和 approve / reject API 展示基础审批卡片。
-- Approval 操作必须显示成功/失败结果和 trace_id。
+- 创建 Project -> Task -> start -> 查询 Requirement / Timeline。
+- 通过 Requirement -> run-next -> 查询 Technical Design。
+- 审批 Design 或低风险自动进入 Planning -> 查询 Development Plan。
+- 缺少 LLM 配置时返回明确错误，状态和事件可追溯。
+- 非法状态重复 start / run-next 返回稳定错误码和 trace_id。
 
-完成后在总流程中勾选：
+白盒测试要求：
 
-```markdown
-- [x] 接入事件流，展示 Agent Timeline、Tool Calls、Event Log。
-- [x] 实现 Design Review Panel 和 Approval Panel 的基础交互。
-```
-
-### 6.7 前端布局与交互整合
-
-修改：
-
-```text
-apps/control-console/src/App.tsx
-apps/control-console/src/App.css
-apps/control-console/src/main.tsx
-```
-
-要求：
-
-- 页面结构遵循 `docs/09-control-console/00-page-structure.md`。
-- 不堆积业务逻辑到 `App.tsx`，复杂逻辑拆入 features/hooks。
-- 保留 `/health` 状态展示，但不让健康检查替代任务主流程验证。
-- 中文 UI 文案清晰标注 M2/M3 边界，例如“当前未接入自动 Agent”。
-
-### 6.8 测试与验证
+- Pydantic schema 校验正常、边界和异常 JSON。
+- 状态机每个允许迁移和禁止迁移分支。
+- service 事务：AgentRun、业务记录、EventLog 同步写入或同步回滚。
+- 审批触发规则：高风险设计进入 `waiting_approval`，低风险设计可进入 `planning`。
 
 至少执行：
 
 ```powershell
 cd modules/platform-api
 $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
+uv run alembic upgrade head
 uv run pytest
 
 cd ..\..\apps\control-console
 npm.cmd run build
 ```
 
-建议补充：
+如果新增 `modules/orchestrator` 或 `modules/agent-runtime` 独立环境，还必须执行对应模块测试命令，并写入 README。
 
-- 前端 API client 单元测试。
-- 使用浏览器或 Playwright 验证：创建项目 -> 创建任务 -> 查看详情 -> 暂停/恢复/取消 -> 时间线更新。
-- 若暂不引入自动化浏览器测试，必须在 `PROJECT_PROGRESS.md` 写明人工验证步骤、输入、预期和实际结果。
+### 6.8 文档同步
+
+必须更新：
+
+```text
+README.md
+.env.example
+apps/control-console/README.md
+modules/platform-api/README.md
+docs/04-agents/*.md
+docs/08-api/*.md
+docs/09-control-console/*.md
+docs/15-detailed-design/01-module-contracts.md
+docs/15-detailed-design/02-agent-tool-contract.md
+docs/15-detailed-design/03-api-detail.md
+docs/15-detailed-design/04-data-detail.md
+docs/15-detailed-design/05-workflow-state-events.md
+docs/14-roadmap/03-implementation-milestone-flow.md
+PROJECT_PROGRESS.md
+```
+
+要求：
+
+- 文档必须说明 M4 能力边界：只完成需求、设计、计划闭环，不写代码、不执行工具。
+- 若引入 LLM provider、LangGraph 或新依赖，必须说明用途、替代方案和维护成本。
+- OpenAPI、数据库 schema、事件名称和控制台文案必须保持一致。
 
 ## 7. 完成后的同步动作
 
-M3 所有任务完成后必须：
+M4 所有任务完成后必须：
 
-1. 更新 `docs/14-roadmap/03-implementation-milestone-flow.md`，将 M3 下所有任务打钩。
-2. 更新 `PROJECT_PROGRESS.md`，记录创建或修改的文件、验证命令、失败修复和遗留风险。
-3. 根据下一个未完成阶段 M4 重写 `PROJECT_PLAN.md`。
-4. 同步 `README.md`、`apps/control-console/README.md`、`docs/09-control-console/` 和必要的 API 使用说明。
-5. 如提升版本到 `0.2.1`，同步所有版本字段并说明版本影响。
+1. 更新 `docs/14-roadmap/03-implementation-milestone-flow.md`，将 M4 下所有任务打钩。
+2. 更新 `PROJECT_PROGRESS.md`，记录创建或修改的文件、验证命令、失败修复、遗留风险和模型配置状态。
+3. 根据下一个未完成阶段 M5 重写或更新 `PROJECT_PLAN.md`。
+4. 同步 `README.md`、模块 README、控制台 README、API 文档、Agent/Tool 契约和 OpenAPI。
+5. 如提升版本到 `0.3.0`，同步所有版本字段并说明版本影响。
 
-## 8. M3 完成判定
+## 8. M4 完成判定
 
-只有全部满足才算 M3 完成：
+只有全部满足才算 M4 完成：
 
-- 控制台能从真实 API 加载和创建 Project。
-- 控制台能从真实 API 加载、创建、暂停、恢复、取消 Task。
-- 控制台能展示真实 Task Detail、Requirement、Technical Design、Timeline、ToolCall、Approval 数据。
-- 控制台没有静态假任务、假 AgentRun、假 ToolCall 或假审批。
-- 后端 `uv run pytest` 通过。
-- 前端 `npm.cmd run build` 通过。
-- 必要的人工或自动化浏览器验证已记录。
-- `PROJECT_PROGRESS.md` 和总排期流程已同步。
+- Orchestrator 能从真实 Task 推进 Requirement / Architect / Planner 状态。
+- Requirement Agent 输出通过 schema 校验并写入真实 `requirement_specs`。
+- Architect Agent 输出通过 schema 校验并写入真实 `technical_designs`。
+- Planner Agent 输出通过 schema 校验并写入真实 Development Plan。
+- 每次状态迁移、AgentRun 和业务记录写入真实 EventLog。
+- 控制台能通过真实 API 启动/推进编排并展示 Requirement、Design、Plan、Timeline。
+- 缺少模型配置、结构化输出失败、非法状态迁移等异常路径可见且可追溯。
+- 后端、Agent Runtime、Orchestrator 和前端构建/测试通过。
+- `PROJECT_PROGRESS.md`、总排期流程和下一阶段 `PROJECT_PLAN.md` 已同步。
 
 ## 9. 风险与处理
 
-- 如果后端 API 未启动：前端必须显示错误态和重试入口，不得静默显示假数据。
-- 如果 M2 SSE 不能实时推送：记录为 M2/M3 边界，可用轮询或重连刷新，但必须说明原因。
-- 如果前端状态逻辑开始膨胀：优先拆分 hooks 和 feature 组件，不引入过重状态库。
-- 如果需要新增依赖：先说明用途、替代方案和维护成本，写入对应 `package.json` 和 lock 文件。
-- 如果验证失败：不得把 M3 任务打钩，必须修复后回归测试。
+- 如果没有真实 LLM 凭据：生产 Agent 路径不得标记完成；先完成 schema、状态机、API、测试 fake 和阻塞记录。
+- 如果 LangGraph 引入成本过高：可以先用显式状态机实现 M4 最小闭环，但必须在资料归档和进度中说明取舍。
+- 如果 Agent 输出 schema 不稳定：增加格式修复重试和失败事件，不得把解析失败的自然语言写入核心表。
+- 如果状态机和现有 TaskService 冲突：先补模块契约和 API 文档，再改 service。
+- 如果控制台状态刷新出现滞后：以 Timeline 和详情刷新为准，记录 SSE 边界，不展示本地推测状态。
+- 如果验证失败：不得把 M4 任务打钩，不得提交“完成”类 commit；修复后必须执行回归测试。

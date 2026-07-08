@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.2.0", description="当前服务版本。")
+    version: str = Field(default="0.2.1", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",

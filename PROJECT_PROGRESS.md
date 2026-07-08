@@ -2,6 +2,71 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-08（M3 完成：控制台任务主流程）
+
+### 已完成
+
+- 按 `PROJECT_PLAN.md` 完成 M3：控制台任务主流程。
+- 新增 `informations/m3-control-console/official-references.md`，归档 React、TypeScript、Vite、EventSource、Vitest / Testing Library 资料和采用结论。
+- 重构 `apps/control-console`，从单一健康检查页面升级为 Project Sidebar + Task Board + Task Detail 的主流程控制台。
+- 将控制台样式拆分为 `styles.css` 和 `console.css`，避免单个 CSS 文件超过普通源码体量建议。
+- 新增前端统一 API client：集中处理 `VITE_CLOUDHELM_API_BASE_URL`、查询参数、JSON 请求体、`code/message/detail/trace_id` 错误结构和 `EventSource` 事件流。
+- 新增前端共享类型：Project、Task、RequirementSpec、TechnicalDesign、AgentRun、ToolCall、ApprovalRequest、EventLog、分页和错误结构。
+- 实现 Project Sidebar，调用真实 `GET /api/projects` 和 `POST /api/projects`，覆盖加载态、空状态、错误态和创建刷新。
+- 实现 Task Board 和需求输入表单，调用真实 `GET /api/tasks?project_id=...`、`POST /api/tasks`、`pause`、`resume`、`cancel`。
+- 实现 Task Detail，展示真实任务详情、Requirement Spec、Acceptance Criteria、Technical Design、Agent Timeline、Event Log、Tool Calls 和 Approval。
+- 实现 Requirement / Technical Design 基础评审交互，调用真实 approve / request-changes API。
+- 实现 Approval Panel 基础交互，调用真实 approve / reject API，并展示操作结果或 trace_id 错误。
+- 接入 M2 SSE 端点；因 M2 只回放已有事件和 heartbeat，控制台明确标注为轮询/重连式边界，并在任务操作后刷新详情与 Timeline。
+- 修复浏览器验证中发现的 Task Board 操作后 Task Detail / Timeline 不刷新的问题，新增 `refreshKey` 触发详情回读。
+- 将项目版本同步到 `0.2.1`，更新 README、`.env.example`、控制台 package、Platform API 默认版本和 OpenAPI 版本。
+- 更新 `docs/09-control-console/`，记录 M3 页面结构和关键交互落地状态。
+- 更新 `docs/14-roadmap/03-implementation-milestone-flow.md`，将 M3 所有任务打钩，并把当前下一步改为 M4。
+- 重写 `PROJECT_PLAN.md`，生成 M4“Agent 编排与规格化闭环”的详细执行计划。
+
+### 进行中
+
+- M3 已完成并通过构建、后端测试和浏览器主流程验证；下一阶段从 `dev` 执行 M4 Agent 编排与规格化闭环。
+
+### 阻塞与风险
+
+- M2 SSE 仍只回放已有事件并追加 heartbeat，M3 已用刷新/重连方式处理；生产级持续推送留到后续事件总线阶段。
+- M3 未新增前端自动化测试依赖，采用 TypeScript/Vite 构建 + 浏览器手工 E2E 验证；后续如前端逻辑继续增长，应补 Vitest / Testing Library 或 Playwright 自动化。
+- 浏览器插件的 `domSnapshot()` 在当前环境报错，已改用同一浏览器插件内的 Playwright evaluate/locator/screenshot 验证；不影响被测应用本身。
+- M3 不实现 Agent 自动生成 Requirement / Design，不执行 Tool Gateway、Git PR、远端部署或监控告警。
+
+### 下一步
+
+- 按新的 `PROJECT_PLAN.md` 执行 M4：创建 M4 资料归档，设计 Agent 输出 schema、Orchestrator 状态机和 Development Plan 数据结构。
+- 实现 Requirement / Architect / Planner Agent 的结构化输出校验和真实持久化路径。
+- 为控制台增加“启动/推进编排”入口，并展示 Development Plan。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `README.md`
+- `.env.example`
+- `apps/control-console/**`
+- `informations/m3-control-console/official-references.md`
+- `modules/platform-api/pyproject.toml`
+- `modules/platform-api/uv.lock`
+- `modules/platform-api/src/cloudhelm_platform_api/core/config.py`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `docs/09-control-console/00-page-structure.md`
+- `docs/09-control-console/01-key-interactions.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+
+### 验证
+
+- 已执行 `git branch --show-current`，确认当前分支为 `dev`。
+- 已执行 `git status --short`，确认开始前工作区干净。
+- 已阅读 M3 计划要求的控制台、API、MVP、工作流和 OpenAPI 相关文档。
+- 已执行 `cd modules/platform-api; $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'; uv run alembic upgrade head; uv run pytest`，结果：`11 passed, 1 warning`。
+- 已执行 `cd apps/control-console; npm.cmd run build`，结果：TypeScript 编译和 Vite build 成功。
+- 已启动本地 Platform API 与 Vite dev server，使用浏览器执行手工 E2E：创建项目 -> 创建任务 -> Pause -> Resume -> Cancel -> Task Detail / Timeline 展示 `TaskCreated`、`TaskPaused`、`TaskResumed`、`TaskCancelled`。
+- 浏览器验证最终状态：页面无 Vite/framework error overlay，console error/warn 为空，移动宽度首屏包含标题、Project Sidebar 和 Task Board。
+
 ## 2026-07-08（M2 完成：数据模型、API 与事件底座）
 
 ### 已完成

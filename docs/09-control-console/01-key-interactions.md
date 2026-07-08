@@ -9,6 +9,13 @@
 - 能实时查看 Agent Timeline、Tool Calls、测试报告、扫描报告和 PR 链接。
 - L3/L4 操作必须弹出审批卡片。
 
+## M3 落地状态
+
+- 需求输入表单当前调用真实 `POST /api/tasks` 创建 Task，暂不自动生成 Requirement Spec 或 Technical Design。
+- Requirement / Design 面板读取真实后端记录；没有记录时展示真实空状态，不展示示例假数据。
+- Timeline 面板读取 `GET /api/tasks/{task_id}/timeline`，并优先连接 M2 SSE 端点；因 M2 SSE 只回放已有事件和 heartbeat，界面在事件或操作后重新读取 Timeline。
+- Tool Calls 与 Approval Panel 读取真实记录；审批按钮调用真实 approve / reject API，但 L3/L4 操作恢复执行仍留到 Tool Gateway 阶段。
+
 ## 设计书摘录
 
 ### 13.2 关键交互

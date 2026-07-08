@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M2 提供真实数据库驱动的项目、任务、需求、设计、审批和事件底座。
-  version: 0.2.0
+  description: CloudHelm 平台 API。M2/M3 提供真实数据库驱动的项目、任务、需求、设计、审批、事件底座和控制台主流程。
+  version: 0.2.1
 paths:
   /health:
     get:

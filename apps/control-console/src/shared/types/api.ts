@@ -1,0 +1,187 @@
+/**
+ * CloudHelm M2/M3 API 类型。
+ *
+ * 本文件手写映射 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+ * 中当前控制台需要的 DTO。后续如接入 OpenAPI 类型生成器，应以该契约为
+ * 唯一来源并替换本文件，避免组件层散落字段猜测。
+ */
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
+
+export type RiskLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4'
+
+export type TaskStatus =
+  | 'created'
+  | 'running'
+  | 'waiting_approval'
+  | 'paused'
+  | 'failed'
+  | 'done'
+  | 'cancelled'
+
+export type ReviewStatus = 'draft' | 'approved' | 'changes_requested'
+
+export type AgentRunStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+
+export type ToolCallStatus =
+  | 'pending'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'waiting_approval'
+  | 'cancelled'
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired'
+
+export interface PageInfo {
+  limit: number
+  next_cursor: string | null
+}
+
+export interface PageResponse<TItem> {
+  items: TItem[]
+  page: PageInfo
+}
+
+export interface ApiErrorResponse {
+  code: string
+  message: string
+  detail: JsonValue | null
+  trace_id: string
+}
+
+export interface DecisionRequest {
+  actor_id?: string
+  reason?: string | null
+}
+
+export interface ProjectCreateInput {
+  name: string
+  repo_url: string
+  default_branch: string
+  provider: string
+}
+
+export interface Project {
+  id: string
+  name: string
+  repo_url: string
+  default_branch: string
+  provider: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TaskCreateInput {
+  project_id: string
+  title: string
+  description: string
+  source_type?: string
+  source_ref?: string | null
+  risk_level?: RiskLevel
+  created_by?: string
+}
+
+export interface Task {
+  id: string
+  project_id: string
+  title: string
+  description: string
+  source_type: string
+  source_ref: string | null
+  status: TaskStatus
+  risk_level: RiskLevel
+  current_phase: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RequirementSpec {
+  id: string
+  task_id: string
+  project_id: string
+  source_type: string
+  raw_input: string
+  user_story: string | null
+  constraints_json: JsonValue[]
+  acceptance_criteria_json: JsonValue[]
+  status: ReviewStatus
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TechnicalDesign {
+  id: string
+  task_id: string
+  requirement_spec_id: string
+  design_type: string
+  content_markdown: string
+  openapi_json: Record<string, JsonValue> | null
+  db_schema_json: Record<string, JsonValue> | null
+  mermaid_diagram: string | null
+  risk_level: RiskLevel
+  status: ReviewStatus
+  created_by_agent_run_id: string | null
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AgentRun {
+  id: string
+  task_id: string
+  agent_type: string
+  status: AgentRunStatus
+  model_name: string | null
+  prompt_hash: string | null
+  input_tokens: number
+  output_tokens: number
+  cost_usd: string
+  started_at: string
+  finished_at: string | null
+}
+
+export interface ToolCall {
+  id: string
+  task_id: string
+  agent_run_id: string | null
+  tool_name: string
+  risk_level: RiskLevel
+  arguments_summary: string
+  result_json: Record<string, JsonValue> | null
+  status: ToolCallStatus
+  approval_id: string | null
+  started_at: string
+  finished_at: string | null
+}
+
+export interface ApprovalRequest {
+  id: string
+  task_id: string
+  action: string
+  risk_level: RiskLevel
+  reason: string
+  status: ApprovalStatus
+  requested_by_agent_run_id: string | null
+  decided_by: string | null
+  decided_at: string | null
+  created_at: string
+}
+
+export interface EventLog {
+  id: string
+  task_id: string | null
+  event_type: string
+  actor_type: string
+  actor_id: string | null
+  payload: Record<string, JsonValue>
+  created_at: string
+}

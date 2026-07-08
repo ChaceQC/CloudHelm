@@ -1,0 +1,240 @@
+.empty-state,
+.muted,
+.form-hint {
+  color: #93a4bd;
+  line-height: 1.7;
+}
+
+.form-error,
+.operation-message {
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 14px;
+  background: rgba(127, 29, 29, 0.18);
+  color: #fecaca;
+  margin: 0;
+  padding: 0.75rem;
+}
+
+.operation-message {
+  border-color: rgba(125, 211, 252, 0.35);
+  background: rgba(14, 165, 233, 0.12);
+  color: #bae6fd;
+}
+
+.stacked-form,
+.compact-form,
+.decision-comment {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.compact-form {
+  margin-top: 0.75rem;
+}
+
+.form-row {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+label {
+  color: #bfdbfe;
+  display: grid;
+  font-size: 0.9rem;
+  gap: 0.35rem;
+}
+
+input,
+textarea,
+select {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font: inherit;
+  padding: 0.75rem 0.85rem;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button:disabled,
+button:disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.ghost-button,
+.tiny-button {
+  background: rgba(15, 23, 42, 0.52);
+  padding: 0.52rem 0.9rem;
+}
+
+.tiny-button {
+  font-size: 0.78rem;
+  padding: 0.4rem 0.65rem;
+}
+
+.danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(127, 29, 29, 0.28);
+}
+
+.project-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.project-item {
+  align-items: flex-start;
+  border-radius: 20px;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+  text-align: left;
+  width: 100%;
+}
+
+.project-item span,
+.project-item small {
+  color: #93c5fd;
+}
+
+.project-item small,
+.record-card small,
+.task-card small {
+  overflow-wrap: anywhere;
+}
+
+.project-item.selected,
+.task-card.selected {
+  border-color: rgba(34, 211, 238, 0.78);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.22);
+}
+
+.sidebar-divider {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  margin: 1.2rem 0;
+}
+
+.board-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 1rem;
+}
+
+.board-column,
+.record-card,
+.review-card {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.58);
+  padding: 1rem;
+}
+
+.task-card {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.5);
+  cursor: pointer;
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+}
+
+.task-card h4,
+.review-card h4 {
+  margin: 0;
+}
+
+.task-card p {
+  color: #cbd5e1;
+  display: -webkit-box;
+  line-height: 1.55;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.status-badge,
+.risk-chip,
+.review-status,
+.stream-chip {
+  align-items: center;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+  border-radius: 999px;
+  color: #e0f2fe;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.risk-chip {
+  border-color: rgba(251, 191, 36, 0.5);
+  color: #fde68a;
+}
+
+.status-failed,
+.status-cancelled,
+.status-rejected,
+.status-changes_requested {
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fecaca;
+}
+
+.status-approved,
+.status-done,
+.status-succeeded {
+  border-color: rgba(74, 222, 128, 0.45);
+  color: #bbf7d0;
+}
+
+.detail-meta,
+.meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.detail-meta span,
+.meta-grid div {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.45);
+  padding: 0.65rem 0.85rem;
+}
+
+.detail-description {
+  color: #dbeafe;
+  line-height: 1.8;
+}
+
+.split-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+pre {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.45);
+  color: #dbeafe;
+  max-height: 280px;
+  overflow: auto;
+  padding: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.markdown-preview {
+  line-height: 1.65;
+}

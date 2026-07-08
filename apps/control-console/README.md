@@ -1,6 +1,6 @@
 # apps/control-console
 
-CloudHelm 控制台前端骨架，使用 React + TypeScript + Vite。当前 M2 已完成后端真实数据库 API 与事件底座，但控制台仍只实现平台 API `/health` 的真实调用和错误展示；Project、Task、Timeline 和 Approval 主流程将在 M3 接入，当前不提供静态假任务、假 Agent 或假部署数据。
+CloudHelm 控制台前端，使用 React + TypeScript + Vite。当前 M3 已接入真实 Platform API，可创建 Project、创建 Task、暂停/恢复/取消任务，并展示 Task Detail、Requirement、Technical Design、Timeline、ToolCall 和 Approval 的真实数据或空状态；不提供静态假任务、假 Agent 或假部署数据。
 
 ## 命令
 
@@ -18,3 +18,11 @@ npm.cmd run build
 ## Tauri 说明
 
 当前仍保留 React/TypeScript 工程边界，未初始化 `src-tauri`。Tauri 桌面壳会在控制台功能进入可交互主流程后再接入，避免提前扩大依赖和验证范围。
+
+## M3 功能边界
+
+- Project Sidebar 调用 `GET /api/projects`、`POST /api/projects`。
+- Task Board 调用 `GET /api/tasks?project_id=...`、`POST /api/tasks`、`pause`、`resume`、`cancel`。
+- Task Detail 并发读取 Requirement、Technical Design、AgentRun、ToolCall、Approval 和 Timeline。
+- SSE 优先使用 `EventSource` 连接 M2 事件流；因 M2 只回放已有事件和 heartbeat，界面在任务操作后重新读取 Timeline。
+- Agent 自动规格化、Tool Gateway 执行、Git PR、远端部署和监控告警留到 M4 及后续阶段。
