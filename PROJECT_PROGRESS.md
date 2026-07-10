@@ -2,6 +2,46 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-10（M1-M5 二次审计启动）
+
+### 已完成
+
+- 按用户要求重新从 `AGENTS.md`、M1-M5 总排期、模块契约、Agent/Tool 契约、数据设计、事件设计和安全边界建立审计基线，不沿用上一轮“已完成”结论。
+- 重跑当前基线：Tool Gateway `20 passed, 1 skipped`、Agent Runtime `8 passed`、Orchestrator `3 passed`、Platform API `32 passed, 1 warning`、控制台 `4 passed` 且生产构建成功。
+- 使用 `alembic check` 发现 ORM metadata 与已应用迁移存在注释差异，证明现有测试门禁仍不能覆盖全部 schema 一致性。
+- 发现需要修复的实现问题：资源版本未递增、旧版本仍可评审、分页漏最新数据、未处理异常缺统一错误、Tool Gateway 工作区根目录由调用方任意指定、ToolCall 审计未持久化和脱敏、控制台 Project/Task 请求竞态及 SSE 无真正重连。
+- 重写 `PROJECT_PLAN.md` 为本次 M1-M5 二次审计与修复的详细执行计划；本阶段不进入 M6。
+
+### 进行中
+
+- 正在按计划先修复数据/API/状态不变量，再修复 Tool Gateway 和控制台。
+
+### 阻塞与风险
+
+- Windows 当前账户仍可能无法创建 symlink；该项使用跳过测试并以既有 symlink、路径越界和允许根目录测试补充。
+- M5 Sandbox 仍是本地 subprocess，不具备 Docker 资源和网络隔离；本次只收紧允许工作区、命令与审计边界。
+
+### 下一步
+
+- 实现 Requirement、TechnicalDesign、DevelopmentPlan 版本递增和最新版评审约束。
+- 修复分页 cursor、统一 500 错误和最新记录排序。
+- 新增 ToolCall audit migration、工作区 allowlist 与敏感结果脱敏。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `modules/platform-api/**`
+- `modules/tool-gateway/**`
+- `apps/control-console/**`
+- `packages/shared-contracts/**`
+
+### 验证
+
+- 已确认当前分支为 `dev`，工作区在审计开始前干净。
+- 已执行全部现有自动化测试和前端构建。
+- 已执行 `uv run alembic check` 并记录真实失败差异，未把该项伪装为通过。
+
 ## 2026-07-10（M1-M5 补全收尾与 v0.4.1）
 
 ### 已完成
