@@ -21,14 +21,18 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 ## 环境变量
 
 - `CLOUDHELM_ENV`：运行环境，默认 `development`。
-- `CLOUDHELM_VERSION`：服务版本，默认 `0.4.1`。
+- `CLOUDHELM_VERSION`：服务版本，默认 `0.4.2`。
 - `CLOUDHELM_AGENT_PROVIDER`：M4 Agent provider，默认 `local_structured`。
 - `CLOUDHELM_TOOL_RATE_LIMIT_CALLS`：单实例窗口内每个任务或 AgentRun 的最大工具调用次数，默认 60。
 - `CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS`：工具调用滑动窗口秒数，默认 60。
+- `CLOUDHELM_TOOL_WORKSPACE_ROOTS`：允许 Repo、Sandbox、Git 工具访问的根目录 JSON 数组；默认 `[]`，即拒绝工作区工具。
 - `CLOUDHELM_LLM_PROVIDER`、`CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE`、`CLOUDHELM_LLM_API_KEY`：切换 `openai_compatible` provider 时使用；真实 Key 不得提交。
 - `CLOUDHELM_LLM_API_MODE`：默认 `responses`；旧兼容服务可改为 `chat_completions`。
 - `CLOUDHELM_LLM_REASONING_EFFORT`：默认 `max`，用于用户指定的 `gpt-5.6-sol` 最大思考强度。
 - `CLOUDHELM_LLM_MAX_OUTPUT_TOKENS`：默认 `32768`，同时为 reasoning token 和最终结构化输出预留空间。
+- `CLOUDHELM_LLM_TIMEOUT_SECONDS`：单次模型 HTTP 请求超时，默认 120 秒。
+- `CLOUDHELM_LLM_MAX_ATTEMPTS`：模型请求或结构化响应失败时的总尝试次数，默认 3。
+- `CLOUDHELM_LLM_RETRY_BACKOFF_SECONDS`：首次重试退避秒数，后续按 2 的幂增长，默认 1。
 - `CLOUDHELM_DATABASE_URL`：SQLAlchemy 数据库连接串，本地默认指向 `infra/docker-compose.dev.yml` 的 PostgreSQL。
 - `CLOUDHELM_REDIS_URL`：Redis 预留配置；M2 暂不接入生产路径。
 
@@ -56,8 +60,11 @@ POST /api/tasks/{task_id}/tool-gateway/call
 低风险工具由 `modules/tool-gateway` 统一校验并执行，调用结果写入
 `tool_calls` 和 `event_logs`。L3/L4 或工具声明要求审批时，只创建
 `approval_requests`，ToolCall 状态为 `waiting_approval`，不执行 handler。
-Agent 调用必须绑定属于当前任务且状态为 `running` 的 AgentRun。
+Agent 调用必须绑定属于当前任务且状态为 `running` 的 AgentRun，Task 也必须为
+`running`。工具参数落库前会递归脱敏，文件正文仅保存长度和 SHA-256；
+Tool Gateway 返回的主体、风险、幂等键、参数 hash 和终态保存在
+`tool_calls.audit_json`。
 
 ## 当前边界
 
-M5 提供本地 Tool Gateway、Repo Tool、Sandbox Tool 和 Git Tool，并以应用级共享 Gateway 执行单实例调用限流。Sandbox Tool 暂用本地受控目录 + `subprocess` 超时，不接 Docker；Repo/Git 仅执行已注册的本地低风险动作，不执行 push、远端 SSH、部署或监控操作。`/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 输出当前事件和 heartbeat，暂不实现生产级事件总线推送。
+M5 提供本地 Tool Gateway、Repo Tool、Sandbox Tool 和 Git Tool，并以应用级共享 Gateway 执行单实例调用限流。Sandbox Tool 暂用平台 allowlist 内的本地目录 + `subprocess` 超时，不接 Docker；Repo/Git 仅执行已注册的本地低风险动作，不执行 push、远端 SSH、部署或监控操作。`/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件，暂不实现生产级事件总线推送。

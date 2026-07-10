@@ -7,17 +7,17 @@
 
 |模块|测试项|建议工具|
 |---|---|---|
-|platform-api|请求参数校验、错误响应、分页、状态更新|pytest + httpx|
-|platform-api|Task pause/resume/cancel/takeover|pytest|
+|platform-api|请求参数校验、统一 500、严格 cursor、最新优先分页、状态更新|pytest + TestClient|
+|platform-api|Task pause/resume/cancel 及 AgentRun/ToolCall/Approval 级联关闭|pytest|
 |orchestrator|状态机正常路径、失败路径、审批等待恢复|pytest|
-|agent-runtime|结构化输出解析、JSON 修复重试、工具请求生成|pytest|
-|tool-gateway|参数校验、风险分级、权限拒绝、审批拦截|pytest|
+|agent-runtime|Responses API max reasoning、瞬时 HTTP 重试、无效 JSON 重试、不可重试 4xx|pytest|
+|tool-gateway|参数校验、工作区 allowlist、风险分级、权限拒绝、审批拦截、审计脱敏|pytest|
 |toolservers|repo read/write、sandbox exec、git diff mock|pytest|
 |sandbox-runner|命令超时、资源限制、artifact 收集|pytest + Docker|
 |deployment-controller|release plan、compose 渲染、health check|pytest|
 |remote-agent|heartbeat、service_status、stream_logs|pytest|
 |monitoring-collector|Prometheus/Loki 查询结果转换事件|pytest|
-|control-console|关键组件渲染、状态更新、审批卡片|vitest / React Testing Library|
+|control-console|最新请求门禁、评审动作策略、SSE 重连/去重、生产构建|Node test + TypeScript|
 
 ## 2. 集成测试矩阵
 

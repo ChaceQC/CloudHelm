@@ -155,14 +155,15 @@ flowchart LR
 
 ### 失败处理
 
-- JSON 解析失败：要求模型修复输出，最多重试固定次数。
+- JSON 解析、结构化响应或瞬时 HTTP/网络失败：按配置执行有界指数退避重试，默认总尝试 3 次。
+- 可恢复请求/响应错误耗尽重试后写入失败 AgentRun，并把 Task 暂停在原业务阶段；认证等不可重试 4xx 进入失败。
 - 工具失败：把结构化错误交回 Orchestrator。
 - 上下文不足：生成 clarification request，不继续实现。
 
 ### M4 落地
 
 - `modules/agent-runtime` 已提供 Requirement、Architect、Planner Agent。
-- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 默认使用 Responses API JSON Schema 输出，支持 `reasoning.effort=max` 和显式模型字符串透传，并保留 Chat Completions 兼容模式。
+- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 默认使用 Responses API JSON Schema 输出，支持 `reasoning.effort=max`、显式模型字符串透传、可配置 timeout/attempts/backoff，并保留 Chat Completions 兼容模式。
 - Agent Runtime 不写数据库、不调用工具；所有输出由 Platform API 入库前再次校验。
 
 ## 6. modules/tool-gateway
@@ -311,8 +312,10 @@ flowchart LR
 - `registry.py`：只负责注册和查找 `ToolDeclaration`，不执行工具、不写数据库。
 - `gateway.py`：统一执行查找、参数校验、风险等级比对、审批拦截、handler 调用和审计摘要。
 - `policies.py`：统一处理 workspace 路径边界、敏感文件、命令 denylist、环境变量白名单和超时上限。
-- `audit.py`：生成参数摘要、hash 和输出截断，不直接持久化。
+- `audit.py`：生成参数摘要、稳定 hash、参数/结果/输出脱敏，不直接持久化。
 - `tools/`：实现 Requirement、Design、Repo、Sandbox、Git 以及 L3 审批占位工具。
-- Platform API 只能通过 `ToolGatewayService` 调用本模块，并在同一事务内写入 `tool_calls`、`approval_requests` 和 `event_logs`。
+- Platform API 只能通过 `ToolGatewayService` 调用本模块。入口先用短事务原子抢占 `(task_id, idempotency_key)` 并写 `pending` ToolCall，再执行文件/Git/进程副作用，最后在后续事务写终态、Approval 和 Event；数据库事务不得跨越外部副作用。
+- Repo、Sandbox、Git 的工作区必须位于 `CLOUDHELM_TOOL_WORKSPACE_ROOTS`；空配置默认拒绝。
+- `tool_calls.arguments_json` 只保存脱敏快照，`audit_json` 保存服务端生成的主体、风险、幂等键、参数/原因 hash 和终态。
 
 M5 Sandbox Tool 的隔离边界是本地受控目录 + `subprocess` 超时；Docker sandbox 留到 M6 前置增强。

@@ -192,13 +192,35 @@ suppressed
 
 ### tool_calls.arguments_json
 
-必须保存完整参数或安全引用；敏感字段需要脱敏：
+只保存脱敏参数快照或安全引用；不得保存凭据和文件正文：
 
 ```json
 {
   "path": "backend/app/api/auth.py",
-  "content_ref": "artifact://generated/auth_py",
-  "redacted": false
+  "content": {
+    "redacted": true,
+    "length": 1280,
+    "sha256": "sha256:..."
+  },
+  "api_token": "<redacted>"
+}
+```
+
+### tool_calls.audit_json
+
+审计字段只能由 Tool Gateway / Platform API 服务端生成：
+
+```json
+{
+  "tool": "repo.write_file",
+  "task_id": "uuid",
+  "agent_run_id": "uuid",
+  "agent_type": "coder",
+  "risk_level": "L1",
+  "idempotency_key": "write-auth-v1",
+  "arguments_hash": "sha256:...",
+  "reason_hash": "sha256:...",
+  "status": "succeeded"
 }
 ```
 
@@ -334,5 +356,6 @@ M5 为 `tool_calls` 增加以下字段：
 |`stdout_summary` / `stderr_summary`|text nullable|命令输出截断摘要。|
 |`duration_ms`|integer nullable|执行耗时。|
 |`error_code`|text nullable|稳定失败码，例如 `path_sensitive_file`、`command_timeout`。|
+|`audit_json`|jsonb not null|服务端生成的调用主体、风险、幂等键、hash、终态和错误码。|
 
 审批拦截时，`tool_calls.approval_id` 指向同事务创建的 `approval_requests.id`，状态为 `waiting_approval`，`finished_at` 为空。

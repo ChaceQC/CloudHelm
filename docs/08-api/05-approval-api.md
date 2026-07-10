@@ -16,9 +16,10 @@ POST   /api/approvals/{approval_id}/reject
 - `POST /api/tasks/{task_id}/approvals` 是内部联调用记录接口，状态默认为 `pending`。
 - 通过和拒绝必须处于 `pending` 状态；重复决策返回状态冲突错误。
 - 创建、通过、拒绝分别写入 `ApprovalRequested`、`ApprovalApproved`、`ApprovalRejected`。
-- `GET /api/approvals` 支持 `task_id`、`status`、`limit`、`cursor`，控制台按当前任务在服务端过滤，避免分页后再做前端过滤导致记录缺失。
+- `GET /api/approvals` 支持 `task_id`、`status`、`limit`、严格非负十进制 `cursor`，按最新记录优先；控制台按当前任务在服务端过滤，避免分页后再做前端过滤导致记录缺失。
 - 创建审批时，`requested_by_agent_run_id` 必须属于路径中的当前任务。
 - L3/L4 真实操作已由 M5 Tool Gateway 与 Policy Engine 拦截；审批通过后的自动恢复执行仍属于后续里程碑。
+- Task 取消时 pending Approval 自动变为 `expired` 并写 `ApprovalExpired`。
 
 ## M4 使用方式
 
@@ -39,7 +40,7 @@ M4 自动创建两类审批请求：
 
 ## M5 Tool Gateway 使用方式
 
-- Tool Gateway 遇到 L3/L4 或工具声明 `requires_approval=true` 时，在同一事务内创建 `approval_requests`。
+- Tool Gateway 遇到 L3/L4 或工具声明 `requires_approval=true` 时，在工具执行后的终态事务中创建 `approval_requests` 并关联已抢占的 ToolCall；handler 不执行。
 - 关联 ToolCall 的 `status=waiting_approval`，`approval_id` 指向审批请求。
 - M5 审批通过或拒绝仍只记录决策，不自动补执行高风险工具；补执行语义留到后续 Release / Deploy 和审批恢复流程。
 

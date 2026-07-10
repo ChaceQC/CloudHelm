@@ -51,6 +51,12 @@ M2 统一错误响应：
 }
 ```
 
+cursor 只接受 1 至 18 位非负十进制字符串；非法值返回
+`422 validation_error`，不会静默回到第一页。Project、Task、Requirement、
+TechnicalDesign、DevelopmentPlan、AgentRun、ToolCall 和 Approval 列表按最新
+记录优先；Timeline 先取得最新一页，再在页内按时间正序展示。未处理异常也会
+转换为 `internal_error`，响应体和 `X-Trace-Id` 使用同一 `trace_id`。
+
 ## M5 实现状态
 
 M5 新增 Tool Gateway API：
@@ -60,7 +66,7 @@ GET    /api/tool-gateway/tools
 POST   /api/tasks/{task_id}/tool-gateway/call
 ```
 
-低风险工具调用会通过 `modules/tool-gateway` 完成参数校验、策略检查和本地执行，并写入 `tool_calls` 与 `event_logs`。L3/L4 或工具声明要求审批时，只创建 `approval_requests`，不执行 handler。`POST /api/tasks/{task_id}/tool-calls` 仍保留为内部联调用记录接口，不建议作为真实工具执行入口。
+低风险工具调用会通过 `modules/tool-gateway` 完成参数校验、工作区 allowlist、策略检查和本地执行，并写入 `tool_calls` 与 `event_logs`。L3/L4 或工具声明要求审批时，只创建 `approval_requests`，不执行 handler。ToolCall 参数和结果落库前脱敏，Gateway 审计保存在 `audit_json`。`POST /api/tasks/{task_id}/tool-calls` 仍保留为内部联调用记录接口，不建议作为真实工具执行入口；其审计字段同样只能由服务端生成。
 
 ## API 约定
 

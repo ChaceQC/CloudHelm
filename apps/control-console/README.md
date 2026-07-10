@@ -29,7 +29,9 @@ npm.cmd run build
 - Task Detail 并发读取 Requirement、Technical Design、DevelopmentPlan、AgentRun、ToolCall、Approval、Timeline 和 Orchestration State。
 - M4 编排区调用 `POST /api/tasks/{task_id}/start` 和 `POST /api/tasks/{task_id}/run-next`，一次只推进一个 Agent 步骤。
 - Development Plan 面板展示 `GET /api/tasks/{task_id}/development-plans` 的真实任务图和风险 JSON。
-- ToolCall 面板展示真实 `tool_calls` 的工具名、参数摘要、风险等级、状态、幂等键、耗时、输出摘要、错误码和审批 ID。
-- SSE 优先使用 `EventSource` 连接事件流，并显式监听 M2-M5 已落库的任务、AgentRun、DevelopmentPlan、ToolCall 和 Approval 事件；因当前端点只回放已有事件和 heartbeat，界面在任务操作后仍会重新读取 Timeline。
+- ToolCall 面板展示真实 `tool_calls` 的工具名、脱敏参数摘要、审计 JSON、风险等级、状态、幂等键、耗时、输出摘要、错误码和审批 ID。
+- Project/Task 请求使用最新请求门禁；切换 Project 立即清空旧 Task 与详情，避免旧响应覆盖新状态。
+- Requirement/TechnicalDesign 只有当前最新版可执行评审；历史版本保持只读。
+- SSE 使用 `EventSource` 连接事件流并显式监听 M2-M5 事件；端点回放结束后固定退避重连、按 event id 去重，新事件同步刷新 Task Detail 与 Task Board。
 - M5 只覆盖本地 Tool Gateway 展示，不提供任意工具调用调试入口，不执行远端部署和监控告警。
-- `npm.cmd test` 使用 Node 内置测试运行器覆盖任务操作/编排按钮状态策略，以及需求、设计、审批成功后刷新任务列表且失败时不误刷新的回调边界。
+- `npm.cmd test` 使用 Node 内置测试运行器覆盖任务操作/编排按钮、最新请求门禁、评审动作策略、刷新回调和 SSE 重连/去重。

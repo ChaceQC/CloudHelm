@@ -16,7 +16,7 @@ M4 已新增 `modules/agent-runtime`，实现 Requirement、Architect、Planner 
 - Architect Agent 读取最新 RequirementSpec，输出 `technical_designs` 所需的 ADR 正文、OpenAPI 草案、DB schema 草案、Mermaid 和风险等级。
 - Planner Agent 读取已通过 TechnicalDesign，输出 `development_plans` 的任务图和风险说明。
 
-M4 默认 provider 为 `local_structured`，它基于真实输入生成结构化草案并通过 Pydantic 校验；`openai_compatible` provider 仅在提供外部模型配置后启用，默认使用 Responses API，可配置 `reasoning.effort=max` 并透传 `gpt-5.6-sol` 等显式模型字符串。M4 不允许上述 Agent 调用 Repo、Sandbox、Git、Docker、SSH、部署或监控工具。
+M4 默认 provider 为 `local_structured`，它基于真实输入生成结构化草案并通过 Pydantic 校验；`openai_compatible` provider 仅在提供外部模型配置后启用，默认使用 Responses API，可配置 `reasoning.effort=max` 并透传 `gpt-5.6-sol` 等显式模型字符串。瞬时请求和无效结构化响应执行有界指数退避，耗尽后记录失败 AgentRun 并暂停可恢复 Task。M4 不允许上述 Agent 调用 Repo、Sandbox、Git、Docker、SSH、部署或监控工具。
 
 ## 设计书摘录
 

@@ -10,7 +10,9 @@
 - 已实现接口：Project、Task、Requirement、Technical Design、AgentRun、ToolCall、Approval、Timeline、SSE。
 - 响应契约：见 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`。
 - 错误结构：`code`、`message`、`detail`、`trace_id`。
-- 分页结构：`items` + `page.limit` + `page.next_cursor`。
+- 分页结构：`items` + `page.limit` + `page.next_cursor`；cursor 只接受 1 至 18 位非负十进制字符串。
+- 列表默认最新记录优先；Timeline 先取最新页，再按页内时间正序返回。
+- 未处理异常转换为 `500 internal_error`，响应体与 `X-Trace-Id` 使用同一 trace id。
 - 事件副作用：创建/状态变更类写操作必须追加 `event_logs`。
 - 边界：M2 不自动执行 Agent、不执行工具、不创建 Git PR、不部署远端环境。
 
@@ -20,6 +22,7 @@
 - `run-next` 一次只推进 Requirement、Architect 或 Planner 的一个步骤。
 - 结构化输出写入 `agent_runs.structured_output_json`，并同步落到 `requirement_specs`、`technical_designs` 或 `development_plans`。
 - 缺少外部 provider 配置、结构化输出校验失败和非法状态迁移均返回统一错误结构并写入可追溯事件。
+- `openai_compatible` 默认使用 Responses API，`gpt-5.6-sol` 可配置 `reasoning.effort=max`；瞬时请求与无效结构化响应执行有界重试，耗尽后可恢复错误暂停 Task。
 - 暂停任务不能绕过 Task API 继续 start/run-next；Planning 只复用当前最新版已批准设计对应且未被要求修改的计划。
 - 需求/设计返工会级联失效旧设计、旧计划和待审批记录；设计/计划审批只接受当前产物 AgentRun，过期审批返回 `409 stale_approval`。
 - 边界：M4 不执行 Tool Gateway、Repo/Git/Docker/SSH、PR、部署或监控动作。
@@ -34,6 +37,9 @@ POST /api/tasks/{task_id}/agent-runs
 POST /api/tasks/{task_id}/tool-calls
 POST /api/tasks/{task_id}/approvals
 ```
+
+内部 AgentRun 创建接口不能伪造 `running`；内部 ToolCall 创建接口不接受
+`audit_json`，审计字段由服务端生成。
 
 ## 1. API 通用规范
 
@@ -53,28 +59,22 @@ MVP 使用：
 
 ### 1.2 通用响应
 
-成功响应：
+成功响应直接返回 OpenAPI 声明的资源或分页对象，不额外包裹 `data`：
 
 ```json
 {
-  "data": {},
-  "meta": {
-    "request_id": "req_...",
-    "trace_id": "trace_..."
-  }
+  "id": "uuid"
 }
 ```
 
-错误响应：
+错误响应为扁平稳定结构：
 
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "invalid request body",
-    "detail": {},
-    "trace_id": "trace_..."
-  }
+  "code": "validation_error",
+  "message": "请求参数校验失败。",
+  "detail": [],
+  "trace_id": "trace_..."
 }
 ```
 
@@ -83,20 +83,27 @@ MVP 使用：
 列表接口统一支持：
 
 ```text
-?limit=20&cursor=xxx
+?limit=20&cursor=20
 ```
+
+`cursor` 是非负十进制 offset，只接受 1 至 18 位数字。非法 cursor 返回
+`422 validation_error`，不回退到第一页。
 
 返回：
 
 ```json
 {
-  "data": [],
+  "items": [],
   "page": {
-    "next_cursor": "string|null",
-    "has_more": false
+    "limit": 20,
+    "next_cursor": "40"
   }
 }
 ```
+
+Project、Task、Requirement、TechnicalDesign、DevelopmentPlan、AgentRun、
+ToolCall 和 Approval 按 `created_at/id` 最新优先。Timeline 为避免小页漏掉
+最新事件，先倒序取页，再在当前页内恢复时间正序。
 
 ## 2. Project API
 
@@ -196,6 +203,14 @@ MVP 使用：
 - `created`、`running`、`waiting_approval` 暂停后分别恢复自身，不统一覆盖为 `running`；`current_phase` 始终保留。
 - 写入 `TaskResumed`，非法状态返回 `409`。
 
+### POST /api/tasks/{task_id}/cancel
+
+- `tasks.status = cancelled`，保留当前业务阶段用于审计。
+- 级联把 active AgentRun 和 pending/running/waiting ToolCall 标记为
+  `cancelled`，把 pending Approval 标记为 `expired`。
+- 对实际关闭的资源写入 `AgentRunCancelled`、`ToolCallCancelled`、
+  `ApprovalExpired`，最后写入 `TaskCancelled`。
+
 ### POST /api/tasks/{task_id}/takeover
 
 请求：
@@ -241,13 +256,17 @@ MVP 使用：
 - `status`
 - `version`
 
+同一 Task 下 `version` 从 1 递增。新 Requirement 会使旧 TechnicalDesign、
+DevelopmentPlan 和匹配的 pending Approval 失效。approve/request-changes
+只能作用于当前最新版，历史版本返回 `409 stale_requirement`。
+
 ### POST /api/requirements/{requirement_id}/approve
 
 副作用：
 
 - `requirement_specs.status = approved`。
-- 写入 `RequirementApproved`。
-- Orchestrator 可进入 Designing。
+- 写入 `RequirementSpecApproved`。
+- 非 paused Task 进入 `running / Designing`；paused Task 只更新业务阶段。
 
 ### POST /api/tasks/{task_id}/technical-designs
 
@@ -269,6 +288,10 @@ MVP 使用：
 - 写入 `technical_designs`。
 - 写入 `TechnicalDesignProposed`。
 - 如果风险等级高，创建 ApprovalRequest。
+
+同一 Task 下技术设计版本递增。新设计使旧 DevelopmentPlan 和匹配 pending
+Approval 失效；历史设计评审返回 `409 stale_technical_design`。批准当前设计
+后，非 paused Task 进入 `running / Planning`。
 
 ## 4.1 Development Plan API
 
@@ -333,6 +356,10 @@ MVP 使用：
 - 成本统计。
 - 失败诊断。
 
+外部 provider 的 `AgentRunStarted` 事件记录 model、API mode、
+`reasoning_effort` 和 `max_attempts`。可恢复 provider 错误耗尽重试后，
+AgentRun 为 `failed`，Task 为 `paused`，事件 payload 的 `recoverable=true`。
+
 ## 6. Tool Call API
 
 ### GET /api/tasks/{task_id}/tool-calls
@@ -344,12 +371,17 @@ MVP 使用：
 - tool_name
 - risk_level
 - arguments_summary
+- audit_json
 - status
 - approval_id
 - started_at
 - finished_at
 - result_summary
 - error_code
+
+`arguments_json` 数据库存储也是脱敏快照；文件正文只保存长度和 SHA-256。
+`audit_json` 由服务端生成，至少包含 tool、task、AgentRun、Agent 类型、
+风险、幂等键、参数 hash、原因 hash、终态和错误码。
 
 ### POST /api/tool-calls/{tool_call_id}/retry
 

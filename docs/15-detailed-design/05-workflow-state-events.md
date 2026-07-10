@@ -24,6 +24,9 @@ ToolCallRecorded
 ApprovalRequested
 ApprovalApproved
 ApprovalRejected
+AgentRunCancelled
+ToolCallCancelled
+ApprovalExpired
 ```
 
 ## M4 事件落地状态
@@ -44,8 +47,18 @@ Requirement Agent 成功后写 `RequirementSpecCreated` 并进入 `Designing`；
 
 需求或设计被请求修改时必须产生真实回退：Requirement 回到 `RequirementClarifying`，TechnicalDesign 回到 `Designing`；下游旧设计、旧计划和匹配的待审批记录同时失效。设计/计划审批必须绑定当前最新版产物的 `created_by_agent_run_id`，历史审批不能批准新产物。任务暂停只切换运行状态并保留业务阶段；恢复时从最近一次 `TaskPaused.payload.from_status` 恢复暂停前状态，如果暂停期间待审批已经完成，则恢复到 `running`。
 
-Timeline API 从 `event_logs` 按时间升序读取；SSE 端点输出当前已有事件并
-追加 heartbeat。M2 不做长连接实时推送，不使用内存事件队列模拟生产事件流。
+任务取消会级联关闭 active AgentRun、active/waiting ToolCall 和 pending
+Approval，并分别写入 `AgentRunCancelled`、`ToolCallCancelled`、
+`ApprovalExpired`，最后写入 `TaskCancelled`。
+
+外部模型瞬时请求或无效结构化响应先执行有界重试；耗尽后写
+`AgentRunFailed(recoverable=true)` 并暂停 Task，保留当前业务阶段。认证等
+不可重试错误进入失败状态。
+
+Timeline API 先取最新一页事件，再按当前页时间升序返回；SSE 端点输出当前
+已有事件并追加 heartbeat。控制台固定退避重连、按 event id 去重，并同步
+刷新 Task Detail 与 Task Board。M2 不做长连接实时推送，不使用内存事件队列
+模拟生产事件流。
 
 ## 1. 状态机总表
 

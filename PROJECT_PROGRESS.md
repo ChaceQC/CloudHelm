@@ -2,6 +2,70 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-11（M1-M5 二次审计修复完成与 v0.4.2）
+
+### 已完成
+
+- 完成数据/API 状态修复：Requirement、TechnicalDesign、DevelopmentPlan 真实递增版本；历史需求/设计评审返回稳定 stale 错误；新版本级联失效旧下游产物与审批。
+- 严格校验分页 cursor，列表默认最新记录优先，Timeline 小页包含最新事件且页内保持时间正序；未处理异常统一返回 `internal_error`、`trace_id` 和 `X-Trace-Id`。
+- 新增 `20260710_0004_harden_m1_m5.py`：持久化 `tool_calls.audit_json` 并同步数据库列注释。
+- Tool Gateway 增加平台工作区 allowlist，空配置默认拒绝；Agent 调用同时要求 AgentRun 与 Task 为 `running`。
+- ToolCall 参数、结果、stdout/stderr 落库前脱敏；文件正文只保存长度和 SHA-256；成功、审批和失败路径均生成一致的服务端审计主体。
+- 内部 ToolCall 记录接口拒绝调用方伪造 `audit_json`，并忽略调用方提供的参数摘要，统一从脱敏参数键生成公开摘要；Authorization、API Key、Cookie 等 header 字段也会脱敏。
+- Task 取消会级联关闭 active AgentRun、ToolCall 和 pending Approval，并写入取消/过期事件。
+- 控制台接入最新请求门禁，快速切换 Project 时立即清空旧 Task；历史 Requirement/TechnicalDesign 评审按钮按最新版和状态禁用。
+- 控制台 SSE 客户端实现固定退避重连、event id 去重和旧连接竞态隔离；浏览器回归发现其最初只刷新详情、未刷新左侧任务列表，修复后新事件会同步刷新 Task Detail 与 Task Board。
+- `openai_compatible` provider 保持 Responses API `reasoning.effort=max`，增加可配置 timeout、最大尝试次数和指数退避；瞬时请求/无效结构化响应耗尽后把 Task 暂停在原阶段。
+- 项目版本提升到 `0.4.2`；Agent Runtime 包版本提升到 `0.3.1`。
+- 同步 FastAPI OpenAPI、15 个共享 JSON Schema、模块/API/安全/控制台文档和环境变量；`PROJECT_PLAN.md` 已重写为以 `v0.4.2` 为基线的 M6 详细计划。
+
+### 进行中
+
+- M1-M5 二次审计、修复、回归和文档同步已完成；下一阶段按 `PROJECT_PLAN.md` 执行 M6 本地代码实现、测试与等价 PR 闭环。
+
+### 阻塞与风险
+
+- 仓库没有真实外部模型 API Key，本次继续用隔离 HTTP 契约测试验证 `gpt-5.6-sol`、`reasoning.effort=max` 和重试行为，不执行外部计费请求。
+- Windows 当前账户可能无法创建新 symlink；Tool Gateway 保留该平台能力测试跳过，同时覆盖允许目录、越界路径和既有 symlink。
+- Sandbox Tool 仍是本地 `subprocess`，Docker、资源 quota 和网络隔离仍属于 M6 前置增强。
+- Platform API 测试仍有 1 条 Starlette TestClient/httpx 弃用提示，不影响当前结果，M6 查阅当前官方迁移建议后处理。
+
+### 下一步
+
+- 创建 `informations/m6-code-test-pr/official-references.md`，完成 Sandbox/Docker 取舍设计。
+- 准备 `examples/sample-repo-python`，实现真实 `/health`、`/metrics`、pytest 和 demo issue。
+- 按 M6 计划实现 Coder、Tester、Reviewer、Security Agent、Artifact/PR record 和浅色控制台展示。
+
+### 涉及文件
+
+- `modules/platform-api/**`
+- `modules/tool-gateway/**`
+- `modules/agent-runtime/**`
+- `apps/control-console/**`
+- `packages/shared-contracts/**`
+- `docs/**`
+- `.env.example`、`README.md`、`PROJECT_PLAN.md`
+
+### 验证
+
+- Git 预检确认当前分支为 `dev`；`git diff --check` 通过，未修改 `main`。
+- Tool Gateway：`uv lock --check`；`uv run pytest -q` -> `25 passed, 1 skipped`。跳过项为 Windows 新建 symlink 权限。
+- Agent Runtime：`uv lock --check`；`uv run pytest -q` -> `11 passed`，覆盖 Responses API、`reasoning.effort=max`、瞬时请求重试、无效结构重试和不可重试 401。
+- Orchestrator：`uv lock --check`；`uv run pytest -q` -> `3 passed`。
+- Platform API：真实 PostgreSQL 执行 `alembic downgrade 20260708_0003`、`upgrade head`、`alembic check`；最终 `44 passed, 1 warning`。
+- 回归过程中曾因新增安全摘要逻辑漏导入 `summarize_arguments` 出现 `2 failed, 42 passed`；补导入后重新执行并恢复为 `44 passed`，完成“发现 -> 修复 -> 回归”闭环。
+- Control Console：`npm.cmd test` -> `7 passed`；`npm.cmd run build` 成功。
+- FastAPI OpenAPI 与共享 YAML 反序列化后精确相等：`version=0.4.2`，`paths=34`。
+- 递归解析 `packages/shared-contracts/schemas/**/*.json` 共 15 个，并验证 Requirement、Architect、Planner、ToolCallRequest、ToolCallResult 5 份代表性输出。
+- 共享契约验证脚本首次因 Requirement 示例缺少至少 1 条 `constraints` 而失败；修正测试夹具后重新执行，15 个 Schema 解析和 5 份代表性输出验证全部通过。
+- 应用内浏览器连接真实 Platform API 验证 1280×720：body 白色、侧栏 `rgb(240, 244, 249)`、`scrollWidth=1280`；1024×768：`292px / 732px`、无水平溢出；375×812：纵向布局、document `scrollWidth=clientWidth=360`。
+- 浏览器验证快速切换 Alpha/Beta Project 后只显示当前项目 Task；历史 Requirement/Design 按钮禁用，当前 draft Design 可操作。
+- 浏览器从外部 API 执行 pause/resume，不手工刷新即可看到 `TaskPaused`/`TaskResumed`，Task Detail 和左侧 Task Board 同步更新；全新页面 console 无 error/warn。
+- 浏览器与临时 Platform API/Vite 服务已关闭；本地 PostgreSQL 容器保持原有运行状态。
+- 静态扫描未发现生产代码 TODO、FIXME、NotImplemented 或空 `pass`；超过 300 行的只有 Agent Runtime 测试集合，生产源码无超限文件。凭据模式只命中用于脱敏验证的测试夹具。
+- 提交前再次执行全部模块测试、Alembic `upgrade head/check`、控制台测试与生产构建、OpenAPI 精确比较、15 个 Schema 解析和 `git diff --check`，结果保持通过。
+- 本轮按可验证小步整理提交：`ed75cfe` 为后端/Agent/Tool Gateway/共享契约，`43ace9e` 为控制台竞态与 SSE；两项均已推送 `origin/dev`，本进度与 M6 计划作为第三步文档提交同步。
+
 ## 2026-07-10（M1-M5 二次审计启动）
 
 ### 已完成

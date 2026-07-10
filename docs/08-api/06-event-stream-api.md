@@ -10,9 +10,9 @@ GET    /api/tasks/{task_id}/timeline
 GET    /api/tasks/{task_id}/events/stream
 ```
 
-- Timeline 从 PostgreSQL `event_logs` 按 `created_at`、`id` 升序返回。
-- SSE 端点基于真实事件输出当前已有事件并追加 heartbeat。
-- M2 暂不维护长连接实时推送；M3 控制台可通过重连或轮询刷新，后续事件总线阶段再升级为实时推送。
+- Timeline 分页先按 `created_at`、`id` 倒序取得最新记录，再把当前页恢复为时间正序，保证小页不会永久漏掉最新事件。
+- SSE 端点基于真实事件回放当前已有事件并追加 heartbeat，随后关闭本次响应。
+- 控制台按固定退避重连 SSE、按 event id 去重，并在出现新事件时同步刷新详情和 Task Board；后续事件总线阶段再升级为真正长连接推送。
 
 ## M4 新增事件
 
@@ -24,7 +24,7 @@ M4 编排会追加以下事件：
 - `AgentRunFailed`
 - `DevelopmentPlanCreated`
 
-Requirement、Technical Design 和 Approval 继续复用 M2 已有事件类型。当前 SSE 仍基于 `event_logs` 回放已有事件并追加 heartbeat，不实现生产级事件总线。
+Requirement、Technical Design 和 Approval 继续复用 M2 已有事件类型。任务取消还会按实际资源写入 `AgentRunCancelled`、`ToolCallCancelled` 和 `ApprovalExpired`。当前 SSE 仍基于 `event_logs` 回放已有事件并追加 heartbeat，不实现生产级事件总线。
 
 ## 实现注意点
 

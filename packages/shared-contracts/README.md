@@ -4,9 +4,9 @@
 
 ## 当前内容
 
-- `openapi/cloudhelm.openapi.yaml`：M5 Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、ToolCall、Tool Gateway、Approval、Orchestration 和 Event Timeline。
-- `schemas/events/task-event.schema.json`：M2 真实 `event_logs` 事件字段和事件类型枚举。
-- `schemas/tools/*.schema.json`：Tool Gateway 风险等级、ToolCallRequest/Result、Repo/Sandbox/Git/Requirement/Design Tool 契约。
+- `openapi/cloudhelm.openapi.yaml`：`0.4.2` Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、ToolCall、Tool Gateway、Approval、Orchestration 和 Event Timeline。
+- `schemas/events/task-event.schema.json`：M2-M5 真实 `event_logs` 字段和事件类型枚举，包括 AgentRun/ToolCall 取消与 Approval 过期。
+- `schemas/tools/*.schema.json`：Tool Gateway 风险等级、ToolCallRequest/Result、Repo/Sandbox/Git/Requirement/Design Tool 契约；请求包含内部 Agent 类型，声明同时暴露参数与结果 schema。
 - `types/README.md`：后续生成类型的存放说明。
 
 ## 使用方

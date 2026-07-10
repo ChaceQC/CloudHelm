@@ -26,13 +26,16 @@
 
 ## M5 落地状态
 
-- Tool Calls 面板展示真实 `tool_calls` 的工具名、风险等级、状态、参数摘要、幂等键、耗时、错误码、审批 ID、stdout/stderr 摘要和 `result_json`。
+- Tool Calls 面板展示真实 `tool_calls` 的工具名、风险等级、状态、参数摘要、审计 JSON、幂等键、耗时、错误码、审批 ID、stdout/stderr 摘要和 `result_json`。
 - 2026-07-10 根据最新界面要求重写为网页版 Gemini 式浅色信息架构：页面使用纯白主工作区和蓝灰侧栏，项目与最近任务整合在左侧导航，Task Detail 使用居中的宽松阅读流。
 - 项目、任务、编排、评审、Timeline、ToolCall 和 Approval 仍读取真实 Platform API；视觉重写不引入静态示例、假任务或假工具结果。
 - 容器采用柔和浅灰背景、大圆角和弱分隔，重要选择态使用浅蓝底色；日志和 JSON 继续使用等宽字体，但不再使用深色终端面板作为全局主题。
-- 1440、1024、375 像素宽度下分别采用双栏、自适应双栏和纵向布局，禁止水平溢出。
+- 1280、1024、375 像素宽度下分别采用双栏、自适应双栏和纵向布局，禁止水平溢出。
 - 任务状态分组和操作按钮使用中文；终态任务不再提供无效取消动作，暂停或终态任务的编排按钮按后端合法状态禁用。
 - EventSource 显式监听 M2-M5 已落库的 `TaskPhaseChanged`、AgentRun、DevelopmentPlan、ToolCall 和 Approval 事件，事件类型与共享 JSON Schema 保持一致。
+- 快速切换 Project 时立即清空旧 Task 选择和列表，Project/Task 请求只允许最后一次响应更新状态，避免旧响应覆盖新项目。
+- Requirement/TechnicalDesign 只允许当前最新版执行评审：draft 可批准，draft/approved 可要求修改，历史版本和不可决策状态按钮禁用。
+- SSE 回放结束后自动重连并按 event id 去重；旧连接回调不能关闭新连接，组件卸载时关闭连接和重连定时器，新事件同时刷新 Task Detail 和左侧 Task Board。
 - 控制台不提供任意工具调用调试入口，避免用户从 UI 直接发起高风险动作；工具执行入口由 Platform API 和后续 Agent 流程控制。
 
 ## 设计书摘录

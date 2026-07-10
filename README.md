@@ -2,10 +2,10 @@
 
 CloudHelm 是面向毕业设计演示的多 Agent DevOps 系统。本仓库当前已完成 **M5：Tool Gateway 与本地工具层**，在 M4 结构化编排基础上接入本地工具统一入口、风险等级、审批拦截、调用限流、审计记录和控制台 ToolCall 展示。
 
-> 当前版本：`0.4.1`
-> 当前范围：控制台可通过真实 Platform API 创建 Project/Task，启动 M4 编排，并展示 M5 ToolCall 的参数摘要、风险等级、状态、输出摘要、错误码和审批关联。M5 只执行本地受控 Repo/Sandbox/Git 工具，不执行远端 SSH、远端部署、CI/CD 或监控告警。
+> 当前版本：`0.4.2`
+> 当前范围：控制台可通过真实 Platform API 创建 Project/Task，启动 M4 编排，并展示 M5 ToolCall 的脱敏参数摘要、审计 hash、风险等级、状态、输出摘要、错误码和审批关联。M5 只执行平台允许目录内的本地 Repo/Sandbox/Git 工具，不执行远端 SSH、远端部署、CI/CD 或监控告警。
 
-`0.4.1` 补齐了 M1-M5 审计发现的状态一致性问题：设计/计划返工会级联失效旧产物与审批，计划审批会同步更新 DevelopmentPlan，Tool Gateway 只接受 running AgentRun，Git commit 拒绝目录级 pathspec，控制台事件监听与共享 Event schema 已覆盖 M2-M5 实际事件。
+`0.4.2` 完成 M1-M5 二次审计：需求/设计/计划使用真实递增版本，历史产物不能改变当前状态；分页严格校验 cursor 并优先返回最新记录；Tool Gateway 默认拒绝未配置工作区、持久化服务端审计并脱敏参数/输出；任务取消会关闭活动 AgentRun、ToolCall 和 Approval；控制台修复快速切换竞态、历史评审按钮和 SSE 重连；外部模型调用增加有界重试与可恢复暂停。
 
 ## 目录结构
 
@@ -61,7 +61,7 @@ cd ..\orchestrator
 uv run pytest
 ```
 
-M4 默认使用 `CLOUDHELM_AGENT_PROVIDER=local_structured`，该 provider 基于真实 Task / Requirement / Design 输入生成结构化草案，并通过 Pydantic 校验。若切换到 `openai_compatible`，必须提供 `CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE` 和 `CLOUDHELM_LLM_API_KEY`；默认使用 Responses API，并支持 `CLOUDHELM_LLM_REASONING_EFFORT=max`。用户指定 `gpt-5.6-sol` 时模型字符串会原样透传给兼容端点；旧服务可将 `CLOUDHELM_LLM_API_MODE` 改为 `chat_completions`。缺配置、HTTP 失败或响应结构无效都会写入失败 AgentRun 和 EventLog。
+M4 默认使用 `CLOUDHELM_AGENT_PROVIDER=local_structured`，该 provider 基于真实 Task / Requirement / Design 输入生成结构化草案，并通过 Pydantic 校验。若切换到 `openai_compatible`，必须提供 `CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE` 和 `CLOUDHELM_LLM_API_KEY`；默认使用 Responses API，并支持 `CLOUDHELM_LLM_REASONING_EFFORT=max`。用户指定 `gpt-5.6-sol` 时模型字符串会原样透传给兼容端点。瞬时 HTTP/网络错误和无效结构化响应默认最多尝试 3 次；耗尽后写入失败 AgentRun，并把可恢复任务暂停在原业务阶段。
 
 ## Tool Gateway
 
@@ -70,7 +70,7 @@ cd modules/tool-gateway
 uv run pytest
 ```
 
-M5 默认工具包括 `requirement.normalize`、`design.render_markdown`、`repo.*`、`sandbox.*`、`git.*` 和 `approval.request_remote_action`。其中 `approval.request_remote_action` 只用于验证 L3 审批拦截，不执行远端动作。Tool Gateway 默认按任务或 AgentRun 执行 60 秒 60 次的单实例滑动窗口限流，参数可通过环境变量调整。
+M5 默认工具包括 `requirement.normalize`、`design.render_markdown`、`repo.*`、`sandbox.*`、`git.*` 和 `approval.request_remote_action`。其中 `approval.request_remote_action` 只用于验证 L3 审批拦截，不执行远端动作。文件、命令和 Git 工具只能访问 `CLOUDHELM_TOOL_WORKSPACE_ROOTS` 配置的目录；空数组默认拒绝。Tool Gateway 默认按任务或 AgentRun 执行 60 秒 60 次的单实例滑动窗口限流。
 
 ## 前端：control-console
 
@@ -97,8 +97,8 @@ npm.cmd run build
 - Task Board：`GET /api/tasks?project_id=...`、`POST /api/tasks`、`pause`、`resume`、`cancel`。
 - M4 编排：`POST /api/tasks/{task_id}/start`、`POST /api/tasks/{task_id}/run-next`。
 - Task Detail：读取 Requirement、Technical Design、DevelopmentPlan、AgentRun、ToolCall、Approval、Orchestration State 和 Timeline。
-- ToolCall 列表：展示真实 `tool_calls` 的工具名、参数摘要、风险等级、状态、输出摘要、错误码、幂等键和审批 ID，不展示完整敏感参数。
-- SSE：优先连接 `GET /api/tasks/{task_id}/events/stream`；当前仍基于 `event_logs` 回放已有事件并追加 heartbeat，控制台在任务操作后重新读取 Timeline。
+- ToolCall 列表：展示真实 `tool_calls` 的工具名、脱敏参数摘要、审计 JSON、风险等级、状态、输出摘要、错误码、幂等键和审批 ID，不展示原始文件正文或凭据。
+- SSE：连接 `GET /api/tasks/{task_id}/events/stream`；端点每次回放已有事件后关闭，控制台按固定退避自动重连、按 event id 去重，并在新事件出现时同步刷新详情和左侧 Task Board。
 
 ## 共享契约
 
@@ -115,13 +115,16 @@ OpenAPI 覆盖当前已实现接口；Agent 输出 schema 约束 Requirement / A
 
 ```env
 CLOUDHELM_ENV=development
-CLOUDHELM_VERSION=0.4.1
+CLOUDHELM_VERSION=0.4.2
 CLOUDHELM_API_HOST=127.0.0.1
 CLOUDHELM_API_PORT=18080
 CLOUDHELM_TOOL_RATE_LIMIT_CALLS=60
 CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS=60
+CLOUDHELM_TOOL_WORKSPACE_ROOTS=[]
 CLOUDHELM_DATABASE_URL=postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm
 CLOUDHELM_AGENT_PROVIDER=local_structured
+CLOUDHELM_LLM_REASONING_EFFORT=max
+CLOUDHELM_LLM_MAX_ATTEMPTS=3
 VITE_CLOUDHELM_API_BASE_URL=http://127.0.0.1:18080
 ```
 

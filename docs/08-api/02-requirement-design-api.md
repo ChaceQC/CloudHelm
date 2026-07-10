@@ -22,6 +22,10 @@ POST   /api/technical-designs/{design_id}/request-changes
 - M2 保存用户或后续 Agent 提供的真实结构化内容，不自动生成 Requirement 或 Design。
 - `constraints_json`、`acceptance_criteria_json`、`openapi_json`、`db_schema_json` 使用 PostgreSQL JSONB。
 - 创建、审批通过和要求修改均写入 `event_logs`。
+- Requirement、TechnicalDesign 按 Task 使用从 1 开始的真实递增 `version`，列表按最新版优先。
+- approve/request-changes 只能作用于当前最新版；历史资源分别返回 `409 stale_requirement`、`409 stale_technical_design`。
+- 新 Requirement 会使旧 Design、Plan 和匹配 pending Approval 失效；新 Design 会使旧 Plan 和匹配 pending Approval 失效。
+- 直接批准当前 Requirement 后进入 `Designing`；批准当前 TechnicalDesign 后进入 `Planning`。Task 已暂停时保留 paused 运行状态。
 - `clarify`、`acceptance-criteria`、`generate-openapi`、`generate-db-schema` 属于后续 Agent/Tool 阶段，M2 暂不实现。
 
 ## M4 自动生成路径
@@ -33,7 +37,7 @@ M4 的 Requirement / Architect Agent 不绕过 Platform API service：
 - 低风险设计自动标记为 `approved` 并进入 `Planning`。
 - L2 及以上风险设计保持 `draft`，创建 `ApprovalRequest(action=approve_technical_design)`，任务进入 `WaitingDesignApproval`。
 
-控制台仍可使用既有 `approve` / `request-changes` API 完成人工评审；审批后再次调用 `run-next` 恢复到 Planning。
+控制台仍可使用既有 `approve` / `request-changes` API 完成人工评审；只对当前最新版显示可用按钮，历史版本保持只读。
 
 ## 实现注意点
 
