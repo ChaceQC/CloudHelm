@@ -12,7 +12,7 @@ const streamStatusLabel: Record<TaskTimelineProps['streamStatus'], string> = {
   connecting: '连接中',
   open: '已连接',
   closed: '已关闭',
-  error: '已降级为轮询/重连边界',
+  error: '连接异常，等待重连',
 }
 
 /**
@@ -28,7 +28,7 @@ export function TaskTimeline({ agentRuns, events, streamStatus }: TaskTimelinePr
         <h3 id="timeline-title">Agent Timeline / Event Log</h3>
         <span className="stream-chip">SSE：{streamStatusLabel[streamStatus]}</span>
       </div>
-      <p className="muted">M2 SSE 只回放当前事件并追加 heartbeat；界面会在事件或刷新时重新读取 Timeline。</p>
+      <p className="muted">M2 SSE 回放当前事件并追加 heartbeat；控制台会自动重连、按事件 ID 去重并刷新 Timeline。</p>
 
       <div className="split-grid">
         <div>

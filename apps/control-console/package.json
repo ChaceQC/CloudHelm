@@ -1,11 +1,11 @@
 {
   "name": "@cloudhelm/control-console",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "test": "node --test tests/taskActionPolicy.test.ts tests/refreshAfterSuccess.test.ts",
+    "test": "node --test tests/taskActionPolicy.test.ts tests/refreshAfterSuccess.test.ts tests/latestRequest.test.ts tests/reviewActionPolicy.test.ts tests/taskEventStream.test.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },

@@ -66,6 +66,9 @@ export function ToolCallList({ toolCalls }: ToolCallListProps) {
                 <pre>{toolCall.stderr_summary ?? '无 stderr 摘要。'}</pre>
               </div>
             </div>
+            <h4>审计摘要</h4>
+            <pre>{formatJson(toolCall.audit_json)}</pre>
+            <h4>结果 JSON</h4>
             <pre>{formatJson(toolCall.result_json)}</pre>
           </article>
         ))}

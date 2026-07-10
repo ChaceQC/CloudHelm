@@ -48,6 +48,11 @@ export function App() {
     setSelectedTaskId(null)
   }
 
+  const handleSelectProject = (projectId: string) => {
+    setSelectedTaskId(null)
+    setSelectedProjectId(projectId)
+  }
+
   const handleTaskCreated = (task: Task) => {
     setSelectedTaskId(task.id)
     setDetailRefreshKey((current) => current + 1)
@@ -75,7 +80,7 @@ export function App() {
           status={projects.status}
           error={projects.error}
           selectedProjectId={selectedProjectId}
-          onSelectProject={setSelectedProjectId}
+          onSelectProject={handleSelectProject}
           onCreateProject={projects.createProject}
           onProjectCreated={handleProjectCreated}
           onRetry={projects.refresh}

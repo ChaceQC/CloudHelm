@@ -12,7 +12,7 @@ import { useTaskDetail } from './useTaskDetail'
 interface TaskDetailProps {
   taskId: string | null
   refreshKey: number
-  onTaskChanged: () => void
+  onTaskChanged: () => void | Promise<void>
 }
 
 /**
@@ -22,7 +22,7 @@ interface TaskDetailProps {
  * Approval。所有数据均来自 Platform API；空状态表示数据库当前没有记录。
  */
 export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProps) {
-  const detail = useTaskDetail(taskId, refreshKey)
+  const detail = useTaskDetail(taskId, refreshKey, onTaskChanged)
 
   const decideRequirement: typeof detail.decideRequirement = async (...args) => {
     return refreshAfterSuccess(detail.decideRequirement, onTaskChanged, ...args)

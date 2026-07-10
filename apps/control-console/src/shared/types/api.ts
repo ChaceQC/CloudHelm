@@ -178,6 +178,7 @@ export interface ToolCall {
   tool_name: string
   risk_level: RiskLevel
   arguments_summary: string
+  audit_json: Record<string, JsonValue>
   result_json: Record<string, JsonValue> | null
   result_summary: string | null
   stdout_summary: string | null
@@ -200,6 +201,7 @@ export interface ToolDeclaration {
   allow_system_call: boolean
   audit_fields: string[]
   arguments_schema: Record<string, JsonValue>
+  result_schema: Record<string, JsonValue>
 }
 
 export interface ToolGatewayCallInput {

@@ -21,6 +21,7 @@ import type {
   ToolGatewayCallInput,
 } from '../types/api'
 import { TASK_EVENT_TYPES, parseTaskEvent } from '../types/events'
+import { createReconnectingEventStream } from './taskEventStream'
 
 /**
  * CloudHelm 控制台 API 门面。
@@ -153,30 +154,31 @@ export interface TaskEventStreamHandlers {
 /**
  * 打开任务 SSE 事件流。
  *
- * M2 SSE 端点只回放已有事件并追加 heartbeat，不提供生产级持续推送；
- * 因此出错或连接结束后由调用方继续用 Timeline 轮询刷新。
+ * M2 SSE 端点每次回放已有事件后会关闭；客户端固定退避重连，并按事件
+ * ID 去重，从而在不手工刷新页面的情况下读取后续落库事件。
  */
 export function openTaskEventStream(taskId: string, handlers: TaskEventStreamHandlers): () => void {
-  handlers.onStatus('connecting')
-  const source = new EventSource(buildApiUrl(`/api/tasks/${taskId}/events/stream`))
-
-  source.onopen = () => handlers.onStatus('open')
-  source.onerror = () => {
-    handlers.onStatus('error')
-    source.close()
-    handlers.onStatus('closed')
-  }
-
-  TASK_EVENT_TYPES.forEach((eventType) => {
-    source.addEventListener(eventType, (message) => {
-      const event = parseTaskEvent(message)
-      if (event !== null) {
-        handlers.onEvent(event)
+  return createReconnectingEventStream({
+    url: buildApiUrl(`/api/tasks/${taskId}/events/stream`),
+    eventTypes: TASK_EVENT_TYPES,
+    parseEvent: (message) => parseTaskEvent(message as MessageEvent<string>),
+    onEvent: handlers.onEvent,
+    onStatus: handlers.onStatus,
+    createSource: (url) => {
+      const browserSource = new EventSource(url)
+      const sourceAdapter = {
+        onopen: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+        addEventListener: (eventType: string, listener: (message: { data: string }) => void) => {
+          browserSource.addEventListener(eventType, (message) => {
+            listener({ data: (message as MessageEvent<string>).data })
+          })
+        },
+        close: () => browserSource.close(),
       }
-    })
+      browserSource.onopen = () => sourceAdapter.onopen?.()
+      browserSource.onerror = () => sourceAdapter.onerror?.()
+      return sourceAdapter
+    },
   })
-
-  return () => {
-    source.close()
-  }
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatApiError, formatDateTime, formatJson } from '../../shared/api/formatters'
 import type { DecisionRequest, RequirementSpec } from '../../shared/types/api'
+import { canApproveReview, canRequestReviewChanges } from './reviewActionPolicy'
 
 interface RequirementPanelProps {
   requirements: RequirementSpec[]
@@ -20,6 +21,7 @@ interface RequirementPanelProps {
 export function RequirementPanel({ requirements, onDecideRequirement }: RequirementPanelProps) {
   const [comment, setComment] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  const currentVersion = requirements.reduce((latest, requirement) => Math.max(latest, requirement.version), 0)
 
   const decide = async (requirementId: string, action: 'approve' | 'request-changes') => {
     setMessage(null)
@@ -47,43 +49,60 @@ export function RequirementPanel({ requirements, onDecideRequirement }: Requirem
       </label>
       {message !== null ? <p className="operation-message">{message}</p> : null}
 
-      {requirements.map((requirement) => (
-        <article className="review-card" key={requirement.id}>
-          <div className="card-toolbar">
-            <div>
-              <strong>v{requirement.version}</strong>
-              <span className={`review-status status-${requirement.status}`}>{requirement.status}</span>
+      {requirements.map((requirement) => {
+        const isCurrent = requirement.version === currentVersion
+        const canApprove = canApproveReview(requirement.status, isCurrent)
+        const canRequestChanges = canRequestReviewChanges(requirement.status, isCurrent)
+        return (
+          <article className="review-card" key={requirement.id}>
+            <div className="card-toolbar">
+              <div>
+                <strong>v{requirement.version}</strong>
+                <span className={`review-status status-${requirement.status}`}>{requirement.status}</span>
+                {isCurrent ? null : <span className="review-status">历史版本</span>}
+              </div>
+              <small>{formatDateTime(requirement.updated_at)}</small>
             </div>
-            <small>{formatDateTime(requirement.updated_at)}</small>
-          </div>
-          <dl className="meta-grid">
-            <div>
-              <dt>来源类型</dt>
-              <dd>{requirement.source_type}</dd>
+            <dl className="meta-grid">
+              <div>
+                <dt>来源类型</dt>
+                <dd>{requirement.source_type}</dd>
+              </div>
+              <div>
+                <dt>Requirement ID</dt>
+                <dd>{requirement.id}</dd>
+              </div>
+            </dl>
+            <h4>原始需求</h4>
+            <p>{requirement.raw_input}</p>
+            <h4>User Story</h4>
+            <p>{requirement.user_story ?? '未记录'}</p>
+            <h4>Acceptance Criteria JSON</h4>
+            <pre>{formatJson(requirement.acceptance_criteria_json)}</pre>
+            <h4>Constraints JSON</h4>
+            <pre>{formatJson(requirement.constraints_json)}</pre>
+            <div className="action-row">
+              <button
+                type="button"
+                disabled={!canApprove}
+                title={canApprove ? '批准当前需求规格' : '只有当前最新版 draft 需求规格可以批准'}
+                onClick={() => void decide(requirement.id, 'approve')}
+              >
+                批准需求
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={!canRequestChanges}
+                title={canRequestChanges ? '要求修改当前需求规格' : '当前版本不可再次要求修改'}
+                onClick={() => void decide(requirement.id, 'request-changes')}
+              >
+                要求修改
+              </button>
             </div>
-            <div>
-              <dt>Requirement ID</dt>
-              <dd>{requirement.id}</dd>
-            </div>
-          </dl>
-          <h4>原始需求</h4>
-          <p>{requirement.raw_input}</p>
-          <h4>User Story</h4>
-          <p>{requirement.user_story ?? '未记录'}</p>
-          <h4>Acceptance Criteria JSON</h4>
-          <pre>{formatJson(requirement.acceptance_criteria_json)}</pre>
-          <h4>Constraints JSON</h4>
-          <pre>{formatJson(requirement.constraints_json)}</pre>
-          <div className="action-row">
-            <button type="button" onClick={() => void decide(requirement.id, 'approve')}>
-              Approve Requirement
-            </button>
-            <button type="button" className="danger" onClick={() => void decide(requirement.id, 'request-changes')}>
-              Request Changes
-            </button>
-          </div>
-        </article>
-      ))}
+          </article>
+        )
+      })}
     </section>
   )
 }

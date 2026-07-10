@@ -60,7 +60,11 @@ interface TaskDetailState {
  * 请求，避免串行瀑布。审批和评审动作完成后重新读取详情，保证界面与
  * 数据库状态一致。
  */
-export function useTaskDetail(taskId: string | null, refreshKey = 0) {
+export function useTaskDetail(
+  taskId: string | null,
+  refreshKey = 0,
+  onTaskChanged?: () => void | Promise<void>,
+) {
   const [state, setState] = useState<TaskDetailState>({
     status: 'idle',
     data: null,
@@ -191,6 +195,9 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
       streamRefreshTimer.current = setTimeout(() => {
         streamRefreshTimer.current = null
         void refresh()
+        if (onTaskChanged !== undefined) {
+          void onTaskChanged()
+        }
       }, 150)
     }
     const closeStream = openTaskEventStream(taskId, {
@@ -206,7 +213,7 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
         streamRefreshTimer.current = null
       }
     }
-  }, [refresh, taskId])
+  }, [onTaskChanged, refresh, taskId])
 
   return {
     ...state,

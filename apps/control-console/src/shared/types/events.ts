@@ -26,13 +26,16 @@ export const TASK_EVENT_TYPES = [
   'AgentRunStarted',
   'AgentRunCompleted',
   'AgentRunFailed',
+  'AgentRunCancelled',
   'ToolCallRecorded',
   'ToolCallStarted',
   'ToolCallSucceeded',
   'ToolCallFailed',
+  'ToolCallCancelled',
   'ApprovalRequested',
   'ApprovalApproved',
   'ApprovalRejected',
+  'ApprovalExpired',
 ] as const
 
 export type TaskEventType = (typeof TASK_EVENT_TYPES)[number]
