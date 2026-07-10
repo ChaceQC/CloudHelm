@@ -33,6 +33,6 @@ class AgentRunRepository:
         statement: Select[tuple[AgentRun]] = (
             select(AgentRun)
             .where(AgentRun.task_id == task_id)
-            .order_by(AgentRun.started_at, AgentRun.id)
+            .order_by(AgentRun.started_at.desc(), AgentRun.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)

@@ -6,7 +6,7 @@ OrchestrationService 决策，事务提交仍由该入口统一完成。
 
 from cloudhelm_agent_runtime.agents import ArchitectAgent, PlannerAgent, RequirementAgent
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel as AgentRiskLevel
-from cloudhelm_agent_runtime.schemas.design import ArchitectAgentInput
+from cloudhelm_agent_runtime.schemas.design import ArchitectAgentInput, ArchitectAgentOutput
 from cloudhelm_agent_runtime.schemas.development_plan import PlannerAgentInput
 from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementAgentInput, RequirementConstraint
 
@@ -15,7 +15,6 @@ from cloudhelm_platform_api.models.design import TechnicalDesign
 from cloudhelm_platform_api.models.development_plan import DevelopmentPlan
 from cloudhelm_platform_api.models.requirement import RequirementSpec
 from cloudhelm_platform_api.models.task import Task
-from cloudhelm_agent_runtime.schemas.design import ArchitectAgentOutput
 from cloudhelm_platform_api.repositories.design_repository import DesignRepository
 from cloudhelm_platform_api.repositories.development_plan_repository import DevelopmentPlanRepository
 from cloudhelm_platform_api.repositories.requirement_repository import RequirementRepository
@@ -63,6 +62,7 @@ class OrchestrationStepExecutor:
                     constraints_json=[item.model_dump(mode="json") for item in output.constraints],
                     acceptance_criteria_json=[item.model_dump(mode="json") for item in output.acceptance_criteria],
                     status=ReviewStatus.APPROVED.value,
+                    version=self._next_version(self.requirements.latest_by_task(task.id)),
                 )
             )
             self.lifecycle.complete(agent_run, output.summary, "requirement_agent_output", output.model_dump(mode="json"))
@@ -84,6 +84,8 @@ class OrchestrationStepExecutor:
         requirement = self.requirements.latest_by_task(task.id)
         if requirement is None:
             raise ServiceError("requirement_missing", "运行 Architect 前必须已有 RequirementSpec。", 409)
+        if requirement.status != ReviewStatus.APPROVED.value:
+            raise ServiceError("requirement_not_approved", "需求规格通过后才能运行 Architect。", 409)
         agent_run = self.lifecycle.start(task, "architect")
         try:
             output = ArchitectAgent(self.provider_factory.create()).run(
@@ -110,6 +112,7 @@ class OrchestrationStepExecutor:
                     risk_level=output.risk_level.value,
                     status=ReviewStatus.DRAFT.value if output.approval_recommended else ReviewStatus.APPROVED.value,
                     created_by_agent_run_id=agent_run.id,
+                    version=self._next_version(self.designs.latest_by_task(task.id)),
                 )
             )
             self.lifecycle.complete(agent_run, output.summary, "architect_agent_output", output.model_dump(mode="json"))
@@ -155,6 +158,7 @@ class OrchestrationStepExecutor:
                     risks_json=[item.model_dump(mode="json") for item in output.risks],
                     status=DevelopmentPlanStatus.READY_FOR_REVIEW.value,
                     created_by_agent_run_id=agent_run.id,
+                    version=self._next_version(self.plans.latest_by_task(task.id)),
                 )
             )
             self.lifecycle.complete(agent_run, output.summary, "planner_agent_output", output.model_dump(mode="json"))
@@ -169,3 +173,9 @@ class OrchestrationStepExecutor:
         except Exception as exc:
             self.lifecycle.fail(task, agent_run, exc)
             raise
+
+    @staticmethod
+    def _next_version(previous) -> int:
+        """根据同类最新产物计算下一个展示版本。"""
+
+        return previous.version + 1 if previous is not None else 1

@@ -159,6 +159,23 @@ class ApprovalService(BaseService):
         if approval.action == DESIGN_APPROVAL_ACTION:
             design = self._current_design_for_approval(approval)
             design.status = ReviewStatus.APPROVED.value
+            previous_phase = task.current_phase
+            task.current_phase = "Planning"
+            if task.status != TaskStatus.PAUSED.value:
+                task.status = TaskStatus.RUNNING.value
+            if previous_phase != task.current_phase:
+                self.events.record(
+                    "TaskPhaseChanged",
+                    "user",
+                    actor_id,
+                    {
+                        "task_id": str(task.id),
+                        "from": previous_phase,
+                        "to": task.current_phase,
+                        "reason": reason or "技术设计审批通过。",
+                    },
+                    task.id,
+                )
             self.events.record(
                 "TechnicalDesignApproved",
                 "user",

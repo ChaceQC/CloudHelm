@@ -55,6 +55,8 @@ def test_design_lifecycle_requires_requirement_and_writes_events(client: TestCli
         f"/api/tasks/{task['id']}/requirements",
         json={"raw_input": "实现 API 底座。"},
     ).json()
+    approve_requirement = client.post(f"/api/requirements/{requirement['id']}/approve")
+    assert approve_requirement.status_code == 200, approve_requirement.text
 
     create_response = client.post(
         f"/api/tasks/{task['id']}/technical-designs",
@@ -109,6 +111,7 @@ def test_design_rejects_agent_run_from_other_task(client: TestClient) -> None:
     task = create_task(client, project["id"], "任务一")
     other = create_task(client, project["id"], "任务二")
     requirement = client.post(f"/api/tasks/{task['id']}/requirements", json={"raw_input": "归属校验"}).json()
+    assert client.post(f"/api/requirements/{requirement['id']}/approve").status_code == 200
     other_run = client.post(f"/api/tasks/{other['id']}/agent-runs", json={"agent_type": "architect"}).json()
     response = client.post(
         f"/api/tasks/{task['id']}/technical-designs",
@@ -120,3 +123,76 @@ def test_design_rejects_agent_run_from_other_task(client: TestClient) -> None:
     )
     assert response.status_code == 409
     assert response.json()["code"] == "agent_run_task_mismatch"
+
+
+def test_requirement_and_design_versions_reject_stale_reviews(client: TestClient) -> None:
+    """新版本必须递增，并禁止旧需求或旧设计再次改变当前任务。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], "版本一致性")
+
+    requirement_v1 = client.post(
+        f"/api/tasks/{task['id']}/requirements",
+        json={"raw_input": "第一版需求"},
+    ).json()
+    assert requirement_v1["version"] == 1
+    approved_v1 = client.post(f"/api/requirements/{requirement_v1['id']}/approve")
+    assert approved_v1.status_code == 200
+    assert client.get(f"/api/tasks/{task['id']}").json()["current_phase"] == "Designing"
+
+    design_v1 = client.post(
+        f"/api/tasks/{task['id']}/technical-designs",
+        json={"requirement_spec_id": requirement_v1["id"], "content_markdown": "# 第一版设计"},
+    ).json()
+    assert design_v1["version"] == 1
+    assert client.post(f"/api/technical-designs/{design_v1['id']}/approve").status_code == 200
+    assert client.get(f"/api/tasks/{task['id']}").json()["current_phase"] == "Planning"
+
+    requirement_v2 = client.post(
+        f"/api/tasks/{task['id']}/requirements",
+        json={"raw_input": "第二版需求"},
+    )
+    assert requirement_v2.status_code == 201, requirement_v2.text
+    assert requirement_v2.json()["version"] == 2
+    assert client.get(f"/api/technical-designs/{design_v1['id']}").json()["status"] == "changes_requested"
+
+    stale_requirement = client.post(f"/api/requirements/{requirement_v1['id']}/request-changes")
+    assert stale_requirement.status_code == 409
+    assert stale_requirement.json()["code"] == "stale_requirement"
+
+    assert client.post(f"/api/requirements/{requirement_v2.json()['id']}/approve").status_code == 200
+    design_v2 = client.post(
+        f"/api/tasks/{task['id']}/technical-designs",
+        json={"requirement_spec_id": requirement_v2.json()["id"], "content_markdown": "# 第二版设计"},
+    )
+    assert design_v2.status_code == 201, design_v2.text
+    assert design_v2.json()["version"] == 2
+
+    stale_design = client.post(f"/api/technical-designs/{design_v1['id']}/approve")
+    assert stale_design.status_code == 409
+    assert stale_design.json()["code"] == "stale_technical_design"
+
+
+def test_design_creation_requires_latest_approved_requirement(client: TestClient) -> None:
+    """设计不能基于未批准或已过期的 RequirementSpec。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], "设计前置条件")
+    first = client.post(f"/api/tasks/{task['id']}/requirements", json={"raw_input": "第一版"}).json()
+
+    draft_response = client.post(
+        f"/api/tasks/{task['id']}/technical-designs",
+        json={"requirement_spec_id": first["id"], "content_markdown": "# draft"},
+    )
+    assert draft_response.status_code == 409
+    assert draft_response.json()["code"] == "requirement_not_approved"
+
+    assert client.post(f"/api/requirements/{first['id']}/approve").status_code == 200
+    second = client.post(f"/api/tasks/{task['id']}/requirements", json={"raw_input": "第二版"}).json()
+    stale_response = client.post(
+        f"/api/tasks/{task['id']}/technical-designs",
+        json={"requirement_spec_id": first["id"], "content_markdown": "# stale"},
+    )
+    assert stale_response.status_code == 409
+    assert stale_response.json()["code"] == "stale_requirement"
+    assert second["version"] == 2

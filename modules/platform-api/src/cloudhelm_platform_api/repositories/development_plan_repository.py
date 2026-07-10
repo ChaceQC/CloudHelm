@@ -33,7 +33,7 @@ class DevelopmentPlanRepository:
         statement: Select[tuple[DevelopmentPlan]] = (
             select(DevelopmentPlan)
             .where(DevelopmentPlan.task_id == task_id)
-            .order_by(DevelopmentPlan.created_at, DevelopmentPlan.id)
+            .order_by(DevelopmentPlan.created_at.desc(), DevelopmentPlan.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)
 

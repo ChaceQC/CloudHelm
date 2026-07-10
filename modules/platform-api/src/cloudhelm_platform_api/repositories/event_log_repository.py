@@ -33,11 +33,13 @@ class EventLogRepository:
         ).scalar_one_or_none()
 
     def list_by_task(self, task_id: UUID, limit: int, cursor: str | None) -> tuple[list[EventLog], str | None]:
-        """分页读取某个任务的事件时间线。"""
+        """读取最新一页事件，并在页内恢复为时间正序。"""
 
         statement: Select[tuple[EventLog]] = (
             select(EventLog)
             .where(EventLog.task_id == task_id)
-            .order_by(EventLog.created_at, EventLog.id)
+            .order_by(EventLog.created_at.desc(), EventLog.id.desc())
         )
-        return fetch_page(self.session, statement, limit, cursor)
+        items, next_cursor = fetch_page(self.session, statement, limit, cursor)
+        items.reverse()
+        return items, next_cursor

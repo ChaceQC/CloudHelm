@@ -33,7 +33,7 @@ class RequirementRepository:
         statement: Select[tuple[RequirementSpec]] = (
             select(RequirementSpec)
             .where(RequirementSpec.task_id == task_id)
-            .order_by(RequirementSpec.created_at, RequirementSpec.id)
+            .order_by(RequirementSpec.created_at.desc(), RequirementSpec.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)
 

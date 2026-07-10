@@ -30,10 +30,12 @@ class DevelopmentPlanService(BaseService):
         task = self.tasks.get(task_id)
         if task is None:
             raise ServiceError("task_not_found", "创建开发计划失败：任务不存在。", 404)
+        previous_plan = self.plans.latest_by_task(task_id)
         return self.plans.create(
             DevelopmentPlan(
                 task_id=task.id,
                 project_id=task.project_id,
+                version=(previous_plan.version + 1) if previous_plan is not None else 1,
                 **data.model_dump(mode="json"),
             )
         )

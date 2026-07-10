@@ -11,10 +11,13 @@
 - 使用 `alembic check` 发现 ORM metadata 与已应用迁移存在注释差异，证明现有测试门禁仍不能覆盖全部 schema 一致性。
 - 发现需要修复的实现问题：资源版本未递增、旧版本仍可评审、分页漏最新数据、未处理异常缺统一错误、Tool Gateway 工作区根目录由调用方任意指定、ToolCall 审计未持久化和脱敏、控制台 Project/Task 请求竞态及 SSE 无真正重连。
 - 重写 `PROJECT_PLAN.md` 为本次 M1-M5 二次审计与修复的详细执行计划；本阶段不进入 M6。
+- 已完成第一批数据/API 修复：Requirement、TechnicalDesign、DevelopmentPlan 真实递增版本；旧需求/设计评审返回稳定 stale 错误；新版本级联失效旧下游产物；手工审批推进到 Designing/Planning。
+- 分页 cursor 改为严格非负十进制校验，列表优先返回最新记录，Timeline 小页仍包含最新事件并保持页内时间正序。
+- 未处理异常现在返回统一 `internal_error`、JSON body、`trace_id` 和 `X-Trace-Id`，不泄露内部异常文本。
 
 ### 进行中
 
-- 正在按计划先修复数据/API/状态不变量，再修复 Tool Gateway 和控制台。
+- 正在修复 Tool Gateway 工作区 allowlist、审计持久化、参数/结果脱敏和共享 Tool schema。
 
 ### 阻塞与风险
 
@@ -41,6 +44,7 @@
 - 已确认当前分支为 `dev`，工作区在审计开始前干净。
 - 已执行全部现有自动化测试和前端构建。
 - 已执行 `uv run alembic check` 并记录真实失败差异，未把该项伪装为通过。
+- 第一批修复后 `modules/platform-api` 执行 `uv run pytest -q`，结果 `37 passed, 1 warning`。
 
 ## 2026-07-10（M1-M5 补全收尾与 v0.4.1）
 

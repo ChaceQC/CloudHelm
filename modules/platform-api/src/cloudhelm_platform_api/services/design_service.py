@@ -44,23 +44,44 @@ class DesignService(BaseService):
         requirement = self.requirements.get(data.requirement_spec_id)
         if requirement is None or requirement.task_id != task_id:
             raise ServiceError("requirement_not_found", "关联需求规格不存在或不属于该任务。", 404)
+        current_requirement = self.requirements.latest_by_task(task_id)
+        if current_requirement is None or current_requirement.id != requirement.id:
+            raise ServiceError("stale_requirement", "只能基于当前最新版需求规格创建设计。", 409)
+        if requirement.status != ReviewStatus.APPROVED.value:
+            raise ServiceError("requirement_not_approved", "需求规格通过后才能创建技术设计。", 409)
         agent_run = self.agent_runs.get(data.created_by_agent_run_id) if data.created_by_agent_run_id else None
         if data.created_by_agent_run_id and agent_run is None:
             raise ServiceError("agent_run_not_found", "创建技术设计失败：AgentRun 不存在。", 404)
         if agent_run is not None and agent_run.task_id != task_id:
             raise ServiceError("agent_run_task_mismatch", "创建技术设计失败：AgentRun 不属于当前任务。", 409)
+        previous_design = self.designs.latest_by_task(task.id)
         design = self.designs.create(
             TechnicalDesign(
                 task_id=task.id,
                 status=ReviewStatus.DRAFT.value,
+                version=(previous_design.version + 1) if previous_design is not None else 1,
                 **data.model_dump(mode="json"),
             )
         )
+        self._move_task_to_phase(task, "Designing", "创建了新的技术设计版本。", "user")
+        if previous_design is not None:
+            self.review_invalidation.invalidate_after_design_change(
+                task.id,
+                previous_design.id,
+                "user",
+                "新技术设计版本已创建，旧开发计划失效。",
+            )
+            self.review_invalidation.reject_design_approval(
+                task.id,
+                previous_design.created_by_agent_run_id,
+                "user",
+                "新技术设计版本已创建，旧设计审批失效。",
+            )
         self.events.record(
             "TechnicalDesignCreated",
             "user",
             "user",
-            {"design_id": str(design.id), "requirement_id": str(requirement.id)},
+            {"design_id": str(design.id), "requirement_id": str(requirement.id), "version": design.version},
             task.id,
         )
         self.commit()
@@ -86,6 +107,7 @@ class DesignService(BaseService):
         """通过技术设计并写入事件。"""
 
         design = self._require_design(design_id)
+        self._ensure_current_design(design)
         task = self.tasks.get(design.task_id)
         if task is not None:
             self._ensure_task_mutable(task.status)
@@ -116,6 +138,8 @@ class DesignService(BaseService):
             {"design_id": str(design.id), "reason": reason},
             design.task_id,
         )
+        if task is not None:
+            self._move_task_to_phase(task, "Planning", reason or "技术设计已通过。", actor_id)
         self.commit()
         return TechnicalDesignRead.model_validate(design)
 
@@ -123,6 +147,7 @@ class DesignService(BaseService):
         """要求修改技术设计并写入事件。"""
 
         design = self._require_design(design_id)
+        self._ensure_current_design(design)
         task = self.tasks.get(design.task_id)
         if task is not None:
             self._ensure_task_mutable(task.status)
@@ -130,18 +155,7 @@ class DesignService(BaseService):
             raise ServiceError("invalid_design_review_transition", "当前技术设计不能重复要求修改。", 409)
         design.status = ReviewStatus.CHANGES_REQUESTED.value
         if task is not None:
-            previous_phase = task.current_phase
-            if task.status != TaskStatus.PAUSED.value:
-                task.status = TaskStatus.RUNNING.value
-            task.current_phase = "Designing"
-            if previous_phase != task.current_phase:
-                self.events.record(
-                    "TaskPhaseChanged",
-                    "user",
-                    actor_id,
-                    {"task_id": str(task.id), "from": previous_phase, "to": task.current_phase, "reason": reason or "技术设计要求修改"},
-                    task.id,
-                )
+            self._move_task_to_phase(task, "Designing", reason or "技术设计要求修改", actor_id)
             self.review_invalidation.invalidate_after_design_change(
                 task.id,
                 design.id,
@@ -191,3 +205,31 @@ class DesignService(BaseService):
 
         if status in TERMINAL_TASK_STATUSES:
             raise ServiceError("task_terminal", "终态任务不能继续修改技术设计。", 409)
+
+    def _ensure_current_design(self, design: TechnicalDesign) -> None:
+        """旧版本 TechnicalDesign 不得改变当前任务状态或计划。"""
+
+        current = self.designs.latest_by_task(design.task_id)
+        if current is None or current.id != design.id:
+            raise ServiceError("stale_technical_design", "只能评审当前最新版技术设计。", 409)
+
+    def _move_task_to_phase(self, task, target_phase: str, reason: str, actor_id: str) -> None:
+        """更新任务阶段；暂停任务保留 paused 运行状态。"""
+
+        previous_phase = task.current_phase
+        if task.status != TaskStatus.PAUSED.value:
+            task.status = TaskStatus.RUNNING.value
+        task.current_phase = target_phase
+        if previous_phase != target_phase:
+            self.events.record(
+                "TaskPhaseChanged",
+                "user",
+                actor_id,
+                {
+                    "task_id": str(task.id),
+                    "from": previous_phase,
+                    "to": target_phase,
+                    "reason": reason,
+                },
+                task.id,
+            )

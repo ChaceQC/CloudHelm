@@ -34,19 +34,28 @@ class RequirementService(BaseService):
         if task is None:
             raise ServiceError("task_not_found", "创建需求失败：任务不存在。", 404)
         self._ensure_task_mutable(task.status)
+        previous_requirement = self.requirements.latest_by_task(task.id)
         requirement = self.requirements.create(
             RequirementSpec(
                 task_id=task.id,
                 project_id=task.project_id,
                 status=ReviewStatus.DRAFT.value,
+                version=(previous_requirement.version + 1) if previous_requirement is not None else 1,
                 **data.model_dump(),
             )
         )
+        self._move_task_to_phase(task, "RequirementClarifying", "创建了新的需求规格版本。", "user")
+        if previous_requirement is not None:
+            self.review_invalidation.invalidate_after_requirement_change(
+                task.id,
+                "user",
+                "新需求规格版本已创建，旧设计与开发计划失效。",
+            )
         self.events.record(
             "RequirementSpecCreated",
             "user",
             "user",
-            {"requirement_id": str(requirement.id), "task_id": str(task.id)},
+            {"requirement_id": str(requirement.id), "task_id": str(task.id), "version": requirement.version},
             task.id,
         )
         self.commit()
@@ -71,12 +80,15 @@ class RequirementService(BaseService):
         """通过需求规格并写入事件。"""
 
         requirement = self._require_requirement(requirement_id)
+        self._ensure_current_requirement(requirement)
         task = self.tasks.get(requirement.task_id)
         if task is not None:
             self._ensure_task_mutable(task.status)
         if requirement.status != ReviewStatus.DRAFT.value:
             raise ServiceError("invalid_requirement_review_transition", "只有 draft 需求规格可以通过。", 409)
         requirement.status = ReviewStatus.APPROVED.value
+        if task is not None:
+            self._move_task_to_phase(task, "Designing", reason or "需求规格已通过。", actor_id)
         self.events.record(
             "RequirementSpecApproved",
             "user",
@@ -91,6 +103,7 @@ class RequirementService(BaseService):
         """要求修改需求规格并写入事件。"""
 
         requirement = self._require_requirement(requirement_id)
+        self._ensure_current_requirement(requirement)
         task = self.tasks.get(requirement.task_id)
         if task is not None:
             self._ensure_task_mutable(task.status)
@@ -98,18 +111,7 @@ class RequirementService(BaseService):
             raise ServiceError("invalid_requirement_review_transition", "当前需求规格不能重复要求修改。", 409)
         requirement.status = ReviewStatus.CHANGES_REQUESTED.value
         if task is not None:
-            previous_phase = task.current_phase
-            if task.status != TaskStatus.PAUSED.value:
-                task.status = TaskStatus.RUNNING.value
-            task.current_phase = "RequirementClarifying"
-            if previous_phase != task.current_phase:
-                self.events.record(
-                    "TaskPhaseChanged",
-                    "user",
-                    actor_id,
-                    {"task_id": str(task.id), "from": previous_phase, "to": task.current_phase, "reason": reason or "需求规格要求修改"},
-                    task.id,
-                )
+            self._move_task_to_phase(task, "RequirementClarifying", reason or "需求规格要求修改", actor_id)
             self.review_invalidation.invalidate_after_requirement_change(
                 task.id,
                 actor_id,
@@ -144,3 +146,31 @@ class RequirementService(BaseService):
 
         if status in TERMINAL_TASK_STATUSES:
             raise ServiceError("task_terminal", "终态任务不能继续修改需求规格。", 409)
+
+    def _ensure_current_requirement(self, requirement: RequirementSpec) -> None:
+        """旧版本 Requirement 不得改变当前任务状态或下游产物。"""
+
+        current = self.requirements.latest_by_task(requirement.task_id)
+        if current is None or current.id != requirement.id:
+            raise ServiceError("stale_requirement", "只能评审当前最新版需求规格。", 409)
+
+    def _move_task_to_phase(self, task, target_phase: str, reason: str, actor_id: str) -> None:
+        """更新任务阶段；暂停任务只更新业务阶段，不解除暂停状态。"""
+
+        previous_phase = task.current_phase
+        if task.status != TaskStatus.PAUSED.value:
+            task.status = TaskStatus.RUNNING.value
+        task.current_phase = target_phase
+        if previous_phase != target_phase:
+            self.events.record(
+                "TaskPhaseChanged",
+                "user",
+                actor_id,
+                {
+                    "task_id": str(task.id),
+                    "from": previous_phase,
+                    "to": target_phase,
+                    "reason": reason,
+                },
+                task.id,
+            )

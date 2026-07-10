@@ -30,5 +30,5 @@ class ProjectRepository:
     def list(self, limit: int, cursor: str | None) -> tuple[list[Project], str | None]:
         """分页读取 Project。"""
 
-        statement: Select[tuple[Project]] = select(Project).order_by(Project.created_at, Project.id)
+        statement: Select[tuple[Project]] = select(Project).order_by(Project.created_at.desc(), Project.id.desc())
         return fetch_page(self.session, statement, limit, cursor)

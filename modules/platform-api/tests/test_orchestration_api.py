@@ -40,10 +40,6 @@ def test_m4_orchestration_generates_requirement_design_plan_and_events(client: T
     assert design_approval.status_code == 200
     assert design_approval.json()["status"] == "approved"
 
-    resume = client.post(f"/api/tasks/{task['id']}/run-next", json={"actor_id": "tester"})
-    assert resume.status_code == 200, resume.text
-    assert resume.json()["task"]["current_phase"] == "Planning"
-
     plan_step = client.post(f"/api/tasks/{task['id']}/run-next", json={"actor_id": "tester"})
     assert plan_step.status_code == 200, plan_step.text
     plan_body = plan_step.json()
@@ -126,7 +122,6 @@ def test_rejected_plan_is_regenerated_instead_of_reusing_stale_plan(client: Test
     assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
     design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
     assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
-    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
     first_plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
 
     reject = client.post(
@@ -145,6 +140,7 @@ def test_rejected_plan_is_regenerated_instead_of_reusing_stale_plan(client: Test
     assert regenerated.status_code == 200, regenerated.text
     assert regenerated.json()["development_plan"]["id"] != first_plan_id
     assert regenerated.json()["development_plan"]["status"] == "ready_for_review"
+    assert regenerated.json()["development_plan"]["version"] == 2
 
 
 def test_design_revision_invalidates_old_plan_and_approval(client: TestClient) -> None:
@@ -156,7 +152,6 @@ def test_design_revision_invalidates_old_plan_and_approval(client: TestClient) -
     requirement = client.post(f"/api/tasks/{task['id']}/run-next").json()["requirement"]
     design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
     assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
-    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
     plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
 
     changes = client.post(
@@ -171,6 +166,7 @@ def test_design_revision_invalidates_old_plan_and_approval(client: TestClient) -
     assert revised_design.status_code == 200, revised_design.text
     assert revised_design.json()["technical_design"]["requirement_spec_id"] == requirement["id"]
     assert revised_design.json()["technical_design"]["id"] != design_step["technical_design"]["id"]
+    assert revised_design.json()["technical_design"]["version"] == 2
 
 
 def test_requirement_revision_invalidates_downstream_design_and_plan(client: TestClient) -> None:
@@ -182,7 +178,6 @@ def test_requirement_revision_invalidates_downstream_design_and_plan(client: Tes
     requirement = client.post(f"/api/tasks/{task['id']}/run-next").json()["requirement"]
     design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
     assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
-    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
     plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
 
     changes = client.post(
@@ -208,7 +203,6 @@ def test_resume_after_plan_decision_while_paused_restores_running(client: TestCl
     assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
     design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
     assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
-    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
     plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
 
     assert client.post(f"/api/tasks/{task['id']}/pause").json()["status"] == "paused"

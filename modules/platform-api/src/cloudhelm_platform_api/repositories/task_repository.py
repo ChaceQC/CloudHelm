@@ -35,7 +35,7 @@ class TaskRepository:
     ) -> tuple[list[Task], str | None]:
         """分页读取 Task，可按 Project 过滤。"""
 
-        statement: Select[tuple[Task]] = select(Task).order_by(Task.created_at, Task.id)
+        statement: Select[tuple[Task]] = select(Task).order_by(Task.created_at.desc(), Task.id.desc())
         if project_id is not None:
             statement = statement.where(Task.project_id == project_id)
         return fetch_page(self.session, statement, limit, cursor)

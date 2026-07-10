@@ -40,6 +40,6 @@ class ToolCallRepository:
         statement: Select[tuple[ToolCall]] = (
             select(ToolCall)
             .where(ToolCall.task_id == task_id)
-            .order_by(ToolCall.started_at, ToolCall.id)
+            .order_by(ToolCall.started_at.desc(), ToolCall.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)

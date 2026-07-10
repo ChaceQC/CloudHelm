@@ -37,8 +37,8 @@ class ApprovalRepository:
         """分页读取审批请求，可按状态过滤。"""
 
         statement: Select[tuple[ApprovalRequest]] = select(ApprovalRequest).order_by(
-            ApprovalRequest.created_at,
-            ApprovalRequest.id,
+            ApprovalRequest.created_at.desc(),
+            ApprovalRequest.id.desc(),
         )
         if status is not None:
             statement = statement.where(ApprovalRequest.status == status)

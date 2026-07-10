@@ -20,11 +20,9 @@ def parse_offset_cursor(cursor: str | None) -> int:
 
     if cursor is None:
         return 0
-    try:
-        offset = int(cursor)
-    except ValueError:
-        return 0
-    return max(offset, 0)
+    if not cursor.isdecimal():
+        raise ValueError("offset cursor must be a non-negative decimal string")
+    return int(cursor)
 
 
 def fetch_page(session: Session, statement: Select[tuple[T]], limit: int, cursor: str | None) -> tuple[list[T], str | None]:

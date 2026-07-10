@@ -33,7 +33,7 @@ class DesignRepository:
         statement: Select[tuple[TechnicalDesign]] = (
             select(TechnicalDesign)
             .where(TechnicalDesign.task_id == task_id)
-            .order_by(TechnicalDesign.created_at, TechnicalDesign.id)
+            .order_by(TechnicalDesign.created_at.desc(), TechnicalDesign.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)
 
