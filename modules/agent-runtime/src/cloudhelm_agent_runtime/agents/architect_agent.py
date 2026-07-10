@@ -4,7 +4,7 @@
 草案和风险点。
 输入：`ArchitectAgentInput`。
 输出：`ArchitectAgentOutput`。
-允许工具：M4 阶段不执行工具；后续设计工具必须经 Tool Gateway。
+允许工具：M4 阶段不执行工具；M5 注册表允许设计渲染和受控仓库只读工具。
 """
 
 from cloudhelm_agent_runtime.providers.base import StructuredAgentProvider
@@ -15,7 +15,13 @@ class ArchitectAgent:
     """技术设计 Agent。"""
 
     agent_type = "architect"
-    allowed_tools = ("design.generate", "spec.update")
+    allowed_tools = (
+        "requirement.normalize",
+        "design.render_markdown",
+        "repo.read_file",
+        "repo.search_text",
+        "repo.list_files",
+    )
 
     def __init__(self, provider: StructuredAgentProvider) -> None:
         self.provider = provider

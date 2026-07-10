@@ -22,6 +22,16 @@ class EventLogRepository:
         self.session.flush()
         return event
 
+    def latest_by_task_and_type(self, task_id: UUID, event_type: str) -> EventLog | None:
+        """读取任务某类型的最新事件。"""
+
+        return self.session.execute(
+            select(EventLog)
+            .where(EventLog.task_id == task_id, EventLog.event_type == event_type)
+            .order_by(EventLog.created_at.desc(), EventLog.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+
     def list_by_task(self, task_id: UUID, limit: int, cursor: str | None) -> tuple[list[EventLog], str | None]:
         """分页读取某个任务的事件时间线。"""
 

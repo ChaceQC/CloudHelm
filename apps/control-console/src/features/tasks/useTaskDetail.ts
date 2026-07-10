@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   approveApproval,
   approveRequirement,
@@ -67,27 +67,34 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
     error: null,
     streamStatus: 'idle',
   })
+  const requestSequence = useRef(0)
+  const streamRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const refresh = useCallback(async () => {
+    const sequence = requestSequence.current + 1
+    requestSequence.current = sequence
     if (taskId === null) {
       setState({ status: 'idle', data: null, error: null, streamStatus: 'idle' })
       return
     }
 
-    setState((current) => ({ ...current, status: 'loading', error: null }))
+    setState((current) => ({ ...current, status: 'loading', data: null, error: null }))
     try {
       const [task, requirements, designs, developmentPlans, agentRuns, toolCalls, approvals, timeline, orchestration] =
         await Promise.all([
-        getTask(taskId),
-        listRequirements(taskId),
-        listTechnicalDesigns(taskId),
-        listDevelopmentPlans(taskId),
-        listAgentRuns(taskId),
-        listToolCalls(taskId),
-        listApprovals(),
-        getTimeline(taskId),
-        getOrchestrationState(taskId),
-      ])
+          getTask(taskId),
+          listRequirements(taskId),
+          listTechnicalDesigns(taskId),
+          listDevelopmentPlans(taskId),
+          listAgentRuns(taskId),
+          listToolCalls(taskId),
+          listApprovals(taskId),
+          getTimeline(taskId),
+          getOrchestrationState(taskId),
+        ])
+      if (requestSequence.current !== sequence) {
+        return
+      }
       setState((current) => ({
         ...current,
         status: 'ready',
@@ -98,14 +105,16 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
           developmentPlans: developmentPlans.items,
           agentRuns: agentRuns.items,
           toolCalls: toolCalls.items,
-          approvals: approvals.items.filter((approval) => approval.task_id === taskId),
+          approvals: approvals.items,
           timeline: timeline.items,
           orchestration,
         },
         error: null,
       }))
     } catch (error) {
-      setState((current) => ({ ...current, status: 'error', data: null, error: formatApiError(error) }))
+      if (requestSequence.current === sequence) {
+        setState((current) => ({ ...current, status: 'error', data: null, error: formatApiError(error) }))
+      }
     }
   }, [taskId])
 
@@ -175,14 +184,28 @@ export function useTaskDetail(taskId: string | null, refreshKey = 0) {
       return undefined
     }
 
-    return openTaskEventStream(taskId, {
-      onEvent: () => {
+    const scheduleRefresh = () => {
+      if (streamRefreshTimer.current !== null) {
+        clearTimeout(streamRefreshTimer.current)
+      }
+      streamRefreshTimer.current = setTimeout(() => {
+        streamRefreshTimer.current = null
         void refresh()
-      },
+      }, 150)
+    }
+    const closeStream = openTaskEventStream(taskId, {
+      onEvent: scheduleRefresh,
       onStatus: (streamStatus) => {
         setState((current) => ({ ...current, streamStatus }))
       },
     })
+    return () => {
+      closeStream()
+      if (streamRefreshTimer.current !== null) {
+        clearTimeout(streamRefreshTimer.current)
+        streamRefreshTimer.current = null
+      }
+    }
   }, [refresh, taskId])
 
   return {

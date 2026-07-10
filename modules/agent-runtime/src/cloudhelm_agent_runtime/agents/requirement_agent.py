@@ -3,8 +3,8 @@
 职责：读取真实 Task 输入，生成需求规格、约束和验收标准。
 输入：`RequirementAgentInput`。
 输出：`RequirementAgentOutput`。
-允许工具：M4 阶段无真实外部工具；后续只允许 `requirement.parse` 和
-`spec.update` 通过 Tool Gateway 接入。
+允许工具：M4 阶段不执行工具；M5 注册表只允许需求整理和受控仓库只读
+工具，且真实调用必须通过 Tool Gateway。
 """
 
 from cloudhelm_agent_runtime.providers.base import StructuredAgentProvider
@@ -15,7 +15,7 @@ class RequirementAgent:
     """需求规格化 Agent。"""
 
     agent_type = "requirement"
-    allowed_tools = ("requirement.parse", "spec.update")
+    allowed_tools = ("requirement.normalize", "repo.read_file", "repo.search_text", "repo.list_files")
 
     def __init__(self, provider: StructuredAgentProvider) -> None:
         self.provider = provider

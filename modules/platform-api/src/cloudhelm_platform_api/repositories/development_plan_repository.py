@@ -46,3 +46,16 @@ class DevelopmentPlanRepository:
             .order_by(DevelopmentPlan.created_at.desc(), DevelopmentPlan.id.desc())
             .limit(1)
         ).scalar_one_or_none()
+
+    def latest_by_task_and_agent_run(self, task_id: UUID, agent_run_id: UUID) -> DevelopmentPlan | None:
+        """读取由指定 Planner AgentRun 创建的最新开发计划。"""
+
+        return self.session.execute(
+            select(DevelopmentPlan)
+            .where(
+                DevelopmentPlan.task_id == task_id,
+                DevelopmentPlan.created_by_agent_run_id == agent_run_id,
+            )
+            .order_by(DevelopmentPlan.created_at.desc(), DevelopmentPlan.id.desc())
+            .limit(1)
+        ).scalar_one_or_none()

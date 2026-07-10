@@ -4,6 +4,7 @@ import { DevelopmentPlanPanel } from '../planning/DevelopmentPlanPanel'
 import { ToolCallList } from '../tool-calls/ToolCallList'
 import { formatDateTime } from '../../shared/api/formatters'
 import { OrchestrationControls } from './OrchestrationControls'
+import { refreshAfterSuccess } from './refreshAfterSuccess'
 import { TaskStatusBadge } from './TaskStatusBadge'
 import { TaskTimeline } from './TaskTimeline'
 import { useTaskDetail } from './useTaskDetail'
@@ -23,12 +24,27 @@ interface TaskDetailProps {
 export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProps) {
   const detail = useTaskDetail(taskId, refreshKey)
 
+  const decideRequirement: typeof detail.decideRequirement = async (...args) => {
+    return refreshAfterSuccess(detail.decideRequirement, onTaskChanged, ...args)
+  }
+
+  const decideDesign: typeof detail.decideDesign = async (...args) => {
+    return refreshAfterSuccess(detail.decideDesign, onTaskChanged, ...args)
+  }
+
+  const decideApproval: typeof detail.decideApproval = async (...args) => {
+    return refreshAfterSuccess(detail.decideApproval, onTaskChanged, ...args)
+  }
+
   if (taskId === null) {
     return (
       <section className="panel detail-panel">
-        <p className="eyebrow">Task Detail</p>
-        <h2>请选择任务</h2>
-        <p className="empty-state">选择任务后将读取真实 Requirement、Design、Timeline、ToolCall 和 Approval 数据。</p>
+        <div className="welcome-state">
+          <span className="welcome-spark" aria-hidden="true">✦</span>
+          <p className="eyebrow">CloudHelm 工作台</p>
+          <h2>今天想推进哪个研发任务？</h2>
+          <p>从左侧选择任务，即可查看真实的 Requirement、Design、Timeline、ToolCall 和 Approval 数据。</p>
+        </div>
       </section>
     )
   }
@@ -66,7 +82,7 @@ export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProp
     <section className="panel detail-panel" aria-labelledby="task-detail-title">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Task Detail</p>
+          <p className="eyebrow">任务详情</p>
           <h2 id="task-detail-title">{task.title}</h2>
         </div>
         <button type="button" className="ghost-button" onClick={detail.refresh}>
@@ -109,13 +125,13 @@ export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProp
       <DesignReviewPanel
         requirements={requirements}
         designs={designs}
-        onDecideRequirement={detail.decideRequirement}
-        onDecideDesign={detail.decideDesign}
+        onDecideRequirement={decideRequirement}
+        onDecideDesign={decideDesign}
       />
       <DevelopmentPlanPanel developmentPlans={developmentPlans} />
       <TaskTimeline agentRuns={agentRuns} events={timeline} streamStatus={detail.streamStatus} />
       <ToolCallList toolCalls={toolCalls} />
-      <ApprovalPanel approvals={approvals} onDecideApproval={detail.decideApproval} />
+      <ApprovalPanel approvals={approvals} onDecideApproval={decideApproval} />
     </section>
   )
 }

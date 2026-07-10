@@ -196,6 +196,8 @@ export interface ToolDeclaration {
   description: string
   risk_level: RiskLevel
   requires_approval: boolean
+  allowed_agent_types: string[]
+  allow_system_call: boolean
   audit_fields: string[]
   arguments_schema: Record<string, JsonValue>
 }

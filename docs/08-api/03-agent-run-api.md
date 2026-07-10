@@ -25,7 +25,7 @@ GET    /api/agent-runs/{run_id}
 - `error_code`
 - `error_message`
 
-M4 编排产生的 AgentRun 会写入 `AgentRunStarted`、`AgentRunCompleted` 或 `AgentRunFailed`。缺少 `openai_compatible` provider 配置时，AgentRun 状态为 `failed`，错误码为 `missing_agent_provider_config`。
+M4 编排产生的 AgentRun 会写入 `AgentRunStarted`、`AgentRunCompleted` 或 `AgentRunFailed`。外部 provider 的 AgentRun 会在 `prompt_hash` 和启动事件中记录 API mode 与 reasoning effort。缺少配置时错误码为 `missing_agent_provider_config`；HTTP 请求失败为 `agent_provider_request_failed`；响应或结构化输出无效为 `agent_provider_response_invalid`。
 
 ## 实现注意点
 

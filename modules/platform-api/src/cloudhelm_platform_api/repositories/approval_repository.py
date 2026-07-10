@@ -27,7 +27,13 @@ class ApprovalRepository:
 
         return self.session.get(ApprovalRequest, approval_id)
 
-    def list(self, limit: int, cursor: str | None, status: str | None = None) -> tuple[list[ApprovalRequest], str | None]:
+    def list(
+        self,
+        limit: int,
+        cursor: str | None,
+        status: str | None = None,
+        task_id: UUID | None = None,
+    ) -> tuple[list[ApprovalRequest], str | None]:
         """分页读取审批请求，可按状态过滤。"""
 
         statement: Select[tuple[ApprovalRequest]] = select(ApprovalRequest).order_by(
@@ -36,6 +42,8 @@ class ApprovalRepository:
         )
         if status is not None:
             statement = statement.where(ApprovalRequest.status == status)
+        if task_id is not None:
+            statement = statement.where(ApprovalRequest.task_id == task_id)
         return fetch_page(self.session, statement, limit, cursor)
 
     def latest_by_task_and_action(self, task_id: UUID, action: str) -> ApprovalRequest | None:
@@ -47,3 +55,15 @@ class ApprovalRepository:
             .order_by(ApprovalRequest.created_at.desc(), ApprovalRequest.id.desc())
             .limit(1)
         ).scalar_one_or_none()
+
+    def has_pending_by_task(self, task_id: UUID) -> bool:
+        """判断任务是否仍有待处理审批。"""
+
+        return (
+            self.session.execute(
+                select(ApprovalRequest.id)
+                .where(ApprovalRequest.task_id == task_id, ApprovalRequest.status == "pending")
+                .limit(1)
+            ).scalar_one_or_none()
+            is not None
+        )

@@ -6,6 +6,8 @@
 
 M6：本地代码实现、测试与 PR 闭环。
 
+前置基线：2026-07-10 已完成 M1-M5 代码质量与进度一致性审计，并形成修复版本 `0.4.1`。Tool Gateway 原子幂等、完整 Agent 上下文、running AgentRun 约束、显式 Git commit 文件边界、任务/审批状态迁移、旧设计/计划级联失效、共享事件契约、控制台请求竞态均已修复；`openai_compatible` provider 已支持 Responses API、`reasoning.effort=max` 和用户指定的 `gpt-5.6-sol` 模型字符串透传；控制台随后重写为网页版 Gemini 式浅色布局，并通过桌面、平板和手机宽度回归。M6 不需要重复修补这些基线问题。
+
 ## 2. 阶段目标
 
 在 M5 已完成 Tool Gateway、Repo/Sandbox/Git 本地工具、审批拦截和审计记录的基础上，让 CloudHelm 能对一个受控 sample repo 完成最小本地开发闭环：
@@ -251,7 +253,7 @@ apps/control-console/src/shared/api/cloudhelmApi.ts
 
 - 展示真实 diff summary、changed files、测试报告、安全报告、review 结论和 PR record。
 - 无记录时保持真实空态，不展示假 diff、假测试或假 PR 链接。
-- UI 继续参考 Codex 桌面端：低饱和、面板式、紧凑按钮、清晰边框。
+- UI 延续当前网页版 Gemini 式浅色信息架构：蓝灰侧栏、白色主工作区、宽松阅读流和柔和圆角；新增 M6 面板不得退回深色密集后台样式。
 
 ### 6.8 测试与验证设计
 

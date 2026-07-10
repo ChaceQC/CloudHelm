@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from cloudhelm_platform_api.models.task import Task
+from cloudhelm_platform_api.repositories.approval_repository import ApprovalRepository
 from cloudhelm_platform_api.repositories.project_repository import ProjectRepository
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.schemas.common import PageInfo, PageResponse, TaskStatus
@@ -21,6 +22,7 @@ class TaskService(BaseService):
         super().__init__(session)
         self.tasks = TaskRepository(session)
         self.projects = ProjectRepository(session)
+        self.approvals = ApprovalRepository(session)
         self.events = EventService(session)
 
     def create_task(self, data: TaskCreate) -> TaskRead:
@@ -65,7 +67,7 @@ class TaskService(BaseService):
         )
 
     def pause_task(self, task_id: UUID, actor_id: str, reason: str | None = None) -> TaskRead:
-        """暂停任务并写入 TaskPaused 事件。"""
+        """暂停任务并写入事件，同时保留可恢复的业务阶段。"""
 
         task = self._require_task(task_id)
         if task.status not in {
@@ -76,7 +78,6 @@ class TaskService(BaseService):
             raise ServiceError("invalid_task_transition", "当前任务状态不允许暂停。", 409)
         old_status = task.status
         task.status = TaskStatus.PAUSED.value
-        task.current_phase = "Paused"
         self.events.record(
             "TaskPaused",
             "user",
@@ -88,18 +89,27 @@ class TaskService(BaseService):
         return TaskRead.model_validate(task)
 
     def resume_task(self, task_id: UUID, actor_id: str, reason: str | None = None) -> TaskRead:
-        """恢复暂停任务并写入 TaskResumed 事件。"""
+        """恢复暂停任务并从暂停前业务阶段继续调度。"""
 
         task = self._require_task(task_id)
         if task.status != TaskStatus.PAUSED.value:
             raise ServiceError("invalid_task_transition", "只有 paused 任务可以恢复。", 409)
-        task.status = TaskStatus.RUNNING.value
-        task.current_phase = "RequirementClarifying"
+        pause_event = self.events.latest(task.id, "TaskPaused")
+        previous_status = pause_event.payload.get("from_status") if pause_event is not None else None
+        if previous_status not in {
+            TaskStatus.CREATED.value,
+            TaskStatus.RUNNING.value,
+            TaskStatus.WAITING_APPROVAL.value,
+        }:
+            raise ServiceError("resume_state_missing", "缺少可恢复的暂停前状态。", 409)
+        if previous_status == TaskStatus.WAITING_APPROVAL.value and not self.approvals.has_pending_by_task(task.id):
+            previous_status = TaskStatus.RUNNING.value
+        task.status = previous_status
         self.events.record(
             "TaskResumed",
             "user",
             actor_id,
-            {"task_id": str(task.id), "to_status": task.status, "reason": reason},
+            {"task_id": str(task.id), "to_status": task.status, "current_phase": task.current_phase, "reason": reason},
             task.id,
         )
         self.commit()

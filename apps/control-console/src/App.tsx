@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 /**
  * 控制台应用根组件。
  *
- * M4 根组件只负责组合 Project Sidebar、Task Board、Task Detail 和
+ * M5 根组件只负责组合 Project Sidebar、Task Board、Task Detail 和
  * 健康检查；真实数据加载、表单提交和审批操作拆分到 feature hooks，
  * 避免页面层堆积业务逻辑。
  */
@@ -20,6 +20,8 @@ export function App() {
   const [detailRefreshKey, setDetailRefreshKey] = useState(0)
   const projects = useProjects()
   const tasks = useTasks(selectedProjectId)
+  const selectedProject = projects.items.find((project) => project.id === selectedProjectId) ?? null
+  const selectedTask = tasks.items.find((task) => task.id === selectedTaskId) ?? null
 
   useEffect(() => {
     setSelectedProjectId((currentProjectId) => {
@@ -59,19 +61,15 @@ export function App() {
   }
 
   return (
-    <main className="app-shell">
-      <section className="hero">
-        <p className="eyebrow">CloudHelm M4</p>
-        <h1>云舵控制台 Agent 编排闭环</h1>
-        <p className="hero-copy">
-          当前阶段接入真实 Platform API，可创建项目和任务、查看任务详情、
-          启动/推进 Requirement、Architect、Planner 编排，并展示 Timeline、
-          Tool Calls 与审批记录。真实工具执行、PR、部署和监控仍按后续 M5-M8
-          里程碑推进。
-        </p>
-      </section>
-
-      <div className="console-layout">
+    <div className="app-shell">
+      <aside className="app-sidebar" aria-label="项目与任务导航">
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">✦</span>
+          <div>
+            <strong>CloudHelm</strong>
+            <span>智能研发控制台</span>
+          </div>
+        </div>
         <ProjectSidebar
           projects={projects.items}
           status={projects.status}
@@ -82,7 +80,7 @@ export function App() {
           onProjectCreated={handleProjectCreated}
           onRetry={projects.refresh}
         />
-        <div className="workspace-area">
+        <div className="sidebar-task-area">
           <TaskBoard
             projectSelected={selectedProjectId !== null}
             tasks={tasks.items}
@@ -95,11 +93,21 @@ export function App() {
             onRunTaskAction={handleRunTaskAction}
             onRefresh={tasks.refresh}
           />
+        </div>
+      </aside>
+
+      <main className="app-main">
+        <header className="app-topbar">
+          <div className="workspace-context">
+            <span>{selectedProject?.name ?? '选择项目'}</span>
+            <strong>{selectedTask?.title ?? 'CloudHelm 工作台'}</strong>
+          </div>
+          <HealthPanel />
+        </header>
+        <div className="workspace-area">
           <TaskDetail taskId={selectedTaskId} refreshKey={detailRefreshKey} onTaskChanged={tasks.refresh} />
         </div>
-      </div>
-
-      <HealthPanel />
-    </main>
+      </main>
+    </div>
   )
 }

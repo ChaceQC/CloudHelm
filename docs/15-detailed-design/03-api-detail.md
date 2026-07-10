@@ -20,6 +20,8 @@
 - `run-next` 一次只推进 Requirement、Architect 或 Planner 的一个步骤。
 - 结构化输出写入 `agent_runs.structured_output_json`，并同步落到 `requirement_specs`、`technical_designs` 或 `development_plans`。
 - 缺少外部 provider 配置、结构化输出校验失败和非法状态迁移均返回统一错误结构并写入可追溯事件。
+- 暂停任务不能绕过 Task API 继续 start/run-next；Planning 只复用当前最新版已批准设计对应且未被要求修改的计划。
+- 需求/设计返工会级联失效旧设计、旧计划和待审批记录；设计/计划审批只接受当前产物 AgentRun，过期审批返回 `409 stale_approval`。
 - 边界：M4 不执行 Tool Gateway、Repo/Git/Docker/SSH、PR、部署或监控动作。
 
 ### M2 内部联调创建接口
@@ -184,9 +186,15 @@ MVP 使用：
 
 副作用：
 
-- `tasks.status = paused`。
+- `tasks.status = paused`，保留 `current_phase`，并在 `TaskPaused.payload.from_status` 记录暂停前状态。
 - 写入 `TaskPaused`。
 - Orchestrator 停止调度新的工具调用；已运行的安全工具可允许自然结束。
+
+### POST /api/tasks/{task_id}/resume
+
+- 读取当前任务最近一次 `TaskPaused` 事件的 `from_status` 并恢复原状态。
+- `created`、`running`、`waiting_approval` 暂停后分别恢复自身，不统一覆盖为 `running`；`current_phase` 始终保留。
+- 写入 `TaskResumed`，非法状态返回 `409`。
 
 ### POST /api/tasks/{task_id}/takeover
 
@@ -497,7 +505,7 @@ SSE 事件类型：
 ### `GET /api/tool-gateway/tools`
 
 - 调用方：控制台、Agent Runtime、调试脚本。
-- 返回：分页结构，`items` 中包含工具名、描述、风险等级、是否需要审批、审计字段和参数 JSON Schema。
+- 返回：分页结构，`items` 中包含工具名、描述、风险等级、是否需要审批、`allowed_agent_types`、`allow_system_call`、审计字段和参数 JSON Schema。
 - 权限：M5 单用户演示环境默认可读；后续按项目/角色过滤。
 
 ### `POST /api/tasks/{task_id}/tool-gateway/call`
@@ -505,6 +513,14 @@ SSE 事件类型：
 - 调用方：后续 Agent Runtime 或开发调试脚本。
 - 请求：`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。
 - 成功响应：`ToolCallRead`，包含状态、参数摘要、结果摘要、stdout/stderr 摘要、耗时、错误码和审批 ID。
-- 幂等：同一 `task_id` 下重复 `idempotency_key` 返回 `409 duplicate_idempotency_key`。
+- 幂等：先写入并提交 `pending` ToolCall，依靠数据库唯一索引原子抢占同一 `task_id` 下的 `idempotency_key`；抢占失败返回 `409 duplicate_idempotency_key`，且不会执行真实副作用。
+- 权限：副作用工具必须绑定当前任务 AgentRun，且 Agent 类型必须在工具白名单内；仅工具显式声明 `allow_system_call=true` 时允许无 AgentRun 的平台内部调用。
+- AgentRun 必须处于 `running`；Tool Gateway 内部 `agent_run_id` 和 `agent_type` 必须同时存在或同时为空。
 - 事件副作用：写入 `ToolCallStarted`，随后写入 `ToolCallSucceeded`、`ToolCallFailed` 或 `ApprovalRequested`。
 - 审批：L3/L4 或声明 `requires_approval=true` 时创建 `approval_requests`，ToolCall 状态为 `waiting_approval`，不执行工具。
+- 限流：按 `agent_run_id` 或 `task_id` 执行单实例滑动窗口限流，默认 60 秒 60 次；超额结果为失败 ToolCall，错误码 `rate_limit_exceeded`，并写入 `ToolCallFailed`。
+
+### `GET /api/approvals`
+
+- 查询参数：可选 `task_id`、`status`、`limit`、`cursor`。
+- 控制台任务详情必须传入 `task_id` 由数据库查询过滤，不允许先读取全局分页结果再在前端筛选。

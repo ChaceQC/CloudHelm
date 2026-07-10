@@ -26,6 +26,7 @@ from cloudhelm_platform_api.api.tool_calls import router as tool_call_router
 from cloudhelm_platform_api.api.tool_gateway import router as tool_gateway_router
 from cloudhelm_platform_api.core.config import get_settings
 from cloudhelm_platform_api.schemas.common import ErrorResponse
+from cloudhelm_tool_gateway import create_default_gateway
 
 
 def create_app() -> FastAPI:
@@ -38,7 +39,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="CloudHelm Platform API",
-        description="CloudHelm 平台 API。M4 提供真实数据库驱动的项目、任务、需求、设计、开发计划、审批、事件和 Agent 编排底座。",
+        description="CloudHelm 平台 API。M5 提供真实数据库驱动的任务编排、审批、事件和受控本地 Tool Gateway。",
         version=settings.version,
         responses={
             400: {"model": ErrorResponse, "description": "业务请求错误。"},
@@ -47,6 +48,11 @@ def create_app() -> FastAPI:
             422: {"model": ErrorResponse, "description": "请求参数校验失败。"},
             500: {"model": ErrorResponse, "description": "服务端错误。"},
         },
+    )
+
+    app.state.tool_gateway = create_default_gateway(
+        max_calls=settings.tool_rate_limit_calls,
+        window_seconds=settings.tool_rate_limit_window_seconds,
     )
 
     @app.middleware("http")

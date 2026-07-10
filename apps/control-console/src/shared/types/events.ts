@@ -1,7 +1,7 @@
 import type { EventLog } from './api'
 
 /**
- * M2 已落库的任务相关事件类型。
+ * M2-M5 已落库的任务相关事件类型。
  *
  * EventSource 需要显式监听具名事件；后续事件 schema 扩展后应同步
  * `packages/shared-contracts/schemas/events/task-event.schema.json`。
@@ -12,14 +12,24 @@ export const TASK_EVENT_TYPES = [
   'TaskPaused',
   'TaskResumed',
   'TaskCancelled',
+  'TaskPhaseChanged',
   'RequirementSpecCreated',
   'RequirementSpecApproved',
   'RequirementSpecChangesRequested',
   'TechnicalDesignCreated',
   'TechnicalDesignApproved',
   'TechnicalDesignChangesRequested',
+  'DevelopmentPlanCreated',
+  'DevelopmentPlanApproved',
+  'DevelopmentPlanChangesRequested',
   'AgentRunRecorded',
+  'AgentRunStarted',
+  'AgentRunCompleted',
+  'AgentRunFailed',
   'ToolCallRecorded',
+  'ToolCallStarted',
+  'ToolCallSucceeded',
+  'ToolCallFailed',
   'ApprovalRequested',
   'ApprovalApproved',
   'ApprovalRejected',

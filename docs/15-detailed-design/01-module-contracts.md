@@ -162,7 +162,7 @@ flowchart LR
 ### M4 落地
 
 - `modules/agent-runtime` 已提供 Requirement、Architect、Planner Agent。
-- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 预留外部模型 JSON Schema 输出。
+- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 默认使用 Responses API JSON Schema 输出，支持 `reasoning.effort=max` 和显式模型字符串透传，并保留 Chat Completions 兼容模式。
 - Agent Runtime 不写数据库、不调用工具；所有输出由 Platform API 入库前再次校验。
 
 ## 6. modules/tool-gateway

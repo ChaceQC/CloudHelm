@@ -36,9 +36,13 @@ AgentRunStarted
 AgentRunCompleted
 AgentRunFailed
 DevelopmentPlanCreated
+DevelopmentPlanApproved
+DevelopmentPlanChangesRequested
 ```
 
-Requirement Agent 成功后写 `RequirementSpecCreated` 并进入 `Designing`；Architect Agent 成功后写 `TechnicalDesignCreated`，低风险进入 `Planning`，L2 及以上写 `ApprovalRequested` 并进入 `WaitingDesignApproval`；Planner Agent 成功后写 `DevelopmentPlanCreated`，并创建 `approve_development_plan` 审批请求。M4 不写代码、不执行工具、不部署远端环境。
+Requirement Agent 成功后写 `RequirementSpecCreated` 并进入 `Designing`；Architect Agent 成功后写 `TechnicalDesignCreated`，低风险进入 `Planning`，L2 及以上写 `ApprovalRequested` 并进入 `WaitingDesignApproval`；Planner Agent 成功后写 `DevelopmentPlanCreated`，并创建 `approve_development_plan` 审批请求。计划审批通过写 `DevelopmentPlanApproved`；计划被拒绝或因需求/设计返工失效时写 `DevelopmentPlanChangesRequested`。M4 不写代码、不执行工具、不部署远端环境。
+
+需求或设计被请求修改时必须产生真实回退：Requirement 回到 `RequirementClarifying`，TechnicalDesign 回到 `Designing`；下游旧设计、旧计划和匹配的待审批记录同时失效。设计/计划审批必须绑定当前最新版产物的 `created_by_agent_run_id`，历史审批不能批准新产物。任务暂停只切换运行状态并保留业务阶段；恢复时从最近一次 `TaskPaused.payload.from_status` 恢复暂停前状态，如果暂停期间待审批已经完成，则恢复到 `running`。
 
 Timeline API 从 `event_logs` 按时间升序读取；SSE 端点输出当前已有事件并
 追加 heartbeat。M2 不做长连接实时推送，不使用内存事件队列模拟生产事件流。
@@ -205,7 +209,7 @@ TakeoverRequested
 - 服务重启、回滚等动作执行前再次检查目标环境和版本。
 ## M5 实现同步：Tool Gateway 事件
 
-Tool Gateway API 在同一数据库事务中写入以下事件：
+Tool Gateway API 先在独立短事务中创建 `pending` ToolCall 并原子抢占幂等键，抢占成功后才执行工具；执行结果、审批和终态事件在后续事务中提交。这样数据库事务不会跨越文件、Git 或 Sandbox 外部调用，同时并发请求不会重复执行副作用。事件包括：
 
 |事件|触发条件|关键载荷|
 |---|---|---|
@@ -215,3 +219,7 @@ Tool Gateway API 在同一数据库事务中写入以下事件：
 |`ApprovalRequested`|L3/L4 或工具声明要求审批|`approval_id`、`tool_call_id`、`tool_name`、`risk_level`|
 
 M5 不实现审批通过后的自动恢复执行；审批决策仍由 Approval API 记录，后续里程碑再补高风险动作恢复语义。
+
+控制台 `EventSource` 监听列表和 `packages/shared-contracts/schemas/events/task-event.schema.json`
+必须覆盖上述 M2-M5 已实现事件，不能只监听 M2 初始事件而漏掉 Agent、
+DevelopmentPlan 或 ToolCall 状态变化。

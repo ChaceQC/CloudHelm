@@ -15,7 +15,7 @@
 - Architect Agent：生成技术设计、OpenAPI 草案、DB schema 草案、Mermaid 和风险点。
 - Planner Agent：生成 Development Plan 任务图和风险说明。
 
-默认 provider 为 `local_structured`，基于真实任务输入规则化生成结构化草案；`openai_compatible` provider 预留外部模型 JSON Schema 输出路径。M4 中 Agent Runtime 不写数据库、不调用工具。
+默认 provider 为 `local_structured`，基于真实任务输入规则化生成结构化草案；`openai_compatible` provider 默认通过 Responses API 请求 JSON Schema 输出，支持 `reasoning.effort=max` 和显式 `gpt-5.6-sol` 模型字符串透传，旧端点可回退 Chat Completions。M4 中 Agent Runtime 不写数据库、不调用工具。
 
 ## 技术栈
 

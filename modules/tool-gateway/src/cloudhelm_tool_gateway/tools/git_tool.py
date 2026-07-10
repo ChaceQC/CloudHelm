@@ -48,6 +48,28 @@ def _validate_branch_name(branch_name: str) -> None:
         raise PolicyError("invalid_branch_name", "分支名包含 Git 不安全字符或保留格式。")
 
 
+def _commit_paths(repo: Path, requested_paths: list[str], policy: ToolPolicy) -> list[str]:
+    """把提交路径规范化为显式文件列表。
+
+    Git Tool 不接受仓库根目录或目录 pathspec，避免调用方用 `.` 把未审查
+    文件整体加入提交。已删除文件仅在仍是 Git tracked 文件时允许提交。
+    """
+
+    paths: list[str] = []
+    for requested_path in requested_paths:
+        checked = policy.resolve_workspace_path(repo, requested_path, allow_missing=True)
+        relative = checked.relative_to(repo).as_posix()
+        if relative in {"", "."} or (checked.exists() and not checked.is_file()):
+            raise PolicyError("git_commit_path_not_file", "git.commit 只接受显式文件路径，不能提交仓库根目录或目录。")
+        if not checked.exists():
+            tracked_code, _, _ = _run_git(repo, ["ls-files", "--error-unmatch", "--", relative])
+            if tracked_code != 0:
+                raise PolicyError("git_commit_path_not_found", f"提交路径不存在且不是 tracked 文件：{relative}")
+        if relative not in paths:
+            paths.append(relative)
+    return paths
+
+
 def status(args: GitStatusArguments, policy: ToolPolicy) -> dict:
     """读取 git status。"""
 
@@ -103,20 +125,35 @@ def create_branch(args: GitCreateBranchArguments, policy: ToolPolicy) -> dict:
 
 
 def commit(args: GitCommitArguments, policy: ToolPolicy) -> dict:
-    """提交显式文件列表。"""
+    """提交显式文件列表。
+
+    为避免把调用前已经暂存的无关修改混入提交，执行前要求 index 为空；
+    git add 或 git commit 失败时会撤销本次新增的暂存状态，但不修改工作区。
+    """
 
     repo = _repo_root(args.repo_root, policy)
-    paths = []
-    for path in args.paths:
-        checked = policy.resolve_workspace_path(repo, path, allow_missing=True)
-        paths.append(checked.relative_to(repo).as_posix())
+    index_code, index_out, index_err = _run_git(repo, ["diff", "--cached", "--name-only"])
+    if index_code != 0:
+        return {"status": "failed", "error_code": "git_index_check_failed", "summary": "检查 Git index 失败。", "stderr_summary": index_err}
+    if index_out.strip():
+        return {
+            "status": "failed",
+            "error_code": "git_index_not_clean",
+            "summary": "Git index 已包含调用外暂存内容，拒绝创建提交。",
+            "result_json": {"staged_paths": index_out.splitlines()},
+        }
+
+    paths = _commit_paths(repo, args.paths, policy)
     add_code, _, add_err = _run_git(repo, ["add", "--", *paths])
     if add_code != 0:
+        _run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
         return {"status": "failed", "error_code": "git_add_failed", "summary": "git add 失败。", "stderr_summary": add_err}
     check_code, _, _ = _run_git(repo, ["diff", "--cached", "--quiet", "--", *paths])
     if check_code == 0:
         return {"status": "failed", "error_code": "git_no_staged_changes", "summary": "指定文件没有可提交变更。"}
-    commit_code, commit_out, commit_err = _run_git(repo, ["commit", "-m", args.message])
+    commit_code, commit_out, commit_err = _run_git(repo, ["commit", "--only", "-m", args.message, "--", *paths])
+    if commit_code != 0:
+        _run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
     hash_code, hash_out, _ = _run_git(repo, ["rev-parse", "HEAD"])
     commit_hash = hash_out.strip() if hash_code == 0 else None
     return {

@@ -14,8 +14,8 @@ interface ApprovalPanelProps {
 /**
  * Approval Panel。
  *
- * 用于 M3 基础审批交互，调用真实 approve/reject API。L3/L4 拦截和
- * Tool Gateway 恢复执行属于后续 M5/M9。
+ * 调用真实 approve/reject API。M4 设计/计划审批会同步更新对应产物；
+ * M5 L3/L4 ToolCall 审批只记录决策，恢复执行留到后续里程碑。
  */
 export function ApprovalPanel({ approvals, onDecideApproval }: ApprovalPanelProps) {
   const [comment, setComment] = useState('')
@@ -37,7 +37,7 @@ export function ApprovalPanel({ approvals, onDecideApproval }: ApprovalPanelProp
 
   return (
     <section className="sub-panel" aria-labelledby="approval-title">
-      <h3 id="approval-title">Approval Panel</h3>
+      <h3 id="approval-title">审批记录</h3>
       <label className="decision-comment">
         审批意见
         <textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={2} />
@@ -63,7 +63,7 @@ export function ApprovalPanel({ approvals, onDecideApproval }: ApprovalPanelProp
                 onClick={() => void decide(approval.id, 'approve')}
                 disabled={approval.status !== 'pending'}
               >
-                Approve
+                通过
               </button>
               <button
                 type="button"
@@ -71,7 +71,7 @@ export function ApprovalPanel({ approvals, onDecideApproval }: ApprovalPanelProp
                 onClick={() => void decide(approval.id, 'reject')}
                 disabled={approval.status !== 'pending'}
               >
-                Reject
+                拒绝
               </button>
             </div>
           </article>

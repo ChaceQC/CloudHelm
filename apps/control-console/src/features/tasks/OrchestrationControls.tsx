@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatApiError } from '../../shared/api/formatters'
 import type { OrchestrationState, OrchestrationStepResult, Task } from '../../shared/types/api'
+import { canRunNextOrchestration, canStartOrchestration } from './taskActionPolicy'
 
 interface OrchestrationControlsProps {
   task: Task
@@ -42,6 +43,8 @@ export function OrchestrationControls({
 
   const nextAction = orchestration?.next_action ?? 'unknown'
   const isBusy = operationStatus === 'running'
+  const canStart = canStartOrchestration(task.status, nextAction)
+  const canRunNext = canRunNextOrchestration(task.status, nextAction)
 
   return (
     <section className="sub-panel orchestration-panel" aria-labelledby="orchestration-title">
@@ -68,10 +71,10 @@ export function OrchestrationControls({
         </div>
       </dl>
       <div className="action-row">
-        <button type="button" disabled={isBusy} onClick={() => void runOperation(onStart)}>
+        <button type="button" disabled={isBusy || !canStart} onClick={() => void runOperation(onStart)}>
           启动编排
         </button>
-        <button type="button" disabled={isBusy} onClick={() => void runOperation(onRunNext)}>
+        <button type="button" disabled={isBusy || !canRunNext} onClick={() => void runOperation(onRunNext)}>
           推进一步
         </button>
       </div>

@@ -29,12 +29,13 @@ def create_approval(task_id: UUID, payload: ApprovalRequestCreate, db: DbSession
 def list_approvals(
     db: DbSession,
     page: Annotated[tuple[int, str | None], Depends(pagination_params)],
+    task_id: Annotated[UUID | None, Query(description="按任务 ID 过滤。")] = None,
     status_filter: Annotated[ApprovalStatus | None, Query(alias="status", description="按状态过滤。")] = None,
 ) -> PageResponse[ApprovalRequestRead]:
     """分页读取审批请求。"""
 
     limit, cursor = page
-    return ApprovalService(db).list_approvals(limit, cursor, status_filter)
+    return ApprovalService(db).list_approvals(limit, cursor, status_filter, task_id)
 
 
 @router.get("/api/approvals/{approval_id}", response_model=ApprovalRequestRead, summary="读取审批请求")

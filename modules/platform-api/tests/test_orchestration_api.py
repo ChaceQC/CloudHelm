@@ -36,6 +36,9 @@ def test_m4_orchestration_generates_requirement_design_plan_and_events(client: T
         json={"actor_id": "architect", "reason": "同意 M4 设计"},
     )
     assert approve.status_code == 200, approve.text
+    design_approval = client.get(f"/api/approvals/{design_body['approval']['id']}")
+    assert design_approval.status_code == 200
+    assert design_approval.json()["status"] == "approved"
 
     resume = client.post(f"/api/tasks/{task['id']}/run-next", json={"actor_id": "tester"})
     assert resume.status_code == 200, resume.text
@@ -47,6 +50,14 @@ def test_m4_orchestration_generates_requirement_design_plan_and_events(client: T
     assert plan_body["development_plan"]["status"] == "ready_for_review"
     assert plan_body["development_plan"]["steps_json"][0]["id"] == "STEP-001"
     assert plan_body["approval"]["action"] == "approve_development_plan"
+
+    approve_plan = client.post(
+        f"/api/approvals/{plan_body['approval']['id']}/approve",
+        json={"actor_id": "reviewer", "reason": "计划边界清晰"},
+    )
+    assert approve_plan.status_code == 200, approve_plan.text
+    assert client.get(f"/api/development-plans/{plan_body['development_plan']['id']}").json()["status"] == "approved"
+    assert client.get(f"/api/tasks/{task['id']}").json()["status"] == "running"
 
     plans = client.get(f"/api/tasks/{task['id']}/development-plans")
     assert plans.status_code == 200
@@ -60,6 +71,7 @@ def test_m4_orchestration_generates_requirement_design_plan_and_events(client: T
     assert "RequirementSpecCreated" in event_types
     assert "TechnicalDesignCreated" in event_types
     assert "DevelopmentPlanCreated" in event_types
+    assert "DevelopmentPlanApproved" in event_types
     assert event_types.count("ApprovalRequested") >= 2
 
 
@@ -103,3 +115,118 @@ def test_missing_llm_config_records_failed_agent_run(client: TestClient, monkeyp
 
     events = client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
     assert "AgentRunFailed" in [event["event_type"] for event in events]
+
+
+def test_rejected_plan_is_regenerated_instead_of_reusing_stale_plan(client: TestClient) -> None:
+    """计划被拒绝后，run-next 必须为当前设计生成新计划。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证计划返工")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+    assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    first_plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+
+    reject = client.post(
+        f"/api/approvals/{first_plan_step['approval']['id']}/reject",
+        json={"actor_id": "reviewer", "reason": "需要调整任务拆分"},
+    )
+    assert reject.status_code == 200, reject.text
+    first_plan_id = first_plan_step["development_plan"]["id"]
+    assert client.get(f"/api/development-plans/{first_plan_id}").json()["status"] == "changes_requested"
+
+    state = client.get(f"/api/tasks/{task['id']}/orchestration").json()
+    assert state["plan_exists"] is False
+    assert state["next_action"] == "run_planner"
+
+    regenerated = client.post(f"/api/tasks/{task['id']}/run-next")
+    assert regenerated.status_code == 200, regenerated.text
+    assert regenerated.json()["development_plan"]["id"] != first_plan_id
+    assert regenerated.json()["development_plan"]["status"] == "ready_for_review"
+
+
+def test_design_revision_invalidates_old_plan_and_approval(client: TestClient) -> None:
+    """技术设计返工后，旧开发计划及其待审批记录必须失效。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证设计返工")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    requirement = client.post(f"/api/tasks/{task['id']}/run-next").json()["requirement"]
+    design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+    assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+
+    changes = client.post(
+        f"/api/technical-designs/{design_step['technical_design']['id']}/request-changes",
+        json={"actor_id": "architect", "reason": "补充事务边界"},
+    )
+    assert changes.status_code == 200, changes.text
+    assert client.get(f"/api/development-plans/{plan_step['development_plan']['id']}").json()["status"] == "changes_requested"
+    assert client.get(f"/api/approvals/{plan_step['approval']['id']}").json()["status"] == "rejected"
+
+    revised_design = client.post(f"/api/tasks/{task['id']}/run-next")
+    assert revised_design.status_code == 200, revised_design.text
+    assert revised_design.json()["technical_design"]["requirement_spec_id"] == requirement["id"]
+    assert revised_design.json()["technical_design"]["id"] != design_step["technical_design"]["id"]
+
+
+def test_requirement_revision_invalidates_downstream_design_and_plan(client: TestClient) -> None:
+    """需求返工后，旧设计、旧计划和计划审批都不能继续使用。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证需求返工")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    requirement = client.post(f"/api/tasks/{task['id']}/run-next").json()["requirement"]
+    design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+    assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+
+    changes = client.post(
+        f"/api/requirements/{requirement['id']}/request-changes",
+        json={"actor_id": "reviewer", "reason": "补充新的验收标准"},
+    )
+    assert changes.status_code == 200, changes.text
+    assert client.get(f"/api/technical-designs/{design_step['technical_design']['id']}").json()["status"] == "changes_requested"
+    assert client.get(f"/api/development-plans/{plan_step['development_plan']['id']}").json()["status"] == "changes_requested"
+    assert client.get(f"/api/approvals/{plan_step['approval']['id']}").json()["status"] == "rejected"
+
+    task_state = client.get(f"/api/tasks/{task['id']}").json()
+    assert task_state["status"] == "running"
+    assert task_state["current_phase"] == "RequirementClarifying"
+
+
+def test_resume_after_plan_decision_while_paused_restores_running(client: TestClient) -> None:
+    """等待计划审批时暂停，审批完成后恢复应进入 running 而非残留 waiting_approval。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证暂停审批恢复")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    design_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+    assert client.post(f"/api/approvals/{design_step['approval']['id']}/approve").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    plan_step = client.post(f"/api/tasks/{task['id']}/run-next").json()
+
+    assert client.post(f"/api/tasks/{task['id']}/pause").json()["status"] == "paused"
+    assert client.post(f"/api/approvals/{plan_step['approval']['id']}/approve").status_code == 200
+    assert client.get(f"/api/tasks/{task['id']}").json()["status"] == "paused"
+
+    resumed = client.post(f"/api/tasks/{task['id']}/resume")
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "running"
+
+
+def test_paused_task_cannot_bypass_resume_to_start_orchestration(client: TestClient) -> None:
+    """暂停任务只能先通过 Task API 恢复，不能直接启动编排。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="暂停编排")
+    assert client.post(f"/api/tasks/{task['id']}/pause").status_code == 200
+
+    response = client.post(f"/api/tasks/{task['id']}/start")
+    assert response.status_code == 409
+    assert response.json()["code"] == "task_paused"

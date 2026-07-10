@@ -87,3 +87,36 @@ def test_design_lifecycle_requires_requirement_and_writes_events(client: TestCli
     assert "TechnicalDesignCreated" in event_types
     assert "TechnicalDesignApproved" in event_types
     assert "TechnicalDesignChangesRequested" in event_types
+
+
+def test_review_transitions_reject_duplicates_and_reset_task_phase(client: TestClient) -> None:
+    """评审要求修改应回退任务阶段，重复决策应返回 409。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"])
+    requirement = client.post(f"/api/tasks/{task['id']}/requirements", json={"raw_input": "需要重新评审。"}).json()
+    first = client.post(f"/api/requirements/{requirement['id']}/request-changes", json={"actor_id": "reviewer"})
+    assert first.status_code == 200
+    duplicate = client.post(f"/api/requirements/{requirement['id']}/request-changes", json={"actor_id": "reviewer"})
+    assert duplicate.status_code == 409
+    assert client.get(f"/api/tasks/{task['id']}").json()["current_phase"] == "RequirementClarifying"
+
+
+def test_design_rejects_agent_run_from_other_task(client: TestClient) -> None:
+    """TechnicalDesign 的 created_by_agent_run_id 必须属于当前任务。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], "任务一")
+    other = create_task(client, project["id"], "任务二")
+    requirement = client.post(f"/api/tasks/{task['id']}/requirements", json={"raw_input": "归属校验"}).json()
+    other_run = client.post(f"/api/tasks/{other['id']}/agent-runs", json={"agent_type": "architect"}).json()
+    response = client.post(
+        f"/api/tasks/{task['id']}/technical-designs",
+        json={
+            "requirement_spec_id": requirement["id"],
+            "content_markdown": "# design",
+            "created_by_agent_run_id": other_run["id"],
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_run_task_mismatch"

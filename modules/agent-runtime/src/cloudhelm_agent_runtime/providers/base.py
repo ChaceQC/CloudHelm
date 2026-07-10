@@ -40,6 +40,18 @@ class MissingProviderConfigurationError(AgentProviderError):
     code = "missing_agent_provider_config"
 
 
+class AgentProviderRequestError(AgentProviderError):
+    """外部模型 HTTP 请求失败。"""
+
+    code = "agent_provider_request_failed"
+
+
+class AgentProviderResponseError(AgentProviderError):
+    """外部模型响应或结构化内容无效。"""
+
+    code = "agent_provider_response_invalid"
+
+
 class StructuredAgentProvider(ABC):
     """结构化 Agent provider 协议。"""
 

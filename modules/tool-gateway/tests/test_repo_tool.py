@@ -6,11 +6,13 @@ from uuid import uuid4
 from cloudhelm_tool_gateway import RiskLevel, ToolCallRequest, create_default_gateway
 
 
-def _request(tool_name: str, risk_level: RiskLevel, arguments: dict) -> ToolCallRequest:
+def _request(tool_name: str, risk_level: RiskLevel, arguments: dict, agent_type: str = 'architect') -> ToolCallRequest:
     """构造测试 ToolCallRequest。"""
 
     return ToolCallRequest(
         task_id=uuid4(),
+        agent_run_id=uuid4(),
+        agent_type=agent_type,
         tool_name=tool_name,
         risk_level=risk_level,
         idempotency_key=str(uuid4()),
@@ -28,6 +30,7 @@ def test_repo_read_and_write_file(tmp_path: Path) -> None:
             "repo.write_file",
             RiskLevel.L1,
             {"workspace_root": str(tmp_path), "path": "docs/demo.md", "content": "你好 CloudHelm", "create_parent": True},
+            agent_type='coder',
         )
     )
     assert write_result.status == "succeeded"

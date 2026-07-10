@@ -29,14 +29,14 @@ export function ProjectSidebar({
   onRetry,
 }: ProjectSidebarProps) {
   return (
-    <aside className="project-sidebar" aria-label="Project Sidebar">
+    <section className="project-sidebar" aria-label="项目空间">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Projects</p>
-          <h2>项目入口</h2>
+          <p className="eyebrow">工作空间</p>
+          <h2>项目空间</h2>
         </div>
-        <button type="button" className="ghost-button" onClick={onRetry}>
-          刷新
+        <button type="button" className="icon-button" onClick={onRetry} aria-label="刷新项目列表">
+          ↻
         </button>
       </div>
 
@@ -62,17 +62,21 @@ export function ProjectSidebar({
               onClick={() => onSelectProject(project.id)}
               aria-pressed={selected}
             >
-              <strong>{project.name}</strong>
-              <span>{project.provider} / {project.default_branch}</span>
-              <small>{project.repo_url}</small>
+              <span className="project-item-title">
+                <span className="project-dot" aria-hidden="true" />
+                <strong>{project.name}</strong>
+              </span>
+              <span>{project.provider} · {project.default_branch}</span>
+              <small title={project.repo_url}>{project.repo_url}</small>
             </button>
           )
         })}
       </div>
 
-      <div className="sidebar-divider" />
-      <h3>创建项目</h3>
-      <ProjectCreateForm onCreate={onCreateProject} onCreated={onProjectCreated} />
-    </aside>
+      <details className="create-disclosure">
+        <summary><span aria-hidden="true">＋</span> 新建项目</summary>
+        <ProjectCreateForm onCreate={onCreateProject} onCreated={onProjectCreated} />
+      </details>
+    </section>
   )
 }

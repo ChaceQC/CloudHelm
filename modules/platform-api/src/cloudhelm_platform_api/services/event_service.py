@@ -42,6 +42,11 @@ class EventService(BaseService):
             )
         )
 
+    def latest(self, task_id: UUID, event_type: str) -> EventLog | None:
+        """读取任务指定类型的最新事件。"""
+
+        return self.events.latest_by_task_and_type(task_id, event_type)
+
     def list_timeline(self, task_id: UUID, limit: int, cursor: str | None) -> PageResponse[EventLogRead]:
         """读取某个任务的事件时间线。"""
 

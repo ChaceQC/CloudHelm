@@ -3,8 +3,8 @@
 职责：基于已生成的 TechnicalDesign 输出开发任务图和风险说明。
 输入：`PlannerAgentInput`。
 输出：`PlannerAgentOutput`。
-允许工具：M4 阶段无真实工具调用，后续只读 repo/spec/logs 等能力必须经
-Tool Gateway。
+允许工具：M4 阶段无真实工具调用；M5 注册表只开放需求/设计整理和受控
+仓库只读工具。
 """
 
 from cloudhelm_agent_runtime.providers.base import StructuredAgentProvider
@@ -15,7 +15,13 @@ class PlannerAgent:
     """开发计划 Agent。"""
 
     agent_type = "planner"
-    allowed_tools = ("spec.read", "design.read")
+    allowed_tools = (
+        "requirement.normalize",
+        "design.render_markdown",
+        "repo.read_file",
+        "repo.search_text",
+        "repo.list_files",
+    )
 
     def __init__(self, provider: StructuredAgentProvider) -> None:
         self.provider = provider

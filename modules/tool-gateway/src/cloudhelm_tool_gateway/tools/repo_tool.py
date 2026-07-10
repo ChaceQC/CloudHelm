@@ -63,8 +63,7 @@ def write_file(args: RepoWriteFileArguments, policy: ToolPolicy) -> dict:
     if not parent.exists():
         if not args.create_parent:
             raise PolicyError("parent_not_found", "父目录不存在；未启用 create_parent。")
-        policy.resolve_workspace_path(root, parent, allow_missing=True)
-        parent.mkdir(parents=True, exist_ok=True)
+        policy.create_workspace_directories(root, parent)
     if target.exists() and not target.is_file():
         raise PolicyError("path_not_file", "repo.write_file 只能写入文件。")
     mode = "a" if args.mode == "append" else "w"

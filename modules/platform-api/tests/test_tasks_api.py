@@ -31,7 +31,8 @@ def test_task_pause_resume_cancel_write_events_and_validate_state(client: TestCl
 
     resume = client.post(f"/api/tasks/{task['id']}/resume", json={"actor_id": "tester"})
     assert resume.status_code == 200
-    assert resume.json()["status"] == "running"
+    assert resume.json()["status"] == "created"
+    assert resume.json()["current_phase"] == "Created"
 
     cancel = client.post(f"/api/tasks/{task['id']}/cancel", json={"actor_id": "tester"})
     assert cancel.status_code == 200
@@ -59,3 +60,18 @@ def test_create_task_requires_existing_project(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json()["code"] == "project_not_found"
+
+
+def test_pause_resume_preserves_created_status_and_phase(client: TestClient) -> None:
+    """Created 任务暂停恢复后不得伪造为 running。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"])
+    paused = client.post(f"/api/tasks/{task['id']}/pause", json={"actor_id": "tester"})
+    assert paused.status_code == 200
+    assert paused.json()["current_phase"] == "Created"
+
+    resumed = client.post(f"/api/tasks/{task['id']}/resume", json={"actor_id": "tester"})
+    assert resumed.status_code == 200
+    assert resumed.json()["status"] == "created"
+    assert resumed.json()["current_phase"] == "Created"

@@ -74,6 +74,38 @@ class ToolPolicy:
         self.max_timeout_seconds = max_timeout_seconds
         self.max_output_chars = max_output_chars
 
+    def ensure_agent_context(self, agent_run_id: object | None, agent_type: str | None) -> None:
+        """校验 AgentRun 标识与 Agent 类型必须成对出现。
+
+        Tool Gateway 本身不访问数据库，因此只校验调用上下文形态；Platform
+        API 负责继续校验 AgentRun 是否存在、是否属于当前任务以及运行状态。
+        """
+
+        if (agent_run_id is None) != (agent_type is None):
+            raise PolicyError("invalid_agent_context", "agent_run_id 与 agent_type 必须同时提供或同时为空。")
+
+    def ensure_agent_allowed(self, agent_type: str | None, allowed_agent_types: tuple[str, ...]) -> None:
+        """校验 Agent 是否位于工具声明的最小权限白名单内。
+
+        没有 AgentRun 的调用视为 Platform API 系统/人工调试入口；Agent 调用
+        必须显式声明白名单，空白名单表示该工具暂不允许 Agent 自动调用。
+        """
+
+        if agent_type is None:
+            return
+        if agent_type not in allowed_agent_types:
+            raise PolicyError("agent_tool_forbidden", f"Agent {agent_type} 无权调用该工具。")
+
+    def ensure_system_call_allowed(self, agent_type: str | None, allow_system_call: bool) -> None:
+        """限制没有 AgentRun 的系统/人工调试调用。
+
+        读工具可以开放给控制台调试入口；写文件、执行命令、创建分支和提交
+        等有副作用工具必须绑定真实 AgentRun，避免公开 API 绕过 Agent 最小权限。
+        """
+
+        if agent_type is None and not allow_system_call:
+            raise PolicyError("agent_run_required", "该工具具有副作用，必须绑定 AgentRun 后调用。")
+
     def requires_approval(self, risk_level: RiskLevel) -> bool:
         """判断工具风险等级是否必须审批。"""
 
@@ -109,6 +141,39 @@ class ToolPolicy:
             raise PolicyError("path_outside_workspace", "目标路径越过 workspace_root 边界。") from exc
         self.ensure_path_allowed(relative)
         return target
+
+    def create_workspace_directories(self, workspace_root: str | Path, target_directory: str | Path) -> Path:
+        """逐级创建 workspace 内目录，并拒绝通过并发 symlink 跳出边界。
+
+        不能先校验完整缺失路径再一次性 mkdir；攻击者可能在校验与创建之间
+        插入 symlink。逐级检查每个已存在父目录，可把创建过程约束在真实根目录。
+        """
+
+        root = self.resolve_workspace_root(workspace_root)
+        target = Path(target_directory)
+        if not target.is_absolute():
+            target = root / target
+        try:
+            relative = target.relative_to(root)
+        except ValueError as exc:
+            raise PolicyError("path_outside_workspace", "目标目录越过 workspace_root 边界。") from exc
+        self.ensure_path_allowed(relative)
+
+        current = root
+        for part in relative.parts:
+            current = current / part
+            if current.exists() or current.is_symlink():
+                try:
+                    resolved = current.resolve(strict=True)
+                    resolved.relative_to(root)
+                except (FileNotFoundError, ValueError) as exc:
+                    raise PolicyError("path_outside_workspace", "目录创建路径通过 symlink 越过 workspace_root。") from exc
+                if not resolved.is_dir():
+                    raise PolicyError("parent_not_directory", "写入路径的父级不是目录。")
+                current = resolved
+                continue
+            current.mkdir()
+        return current
 
     def ensure_path_allowed(self, relative_path: Path) -> None:
         """校验相对路径不包含依赖目录、构建产物或敏感文件。"""

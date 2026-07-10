@@ -14,7 +14,7 @@ interface DevelopmentPlanPanelProps {
 export function DevelopmentPlanPanel({ developmentPlans }: DevelopmentPlanPanelProps) {
   return (
     <section className="sub-panel" aria-labelledby="development-plan-title">
-      <h3 id="development-plan-title">Development Plan / Task Graph</h3>
+      <h3 id="development-plan-title">开发计划与任务图</h3>
       {developmentPlans.length === 0 ? <p className="empty-state">暂无真实 DevelopmentPlan。</p> : null}
       {developmentPlans.map((plan) => (
         <article className="review-card" key={plan.id}>

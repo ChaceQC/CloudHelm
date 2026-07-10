@@ -1,16 +1,40 @@
 """Agent Runtime 结构化输出白盒测试。"""
 
+import json
 from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
 from cloudhelm_agent_runtime.agents import ArchitectAgent, PlannerAgent, RequirementAgent
-from cloudhelm_agent_runtime.providers import LocalStructuredProvider, MissingProviderConfigurationError, OpenAICompatibleProvider
+from cloudhelm_agent_runtime.providers import (
+    AgentProviderResponseError,
+    LocalStructuredProvider,
+    MissingProviderConfigurationError,
+    OpenAICompatibleProvider,
+)
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
 from cloudhelm_agent_runtime.schemas.design import ArchitectAgentInput
 from cloudhelm_agent_runtime.schemas.development_plan import DevelopmentPlanStep, PlannerAgentInput
-from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementAgentInput
+from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementAgentInput, RequirementAgentOutput
+
+
+class FakeHttpResponse:
+    """测试用 urllib 响应上下文。"""
+
+    def __init__(self, payload: dict) -> None:
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:  # noqa: ANN001
+        return None
+
+    def read(self) -> bytes:
+        """返回 UTF-8 JSON body。"""
+
+        return json.dumps(self.payload, ensure_ascii=False).encode("utf-8")
 
 
 def test_requirement_agent_generates_valid_structured_output() -> None:
@@ -123,4 +147,140 @@ def test_openai_compatible_provider_reports_missing_config() -> None:
                 risk_level=RiskLevel.L1,
             ),
             AcceptanceCriterion,
+        )
+
+
+def test_openai_provider_uses_responses_api_with_max_reasoning(monkeypatch) -> None:
+    """gpt-5.6-sol 配置应通过 Responses API 发送 `reasoning.effort=max`。"""
+
+    captured: dict = {}
+    output = {
+        "summary": "已整理需求。",
+        "raw_input": "实现 max reasoning 兼容。",
+        "user_story": "作为用户，我希望模型使用最大推理强度。",
+        "constraints": [{"type": "api", "value": "使用 Responses API", "required": True}],
+        "acceptance_criteria": [
+            {"id": "AC-001", "description": "请求包含 reasoning.effort=max", "verification": "pytest", "status": "pending"}
+        ],
+        "risk_level": "L1",
+    }
+
+    def fake_urlopen(http_request, timeout):  # noqa: ANN001
+        captured["url"] = http_request.full_url
+        captured["body"] = json.loads(http_request.data.decode("utf-8"))
+        captured["timeout"] = timeout
+        return FakeHttpResponse(
+            {
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": json.dumps(output, ensure_ascii=False)}],
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen", fake_urlopen)
+    provider = OpenAICompatibleProvider(
+        api_base="https://api.example.test",
+        api_key="test-key",
+        model_name="gpt-5.6-sol",
+        api_mode="responses",
+        reasoning_effort="max",
+        max_output_tokens=32768,
+    )
+    result = provider.generate(
+        "requirement",
+        RequirementAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            title="兼容 GPT-5.6 Sol",
+            description="实现 max reasoning 兼容。",
+            source_type="manual",
+            risk_level=RiskLevel.L1,
+        ),
+        RequirementAgentOutput,
+    )
+
+    assert result["summary"] == "已整理需求。"
+    assert captured["url"] == "https://api.example.test/v1/responses"
+    assert captured["body"]["model"] == "gpt-5.6-sol"
+    assert captured["body"]["reasoning"] == {"effort": "max"}
+    assert captured["body"]["max_output_tokens"] == 32768
+    assert captured["body"]["store"] is False
+    assert captured["body"]["text"]["format"]["type"] == "json_schema"
+    assert captured["body"]["text"]["format"]["strict"] is False
+
+
+def test_openai_provider_keeps_chat_completions_fallback(monkeypatch) -> None:
+    """旧 OpenAI-compatible 服务仍可切换到 Chat Completions。"""
+
+    captured: dict = {}
+    output = {
+        "summary": "chat fallback",
+        "raw_input": "fallback",
+        "user_story": "作为用户，我希望兼容旧接口。",
+        "constraints": [{"type": "api", "value": "chat_completions", "required": True}],
+        "acceptance_criteria": [
+            {"id": "AC-001", "description": "返回结构化 JSON", "verification": "pytest", "status": "pending"}
+        ],
+        "risk_level": "L1",
+    }
+
+    def fake_urlopen(http_request, timeout):  # noqa: ANN001
+        captured["url"] = http_request.full_url
+        captured["body"] = json.loads(http_request.data.decode("utf-8"))
+        return FakeHttpResponse({"choices": [{"message": {"content": json.dumps(output, ensure_ascii=False)}}]})
+
+    monkeypatch.setattr("cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen", fake_urlopen)
+    result = OpenAICompatibleProvider(
+        api_base="https://compat.example.test/v1",
+        api_key="test-key",
+        model_name="compat-model",
+        api_mode="chat_completions",
+        reasoning_effort="high",
+    ).generate(
+        "requirement",
+        RequirementAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            title="兼容旧接口",
+            description="fallback",
+            source_type="manual",
+            risk_level=RiskLevel.L1,
+        ),
+        RequirementAgentOutput,
+    )
+
+    assert result["summary"] == "chat fallback"
+    assert captured["url"] == "https://compat.example.test/v1/chat/completions"
+    assert captured["body"]["reasoning_effort"] == "high"
+
+
+def test_openai_provider_rejects_missing_responses_output_text(monkeypatch) -> None:
+    """Responses API 缺少 output_text 时返回稳定 provider 错误。"""
+
+    monkeypatch.setattr(
+        "cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen",
+        lambda http_request, timeout: FakeHttpResponse({"status": "completed", "output": []}),
+    )
+    provider = OpenAICompatibleProvider(
+        api_base="https://api.example.test",
+        api_key="test-key",
+        model_name="gpt-5.6-sol",
+    )
+
+    with pytest.raises(AgentProviderResponseError):
+        provider.generate(
+            "requirement",
+            RequirementAgentInput(
+                task_id=uuid4(),
+                project_id=uuid4(),
+                title="坏响应",
+                description="缺少 output_text",
+                source_type="manual",
+                risk_level=RiskLevel.L1,
+            ),
+            RequirementAgentOutput,
         )

@@ -9,6 +9,7 @@
 """
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.4.0", description="当前服务版本。")
+    version: str = Field(default="0.4.1", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",
@@ -36,6 +37,16 @@ class Settings(BaseSettings):
     redis_url: str | None = Field(
         default=None,
         description="Redis 预留连接串；M2 暂不接入生产路径。",
+    )
+    tool_rate_limit_calls: int = Field(
+        default=60,
+        ge=1,
+        description="M5 单进程内每个任务或 AgentRun 在窗口内允许的工具调用次数。",
+    )
+    tool_rate_limit_window_seconds: int = Field(
+        default=60,
+        ge=1,
+        description="M5 Tool Gateway 滑动窗口秒数。",
     )
     agent_provider: str = Field(
         default="local_structured",
@@ -56,6 +67,20 @@ class Settings(BaseSettings):
     llm_api_key: str | None = Field(
         default=None,
         description="OpenAI 兼容 API Key；只能由环境变量注入。",
+    )
+    llm_api_mode: Literal["responses", "chat_completions"] = Field(
+        default="responses",
+        description="外部模型 API 模式；GPT-5.6 类推理模型优先使用 Responses API。",
+    )
+    llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"] = Field(
+        default="max",
+        description="OpenAI 推理强度；用户指定 gpt-5.6-sol 时使用 max。",
+    )
+    llm_max_output_tokens: int = Field(
+        default=32768,
+        ge=256,
+        le=131072,
+        description="外部模型最大输出 token，需同时容纳 reasoning token 和最终结构化输出。",
     )
     cors_origins: list[str] = Field(
         default=["http://127.0.0.1:5173", "http://localhost:5173"],

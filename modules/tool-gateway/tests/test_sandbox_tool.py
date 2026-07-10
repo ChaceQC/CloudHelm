@@ -11,6 +11,8 @@ def _request(arguments: dict) -> ToolCallRequest:
 
     return ToolCallRequest(
         task_id=uuid4(),
+        agent_run_id=uuid4(),
+        agent_type='tester',
         tool_name="sandbox.run_command",
         risk_level=RiskLevel.L1,
         idempotency_key=str(uuid4()),

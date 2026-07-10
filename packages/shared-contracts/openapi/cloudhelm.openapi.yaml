@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M4 提供真实数据库驱动的项目、任务、需求、设计、开发计划、审批、事件和 Agent 编排底座。
-  version: 0.4.0
+  description: CloudHelm 平台 API。M5 提供真实数据库驱动的任务编排、审批、事件和受控本地 Tool Gateway。
+  version: 0.4.1
 paths:
   /health:
     get:
@@ -1835,6 +1835,17 @@ paths:
       description: 分页读取审批请求。
       operationId: list_approvals_api_approvals_get
       parameters:
+      - name: task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          description: 按任务 ID 过滤。
+          title: Task Id
+        description: 按任务 ID 过滤。
       - name: status
         in: query
         required: false
@@ -3783,6 +3794,14 @@ components:
         requires_approval:
           type: boolean
           title: Requires Approval
+        allowed_agent_types:
+          items:
+            type: string
+          type: array
+          title: Allowed Agent Types
+        allow_system_call:
+          type: boolean
+          title: Allow System Call
         audit_fields:
           items:
             type: string
@@ -3799,6 +3818,8 @@ components:
       - risk_level
       - requires_approval
       - audit_fields
+      - allowed_agent_types
+      - allow_system_call
       - arguments_schema
       title: ToolDeclarationRead
       description: 控制台和 Agent 可见的工具声明。
@@ -3810,7 +3831,7 @@ components:
             format: uuid
           - type: 'null'
           title: Agent Run Id
-          description: 触发工具调用的 AgentRun。
+          description: 触发工具调用且状态必须为 running 的 AgentRun。
         tool_name:
           type: string
           minLength: 1

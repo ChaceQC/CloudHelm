@@ -44,3 +44,40 @@ def test_policy_blocks_denied_commands() -> None:
     with pytest.raises(PolicyError) as error:
         ToolPolicy().validate_command(["ssh", "demo"])
     assert error.value.code == "command_denied"
+
+
+def test_policy_requires_agent_run_for_side_effect_tool() -> None:
+    """有副作用工具不能通过无 AgentRun 的系统入口绕过最小权限。"""
+
+    with pytest.raises(PolicyError) as error:
+        ToolPolicy().ensure_system_call_allowed(None, False)
+    assert error.value.code == "agent_run_required"
+
+
+def test_policy_requires_complete_agent_context() -> None:
+    """AgentRun ID 与 Agent 类型缺少任一项都必须拒绝。"""
+
+    policy = ToolPolicy()
+    with pytest.raises(PolicyError) as missing_id:
+        policy.ensure_agent_context(None, "coder")
+    assert missing_id.value.code == "invalid_agent_context"
+
+    with pytest.raises(PolicyError) as missing_type:
+        policy.ensure_agent_context("run-id", None)
+    assert missing_type.value.code == "invalid_agent_context"
+
+
+def test_create_workspace_directories_blocks_symlink_escape(tmp_path: Path) -> None:
+    """创建缺失父目录时仍应拒绝已存在的越界 symlink。"""
+
+    outside = tmp_path.parent / f"{tmp_path.name}-outside"
+    outside.mkdir()
+    link = tmp_path / "linked"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("当前 Windows 环境未允许创建目录 symlink。")
+
+    with pytest.raises(PolicyError) as error:
+        ToolPolicy().create_workspace_directories(tmp_path, link / "nested")
+    assert error.value.code == "path_outside_workspace"

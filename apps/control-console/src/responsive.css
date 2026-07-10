@@ -1,0 +1,43 @@
+/**
+ * 控制台响应式布局。
+ *
+ * 基础视觉 token 和组件样式分别位于 styles.css、console.css；本文件只
+ * 维护断点覆盖，避免任一普通样式文件继续膨胀。
+ */
+
+@media (max-width: 980px) {
+  .detail-panel { padding-right: 24px; padding-left: 24px; }
+  .split-grid, .tool-output-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 250px minmax(0, 1fr); }
+  .app-topbar { padding: 0 18px; }
+}
+
+@media (max-width: 680px) {
+  body { overflow: auto; }
+  .app-shell { display: block; height: auto; min-height: 100vh; }
+  .app-sidebar { display: block; padding-bottom: 10px; overflow: visible; }
+  .brand-lockup { height: 60px; }
+  .sidebar-task-area { max-height: 390px; overflow: auto; }
+  .app-main { display: block; }
+  .app-topbar {
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    height: 58px;
+    border-bottom: 1px solid var(--outline-soft);
+  }
+  .workspace-area { overflow: visible; }
+  .detail-panel { padding: 22px 16px 50px; }
+  .detail-panel > .section-heading h2 { font-size: 21px; }
+  .welcome-state { min-height: 440px; }
+  .meta-grid, .health-grid { grid-template-columns: 1fr; }
+  .record-card, .review-card, .orchestration-panel { padding: 14px; border-radius: 18px; }
+}
+
+@media (max-width: 430px) {
+  .system-status > span:not(.status-dot) { display: none; }
+  .app-topbar { padding: 0 12px; }
+}

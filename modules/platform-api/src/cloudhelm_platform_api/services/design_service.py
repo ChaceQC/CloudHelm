@@ -4,16 +4,21 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from cloudhelm_platform_api.db.base import utc_now
 from cloudhelm_platform_api.models.design import TechnicalDesign
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
+from cloudhelm_platform_api.repositories.approval_repository import ApprovalRepository
 from cloudhelm_platform_api.repositories.design_repository import DesignRepository
 from cloudhelm_platform_api.repositories.requirement_repository import RequirementRepository
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
-from cloudhelm_platform_api.schemas.common import PageInfo, PageResponse, ReviewStatus
+from cloudhelm_platform_api.schemas.common import ApprovalStatus, PageInfo, PageResponse, ReviewStatus, TaskStatus
 from cloudhelm_platform_api.schemas.design import TechnicalDesignCreate, TechnicalDesignRead
 from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
+from cloudhelm_platform_api.services.review_invalidation_service import ReviewInvalidationService
+
+TERMINAL_TASK_STATUSES = {TaskStatus.DONE.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value}
 
 
 class DesignService(BaseService):
@@ -25,7 +30,9 @@ class DesignService(BaseService):
         self.tasks = TaskRepository(session)
         self.requirements = RequirementRepository(session)
         self.agent_runs = AgentRunRepository(session)
+        self.approvals = ApprovalRepository(session)
         self.events = EventService(session)
+        self.review_invalidation = ReviewInvalidationService(session)
 
     def create_design(self, task_id: UUID, data: TechnicalDesignCreate) -> TechnicalDesignRead:
         """为任务创建技术设计并写入事件。"""
@@ -33,11 +40,15 @@ class DesignService(BaseService):
         task = self.tasks.get(task_id)
         if task is None:
             raise ServiceError("task_not_found", "创建技术设计失败：任务不存在。", 404)
+        self._ensure_task_mutable(task.status)
         requirement = self.requirements.get(data.requirement_spec_id)
         if requirement is None or requirement.task_id != task_id:
             raise ServiceError("requirement_not_found", "关联需求规格不存在或不属于该任务。", 404)
-        if data.created_by_agent_run_id and self.agent_runs.get(data.created_by_agent_run_id) is None:
+        agent_run = self.agent_runs.get(data.created_by_agent_run_id) if data.created_by_agent_run_id else None
+        if data.created_by_agent_run_id and agent_run is None:
             raise ServiceError("agent_run_not_found", "创建技术设计失败：AgentRun 不存在。", 404)
+        if agent_run is not None and agent_run.task_id != task_id:
+            raise ServiceError("agent_run_task_mismatch", "创建技术设计失败：AgentRun 不属于当前任务。", 409)
         design = self.designs.create(
             TechnicalDesign(
                 task_id=task.id,
@@ -75,7 +86,29 @@ class DesignService(BaseService):
         """通过技术设计并写入事件。"""
 
         design = self._require_design(design_id)
+        task = self.tasks.get(design.task_id)
+        if task is not None:
+            self._ensure_task_mutable(task.status)
+        if design.status != ReviewStatus.DRAFT.value:
+            raise ServiceError("invalid_design_review_transition", "只有 draft 技术设计可以通过。", 409)
         design.status = ReviewStatus.APPROVED.value
+        approval = self._matching_pending_design_approval(design)
+        if approval is not None:
+            approval.status = ApprovalStatus.APPROVED.value
+            approval.decided_by = actor_id
+            approval.decided_at = utc_now()
+            self.events.record(
+                "ApprovalApproved",
+                "system",
+                actor_id,
+                {
+                    "approval_id": str(approval.id),
+                    "action": approval.action,
+                    "reason": reason,
+                    "design_id": str(design.id),
+                },
+                design.task_id,
+            )
         self.events.record(
             "TechnicalDesignApproved",
             "user",
@@ -90,7 +123,37 @@ class DesignService(BaseService):
         """要求修改技术设计并写入事件。"""
 
         design = self._require_design(design_id)
+        task = self.tasks.get(design.task_id)
+        if task is not None:
+            self._ensure_task_mutable(task.status)
+        if design.status not in {ReviewStatus.DRAFT.value, ReviewStatus.APPROVED.value}:
+            raise ServiceError("invalid_design_review_transition", "当前技术设计不能重复要求修改。", 409)
         design.status = ReviewStatus.CHANGES_REQUESTED.value
+        if task is not None:
+            previous_phase = task.current_phase
+            if task.status != TaskStatus.PAUSED.value:
+                task.status = TaskStatus.RUNNING.value
+            task.current_phase = "Designing"
+            if previous_phase != task.current_phase:
+                self.events.record(
+                    "TaskPhaseChanged",
+                    "user",
+                    actor_id,
+                    {"task_id": str(task.id), "from": previous_phase, "to": task.current_phase, "reason": reason or "技术设计要求修改"},
+                    task.id,
+                )
+            self.review_invalidation.invalidate_after_design_change(
+                task.id,
+                design.id,
+                actor_id,
+                reason or "技术设计要求修改，关联开发计划失效。",
+            )
+        self.review_invalidation.reject_design_approval(
+            design.task_id,
+            design.created_by_agent_run_id,
+            actor_id,
+            reason or "技术设计要求修改。",
+        )
         self.events.record(
             "TechnicalDesignChangesRequested",
             "user",
@@ -108,3 +171,23 @@ class DesignService(BaseService):
         if design is None:
             raise ServiceError("technical_design_not_found", "技术设计不存在。", 404)
         return design
+
+    def _matching_pending_design_approval(self, design: TechnicalDesign):
+        """读取与当前设计 AgentRun 匹配的待审批记录。"""
+
+        if design.created_by_agent_run_id is None:
+            return None
+        approval = self.approvals.latest_by_task_and_action(design.task_id, "approve_technical_design")
+        if (
+            approval is not None
+            and approval.status == ApprovalStatus.PENDING.value
+            and approval.requested_by_agent_run_id == design.created_by_agent_run_id
+        ):
+            return approval
+        return None
+
+    def _ensure_task_mutable(self, status: str) -> None:
+        """终态任务不得继续创建或评审技术设计。"""
+
+        if status in TERMINAL_TASK_STATUSES:
+            raise ServiceError("task_terminal", "终态任务不能继续修改技术设计。", 409)

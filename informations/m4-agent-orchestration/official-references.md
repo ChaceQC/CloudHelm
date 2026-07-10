@@ -1,6 +1,6 @@
 # M4 Agent 编排与结构化输出资料归档
 
-检索日期：2026-07-08
+检索日期：2026-07-08；补充检索：2026-07-10
 适用阶段：M4 Agent 编排与规格化闭环
 
 ## 1. LangGraph / 状态机实践
@@ -18,8 +18,11 @@
 ## 3. OpenAI / 兼容 LLM structured outputs
 
 - 官方资料：[OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
-- 采用结论：`modules/agent-runtime` 预留 `openai_compatible` provider，使用 JSON Schema 作为输出约束；缺少模型 URL、模型名或 API Key 时返回明确配置错误。
-- 取舍：当前 M4 默认使用 `local_structured` provider，根据真实输入规则化生成结构化草案，避免在无外部模型凭据时写固定假数据。切换外部 LLM 时需记录 provider、model 和失败事件。
+- 补充官方资料：[Reasoning models](https://developers.openai.com/api/docs/guides/reasoning)、[Responses API migration](https://developers.openai.com/api/docs/guides/migrate-to-responses)、[OpenAI Models](https://developers.openai.com/api/docs/models)
+- 采用结论：`modules/agent-runtime` 的 `openai_compatible` provider 默认调用 Responses API，在请求中发送可配置的 `reasoning.effort`，用户指定 `gpt-5.6-sol` 时按配置透传模型字符串并使用 `max`；旧兼容端点可切换回 Chat Completions。
+- 取舍：OpenAI 公共模型目录截至 2026-07-10 已列出 `gpt-5.6-sol`，并声明支持 `none/low/medium/high/xhigh/max` reasoning effort、Responses API 和 Chat Completions。项目仍通过环境变量选择模型，避免把外部模型和凭据硬编码进业务代码。
+- 结构化输出继续由 Pydantic 二次校验；因为现有 Architect 输出含开放式 OpenAPI/DB JSON 对象，请求使用 `strict=false`，避免把不符合 OpenAI strict schema 子集的动态对象伪装成严格保证。
+- 当前 M4 默认仍使用 `local_structured` provider，避免在无外部模型凭据时写固定假数据。切换外部 LLM 时记录 provider、model、API mode、reasoning effort 和失败事件。
 
 ## 4. FastAPI 后台任务与 service 边界
 

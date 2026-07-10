@@ -15,7 +15,14 @@
 - 执行流程为：查找工具声明 -> Pydantic 参数校验 -> 风险等级比对 -> L3/L4 审批拦截 -> handler 执行 -> 输出摘要和审计 hash。
 - Platform API 新增 `GET /api/tool-gateway/tools` 与 `POST /api/tasks/{task_id}/tool-gateway/call`，所有调用写入 `tool_calls` 和 `event_logs`。
 - L3/L4 或工具声明要求审批时，只创建 `approval_requests`，ToolCall 状态为 `waiting_approval`，不执行 handler。
+- M5 使用按 `task_id` / `agent_run_id` 分组的进程内滑动窗口限流，默认 60 秒 60 次；超额调用写入失败 ToolCall 与 `ToolCallFailed` 事件，错误码为 `rate_limit_exceeded`。
+- Agent 调用必须同时携带 `agent_run_id` 和由 Platform API 从数据库解析的 `agent_type`；AgentRun 必须属于当前任务且状态为 `running`。
+- Git commit 只接受显式文件路径，拒绝仓库根目录和目录 pathspec，避免用 `.` 混入未审查改动。
 - M5 Sandbox Tool 暂用本地受控目录 + `subprocess` 超时，Docker sandbox、网络隔离和资源 quota 留到 M6 前置增强。
+
+限流参数通过 `CLOUDHELM_TOOL_RATE_LIMIT_CALLS` 和
+`CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS` 配置。该实现满足 M5 本地单实例
+边界；多 worker、跨进程或远端阶段必须迁移到 Redis 等共享存储。
 
 ## 设计书摘录
 

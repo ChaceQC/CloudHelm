@@ -1,19 +1,27 @@
 """OpenAI 兼容 structured outputs provider。
 
-本实现面向支持 `/v1/chat/completions` 与 `response_format.json_schema`
-的兼容服务。M4 默认不要求真实外部模型；当用户显式切换到该 provider
-但缺少配置时，调用方会收到明确错误并写入失败事件。
+默认使用 Responses API，并支持通过配置传入 reasoning effort；需要兼容
+旧服务时可切换到 Chat Completions。外部输出最终仍由 Pydantic 校验，
+不会把未校验文本直接交给 Platform API。
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any
-from urllib import request
+from typing import Any, Literal
+from urllib import error, request
 
 from pydantic import BaseModel, ValidationError
 
-from cloudhelm_agent_runtime.providers.base import MissingProviderConfigurationError, StructuredAgentProvider
+from cloudhelm_agent_runtime.providers.base import (
+    AgentProviderRequestError,
+    AgentProviderResponseError,
+    MissingProviderConfigurationError,
+    StructuredAgentProvider,
+)
+
+ApiMode = Literal["responses", "chat_completions"]
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
 
 
 class OpenAICompatibleProvider(StructuredAgentProvider):
@@ -21,49 +29,153 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
 
     name = "openai_compatible"
 
-    def __init__(self, api_base: str | None, api_key: str | None, model_name: str | None, timeout_seconds: int = 60) -> None:
+    def __init__(
+        self,
+        api_base: str | None,
+        api_key: str | None,
+        model_name: str | None,
+        *,
+        api_mode: ApiMode = "responses",
+        reasoning_effort: ReasoningEffort = "max",
+        max_output_tokens: int = 32768,
+        timeout_seconds: int = 120,
+    ) -> None:
         self.api_base = api_base.rstrip("/") if api_base else None
         self.api_key = api_key
         self.model_name = model_name
+        self.api_mode = api_mode
+        self.reasoning_effort = reasoning_effort
+        self.max_output_tokens = max_output_tokens
         self.timeout_seconds = timeout_seconds
 
     def generate(self, agent_type: str, payload: BaseModel, output_model: type[BaseModel]) -> dict[str, Any]:
-        """调用兼容 Chat Completions 的 JSON Schema 输出接口。"""
+        """调用 Responses API 或 Chat Completions 并校验结构化输出。"""
 
         if not self.api_base or not self.api_key or not self.model_name:
             raise MissingProviderConfigurationError(
                 "openai_compatible provider requires CLOUDHELM_LLM_API_BASE, CLOUDHELM_LLM_MODEL and CLOUDHELM_LLM_API_KEY"
             )
+        if self.api_mode == "responses":
+            content = self._generate_responses(agent_type, payload, output_model)
+        else:
+            content = self._generate_chat_completions(agent_type, payload, output_model)
+        return self._parse_output(content, output_model)
+
+    def _generate_responses(self, agent_type: str, payload: BaseModel, output_model: type[BaseModel]) -> str:
+        """调用 Responses API，使用 `reasoning.effort` 控制思考强度。"""
+
         schema = output_model.model_json_schema()
+        body = {
+            "model": self.model_name,
+            "instructions": "你是 CloudHelm M4 Agent，只输出符合 JSON Schema 的结构化 JSON。",
+            "input": payload.model_dump_json(),
+            "reasoning": {"effort": self.reasoning_effort},
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": f"cloudhelm_{agent_type}_output",
+                    "strict": False,
+                    "schema": schema,
+                }
+            },
+            "max_output_tokens": self.max_output_tokens,
+            "store": False,
+        }
+        response_json = self._post_json("/v1/responses", body)
+        if response_json.get("status") not in {None, "completed"}:
+            details = response_json.get("incomplete_details") or {}
+            raise AgentProviderResponseError(f"responses API did not complete: {details}")
+        return self._extract_responses_text(response_json)
+
+    def _generate_chat_completions(
+        self,
+        agent_type: str,
+        payload: BaseModel,
+        output_model: type[BaseModel],
+    ) -> str:
+        """兼容仍只提供 Chat Completions 的 OpenAI-compatible 服务。"""
+
         body = {
             "model": self.model_name,
             "messages": [
                 {"role": "system", "content": "你是 CloudHelm M4 Agent，只输出符合 JSON Schema 的结构化 JSON。"},
                 {"role": "user", "content": payload.model_dump_json()},
             ],
+            "reasoning_effort": self.reasoning_effort,
+            "max_completion_tokens": self.max_output_tokens,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
                     "name": f"cloudhelm_{agent_type}_output",
-                    "strict": True,
-                    "schema": schema,
+                    "strict": False,
+                    "schema": output_model.model_json_schema(),
                 },
             },
         }
+        response_json = self._post_json("/v1/chat/completions", body)
+        try:
+            return response_json["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise AgentProviderResponseError("chat completions response is missing message content") from exc
+
+    def _post_json(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
+        """发送 JSON 请求，并把网络/HTTP/JSON 错误转换为稳定 provider 错误。"""
+
         http_request = request.Request(
-            f"{self.api_base}/v1/chat/completions",
-            data=json.dumps(body).encode("utf-8"),
+            self._endpoint(path),
+            data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
             method="POST",
         )
-        with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
-            payload_json = json.loads(response.read().decode("utf-8"))
-        content = payload_json["choices"][0]["message"]["content"]
+        try:
+            with request.urlopen(http_request, timeout=self.timeout_seconds) as response:
+                raw = response.read().decode("utf-8")
+        except error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:1000]
+            raise AgentProviderRequestError(f"model API returned HTTP {exc.code}: {detail}") from exc
+        except (error.URLError, TimeoutError, OSError) as exc:
+            raise AgentProviderRequestError(f"model API request failed: {type(exc).__name__}") from exc
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise AgentProviderResponseError("model API returned invalid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise AgentProviderResponseError("model API response must be a JSON object")
+        return parsed
+
+    def _endpoint(self, path: str) -> str:
+        """兼容 API base 以主机或 `/v1` 结尾的两种常见配置。"""
+
+        if self.api_base is None:
+            raise MissingProviderConfigurationError("model API base is missing")
+        if self.api_base.endswith("/v1") and path.startswith("/v1/"):
+            return f"{self.api_base}{path[3:]}"
+        return f"{self.api_base}{path}"
+
+    def _extract_responses_text(self, response_json: dict[str, Any]) -> str:
+        """从 Responses API 原始 JSON 中提取首个 `output_text`。"""
+
+        direct = response_json.get("output_text")
+        if isinstance(direct, str) and direct:
+            return direct
+        for item in response_json.get("output", []):
+            if not isinstance(item, dict) or item.get("type") != "message":
+                continue
+            for content in item.get("content", []):
+                if isinstance(content, dict) and content.get("type") == "output_text":
+                    text = content.get("text")
+                    if isinstance(text, str) and text:
+                        return text
+        raise AgentProviderResponseError("responses API output does not contain output_text")
+
+    def _parse_output(self, content: str, output_model: type[BaseModel]) -> dict[str, Any]:
+        """解析并用调用方指定的 Pydantic 模型再次校验。"""
+
         try:
             parsed = json.loads(content)
             return output_model.model_validate(parsed).model_dump(mode="json")
-        except (json.JSONDecodeError, KeyError, ValidationError) as exc:
-            raise ValueError(f"structured output validation failed: {exc}") from exc
+        except (json.JSONDecodeError, ValidationError, TypeError) as exc:
+            raise AgentProviderResponseError(f"structured output validation failed: {exc}") from exc

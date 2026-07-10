@@ -2,6 +2,151 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-10（M1-M5 补全收尾与 v0.4.1）
+
+### 已完成
+
+- 完成 M1-M5 补全收尾，不进入 M6：修复需求、技术设计和开发计划返工时的下游产物与待审批记录级联失效，拒绝已过期审批继续作用于新产物。
+- 统一开发计划审批语义：批准后写入 `approved` 并恢复可运行状态，拒绝后写入 `changes_requested` 并允许 Planner 重新生成；暂停期间完成审批后，恢复任务不会残留 `waiting_approval`。
+- 收紧编排和 Tool Gateway 边界：暂停或终态任务不能继续推进 Agent；工具调用要求 `agent_run_id` 与 `agent_type` 成对出现，Platform API 只接受当前任务中处于 `running` 的 AgentRun。
+- 收紧 Git Tool 提交范围：拒绝仓库根目录、目录 pathspec 和不存在且未跟踪的文件，保留显式文件清单、Git index 隔离、幂等抢占、审批拦截、审计和单实例限流。
+- 修正共享 Task Event JSON Schema，使字段和事件枚举与真实 API、SSE 事件一致；前端同步监听 M2-M5 AgentRun、审批、开发计划和 ToolCall 事件。
+- 完成 Gemini 式浅色控制台收尾：中文任务分组与操作文案、终态按钮禁用、编排按钮状态、ARIA 语义、响应式样式拆分，以及需求/设计/审批决策后详情和左侧任务列表同步刷新。
+- `openai_compatible` provider 默认改用 Responses API，支持 `reasoning.effort=max`、`max_output_tokens`、`store=false` 和 JSON Schema 输出；用户配置的 `gpt-5.6-sol` 模型字符串原样透传，同时保留 `chat_completions` 兼容模式。
+- 为外部模型网络失败和无效响应补充稳定错误码 `agent_provider_request_failed`、`agent_provider_response_invalid`，所有结构化结果继续由 Pydantic 二次校验。
+- 项目版本提升到 `0.4.1`，同步 `.env.example`、README、OpenAPI、模块/API/工作流/控制台文档和 M6 前置基线。
+
+### 进行中
+
+- M1-M5 补全、回归和文档同步已完成；下一阶段仍为 `PROJECT_PLAN.md` 中的 M6“本地代码实现、测试与 PR 闭环”，本次没有实现 M6 sample repo、Coder/Tester/Reviewer/Security 或 PR record。
+
+### 阻塞与风险
+
+- OpenAI 公共模型目录已确认 `gpt-5.6-sol` 与 `max` reasoning effort；仓库没有真实 API Base 和密钥，因此本次通过请求契约单元测试验证，没有执行外部端点实调。
+- Tool Gateway 限流仍是单实例内存滑动窗口，符合 M5 演示边界；多实例一致性后续需要共享存储。
+- Windows 当前账户缺少 symlink 创建权限，Tool Gateway 路径安全测试跳过 1 项；普通目录、越界和既有 symlink 检查均已通过。
+- Platform API 测试仍有 1 条 Starlette TestClient/httpx 弃用提示，不影响当前用例结果。
+
+### 下一步
+
+- 按 `PROJECT_PLAN.md` 先归档 M6 官方资料并评估 Docker sandbox，再创建受控 `examples/sample-repo-python`。
+- 实现 Coder、Tester、Reviewer、Security Agent 的结构化契约和真实 Tool Gateway 调用闭环。
+- 持久化真实 diff、测试、安全、review artifact 和本地等价 PR record，并沿用当前浅色控制台展示。
+
+### 涉及文件
+
+- `modules/agent-runtime/src/cloudhelm_agent_runtime/providers/**`
+- `modules/orchestrator/**`
+- `modules/platform-api/src/cloudhelm_platform_api/{api,repositories,schemas,services}/**`
+- `modules/tool-gateway/src/cloudhelm_tool_gateway/**`
+- `apps/control-console/**`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `packages/shared-contracts/schemas/events/task-event.schema.json`
+- `docs/03-modules/**`、`docs/04-agents/**`、`docs/05-tool-layer/**`
+- `docs/08-api/**`、`docs/09-control-console/**`、`docs/15-detailed-design/**`
+- `.env.example`、`README.md`、`PROJECT_PLAN.md`
+
+### 验证
+
+- 工作前确认当前分支为 `dev`，并保留既有未提交改动继续完成，不在 `main` 修改。
+- `modules/tool-gateway`：`uv run pytest -q`，结果 `20 passed, 1 skipped`；跳过项为 Windows symlink 权限。
+- `modules/agent-runtime`：`uv run pytest -q`，结果 `8 passed`，覆盖 Responses API、`reasoning.effort=max`、模型透传、Chat Completions fallback 和坏响应。
+- `modules/orchestrator`：`uv run pytest -q`，结果 `3 passed`。
+- `modules/platform-api`：真实 PostgreSQL 执行 `uv run alembic upgrade head` 和 `uv run pytest -q`，结果 `32 passed, 1 warning`。
+- `apps/control-console`：`npm.cmd test` 结果 `4 passed`，覆盖任务操作/编排按钮状态策略和决策成功后的列表刷新边界；`npm.cmd run build` 成功，TypeScript 和 Vite 生产构建通过。
+- 递归解析 `packages/shared-contracts/schemas/**/*.json`，共 `15` 个 JSON Schema 全部有效。
+- FastAPI `create_app().openapi()` 与 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml` 反序列化后精确相等，版本为 `0.4.1`，共 `34` 个 paths。
+- 应用内浏览器连接真实 Platform API 验证 1280×720、1024×768、375×812：body 为白色、侧栏为 `rgb(240, 244, 249)`，三种宽度均无水平溢出，console 无 error/warn。
+- 浏览器真实执行“启动编排 -> Requirement Agent -> Request Changes”，任务详情和左侧任务列表即时同步为 `running / RequirementClarifying`，验证最新状态刷新修复。
+- 浏览器回归结束后已关闭测试标签页，并停止临时 Vite、Platform API 和 PostgreSQL 服务。
+- `git diff --check` 通过；生产源码未发现 TODO、FIXME、NotImplemented、空 `pass` 或超过 300 行文件。
+
+## 2026-07-10（控制台重写为 Gemini 式浅色布局）
+
+### 已完成
+
+- 按用户最新要求废弃上一版 Codex 深色视觉，不使用前端设计 Skill，基于网页版 Gemini 当前浅色界面的信息架构重新设计控制台。
+- 将原“顶部状态栏 + 项目栏 + 任务栏 + 详情区”重排为双栏结构：左侧蓝灰导航整合品牌、项目空间、创建入口和最近任务，右侧白色主区只承载上下文栏和任务详情阅读流。
+- 全量重写 `styles.css` 与 `console.css`：采用纯白页面、`#f0f4f9` 侧栏、浅蓝选择态、柔和圆角容器、弱边框和宽松留白，移除深色 token、终端式全局背景和密集三栏排版。
+- 重写项目、任务和空状态排版；保留真实 API、状态操作、编排、评审、Timeline、ToolCall 和 Approval 功能，不添加 Gemini 品牌资产、聊天功能或静态假数据。
+- 同步控制台页面结构文档、模块 README 和 M6 计划中的 UI 基线。
+
+### 进行中
+
+- 控制台浅色主题重写已完成；项目下一阶段仍为 M6 本地代码实现、测试与 PR 闭环。
+
+### 阻塞与风险
+
+- 当前只实现浅色主题，不提供深浅主题切换；如后续需要主题切换，应在共享 token 层扩展，不能复制两套组件样式。
+- 375 像素宽度使用纵向“导航 -> 任务 -> 详情”布局，适合检查和审批；复杂 diff 的移动端专用交互仍属于 M6 Diff Viewer 实现范围。
+
+### 下一步
+
+- M6 新增 Diff Viewer、测试报告、安全报告和 PR record 面板时，继续使用当前浅色布局和主内容宽度。
+- 为新增复杂交互补充键盘导航、空状态、加载态和移动端检查。
+
+### 验证
+
+- `apps/control-console` 执行 `npm.cmd run build`，TypeScript 与 Vite 生产构建成功。
+- 应用内浏览器连接真实 Platform API 验证 1440x900：布局列为 `292px / 1148px`，body 为白色、侧栏为 `rgb(240, 244, 249)`，无告警和 console error/warn。
+- 验证 1024x768：布局列为 `292px / 732px`，无水平溢出。
+- 验证 375x812：自动切换纵向布局，`scrollWidth=375`，无水平溢出和 console error/warn。
+- 截图验证完成后已关闭浏览器标签页、Platform API、Vite 服务和 PostgreSQL 容器。
+
+## 2026-07-10（M1-M5 代码质量与进度一致性审计）
+
+### 已完成
+
+- 按 `AGENTS.md`、MVP 裁剪线、模块契约、API 契约、状态事件文档和总排期逐项复核 M1-M5 的真实生产代码，不以测试通过代替源码审查。
+- 确认总排期已记录 M5 完成，但本文件此前缺少 M5 完成条目；本条补齐真实实现与验证证据，不新增或伪造里程碑。
+- 重写 Tool Gateway 权限和执行边界：工具声明增加 Agent 白名单与系统调用许可；副作用工具必须绑定当前任务 AgentRun；补充跨任务归属校验、安全父目录创建、进程内滑动窗口限流和 Git index 隔离。
+- 重写 Platform API Tool Gateway 幂等流程：先以独立短事务创建 `pending` ToolCall 并利用数据库唯一索引抢占幂等键，抢占成功后才执行文件、Sandbox 或 Git 副作用，再在第二事务写入结果、审批和终态事件。
+- 修复任务暂停/恢复语义：暂停保留 `current_phase` 并记录原状态，恢复时还原 `created`、`running` 或 `waiting_approval`，不再统一恢复为 `running`。
+- 修复 Requirement/TechnicalDesign 评审状态迁移和任务回退；设计审批绑定当前最新版设计的 AgentRun，旧审批不可批准新设计；审批、ToolCall、AgentRun 关联均校验任务归属。
+- 将 560 行编排服务拆分为 provider factory、AgentRun lifecycle、审批协调、响应组装和步骤执行器；主服务只保留状态机决策、阶段迁移和事务协调，生产源码无超过 300 行文件。
+- 修复控制台任务切换请求竞态和 SSE 历史事件刷新风暴；审批列表改为后端 `task_id` 过滤。
+- 整体重写控制台为紧凑 Codex 风格：移除 Hero 和宣传页卡片布局，改为顶部状态栏、项目栏、任务栏、详情工作区；任务状态操作按合法状态禁用，ToolCall/Timeline 使用低饱和等宽日志样式。
+- 同步共享 OpenAPI、前端 ToolDeclaration 类型、Task/ToolCall/Approval API 和工作流状态事件文档。
+
+### 进行中
+
+- M1-M5 已完成代码质量审计并达到当前文档边界；下一阶段仍为 M6“本地代码实现、测试与 PR 闭环”。
+
+### 阻塞与风险
+
+- Tool Gateway 限流仍为单实例内存滑动窗口；符合 M5 单实例演示边界，多实例一致性需后续迁移到 Redis 等共享存储。
+- Windows 环境因当前账户缺少 symlink 创建权限，相关路径安全测试跳过 1 项；普通目录、越界与既有 symlink 校验测试均通过。
+- Platform API 测试仍有 Starlette TestClient/httpx 弃用提示，不影响当前 26 项测试结果，后续依赖升级处理。
+- M5 Sandbox Tool 仍是受控本地 subprocess；是否升级为 Docker sandbox 已列入 M6 前置评估，不能将其描述为容器隔离。
+
+### 下一步
+
+- 按 `PROJECT_PLAN.md` 执行 M6：先归档官方资料并评估 Docker sandbox，再准备独立 sample repo。
+- 实现 Coder、Tester、Reviewer、Security Agent 的真实结构化输出与 Tool Gateway 调用闭环。
+- 持久化真实 diff、测试、安全、review artifact 和本地 PR record，并在控制台展示。
+
+### 涉及文件
+
+- `modules/tool-gateway/src/cloudhelm_tool_gateway/**`
+- `modules/platform-api/src/cloudhelm_platform_api/{api,repositories,schemas,services}/**`
+- `apps/control-console/src/**`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `docs/08-api/**`
+- `docs/15-detailed-design/{03-api-detail,05-workflow-state-events}.md`
+- `PROJECT_PROGRESS.md`
+- `PROJECT_PLAN.md`
+
+### 验证
+
+- `modules/tool-gateway`：`uv run pytest -q`，结果 `18 passed, 1 skipped`；跳过项为 Windows symlink 权限。
+- `modules/agent-runtime`：`uv run pytest -q`，结果 `5 passed`。
+- `modules/orchestrator`：`uv run pytest -q`，结果 `3 passed`。
+- `modules/platform-api`：真实 PostgreSQL 执行 `uv run alembic upgrade head` 和 `uv run pytest -q`，结果 `26 passed, 1 warning`。
+- `apps/control-console`：`npm.cmd run build` 成功，TypeScript 和 Vite 生产构建通过。
+- 共享 OpenAPI 与 FastAPI `create_app().openapi()` 比对通过：Approval 参数均为 `cursor/limit/status/task_id`，ToolDeclaration 均要求 `allowed_agent_types/allow_system_call`。
+- 应用内浏览器连接真实 Platform API 验证 1440×900、1024×768、375×812：三种视口 `scrollWidth` 均等于视口宽度，无水平溢出，无 console error/warn；验证后已关闭浏览器标签页和临时前后端服务。
+- `git diff --check` 通过；生产源码未发现 TODO、FIXME、NotImplemented、空 `pass` 或超过 300 行文件。
+
 ## 2026-07-08（M4 完成：Agent 编排与规格化闭环）
 
 ### 已完成

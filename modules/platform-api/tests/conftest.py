@@ -32,7 +32,7 @@ def migrated_database() -> Generator[None, None, None]:
     )
     os.environ["CLOUDHELM_DATABASE_URL"] = database_url
     os.environ["CLOUDHELM_ENV"] = "test"
-    os.environ["CLOUDHELM_VERSION"] = "0.4.0"
+    os.environ["CLOUDHELM_VERSION"] = "0.4.1"
     get_settings.cache_clear()
     reset_engine_cache()
 

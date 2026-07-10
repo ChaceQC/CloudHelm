@@ -2,19 +2,21 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/events/task-event.schema.json",
   "title": "CloudHelm Task Event",
-  "description": "CloudHelm 任务事件流的基础结构。M2 已接入真实 event_logs，事件来自数据库而非内存 mock。",
+  "description": "CloudHelm 任务事件流的基础结构。M2-M5 已接入真实 event_logs，事件来自数据库而非内存模拟。",
   "type": "object",
-  "required": ["event_id", "task_id", "type", "created_at", "payload"],
+  "required": ["id", "task_id", "event_type", "actor_type", "created_at", "payload"],
   "properties": {
-    "event_id": {
+    "id": {
       "type": "string",
-      "description": "事件唯一标识，后续使用 UUID。"
+      "format": "uuid",
+      "description": "EventLog UUID。"
     },
     "task_id": {
-      "type": "string",
-      "description": "事件所属任务标识。"
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "事件所属任务 ID；ProjectCreated 等项目级事件可为空。"
     },
-    "type": {
+    "event_type": {
       "type": "string",
       "enum": [
         "ProjectCreated",
@@ -22,19 +24,37 @@
         "TaskPaused",
         "TaskResumed",
         "TaskCancelled",
+        "TaskPhaseChanged",
         "RequirementSpecCreated",
         "RequirementSpecApproved",
         "RequirementSpecChangesRequested",
         "TechnicalDesignCreated",
         "TechnicalDesignApproved",
         "TechnicalDesignChangesRequested",
+        "DevelopmentPlanCreated",
+        "DevelopmentPlanApproved",
+        "DevelopmentPlanChangesRequested",
         "AgentRunRecorded",
+        "AgentRunStarted",
+        "AgentRunCompleted",
+        "AgentRunFailed",
         "ToolCallRecorded",
+        "ToolCallStarted",
+        "ToolCallSucceeded",
+        "ToolCallFailed",
         "ApprovalRequested",
         "ApprovalApproved",
         "ApprovalRejected"
       ],
-      "description": "M2 真实写入的事件类型。"
+      "description": "M2-M5 真实写入的事件类型。"
+    },
+    "actor_type": {
+      "type": "string",
+      "description": "触发者类型，例如 user、agent、orchestrator、system。"
+    },
+    "actor_id": {
+      "type": ["string", "null"],
+      "description": "触发者标识。"
     },
     "created_at": {
       "type": "string",
@@ -45,14 +65,6 @@
       "type": "object",
       "description": "事件载荷。具体字段由事件类型决定。",
       "additionalProperties": true
-    },
-    "actor": {
-      "type": "string",
-      "description": "触发事件的用户、Agent 或系统组件。"
-    },
-    "trace_id": {
-      "type": "string",
-      "description": "跨 API、Agent 和 Tool Gateway 的链路追踪标识。"
     }
   },
   "additionalProperties": false

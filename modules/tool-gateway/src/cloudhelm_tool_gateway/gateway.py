@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from cloudhelm_tool_gateway.audit import stable_json_hash, summarize_mapping, truncate_text
 from cloudhelm_tool_gateway.policies import PolicyError, ToolPolicy
+from cloudhelm_tool_gateway.rate_limit import SlidingWindowRateLimiter
 from cloudhelm_tool_gateway.registry import ToolRegistry
 from cloudhelm_tool_gateway.schemas.tool_call import ToolCallRequest, ToolCallResult, utc_now
 from cloudhelm_tool_gateway.tools import build_default_registry
@@ -21,9 +22,15 @@ class ToolGateway:
     摘要脱敏 -> 返回结构化结果。Platform API 负责把结果写入数据库事务。
     """
 
-    def __init__(self, registry: ToolRegistry | None = None, policy: ToolPolicy | None = None) -> None:
+    def __init__(
+        self,
+        registry: ToolRegistry | None = None,
+        policy: ToolPolicy | None = None,
+        rate_limiter: SlidingWindowRateLimiter | None = None,
+    ) -> None:
         self.registry = registry or build_default_registry()
         self.policy = policy or ToolPolicy()
+        self.rate_limiter = rate_limiter or SlidingWindowRateLimiter()
 
     def list_tools(self) -> list[dict[str, Any]]:
         """列出可注册工具声明。"""
@@ -54,6 +61,23 @@ class ToolGateway:
                 started_tick,
                 arguments_summary,
                 request.arguments,
+            )
+        try:
+            self.policy.ensure_agent_context(request.agent_run_id, request.agent_type)
+            self.policy.ensure_system_call_allowed(request.agent_type, declaration.allow_system_call)
+            self.policy.ensure_agent_allowed(request.agent_type, declaration.allowed_agent_types)
+        except PolicyError as exc:
+            return self._failed(exc.code, exc.message, started_at, started_tick, arguments_summary, request.arguments)
+        retry_after_seconds = self.rate_limiter.consume(self._rate_limit_key(request))
+        if retry_after_seconds is not None:
+            return self._failed(
+                "rate_limit_exceeded",
+                "工具调用超过当前主体的滑动窗口配额。",
+                started_at,
+                started_tick,
+                arguments_summary,
+                request.arguments,
+                detail={"retry_after_seconds": retry_after_seconds},
             )
         try:
             parsed_arguments = declaration.input_model.model_validate(request.arguments)
@@ -146,6 +170,13 @@ class ToolGateway:
 
         return max(0, int((perf_counter() - started_tick) * 1000))
 
+    def _rate_limit_key(self, request: ToolCallRequest) -> str:
+        """按 AgentRun 或任务形成限流主体，避免不同任务相互占用配额。"""
+
+        if request.agent_run_id:
+            return f"agent-run:{request.agent_run_id}"
+        return f"task:{request.task_id}"
+
     def _audit(self, request: ToolCallRequest, risk_level: str, status: str, error_code: str | None = None) -> dict[str, Any]:
         """形成可写入 Platform API 的审计摘要。"""
 
@@ -164,7 +195,7 @@ class ToolGateway:
         return audit
 
 
-def create_default_gateway() -> ToolGateway:
-    """创建包含 M5 默认工具集的 Gateway。"""
+def create_default_gateway(max_calls: int = 60, window_seconds: int = 60) -> ToolGateway:
+    """创建包含 M5 默认工具集和调用限流的 Gateway。"""
 
-    return ToolGateway()
+    return ToolGateway(rate_limiter=SlidingWindowRateLimiter(max_calls=max_calls, window_seconds=window_seconds))

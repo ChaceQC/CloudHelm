@@ -19,6 +19,8 @@ def _request(tool_name: str, risk_level: RiskLevel, repo: Path, arguments: dict 
 
     return ToolCallRequest(
         task_id=uuid4(),
+        agent_run_id=uuid4(),
+        agent_type="coder",
         tool_name=tool_name,
         risk_level=risk_level,
         idempotency_key=str(uuid4()),
@@ -67,3 +69,33 @@ def test_git_create_branch_and_commit(tmp_path: Path) -> None:
     assert commit.status == "succeeded"
     assert commit.result_json is not None
     assert commit.result_json["commit_hash"]
+
+
+def test_git_commit_rejects_preexisting_staged_changes(tmp_path: Path) -> None:
+    """Git Tool 不得把调用前暂存的无关文件混入提交。"""
+
+    repo = _repo(tmp_path)
+    (repo / "unrelated.txt").write_text("staged\n", encoding="utf-8")
+    _git(repo, "add", "unrelated.txt")
+    (repo / "README.md").write_text("# demo\nrequested\n", encoding="utf-8")
+
+    result = create_default_gateway().execute(
+        _request("git.commit", RiskLevel.L2, repo, {"message": "test: isolated commit", "paths": ["README.md"]})
+    )
+
+    assert result.status == "failed"
+    assert result.error_code == "git_index_not_clean"
+
+
+def test_git_commit_rejects_repository_root_pathspec(tmp_path: Path) -> None:
+    """Git Tool 不得用 `.` 把整个仓库作为显式文件列表提交。"""
+
+    repo = _repo(tmp_path)
+    (repo / "README.md").write_text("# demo\nchanged\n", encoding="utf-8")
+
+    result = create_default_gateway().execute(
+        _request("git.commit", RiskLevel.L2, repo, {"message": "test: reject root", "paths": ["."]})
+    )
+
+    assert result.status == "failed"
+    assert result.error_code == "git_commit_path_not_file"

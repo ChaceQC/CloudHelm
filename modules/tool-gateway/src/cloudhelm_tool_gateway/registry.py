@@ -32,6 +32,8 @@ class ToolDeclaration:
     requires_approval: bool
     audit_fields: tuple[str, ...]
     handler: ToolHandler
+    allowed_agent_types: tuple[str, ...] = ()
+    allow_system_call: bool = True
 
     def public_dict(self) -> dict[str, Any]:
         """返回可暴露给控制台或 Agent 的工具声明。"""
@@ -42,6 +44,8 @@ class ToolDeclaration:
             "risk_level": self.risk_level.value,
             "requires_approval": self.requires_approval,
             "audit_fields": list(self.audit_fields),
+            "allowed_agent_types": list(self.allowed_agent_types),
+            "allow_system_call": self.allow_system_call,
             "arguments_schema": self.input_model.model_json_schema(),
         }
 

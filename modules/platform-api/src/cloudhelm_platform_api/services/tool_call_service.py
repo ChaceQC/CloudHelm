@@ -32,10 +32,16 @@ class ToolCallService(BaseService):
 
         if self.tasks.get(task_id) is None:
             raise ServiceError("task_not_found", "创建 ToolCall 失败：任务不存在。", 404)
-        if data.agent_run_id and self.agent_runs.get(data.agent_run_id) is None:
+        agent_run = self.agent_runs.get(data.agent_run_id) if data.agent_run_id else None
+        if data.agent_run_id and agent_run is None:
             raise ServiceError("agent_run_not_found", "创建 ToolCall 失败：AgentRun 不存在。", 404)
-        if data.approval_id and self.approvals.get(data.approval_id) is None:
+        if agent_run is not None and agent_run.task_id != task_id:
+            raise ServiceError("agent_run_task_mismatch", "创建 ToolCall 失败：AgentRun 不属于当前任务。", 409)
+        approval = self.approvals.get(data.approval_id) if data.approval_id else None
+        if data.approval_id and approval is None:
             raise ServiceError("approval_not_found", "创建 ToolCall 失败：审批请求不存在。", 404)
+        if approval is not None and approval.task_id != task_id:
+            raise ServiceError("approval_task_mismatch", "创建 ToolCall 失败：审批请求不属于当前任务。", 409)
         tool_call = self.tool_calls.create(ToolCall(task_id=task_id, **data.model_dump(mode="json")))
         self.events.record(
             "ToolCallRecorded",

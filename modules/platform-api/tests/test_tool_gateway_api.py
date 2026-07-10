@@ -4,6 +4,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from cloudhelm_tool_gateway import create_default_gateway
+
 from conftest import create_project, create_task
 
 
@@ -27,9 +29,14 @@ def test_repo_tool_gateway_call_writes_tool_call_and_events(client: TestClient, 
     """通过 API 调用 Repo Tool 会写 ToolCall 和事件。"""
 
     task = _task(client)
+    agent_run = client.post(
+        f"/api/tasks/{task['id']}/agent-runs",
+        json={"agent_type": "coder", "status": "running", "model_name": "test-model"},
+    ).json()
     response = client.post(
         f"/api/tasks/{task['id']}/tool-gateway/call",
         json={
+            "agent_run_id": agent_run["id"],
             "tool_name": "repo.write_file",
             "risk_level": "L1",
             "idempotency_key": "repo-write-1",
@@ -58,9 +65,14 @@ def test_sandbox_tool_gateway_call_records_output_summary(client: TestClient, tm
     """Sandbox Tool 输出应摘要化写入 ToolCall。"""
 
     task = _task(client)
+    agent_run = client.post(
+        f"/api/tasks/{task['id']}/agent-runs",
+        json={"agent_type": "tester", "status": "running", "model_name": "test-model"},
+    ).json()
     response = client.post(
         f"/api/tasks/{task['id']}/tool-gateway/call",
         json={
+            "agent_run_id": agent_run["id"],
             "tool_name": "sandbox.run_command",
             "risk_level": "L1",
             "idempotency_key": "sandbox-1",
@@ -78,9 +90,14 @@ def test_l3_tool_gateway_call_creates_approval_without_execution(client: TestCli
     """L3 工具只创建审批请求，ToolCall 保持 waiting_approval。"""
 
     task = _task(client)
+    agent_run = client.post(
+        f"/api/tasks/{task['id']}/agent-runs",
+        json={"agent_type": "release", "status": "running", "model_name": "test-model"},
+    ).json()
     response = client.post(
         f"/api/tasks/{task['id']}/tool-gateway/call",
         json={
+            "agent_run_id": agent_run["id"],
             "tool_name": "approval.request_remote_action",
             "risk_level": "L3",
             "idempotency_key": "approval-1",
@@ -143,3 +160,84 @@ def test_sensitive_path_is_recorded_as_failed_tool_call(client: TestClient, tmp_
     payload = response.json()
     assert payload["status"] == "failed"
     assert payload["error_code"] == "path_sensitive_file"
+
+
+def test_tool_gateway_rate_limit_is_persisted_as_failed_call(client: TestClient, tmp_path: Path) -> None:
+    """超额调用必须写入失败 ToolCall 和可追溯事件。"""
+
+    client.app.state.tool_gateway = create_default_gateway(max_calls=1, window_seconds=60)
+    task = _task(client)
+    (tmp_path / "README.md").write_text("# demo\n", encoding="utf-8")
+    base_body = {
+        "tool_name": "repo.read_file",
+        "risk_level": "L0",
+        "reason": "验证 Tool Gateway 限流",
+        "arguments": {"workspace_root": str(tmp_path), "path": "README.md"},
+    }
+
+    first = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={**base_body, "idempotency_key": "rate-limit-1"},
+    )
+    assert first.status_code == 201, first.text
+    assert first.json()["status"] == "succeeded"
+
+    second = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={**base_body, "idempotency_key": "rate-limit-2"},
+    )
+    assert second.status_code == 201, second.text
+    payload = second.json()
+    assert payload["status"] == "failed"
+    assert payload["error_code"] == "rate_limit_exceeded"
+    assert payload["result_json"]["retry_after_seconds"] >= 1
+
+    timeline = client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
+    failed_events = [item for item in timeline if item["event_type"] == "ToolCallFailed"]
+    assert failed_events[-1]["payload"]["error_code"] == "rate_limit_exceeded"
+
+
+def test_side_effect_tool_requires_agent_run(client: TestClient, tmp_path: Path) -> None:
+    """公开 API 不得在无 AgentRun 时直接执行写文件工具。"""
+
+    task = _task(client)
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "tool_name": "repo.write_file",
+            "risk_level": "L1",
+            "idempotency_key": "system-write-denied",
+            "reason": "验证副作用工具权限",
+            "arguments": {"workspace_root": str(tmp_path), "path": "denied.txt", "content": "denied"},
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["status"] == "failed"
+    assert response.json()["error_code"] == "agent_run_required"
+    assert not (tmp_path / "denied.txt").exists()
+
+
+def test_tool_gateway_rejects_non_running_agent_run(client: TestClient, tmp_path: Path) -> None:
+    """pending/failed AgentRun 不能冒充正在执行的 Agent 调用工具。"""
+
+    task = _task(client)
+    agent_run = client.post(
+        f"/api/tasks/{task['id']}/agent-runs",
+        json={"agent_type": "coder", "status": "pending", "model_name": "test-model"},
+    ).json()
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "agent_run_id": agent_run["id"],
+            "tool_name": "repo.write_file",
+            "risk_level": "L1",
+            "idempotency_key": "pending-agent-denied",
+            "reason": "验证 AgentRun 生命周期约束",
+            "arguments": {"workspace_root": str(tmp_path), "path": "denied.txt", "content": "denied"},
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_run_not_running"
+    assert not (tmp_path / "denied.txt").exists()

@@ -129,8 +129,8 @@ export function callToolGateway(taskId: string, payload: ToolGatewayCallInput): 
   return apiPost<ToolCall>(`/api/tasks/${taskId}/tool-gateway/call`, payload)
 }
 
-export function listApprovals(status?: ApprovalStatus): Promise<PageResponse<ApprovalRequest>> {
-  return apiGet<PageResponse<ApprovalRequest>>('/api/approvals', { status })
+export function listApprovals(taskId?: string, status?: ApprovalStatus): Promise<PageResponse<ApprovalRequest>> {
+  return apiGet<PageResponse<ApprovalRequest>>('/api/approvals', { task_id: taskId, status })
 }
 
 export function approveApproval(approvalId: string, payload: DecisionRequest): Promise<ApprovalRequest> {
