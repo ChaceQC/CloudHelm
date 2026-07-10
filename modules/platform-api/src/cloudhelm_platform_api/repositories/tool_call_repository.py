@@ -43,3 +43,15 @@ class ToolCallRepository:
             .order_by(ToolCall.started_at.desc(), ToolCall.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)
+
+    def list_active_by_task(self, task_id: UUID) -> list[ToolCall]:
+        """读取任务中尚未结束或仍在等待审批的 ToolCall。"""
+
+        return list(
+            self.session.scalars(
+                select(ToolCall).where(
+                    ToolCall.task_id == task_id,
+                    ToolCall.status.in_(("pending", "running", "waiting_approval")),
+                )
+            )
+        )

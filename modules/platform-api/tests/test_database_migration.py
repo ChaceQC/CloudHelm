@@ -31,3 +31,23 @@ def test_alembic_migration_creates_core_tables() -> None:
         actual = {row.table_name for row in rows}
 
     assert expected.issubset(actual)
+
+
+def test_tool_calls_contains_persisted_audit_json_column() -> None:
+    """M5 二次审计字段必须由 Alembic migration 创建。"""
+
+    with get_engine().connect() as connection:
+        columns = {
+            row.column_name
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'tool_calls'
+                    """
+                )
+            )
+        }
+
+    assert "audit_json" in columns

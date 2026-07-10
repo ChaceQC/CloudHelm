@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 
 from pydantic import ValidationError
 
-from cloudhelm_tool_gateway.audit import stable_json_hash, summarize_mapping, truncate_text
+from cloudhelm_tool_gateway.audit import (
+    redact_sensitive_text,
+    sanitize_result_for_storage,
+    stable_json_hash,
+    summarize_mapping,
+    truncate_text,
+)
 from cloudhelm_tool_gateway.policies import PolicyError, ToolPolicy
 from cloudhelm_tool_gateway.rate_limit import SlidingWindowRateLimiter
 from cloudhelm_tool_gateway.registry import ToolRegistry
@@ -51,7 +58,8 @@ class ToolGateway:
                 started_at,
                 started_tick,
                 arguments_summary,
-                request.arguments,
+                request,
+                request.risk_level.value,
             )
         if request.risk_level != declaration.risk_level:
             return self._failed(
@@ -60,14 +68,23 @@ class ToolGateway:
                 started_at,
                 started_tick,
                 arguments_summary,
-                request.arguments,
+                request,
+                declaration.risk_level.value,
             )
         try:
             self.policy.ensure_agent_context(request.agent_run_id, request.agent_type)
             self.policy.ensure_system_call_allowed(request.agent_type, declaration.allow_system_call)
             self.policy.ensure_agent_allowed(request.agent_type, declaration.allowed_agent_types)
         except PolicyError as exc:
-            return self._failed(exc.code, exc.message, started_at, started_tick, arguments_summary, request.arguments)
+            return self._failed(
+                exc.code,
+                exc.message,
+                started_at,
+                started_tick,
+                arguments_summary,
+                request,
+                declaration.risk_level.value,
+            )
         retry_after_seconds = self.rate_limiter.consume(self._rate_limit_key(request))
         if retry_after_seconds is not None:
             return self._failed(
@@ -76,7 +93,8 @@ class ToolGateway:
                 started_at,
                 started_tick,
                 arguments_summary,
-                request.arguments,
+                request,
+                declaration.risk_level.value,
                 detail={"retry_after_seconds": retry_after_seconds},
             )
         try:
@@ -88,7 +106,8 @@ class ToolGateway:
                 started_at,
                 started_tick,
                 arguments_summary,
-                request.arguments,
+                request,
+                declaration.risk_level.value,
                 detail={"errors": exc.errors(include_url=False)},
             )
 
@@ -109,7 +128,15 @@ class ToolGateway:
         try:
             output = declaration.handler(parsed_arguments, self.policy)
         except PolicyError as exc:
-            return self._failed(exc.code, exc.message, started_at, started_tick, arguments_summary, request.arguments)
+            return self._failed(
+                exc.code,
+                exc.message,
+                started_at,
+                started_tick,
+                arguments_summary,
+                request,
+                declaration.risk_level.value,
+            )
         except Exception as exc:  # noqa: BLE001 - 工具边界必须把异常转成稳定失败结构。
             return self._failed(
                 "tool_execution_error",
@@ -117,7 +144,8 @@ class ToolGateway:
                 started_at,
                 started_tick,
                 arguments_summary,
-                request.arguments,
+                request,
+                declaration.risk_level.value,
             )
 
         status = output.get("status", "succeeded")
@@ -126,9 +154,13 @@ class ToolGateway:
         return ToolCallResult(
             status=status,
             summary=str(output.get("summary") or ("工具执行成功。" if status == "succeeded" else "工具执行失败。")),
-            result_json=output.get("result_json"),
-            stdout_summary=truncate_text(output.get("stdout_summary"), self.policy.max_output_chars),
-            stderr_summary=truncate_text(output.get("stderr_summary"), self.policy.max_output_chars),
+            result_json=sanitize_result_for_storage(output.get("result_json")),
+            stdout_summary=redact_sensitive_text(
+                truncate_text(output.get("stdout_summary"), self.policy.max_output_chars)
+            ),
+            stderr_summary=redact_sensitive_text(
+                truncate_text(output.get("stderr_summary"), self.policy.max_output_chars)
+            ),
             duration_ms=self._duration_ms(started_tick),
             started_at=started_at,
             finished_at=finished_at,
@@ -145,10 +177,11 @@ class ToolGateway:
         started_at,
         started_tick: float,
         arguments_summary: str,
-        arguments: dict[str, Any],
+        request: ToolCallRequest,
+        risk_level: str,
         detail: dict[str, Any] | None = None,
     ) -> ToolCallResult:
-        """构造失败结果。"""
+        """构造脱敏失败结果，并保留与成功路径一致的审计主体。"""
 
         result_json = {"message": message}
         if detail:
@@ -156,13 +189,13 @@ class ToolGateway:
         return ToolCallResult(
             status="failed",
             summary=message,
-            result_json=result_json,
+            result_json=sanitize_result_for_storage(result_json),
             duration_ms=self._duration_ms(started_tick),
             started_at=started_at,
             finished_at=utc_now(),
             error_code=code,
             arguments_summary=arguments_summary,
-            audit_json={"arguments_hash": stable_json_hash(arguments), "status": "failed", "error_code": code},
+            audit_json=self._audit(request, risk_level, "failed", code),
         )
 
     def _duration_ms(self, started_tick: float) -> int:
@@ -184,6 +217,7 @@ class ToolGateway:
             "tool": request.tool_name,
             "task_id": str(request.task_id),
             "agent_run_id": str(request.agent_run_id) if request.agent_run_id else None,
+            "agent_type": request.agent_type,
             "risk_level": risk_level,
             "idempotency_key": request.idempotency_key,
             "arguments_hash": stable_json_hash(request.arguments),
@@ -195,7 +229,14 @@ class ToolGateway:
         return audit
 
 
-def create_default_gateway(max_calls: int = 60, window_seconds: int = 60) -> ToolGateway:
+def create_default_gateway(
+    max_calls: int = 60,
+    window_seconds: int = 60,
+    allowed_workspace_roots: tuple[str | Path, ...] | list[str | Path] = (),
+) -> ToolGateway:
     """创建包含 M5 默认工具集和调用限流的 Gateway。"""
 
-    return ToolGateway(rate_limiter=SlidingWindowRateLimiter(max_calls=max_calls, window_seconds=window_seconds))
+    return ToolGateway(
+        policy=ToolPolicy(allowed_workspace_roots=allowed_workspace_roots),
+        rate_limiter=SlidingWindowRateLimiter(max_calls=max_calls, window_seconds=window_seconds),
+    )

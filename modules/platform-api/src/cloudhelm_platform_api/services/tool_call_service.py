@@ -4,13 +4,25 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from cloudhelm_tool_gateway.audit import (
+    redact_sensitive_text,
+    sanitize_arguments_for_storage,
+    sanitize_result_for_storage,
+    stable_json_hash,
+)
+
 from cloudhelm_platform_api.models.tool_call import ToolCall
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
 from cloudhelm_platform_api.repositories.approval_repository import ApprovalRepository
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.repositories.tool_call_repository import ToolCallRepository
-from cloudhelm_platform_api.schemas.common import PageInfo, PageResponse
-from cloudhelm_platform_api.schemas.tool_call import ToolCallCreate, ToolCallRead, tool_call_to_read
+from cloudhelm_platform_api.schemas.common import PageInfo, PageResponse, TaskStatus
+from cloudhelm_platform_api.schemas.tool_call import (
+    ToolCallCreate,
+    ToolCallRead,
+    summarize_arguments,
+    tool_call_to_read,
+)
 from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
@@ -30,8 +42,11 @@ class ToolCallService(BaseService):
     def create_tool_call(self, task_id: UUID, data: ToolCallCreate) -> ToolCallRead:
         """创建开发/内部联调用 ToolCall 记录。"""
 
-        if self.tasks.get(task_id) is None:
+        task = self.tasks.get(task_id)
+        if task is None:
             raise ServiceError("task_not_found", "创建 ToolCall 失败：任务不存在。", 404)
+        if task.status in {TaskStatus.DONE.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value}:
+            raise ServiceError("task_terminal", "终态任务不能创建新的 ToolCall。", 409)
         agent_run = self.agent_runs.get(data.agent_run_id) if data.agent_run_id else None
         if data.agent_run_id and agent_run is None:
             raise ServiceError("agent_run_not_found", "创建 ToolCall 失败：AgentRun 不存在。", 404)
@@ -42,7 +57,25 @@ class ToolCallService(BaseService):
             raise ServiceError("approval_not_found", "创建 ToolCall 失败：审批请求不存在。", 404)
         if approval is not None and approval.task_id != task_id:
             raise ServiceError("approval_task_mismatch", "创建 ToolCall 失败：审批请求不属于当前任务。", 409)
-        tool_call = self.tool_calls.create(ToolCall(task_id=task_id, **data.model_dump(mode="json")))
+        values = data.model_dump(mode="json")
+        original_arguments = values["arguments_json"]
+        values["arguments_json"] = sanitize_arguments_for_storage(original_arguments)
+        values["result_json"] = sanitize_result_for_storage(values["result_json"])
+        values["stdout_summary"] = redact_sensitive_text(values["stdout_summary"])
+        values["stderr_summary"] = redact_sensitive_text(values["stderr_summary"])
+        values["arguments_summary"] = summarize_arguments(values["arguments_json"])
+        values["audit_json"] = {
+            "source": "internal_record_api",
+            "tool": data.tool_name,
+            "task_id": str(task_id),
+            "agent_run_id": str(data.agent_run_id) if data.agent_run_id else None,
+            "agent_type": agent_run.agent_type if agent_run else None,
+            "risk_level": data.risk_level.value,
+            "idempotency_key": data.idempotency_key,
+            "arguments_hash": stable_json_hash(original_arguments),
+            "status": data.status.value,
+        }
+        tool_call = self.tool_calls.create(ToolCall(task_id=task_id, **values))
         self.events.record(
             "ToolCallRecorded",
             "system",

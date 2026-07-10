@@ -38,13 +38,16 @@
         "AgentRunStarted",
         "AgentRunCompleted",
         "AgentRunFailed",
+        "AgentRunCancelled",
         "ToolCallRecorded",
         "ToolCallStarted",
         "ToolCallSucceeded",
         "ToolCallFailed",
+        "ToolCallCancelled",
         "ApprovalRequested",
         "ApprovalApproved",
-        "ApprovalRejected"
+        "ApprovalRejected",
+        "ApprovalExpired"
       ],
       "description": "M2-M5 真实写入的事件类型。"
     },

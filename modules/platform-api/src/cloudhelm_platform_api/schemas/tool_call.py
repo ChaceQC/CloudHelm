@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from cloudhelm_platform_api.models.tool_call import ToolCall
 from cloudhelm_platform_api.schemas.common import RiskLevel, ToolCallStatus
@@ -13,8 +13,11 @@ from cloudhelm_platform_api.schemas.common import RiskLevel, ToolCallStatus
 class ToolCallCreate(BaseModel):
     """开发/内部联调用 ToolCall 创建请求体。
 
-    M2 仅记录工具调用元数据和参数摘要，不执行真实工具调用。
+    M2 仅记录工具调用元数据和参数摘要，不执行真实工具调用。审计字段由
+    服务端生成，调用方不得提交或覆盖。
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     agent_run_id: UUID | None = Field(default=None, description="关联 AgentRun。")
     tool_name: str = Field(min_length=1, description="工具名称。")
@@ -35,8 +38,8 @@ class ToolCallCreate(BaseModel):
 class ToolCallRead(BaseModel):
     """ToolCall 响应结构。
 
-    响应只暴露 `arguments_summary`，避免把潜在敏感参数原样展示给控制台。
-    完整参数仍保存在数据库，后续审计视图可按权限读取。
+    响应只暴露 `arguments_summary` 和脱敏审计字段，避免把参数正文或凭据
+    原样展示给控制台。数据库也只保存脱敏后的参数快照。
     """
 
     id: UUID
@@ -45,6 +48,7 @@ class ToolCallRead(BaseModel):
     tool_name: str
     risk_level: RiskLevel
     arguments_summary: str
+    audit_json: dict[str, Any]
     result_json: dict[str, Any] | None
     result_summary: str | None
     stdout_summary: str | None
@@ -79,6 +83,7 @@ def tool_call_to_read(tool_call: ToolCall) -> ToolCallRead:
         tool_name=tool_call.tool_name,
         risk_level=RiskLevel(tool_call.risk_level),
         arguments_summary=tool_call.arguments_summary or summarize_arguments(tool_call.arguments_json),
+        audit_json=tool_call.audit_json,
         result_json=tool_call.result_json,
         result_summary=tool_call.result_summary,
         stdout_summary=tool_call.stdout_summary,

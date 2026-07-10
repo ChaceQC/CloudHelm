@@ -1,5 +1,7 @@
 """ApprovalRequest 数据访问。"""
 
+from __future__ import annotations
+
 from uuid import UUID
 
 from sqlalchemy import Select, select
@@ -66,4 +68,16 @@ class ApprovalRepository:
                 .limit(1)
             ).scalar_one_or_none()
             is not None
+        )
+
+    def list_pending_by_task(self, task_id: UUID) -> list[ApprovalRequest]:
+        """读取任务全部待处理审批，供取消任务时统一过期。"""
+
+        return list(
+            self.session.scalars(
+                select(ApprovalRequest).where(
+                    ApprovalRequest.task_id == task_id,
+                    ApprovalRequest.status == "pending",
+                )
+            )
         )

@@ -46,7 +46,7 @@ def test_git_status_and_diff(tmp_path: Path) -> None:
 
     repo = _repo(tmp_path)
     (repo / "README.md").write_text("# demo\nchanged\n", encoding="utf-8")
-    gateway = create_default_gateway()
+    gateway = create_default_gateway(allowed_workspace_roots=[repo])
     status = gateway.execute(_request("git.status", RiskLevel.L0, repo))
     diff = gateway.execute(_request("git.diff", RiskLevel.L0, repo))
     assert status.status == "succeeded"
@@ -59,7 +59,7 @@ def test_git_create_branch_and_commit(tmp_path: Path) -> None:
     """Git Tool 能创建分支并提交显式文件列表。"""
 
     repo = _repo(tmp_path)
-    gateway = create_default_gateway()
+    gateway = create_default_gateway(allowed_workspace_roots=[repo])
     branch = gateway.execute(_request("git.create_branch", RiskLevel.L2, repo, {"branch_name": "feature/m5-test"}))
     assert branch.status == "succeeded"
     (repo / "README.md").write_text("# demo\nm5\n", encoding="utf-8")
@@ -79,7 +79,7 @@ def test_git_commit_rejects_preexisting_staged_changes(tmp_path: Path) -> None:
     _git(repo, "add", "unrelated.txt")
     (repo / "README.md").write_text("# demo\nrequested\n", encoding="utf-8")
 
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[repo]).execute(
         _request("git.commit", RiskLevel.L2, repo, {"message": "test: isolated commit", "paths": ["README.md"]})
     )
 
@@ -93,7 +93,7 @@ def test_git_commit_rejects_repository_root_pathspec(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     (repo / "README.md").write_text("# demo\nchanged\n", encoding="utf-8")
 
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[repo]).execute(
         _request("git.commit", RiskLevel.L2, repo, {"message": "test: reject root", "paths": ["."]})
     )
 

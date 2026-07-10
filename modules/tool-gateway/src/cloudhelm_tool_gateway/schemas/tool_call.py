@@ -38,7 +38,7 @@ class ToolCallRequest(BaseModel):
     tool_name: str = Field(min_length=1, description="工具名称。")
     risk_level: RiskLevel = Field(description="调用方认为的风险等级；必须与注册声明一致。")
     idempotency_key: str = Field(min_length=1, max_length=128, description="任务内幂等键。")
-    arguments: dict[str, Any] = Field(default_factory=dict, description="工具参数。")
+    arguments: dict[str, Any] = Field(description="工具参数；无参数工具也必须显式传入空对象。")
     reason: str = Field(min_length=1, description="调用原因，用于审计和审批说明。")
 
 

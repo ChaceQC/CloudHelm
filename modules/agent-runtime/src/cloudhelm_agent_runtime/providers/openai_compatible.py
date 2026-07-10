@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import json
+import time
+from collections.abc import Callable
 from typing import Any, Literal
 from urllib import error, request
 
@@ -39,7 +41,13 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
         reasoning_effort: ReasoningEffort = "max",
         max_output_tokens: int = 32768,
         timeout_seconds: int = 120,
+        max_attempts: int = 3,
+        retry_backoff_seconds: float = 1.0,
     ) -> None:
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be at least 1")
+        if retry_backoff_seconds < 0:
+            raise ValueError("retry_backoff_seconds cannot be negative")
         self.api_base = api_base.rstrip("/") if api_base else None
         self.api_key = api_key
         self.model_name = model_name
@@ -47,6 +55,8 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
         self.reasoning_effort = reasoning_effort
         self.max_output_tokens = max_output_tokens
         self.timeout_seconds = timeout_seconds
+        self.max_attempts = max_attempts
+        self.retry_backoff_seconds = retry_backoff_seconds
 
     def generate(self, agent_type: str, payload: BaseModel, output_model: type[BaseModel]) -> dict[str, Any]:
         """调用 Responses API 或 Chat Completions 并校验结构化输出。"""
@@ -55,11 +65,16 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
             raise MissingProviderConfigurationError(
                 "openai_compatible provider requires CLOUDHELM_LLM_API_BASE, CLOUDHELM_LLM_MODEL and CLOUDHELM_LLM_API_KEY"
             )
-        if self.api_mode == "responses":
-            content = self._generate_responses(agent_type, payload, output_model)
-        else:
-            content = self._generate_chat_completions(agent_type, payload, output_model)
-        return self._parse_output(content, output_model)
+        def request_and_validate() -> dict[str, Any]:
+            """执行一次模型请求并在同一尝试内校验结构化输出。"""
+
+            if self.api_mode == "responses":
+                content = self._generate_responses(agent_type, payload, output_model)
+            else:
+                content = self._generate_chat_completions(agent_type, payload, output_model)
+            return self._parse_output(content, output_model)
+
+        return self._run_with_retries(request_and_validate)
 
     def _generate_responses(self, agent_type: str, payload: BaseModel, output_model: type[BaseModel]) -> str:
         """调用 Responses API，使用 `reasoning.effort` 控制思考强度。"""
@@ -135,7 +150,11 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
                 raw = response.read().decode("utf-8")
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:1000]
-            raise AgentProviderRequestError(f"model API returned HTTP {exc.code}: {detail}") from exc
+            retryable = exc.code in {408, 409, 429} or exc.code >= 500
+            raise AgentProviderRequestError(
+                f"model API returned HTTP {exc.code}: {detail}",
+                retryable=retryable,
+            ) from exc
         except (error.URLError, TimeoutError, OSError) as exc:
             raise AgentProviderRequestError(f"model API request failed: {type(exc).__name__}") from exc
         try:
@@ -145,6 +164,23 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
         if not isinstance(parsed, dict):
             raise AgentProviderResponseError("model API response must be a JSON object")
         return parsed
+
+    def _run_with_retries(self, operation: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+        """对瞬时请求错误和无效结构化响应执行有界指数退避重试。"""
+
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                return operation()
+            except AgentProviderRequestError as exc:
+                if not exc.retryable or attempt == self.max_attempts:
+                    raise
+            except AgentProviderResponseError:
+                if attempt == self.max_attempts:
+                    raise
+            delay_seconds = self.retry_backoff_seconds * (2 ** (attempt - 1))
+            if delay_seconds > 0:
+                time.sleep(delay_seconds)
+        raise RuntimeError("unreachable provider retry state")
 
     def _endpoint(self, path: str) -> str:
         """兼容 API base 以主机或 `/v1` 结尾的两种常见配置。"""

@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from cloudhelm_tool_gateway.policies import ToolPolicy
-from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel
+from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel, ToolCallResult
 
 ToolHandler = Callable[[BaseModel, ToolPolicy], dict[str, Any]]
 
@@ -47,6 +47,7 @@ class ToolDeclaration:
             "allowed_agent_types": list(self.allowed_agent_types),
             "allow_system_call": self.allow_system_call,
             "arguments_schema": self.input_model.model_json_schema(),
+            "result_schema": ToolCallResult.model_json_schema(),
         }
 
 

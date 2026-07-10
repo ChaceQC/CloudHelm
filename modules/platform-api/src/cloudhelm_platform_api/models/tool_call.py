@@ -49,7 +49,13 @@ class ToolCall(UUIDPrimaryKeyMixin, Base):
         JSONB,
         nullable=False,
         default=dict,
-        comment="工具参数 JSON；API 响应默认只暴露摘要。",
+        comment="脱敏后的工具参数 JSON；文件正文只保留长度和 hash。",
+    )
+    audit_json: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        comment="Tool Gateway 生成的参数 hash、主体、风险、幂等键和终态审计字段。",
     )
     result_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, comment="工具结果 JSON。")
     status: Mapped[str] = mapped_column(Text, nullable=False, comment="工具调用状态。")

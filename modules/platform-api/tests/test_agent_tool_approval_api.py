@@ -38,6 +38,7 @@ def test_agent_run_tool_call_and_approval_records_are_queryable(client: TestClie
             "tool_name": "repo.read_file",
             "risk_level": "L1",
             "arguments_json": {"path": "README.md", "secret": "masked-by-summary"},
+            "arguments_summary": "secret=masked-by-summary",
             "status": "succeeded",
             "approval_id": approval["id"],
         },
@@ -46,6 +47,9 @@ def test_agent_run_tool_call_and_approval_records_are_queryable(client: TestClie
     tool_call = tool_call_response.json()
     assert tool_call["tool_name"] == "repo.read_file"
     assert tool_call["arguments_summary"] == "keys=[path, secret]"
+    assert "masked-by-summary" not in tool_call["arguments_summary"]
+    assert tool_call["audit_json"]["source"] == "internal_record_api"
+    assert tool_call["audit_json"]["arguments_hash"].startswith("sha256:")
 
     assert client.get(f"/api/agent-runs/{agent_run['id']}").json()["id"] == agent_run["id"]
     assert client.get(f"/api/tool-calls/{tool_call['id']}").json()["id"] == tool_call["id"]
@@ -74,3 +78,36 @@ def test_agent_run_tool_call_and_approval_records_are_queryable(client: TestClie
     assert "ToolCallRecorded" in event_types
     assert "ApprovalApproved" in event_types
     assert "ApprovalRejected" in event_types
+
+
+def test_internal_tool_call_api_rejects_caller_supplied_audit_fields(client: TestClient) -> None:
+    """内部记录接口也不得允许调用方伪造服务端审计字段。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"])
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-calls",
+        json={
+            "tool_name": "repo.read_file",
+            "risk_level": "L1",
+            "arguments_json": {"path": "README.md"},
+            "audit_json": {"arguments_hash": "forged", "status": "succeeded"},
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+def test_internal_agent_run_api_cannot_forge_running_execution(client: TestClient) -> None:
+    """running AgentRun 只能由 Orchestrator 创建，联调 API 不得提升工具权限。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"])
+    response = client.post(
+        f"/api/tasks/{task['id']}/agent-runs",
+        json={"agent_type": "coder", "status": "running", "model_name": "forged"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "agent_run_running_reserved"

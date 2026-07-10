@@ -75,3 +75,47 @@ def test_pause_resume_preserves_created_status_and_phase(client: TestClient) -> 
     assert resumed.status_code == 200
     assert resumed.json()["status"] == "created"
     assert resumed.json()["current_phase"] == "Created"
+
+
+def test_cancel_task_closes_active_runs_calls_and_approvals(client: TestClient) -> None:
+    """Task 进入 cancelled 后不能遗留可执行 AgentRun、ToolCall 或 pending Approval。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], "取消清理")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    agent_run = client.post(
+        f"/api/tasks/{task['id']}/agent-runs",
+        json={"agent_type": "coder", "status": "pending"},
+    ).json()
+    approval = client.post(
+        f"/api/tasks/{task['id']}/approvals",
+        json={
+            "action": "approve_local_commit",
+            "risk_level": "L2",
+            "reason": "等待任务取消测试",
+            "requested_by_agent_run_id": agent_run["id"],
+        },
+    ).json()
+    tool_call = client.post(
+        f"/api/tasks/{task['id']}/tool-calls",
+        json={
+            "agent_run_id": agent_run["id"],
+            "tool_name": "git.commit",
+            "risk_level": "L2",
+            "arguments_json": {"paths": ["README.md"]},
+            "status": "waiting_approval",
+            "approval_id": approval["id"],
+        },
+    ).json()
+
+    cancelled = client.post(f"/api/tasks/{task['id']}/cancel", json={"actor_id": "tester"})
+    assert cancelled.status_code == 200
+    assert client.get(f"/api/agent-runs/{agent_run['id']}").json()["status"] == "cancelled"
+    assert client.get(f"/api/tool-calls/{tool_call['id']}").json()["status"] == "cancelled"
+    assert client.get(f"/api/approvals/{approval['id']}").json()["status"] == "expired"
+
+    event_types = [event["event_type"] for event in client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]]
+    assert "AgentRunCancelled" in event_types
+    assert "ToolCallCancelled" in event_types
+    assert "ApprovalExpired" in event_types
+    assert event_types[-1] == "TaskCancelled"

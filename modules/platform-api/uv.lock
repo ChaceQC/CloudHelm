@@ -70,7 +70,7 @@ wheels = [
 
 [[package]]
 name = "cloudhelm-agent-runtime"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "../agent-runtime" }
 dependencies = [
     { name = "pydantic" },
@@ -98,7 +98,7 @@ dev = [{ name = "pytest", specifier = ">=8.4.0" }]
 
 [[package]]
 name = "cloudhelm-platform-api"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -141,7 +141,7 @@ dev = [
 
 [[package]]
 name = "cloudhelm-tool-gateway"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "../tool-gateway" }
 dependencies = [
     { name = "pydantic" },

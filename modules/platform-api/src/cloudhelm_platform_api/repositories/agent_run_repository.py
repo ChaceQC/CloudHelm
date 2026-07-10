@@ -36,3 +36,15 @@ class AgentRunRepository:
             .order_by(AgentRun.started_at.desc(), AgentRun.id.desc())
         )
         return fetch_page(self.session, statement, limit, cursor)
+
+    def list_active_by_task(self, task_id: UUID) -> list[AgentRun]:
+        """读取任务中尚未结束的 AgentRun。"""
+
+        return list(
+            self.session.scalars(
+                select(AgentRun).where(
+                    AgentRun.task_id == task_id,
+                    AgentRun.status.in_(("pending", "running")),
+                )
+            )
+        )

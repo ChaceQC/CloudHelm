@@ -9,9 +9,36 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any
 
 SENSITIVE_KEYWORDS = ("password", "token", "secret", "key", "credential", "cookie", "content")
+STORAGE_SENSITIVE_KEYS = (
+    "password",
+    "passwd",
+    "token",
+    "secret",
+    "credential",
+    "cookie",
+    "authorization",
+    "auth_header",
+    "api_key",
+    "apikey",
+    "private_key",
+)
+SENSITIVE_TEXT_PATTERNS = (
+    re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{20,}"),
+    re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{12,}"),
+    re.compile(
+        r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----.*?"
+        r"-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        re.DOTALL,
+    ),
+    re.compile(r"(?i)\b(password|token|secret|api[_-]?key)\s*[:=]\s*([^\s,;]+)"),
+    re.compile(r"(?i)\b(cookie|set-cookie)\s*[:=]\s*([^\r\n]+)"),
+)
 
 
 def stable_json_hash(value: Any) -> str:
@@ -66,3 +93,59 @@ def truncate_text(value: str | bytes | None, max_length: int = 4000) -> str | No
     else:
         text = value
     return text if len(text) <= max_length else f"{text[: max_length - 24]}\n...<truncated:{len(text)}>"
+
+
+def redact_sensitive_text(value: str | bytes | None) -> str | None:
+    """移除输出文本中的常见 Token、Bearer 凭据和私钥块。"""
+
+    if value is None:
+        return None
+    text = value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
+    for pattern in SENSITIVE_TEXT_PATTERNS:
+        if pattern.groups:
+            text = pattern.sub(lambda match: f"{match.group(1)}=<redacted>", text)
+        else:
+            text = pattern.sub("<redacted>", text)
+    return text
+
+
+def sanitize_arguments_for_storage(arguments: dict[str, Any]) -> dict[str, Any]:
+    """生成可落库参数，敏感字段脱敏且文件正文只保留长度与 hash。"""
+
+    return {
+        key: _sanitize_value(value, key=key, redact_content=True)
+        for key, value in arguments.items()
+    }
+
+
+def sanitize_result_for_storage(value: Any) -> Any:
+    """递归清理结果 JSON 中的敏感字段和凭据文本。"""
+
+    return _sanitize_value(value, key=None, redact_content=False)
+
+
+def _sanitize_value(value: Any, *, key: str | None, redact_content: bool) -> Any:
+    """递归实现参数和结果脱敏，返回 JSON 可序列化对象。"""
+
+    lowered = (key or "").lower()
+    normalized_key = lowered.replace("-", "_")
+    if any(keyword in normalized_key for keyword in STORAGE_SENSITIVE_KEYS):
+        return "<redacted>"
+    if redact_content and lowered == "content" and isinstance(value, str):
+        return {
+            "redacted": True,
+            "length": len(value),
+            "sha256": stable_json_hash(value),
+        }
+    if isinstance(value, str):
+        return redact_sensitive_text(value)
+    if isinstance(value, dict):
+        return {
+            child_key: _sanitize_value(child_value, key=child_key, redact_content=redact_content)
+            for child_key, child_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_sanitize_value(item, key=None, redact_content=redact_content) for item in value]
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    return str(value)

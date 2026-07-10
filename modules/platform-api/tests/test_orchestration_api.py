@@ -1,5 +1,7 @@
 """M4 Orchestration API 黑盒与事务副作用测试。"""
 
+from urllib import error
+
 from fastapi.testclient import TestClient
 
 from cloudhelm_platform_api.core.config import get_settings
@@ -111,6 +113,55 @@ def test_missing_llm_config_records_failed_agent_run(client: TestClient, monkeyp
 
     events = client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
     assert "AgentRunFailed" in [event["event_type"] for event in events]
+
+
+def test_transient_llm_request_failure_pauses_task_after_bounded_retries(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    """外部模型瞬时失败耗尽重试后应暂停任务，保留可恢复编排阶段。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证外部模型失败恢复")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    attempts = 0
+
+    def fail_request(http_request, timeout):  # noqa: ANN001
+        nonlocal attempts
+        attempts += 1
+        raise error.URLError("temporary")
+
+    monkeypatch.setenv("CLOUDHELM_AGENT_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("CLOUDHELM_LLM_API_BASE", "https://api.example.test")
+    monkeypatch.setenv("CLOUDHELM_LLM_API_KEY", "test-key")
+    monkeypatch.setenv("CLOUDHELM_LLM_MODEL", "gpt-5.6-sol")
+    monkeypatch.setenv("CLOUDHELM_LLM_MAX_ATTEMPTS", "2")
+    monkeypatch.setenv("CLOUDHELM_LLM_RETRY_BACKOFF_SECONDS", "0")
+    monkeypatch.setattr("cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen", fail_request)
+    get_settings.cache_clear()
+    try:
+        response = client.post(f"/api/tasks/{task['id']}/run-next", json={"actor_id": "tester"})
+        assert response.status_code == 503
+        assert response.json()["code"] == "agent_provider_request_failed"
+    finally:
+        monkeypatch.setenv("CLOUDHELM_AGENT_PROVIDER", "local_structured")
+        get_settings.cache_clear()
+
+    assert attempts == 2
+    task_body = client.get(f"/api/tasks/{task['id']}").json()
+    assert task_body["status"] == "paused"
+    assert task_body["current_phase"] == "RequirementClarifying"
+
+    agent_run = client.get(f"/api/tasks/{task['id']}/agent-runs").json()["items"][0]
+    assert agent_run["status"] == "failed"
+    assert agent_run["error_code"] == "agent_provider_request_failed"
+
+    failed_event = next(
+        event
+        for event in client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
+        if event["event_type"] == "AgentRunFailed"
+    )
+    assert failed_event["payload"]["recoverable"] is True
 
 
 def test_rejected_plan_is_regenerated_instead_of_reusing_stale_plan(client: TestClient) -> None:

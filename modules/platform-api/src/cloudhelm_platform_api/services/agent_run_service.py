@@ -8,7 +8,7 @@ from cloudhelm_platform_api.models.agent_run import AgentRun
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.schemas.agent_run import AgentRunCreate, AgentRunRead
-from cloudhelm_platform_api.schemas.common import PageInfo, PageResponse
+from cloudhelm_platform_api.schemas.common import AgentRunStatus, PageInfo, PageResponse, TaskStatus
 from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
@@ -26,8 +26,17 @@ class AgentRunService(BaseService):
     def create_agent_run(self, task_id: UUID, data: AgentRunCreate) -> AgentRunRead:
         """创建开发/内部联调用 AgentRun 记录。"""
 
-        if self.tasks.get(task_id) is None:
+        task = self.tasks.get(task_id)
+        if task is None:
             raise ServiceError("task_not_found", "创建 AgentRun 失败：任务不存在。", 404)
+        if task.status in {TaskStatus.DONE.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value}:
+            raise ServiceError("task_terminal", "终态任务不能创建新的 AgentRun。", 409)
+        if data.status == AgentRunStatus.RUNNING:
+            raise ServiceError(
+                "agent_run_running_reserved",
+                "running AgentRun 只能由 Orchestrator 在受控执行事务中创建。",
+                409,
+            )
         agent_run = self.agent_runs.create(AgentRun(task_id=task_id, **data.model_dump(mode="json")))
         self.events.record(
             "AgentRunRecorded",

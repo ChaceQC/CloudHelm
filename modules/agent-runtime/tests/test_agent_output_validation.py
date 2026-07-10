@@ -1,6 +1,7 @@
 """Agent Runtime 结构化输出白盒测试。"""
 
 import json
+from urllib import error
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,7 @@ from pydantic import ValidationError
 from cloudhelm_agent_runtime.agents import ArchitectAgent, PlannerAgent, RequirementAgent
 from cloudhelm_agent_runtime.providers import (
     AgentProviderResponseError,
+    AgentProviderRequestError,
     LocalStructuredProvider,
     MissingProviderConfigurationError,
     OpenAICompatibleProvider,
@@ -35,6 +37,11 @@ class FakeHttpResponse:
         """返回 UTF-8 JSON body。"""
 
         return json.dumps(self.payload, ensure_ascii=False).encode("utf-8")
+
+    def close(self) -> None:
+        """兼容 `HTTPError` 对底层响应执行资源清理。"""
+
+        return None
 
 
 def test_requirement_agent_generates_valid_structured_output() -> None:
@@ -284,3 +291,137 @@ def test_openai_provider_rejects_missing_responses_output_text(monkeypatch) -> N
             ),
             RequirementAgentOutput,
         )
+
+
+def test_openai_provider_retries_transient_request_errors(monkeypatch) -> None:
+    """瞬时网络错误应在固定次数内重试，而不是立即中止 AgentRun。"""
+
+    attempts = 0
+    output = {
+        "summary": "重试后成功。",
+        "raw_input": "retry",
+        "user_story": "作为用户，我希望瞬时网络错误可恢复。",
+        "constraints": [{"type": "network", "value": "bounded retry", "required": True}],
+        "acceptance_criteria": [
+            {"id": "AC-001", "description": "第三次请求成功", "verification": "pytest", "status": "pending"}
+        ],
+        "risk_level": "L1",
+    }
+
+    def fake_urlopen(http_request, timeout):  # noqa: ANN001
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise error.URLError("temporary")
+        return FakeHttpResponse({"status": "completed", "output_text": json.dumps(output, ensure_ascii=False)})
+
+    monkeypatch.setattr("cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen", fake_urlopen)
+    result = OpenAICompatibleProvider(
+        api_base="https://api.example.test",
+        api_key="test-key",
+        model_name="gpt-5.6-sol",
+        max_attempts=3,
+        retry_backoff_seconds=0,
+    ).generate(
+        "requirement",
+        RequirementAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            title="重试请求",
+            description="retry",
+            source_type="manual",
+            risk_level=RiskLevel.L1,
+        ),
+        RequirementAgentOutput,
+    )
+
+    assert result["summary"] == "重试后成功。"
+    assert attempts == 3
+
+
+def test_openai_provider_retries_invalid_structured_output(monkeypatch) -> None:
+    """首次无效 JSON 应重新生成，并由 Pydantic 校验第二次结果。"""
+
+    attempts = 0
+    valid_output = {
+        "summary": "结构已修复。",
+        "raw_input": "repair",
+        "user_story": "作为用户，我希望无效结构可自动重试。",
+        "constraints": [{"type": "schema", "value": "valid", "required": True}],
+        "acceptance_criteria": [
+            {"id": "AC-001", "description": "输出可校验", "verification": "pytest", "status": "pending"}
+        ],
+        "risk_level": "L1",
+    }
+
+    def fake_urlopen(http_request, timeout):  # noqa: ANN001
+        nonlocal attempts
+        attempts += 1
+        text = "{not-json" if attempts == 1 else json.dumps(valid_output, ensure_ascii=False)
+        return FakeHttpResponse({"status": "completed", "output_text": text})
+
+    monkeypatch.setattr("cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen", fake_urlopen)
+    result = OpenAICompatibleProvider(
+        api_base="https://api.example.test",
+        api_key="test-key",
+        model_name="gpt-5.6-sol",
+        max_attempts=2,
+        retry_backoff_seconds=0,
+    ).generate(
+        "requirement",
+        RequirementAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            title="修复结构",
+            description="repair",
+            source_type="manual",
+            risk_level=RiskLevel.L1,
+        ),
+        RequirementAgentOutput,
+    )
+
+    assert result["summary"] == "结构已修复。"
+    assert attempts == 2
+
+
+def test_openai_provider_does_not_retry_non_retryable_http_error(monkeypatch) -> None:
+    """认证类 4xx 请求错误不得通过重试放大无效流量。"""
+
+    attempts = 0
+
+    def fake_urlopen(http_request, timeout):  # noqa: ANN001
+        nonlocal attempts
+        attempts += 1
+        raise error.HTTPError(
+            http_request.full_url,
+            401,
+            "Unauthorized",
+            hdrs=None,
+            fp=FakeHttpResponse({"error": {"message": "invalid key"}}),
+        )
+
+    monkeypatch.setattr("cloudhelm_agent_runtime.providers.openai_compatible.request.urlopen", fake_urlopen)
+    provider = OpenAICompatibleProvider(
+        api_base="https://api.example.test",
+        api_key="bad-key",
+        model_name="gpt-5.6-sol",
+        max_attempts=3,
+        retry_backoff_seconds=0,
+    )
+
+    with pytest.raises(AgentProviderRequestError) as captured:
+        provider.generate(
+            "requirement",
+            RequirementAgentInput(
+                task_id=uuid4(),
+                project_id=uuid4(),
+                title="认证失败",
+                description="401",
+                source_type="manual",
+                risk_level=RiskLevel.L1,
+            ),
+            RequirementAgentOutput,
+        )
+
+    assert captured.value.retryable is False
+    assert attempts == 1

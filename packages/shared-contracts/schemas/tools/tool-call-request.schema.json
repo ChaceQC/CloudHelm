@@ -8,6 +8,10 @@
   "properties": {
     "task_id": { "type": "string", "format": "uuid" },
     "agent_run_id": { "type": ["string", "null"], "format": "uuid" },
+    "agent_type": {
+      "type": ["string", "null"],
+      "description": "Platform API 根据 AgentRun 解析的 Agent 类型；与 agent_run_id 成对出现。"
+    },
     "tool_name": { "type": "string", "minLength": 1 },
     "risk_level": { "type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"] },
     "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 128 },

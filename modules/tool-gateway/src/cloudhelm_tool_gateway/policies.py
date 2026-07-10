@@ -7,8 +7,8 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel
 
@@ -70,9 +70,17 @@ class ToolPolicy:
     base_env_names = {"PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE", "LANG"}
     allowed_env_prefixes = ("CLOUDHELM_", "PYTHON", "NODE_", "NPM_CONFIG_")
 
-    def __init__(self, max_timeout_seconds: int = 60, max_output_chars: int = 12000) -> None:
+    def __init__(
+        self,
+        max_timeout_seconds: int = 60,
+        max_output_chars: int = 12000,
+        allowed_workspace_roots: Iterable[str | Path] = (),
+    ) -> None:
         self.max_timeout_seconds = max_timeout_seconds
         self.max_output_chars = max_output_chars
+        self.allowed_workspace_roots = tuple(
+            Path(root).expanduser().resolve(strict=False) for root in allowed_workspace_roots
+        )
 
     def ensure_agent_context(self, agent_run_id: object | None, agent_type: str | None) -> None:
         """校验 AgentRun 标识与 Agent 类型必须成对出现。
@@ -117,7 +125,13 @@ class ToolPolicy:
         root = Path(workspace_root).expanduser()
         if not root.exists() or not root.is_dir():
             raise PolicyError("workspace_not_found", "workspace_root 必须是已存在目录。")
-        return root.resolve(strict=True)
+        resolved = root.resolve(strict=True)
+        if not any(
+            resolved == allowed_root or resolved.is_relative_to(allowed_root)
+            for allowed_root in self.allowed_workspace_roots
+        ):
+            raise PolicyError("workspace_not_allowed", "workspace_root 不在平台配置的允许目录内。")
+        return resolved
 
     def resolve_workspace_path(
         self,

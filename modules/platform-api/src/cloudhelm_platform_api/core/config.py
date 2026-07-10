@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.4.1", description="当前服务版本。")
+    version: str = Field(default="0.4.2", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",
@@ -47,6 +47,10 @@ class Settings(BaseSettings):
         default=60,
         ge=1,
         description="M5 Tool Gateway 滑动窗口秒数。",
+    )
+    tool_workspace_roots: list[str] = Field(
+        default_factory=list,
+        description="Tool Gateway 允许访问的本地 workspace 根目录；空列表默认拒绝文件和命令工具。",
     )
     agent_provider: str = Field(
         default="local_structured",
@@ -81,6 +85,24 @@ class Settings(BaseSettings):
         ge=256,
         le=131072,
         description="外部模型最大输出 token，需同时容纳 reasoning token 和最终结构化输出。",
+    )
+    llm_timeout_seconds: int = Field(
+        default=120,
+        ge=1,
+        le=600,
+        description="单次外部模型 HTTP 请求超时秒数。",
+    )
+    llm_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+        description="外部模型请求或结构化响应失败时的总尝试次数。",
+    )
+    llm_retry_backoff_seconds: float = Field(
+        default=1.0,
+        ge=0,
+        le=60,
+        description="外部模型重试的初始退避秒数，后续按 2 的幂增长。",
     )
     cors_origins: list[str] = Field(
         default=["http://127.0.0.1:5173", "http://localhost:5173"],

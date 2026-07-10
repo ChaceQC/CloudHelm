@@ -41,15 +41,24 @@ class MissingProviderConfigurationError(AgentProviderError):
 
 
 class AgentProviderRequestError(AgentProviderError):
-    """外部模型 HTTP 请求失败。"""
+    """外部模型 HTTP 请求失败。
+
+    `retryable` 由 provider 按 HTTP 状态或网络异常分类，供运行时重试和
+    Orchestrator 决定暂停还是进入失败终态。
+    """
 
     code = "agent_provider_request_failed"
 
+    def __init__(self, message: str, *, retryable: bool = True) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
 
 class AgentProviderResponseError(AgentProviderError):
-    """外部模型响应或结构化内容无效。"""
+    """外部模型响应或结构化内容无效，可通过重新生成修复。"""
 
     code = "agent_provider_response_invalid"
+    retryable = True
 
 
 class StructuredAgentProvider(ABC):

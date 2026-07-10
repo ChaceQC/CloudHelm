@@ -24,7 +24,7 @@ def _request(tool_name: str, risk_level: RiskLevel, arguments: dict, agent_type:
 def test_repo_read_and_write_file(tmp_path: Path) -> None:
     """Repo Tool 能真实写入并读取 workspace 文件。"""
 
-    gateway = create_default_gateway()
+    gateway = create_default_gateway(allowed_workspace_roots=[tmp_path])
     write_result = gateway.execute(
         _request(
             "repo.write_file",
@@ -52,7 +52,7 @@ def test_repo_blocks_symlink_escape(tmp_path: Path) -> None:
         link.symlink_to(outside)
     except OSError:
         return
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[tmp_path]).execute(
         _request("repo.read_file", RiskLevel.L0, {"workspace_root": str(tmp_path), "path": "link.txt"})
     )
     assert result.status == "failed"
@@ -63,7 +63,7 @@ def test_repo_search_text(tmp_path: Path) -> None:
     """Repo Tool 能在受控目录内搜索文本。"""
 
     (tmp_path / "a.py").write_text("print('CloudHelm')\n", encoding="utf-8")
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[tmp_path]).execute(
         _request("repo.search_text", RiskLevel.L0, {"workspace_root": str(tmp_path), "pattern": "cloudhelm"})
     )
     assert result.status == "succeeded"

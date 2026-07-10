@@ -3,17 +3,22 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from cloudhelm_tool_gateway import create_default_gateway
+from cloudhelm_platform_api.db.session import get_engine
 
-from conftest import create_project, create_task
+from conftest import create_project, create_running_agent_run, create_task
 
 
 def _task(client: TestClient) -> dict:
     """创建测试任务。"""
 
     project = create_project(client, "Tool Gateway 项目")
-    return create_task(client, project["id"], "执行 Tool Gateway")
+    task = create_task(client, project["id"], "执行 Tool Gateway")
+    started = client.post(f"/api/tasks/{task['id']}/start")
+    assert started.status_code == 200, started.text
+    return started.json()["task"]
 
 
 def test_list_tool_gateway_tools(client: TestClient) -> None:
@@ -21,18 +26,17 @@ def test_list_tool_gateway_tools(client: TestClient) -> None:
 
     response = client.get("/api/tool-gateway/tools")
     assert response.status_code == 200, response.text
-    tool_names = {item["name"] for item in response.json()["items"]}
+    declarations = response.json()["items"]
+    tool_names = {item["name"] for item in declarations}
     assert {"repo.read_file", "sandbox.run_command", "git.commit", "approval.request_remote_action"} <= tool_names
+    assert all(item["result_schema"]["title"] == "ToolCallResult" for item in declarations)
 
 
 def test_repo_tool_gateway_call_writes_tool_call_and_events(client: TestClient, tmp_path: Path) -> None:
     """通过 API 调用 Repo Tool 会写 ToolCall 和事件。"""
 
     task = _task(client)
-    agent_run = client.post(
-        f"/api/tasks/{task['id']}/agent-runs",
-        json={"agent_type": "coder", "status": "running", "model_name": "test-model"},
-    ).json()
+    agent_run = create_running_agent_run(task["id"], "coder")
     response = client.post(
         f"/api/tasks/{task['id']}/tool-gateway/call",
         json={
@@ -54,7 +58,17 @@ def test_repo_tool_gateway_call_writes_tool_call_and_events(client: TestClient, 
     assert payload["status"] == "succeeded"
     assert payload["tool_name"] == "repo.write_file"
     assert payload["result_summary"]
+    assert payload["audit_json"]["arguments_hash"].startswith("sha256:")
+    assert payload["audit_json"]["agent_type"] == "coder"
     assert (tmp_path / "notes" / "result.md").read_text(encoding="utf-8") == "CloudHelm M5"
+    with get_engine().connect() as connection:
+        stored = connection.execute(
+            text("SELECT arguments_json, audit_json FROM tool_calls WHERE id = CAST(:id AS uuid)"),
+            {"id": payload["id"]},
+        ).mappings().one()
+    assert stored["arguments_json"]["content"]["redacted"] is True
+    assert stored["arguments_json"]["content"]["sha256"].startswith("sha256:")
+    assert stored["audit_json"]["status"] == "succeeded"
 
     timeline = client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
     event_types = {event["event_type"] for event in timeline}
@@ -65,10 +79,7 @@ def test_sandbox_tool_gateway_call_records_output_summary(client: TestClient, tm
     """Sandbox Tool 输出应摘要化写入 ToolCall。"""
 
     task = _task(client)
-    agent_run = client.post(
-        f"/api/tasks/{task['id']}/agent-runs",
-        json={"agent_type": "tester", "status": "running", "model_name": "test-model"},
-    ).json()
+    agent_run = create_running_agent_run(task["id"], "tester")
     response = client.post(
         f"/api/tasks/{task['id']}/tool-gateway/call",
         json={
@@ -90,10 +101,7 @@ def test_l3_tool_gateway_call_creates_approval_without_execution(client: TestCli
     """L3 工具只创建审批请求，ToolCall 保持 waiting_approval。"""
 
     task = _task(client)
-    agent_run = client.post(
-        f"/api/tasks/{task['id']}/agent-runs",
-        json={"agent_type": "release", "status": "running", "model_name": "test-model"},
-    ).json()
+    agent_run = create_running_agent_run(task["id"], "release")
     response = client.post(
         f"/api/tasks/{task['id']}/tool-gateway/call",
         json={
@@ -165,7 +173,11 @@ def test_sensitive_path_is_recorded_as_failed_tool_call(client: TestClient, tmp_
 def test_tool_gateway_rate_limit_is_persisted_as_failed_call(client: TestClient, tmp_path: Path) -> None:
     """超额调用必须写入失败 ToolCall 和可追溯事件。"""
 
-    client.app.state.tool_gateway = create_default_gateway(max_calls=1, window_seconds=60)
+    client.app.state.tool_gateway = create_default_gateway(
+        max_calls=1,
+        window_seconds=60,
+        allowed_workspace_roots=[tmp_path],
+    )
     task = _task(client)
     (tmp_path / "README.md").write_text("# demo\n", encoding="utf-8")
     base_body = {
@@ -241,3 +253,48 @@ def test_tool_gateway_rejects_non_running_agent_run(client: TestClient, tmp_path
     assert response.status_code == 409
     assert response.json()["code"] == "agent_run_not_running"
     assert not (tmp_path / "denied.txt").exists()
+
+
+def test_tool_gateway_rejects_agent_call_when_task_is_paused(client: TestClient, tmp_path: Path) -> None:
+    """Task 暂停后，即使 AgentRun 仍为 running 也不能继续产生副作用。"""
+
+    task = _task(client)
+    agent_run = create_running_agent_run(task["id"], "coder")
+    assert client.post(f"/api/tasks/{task['id']}/pause").status_code == 200
+
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "agent_run_id": agent_run["id"],
+            "tool_name": "repo.write_file",
+            "risk_level": "L1",
+            "idempotency_key": "paused-agent-denied",
+            "reason": "验证任务暂停边界",
+            "arguments": {"workspace_root": str(tmp_path), "path": "denied.txt", "content": "denied"},
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "task_not_running"
+    assert not (tmp_path / "denied.txt").exists()
+
+
+def test_tool_gateway_rejects_workspace_outside_configured_roots(client: TestClient, tmp_path: Path) -> None:
+    """调用方不能把任意本机目录声明为受控 workspace。"""
+
+    task = _task(client)
+    outside = Path.home()
+    response = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "tool_name": "repo.list_files",
+            "risk_level": "L0",
+            "idempotency_key": "outside-workspace",
+            "reason": "验证 workspace allowlist",
+            "arguments": {"workspace_root": str(outside), "path": "."},
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "failed"
+    assert response.json()["error_code"] == "workspace_not_allowed"

@@ -6,7 +6,12 @@
 
 from decimal import Decimal
 
-from cloudhelm_agent_runtime.providers import AgentProviderError, MissingProviderConfigurationError
+from cloudhelm_agent_runtime.providers import (
+    AgentProviderError,
+    AgentProviderRequestError,
+    AgentProviderResponseError,
+    MissingProviderConfigurationError,
+)
 
 from cloudhelm_platform_api.core.config import Settings
 from cloudhelm_platform_api.db.base import utc_now
@@ -34,7 +39,10 @@ class AgentRunLifecycle(BaseService):
         provider_name = self.settings.agent_provider
         model_name = self.settings.llm_model if provider_name == "openai_compatible" else "local-rules-m4-v1"
         prompt_hash = (
-            f"m4-v2:{self.settings.llm_api_mode}:{self.settings.llm_reasoning_effort}"
+            (
+                f"m4-v3:{self.settings.llm_api_mode}:{self.settings.llm_reasoning_effort}:"
+                f"attempts={self.settings.llm_max_attempts}"
+            )
             if provider_name == "openai_compatible"
             else "m4-v1"
         )
@@ -62,6 +70,7 @@ class AgentRunLifecycle(BaseService):
                 "reasoning_effort": (
                     self.settings.llm_reasoning_effort if provider_name == "openai_compatible" else None
                 ),
+                "max_attempts": self.settings.llm_max_attempts if provider_name == "openai_compatible" else None,
             },
             task.id,
         )
@@ -93,7 +102,11 @@ class AgentRunLifecycle(BaseService):
         agent_run.error_code = code
         agent_run.error_message = message
         agent_run.finished_at = utc_now()
-        recoverable = isinstance(exc, MissingProviderConfigurationError)
+        recoverable = (
+            isinstance(exc, MissingProviderConfigurationError)
+            or isinstance(exc, AgentProviderResponseError)
+            or (isinstance(exc, AgentProviderRequestError) and exc.retryable)
+        )
         task.status = TaskStatus.PAUSED.value if recoverable else TaskStatus.FAILED.value
         self.events.record(
             "AgentRunFailed",
@@ -113,6 +126,10 @@ class AgentRunLifecycle(BaseService):
             raise ServiceError(exc.code, exc.message, exc.status_code, exc.detail) from exc
         if isinstance(exc, MissingProviderConfigurationError):
             raise ServiceError(code, message, 409) from exc
+        if isinstance(exc, AgentProviderRequestError):
+            raise ServiceError(code, message, 503 if exc.retryable else 502) from exc
+        if isinstance(exc, AgentProviderResponseError):
+            raise ServiceError(code, message, 502) from exc
         if isinstance(exc, AgentProviderError):
             raise ServiceError(code, message, 500) from exc
         raise ServiceError("agent_output_validation_failed", message, 500) from exc

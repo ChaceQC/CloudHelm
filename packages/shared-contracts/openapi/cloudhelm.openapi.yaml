@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: CloudHelm Platform API
   description: CloudHelm 平台 API。M5 提供真实数据库驱动的任务编排、审批、事件和受控本地 Tool Gateway。
-  version: 0.4.1
+  version: 0.4.2
 paths:
   /health:
     get:
@@ -123,10 +123,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -301,10 +304,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -663,10 +669,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -965,10 +974,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -1210,10 +1222,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -1392,10 +1407,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -1574,10 +1592,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -1873,10 +1894,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -2118,10 +2142,13 @@ paths:
         schema:
           anyOf:
           - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
           - type: 'null'
-          description: offset cursor。
+          description: 非负十进制 offset cursor。
           title: Cursor
-        description: offset cursor。
+        description: 非负十进制 offset cursor。
       responses:
         '200':
           description: Successful Response
@@ -3575,6 +3602,7 @@ components:
       title: TechnicalDesignRead
       description: 技术设计响应结构。
     ToolCallCreate:
+      additionalProperties: false
       properties:
         agent_run_id:
           anyOf:
@@ -3665,7 +3693,9 @@ components:
       description: '开发/内部联调用 ToolCall 创建请求体。
 
 
-        M2 仅记录工具调用元数据和参数摘要，不执行真实工具调用。'
+        M2 仅记录工具调用元数据和参数摘要，不执行真实工具调用。审计字段由
+
+        服务端生成，调用方不得提交或覆盖。'
     ToolCallRead:
       properties:
         id:
@@ -3690,6 +3720,10 @@ components:
         arguments_summary:
           type: string
           title: Arguments Summary
+        audit_json:
+          additionalProperties: true
+          type: object
+          title: Audit Json
         result_json:
           anyOf:
           - additionalProperties: true
@@ -3752,6 +3786,7 @@ components:
       - tool_name
       - risk_level
       - arguments_summary
+      - audit_json
       - result_json
       - result_summary
       - stdout_summary
@@ -3767,9 +3802,9 @@ components:
       description: 'ToolCall 响应结构。
 
 
-        响应只暴露 `arguments_summary`，避免把潜在敏感参数原样展示给控制台。
+        响应只暴露 `arguments_summary` 和脱敏审计字段，避免把参数正文或凭据
 
-        完整参数仍保存在数据库，后续审计视图可按权限读取。'
+        原样展示给控制台。数据库也只保存脱敏后的参数快照。'
     ToolCallStatus:
       type: string
       enum:
@@ -3811,6 +3846,10 @@ components:
           additionalProperties: true
           type: object
           title: Arguments Schema
+        result_schema:
+          additionalProperties: true
+          type: object
+          title: Result Schema
       type: object
       required:
       - name
@@ -3821,6 +3860,7 @@ components:
       - allowed_agent_types
       - allow_system_call
       - arguments_schema
+      - result_schema
       title: ToolDeclarationRead
       description: 控制台和 Agent 可见的工具声明。
     ToolGatewayCallCreate:
@@ -3850,7 +3890,7 @@ components:
           additionalProperties: true
           type: object
           title: Arguments
-          description: 工具参数 JSON。
+          description: 工具参数 JSON；无参数工具也必须显式传入空对象。
         reason:
           type: string
           minLength: 1
@@ -3861,6 +3901,7 @@ components:
       - tool_name
       - risk_level
       - idempotency_key
+      - arguments
       - reason
       title: ToolGatewayCallCreate
       description: 执行 Tool Gateway 调用的请求体。

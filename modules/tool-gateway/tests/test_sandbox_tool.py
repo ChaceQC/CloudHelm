@@ -24,7 +24,7 @@ def _request(arguments: dict) -> ToolCallRequest:
 def test_sandbox_runs_safe_command(tmp_path: Path) -> None:
     """Sandbox Tool 能执行安全的非交互式命令。"""
 
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[tmp_path]).execute(
         _request(
             {
                 "workspace_root": str(tmp_path),
@@ -40,7 +40,7 @@ def test_sandbox_runs_safe_command(tmp_path: Path) -> None:
 def test_sandbox_reports_non_zero_exit(tmp_path: Path) -> None:
     """非零退出码应成为可追溯失败结果。"""
 
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[tmp_path]).execute(
         _request({"workspace_root": str(tmp_path), "command": ["python", "-c", "import sys; sys.exit(3)"]})
     )
     assert result.status == "failed"
@@ -50,8 +50,21 @@ def test_sandbox_reports_non_zero_exit(tmp_path: Path) -> None:
 def test_sandbox_reports_timeout(tmp_path: Path) -> None:
     """命令超时应返回 command_timeout。"""
 
-    result = create_default_gateway().execute(
+    result = create_default_gateway(allowed_workspace_roots=[tmp_path]).execute(
         _request({"workspace_root": str(tmp_path), "command": ["python", "-c", "import time; time.sleep(2)"], "timeout_seconds": 1})
     )
     assert result.status == "failed"
     assert result.error_code == "command_timeout"
+
+
+def test_sandbox_redacts_token_from_output(tmp_path: Path) -> None:
+    """命令输出中的常见 API Token 不得进入 ToolCall 摘要。"""
+
+    token = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    result = create_default_gateway(allowed_workspace_roots=[tmp_path]).execute(
+        _request({"workspace_root": str(tmp_path), "command": ["python", "-c", f"print('{token}')"]})
+    )
+
+    assert result.status == "succeeded"
+    assert token not in (result.stdout_summary or "")
+    assert "<redacted>" in (result.stdout_summary or "")

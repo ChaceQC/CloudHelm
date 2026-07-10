@@ -53,6 +53,7 @@ def create_app() -> FastAPI:
     app.state.tool_gateway = create_default_gateway(
         max_calls=settings.tool_rate_limit_calls,
         window_seconds=settings.tool_rate_limit_window_seconds,
+        allowed_workspace_roots=settings.tool_workspace_roots,
     )
 
     @app.middleware("http")

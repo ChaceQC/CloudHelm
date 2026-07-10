@@ -13,7 +13,7 @@ def test_policy_blocks_path_traversal(tmp_path: Path) -> None:
 
     outside = tmp_path.parent / "outside.txt"
     outside.write_text("secret", encoding="utf-8")
-    policy = ToolPolicy()
+    policy = ToolPolicy(allowed_workspace_roots=[tmp_path])
     with pytest.raises(PolicyError) as error:
         policy.resolve_workspace_path(tmp_path, outside)
     assert error.value.code == "path_outside_workspace"
@@ -25,7 +25,7 @@ def test_policy_blocks_sensitive_files(tmp_path: Path) -> None:
     secret = tmp_path / ".env"
     secret.write_text("TOKEN=1", encoding="utf-8")
     with pytest.raises(PolicyError) as error:
-        ToolPolicy().resolve_workspace_path(tmp_path, ".env")
+        ToolPolicy(allowed_workspace_roots=[tmp_path]).resolve_workspace_path(tmp_path, ".env")
     assert error.value.code == "path_sensitive_file"
 
 
@@ -79,5 +79,23 @@ def test_create_workspace_directories_blocks_symlink_escape(tmp_path: Path) -> N
         pytest.skip("当前 Windows 环境未允许创建目录 symlink。")
 
     with pytest.raises(PolicyError) as error:
-        ToolPolicy().create_workspace_directories(tmp_path, link / "nested")
+        ToolPolicy(allowed_workspace_roots=[tmp_path]).create_workspace_directories(tmp_path, link / "nested")
     assert error.value.code == "path_outside_workspace"
+
+
+def test_policy_denies_unconfigured_or_outside_workspace(tmp_path: Path) -> None:
+    """未配置允许根目录时默认拒绝，允许根目录也不能访问相邻路径。"""
+
+    with pytest.raises(PolicyError) as unconfigured:
+        ToolPolicy().resolve_workspace_root(tmp_path)
+    assert unconfigured.value.code == "workspace_not_allowed"
+
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    policy = ToolPolicy(allowed_workspace_roots=[allowed])
+    assert policy.resolve_workspace_root(allowed) == allowed.resolve()
+    with pytest.raises(PolicyError) as denied:
+        policy.resolve_workspace_root(outside)
+    assert denied.value.code == "workspace_not_allowed"
