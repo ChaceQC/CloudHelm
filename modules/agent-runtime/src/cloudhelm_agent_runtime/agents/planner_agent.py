@@ -7,7 +7,8 @@
 仓库只读工具。
 """
 
-from cloudhelm_agent_runtime.providers.base import StructuredAgentProvider
+from cloudhelm_agent_runtime.providers.base import ProviderConversation, StructuredAgentProvider
+from cloudhelm_agent_runtime.instructions import allowed_tools_for
 from cloudhelm_agent_runtime.schemas.development_plan import PlannerAgentInput, PlannerAgentOutput
 
 
@@ -15,19 +16,22 @@ class PlannerAgent:
     """开发计划 Agent。"""
 
     agent_type = "planner"
-    allowed_tools = (
-        "requirement.normalize",
-        "design.render_markdown",
-        "repo.read_file",
-        "repo.search_text",
-        "repo.list_files",
-    )
+    allowed_tools = allowed_tools_for(agent_type)
 
     def __init__(self, provider: StructuredAgentProvider) -> None:
         self.provider = provider
 
-    def run(self, payload: PlannerAgentInput) -> PlannerAgentOutput:
+    def run(
+        self,
+        payload: PlannerAgentInput,
+        conversation: ProviderConversation | None = None,
+    ) -> PlannerAgentOutput:
         """生成并校验开发计划输出。"""
 
-        raw = self.provider.generate(self.agent_type, payload, PlannerAgentOutput)
+        raw = self.provider.generate(
+            self.agent_type,
+            payload,
+            PlannerAgentOutput,
+            conversation=conversation,
+        )
         return PlannerAgentOutput.model_validate(raw)

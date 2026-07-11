@@ -14,6 +14,7 @@ def test_alembic_migration_creates_core_tables() -> None:
         "requirement_specs",
         "technical_designs",
         "agent_runs",
+        "agent_conversations",
         "tool_calls",
         "approval_requests",
         "event_logs",
@@ -51,3 +52,32 @@ def test_tool_calls_contains_persisted_audit_json_column() -> None:
         }
 
     assert "audit_json" in columns
+
+
+def test_agent_runs_contains_conversation_and_cache_evidence_columns() -> None:
+    """v0.4.3 必须持久化真实 conversation 和供应商 cache usage。"""
+
+    expected = {
+        "conversation_id",
+        "conversation_turn",
+        "cached_input_tokens",
+        "provider_request_count",
+        "provider_requests",
+        "provider_response_id",
+        "prompt_cache_key",
+    }
+    with get_engine().connect() as connection:
+        columns = {
+            row.column_name
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'agent_runs'
+                    """
+                )
+            )
+        }
+
+    assert expected.issubset(columns)

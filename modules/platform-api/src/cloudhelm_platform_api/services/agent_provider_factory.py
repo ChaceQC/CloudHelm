@@ -27,10 +27,15 @@ class AgentProviderFactory:
                 model_name=self.settings.llm_model,
                 api_mode=self.settings.llm_api_mode,
                 reasoning_effort=self.settings.llm_reasoning_effort,
+                reasoning_summary=self.settings.llm_reasoning_summary,
+                reasoning_context=self.settings.llm_reasoning_context,
                 max_output_tokens=self.settings.llm_max_output_tokens,
                 timeout_seconds=self.settings.llm_timeout_seconds,
                 max_attempts=self.settings.llm_max_attempts,
                 retry_backoff_seconds=self.settings.llm_retry_backoff_seconds,
+                explicit_cache_breakpoint=self.settings.llm_explicit_cache_breakpoint,
+                user_agent=self.settings.llm_user_agent,
+                originator=self.settings.llm_originator,
             )
         raise ServiceError(
             "unsupported_agent_provider",

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from cloudhelm_platform_api.core.config import get_settings
 from cloudhelm_platform_api.db.base import utc_now
 from cloudhelm_platform_api.models.approval import ApprovalRequest
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
@@ -13,14 +14,12 @@ from cloudhelm_platform_api.repositories.development_plan_repository import Deve
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.schemas.approval import ApprovalRequestCreate, ApprovalRequestRead
 from cloudhelm_platform_api.schemas.common import (
-    ApprovalStatus,
-    DevelopmentPlanStatus,
-    PageInfo,
-    PageResponse,
-    ReviewStatus,
-    TaskStatus,
+    ApprovalStatus, DevelopmentPlanStatus, PageInfo, PageResponse,
+    ReviewStatus, TaskStatus,
 )
 from cloudhelm_platform_api.services.base import BaseService
+from cloudhelm_platform_api.services.agent_context_messages import append_approval_decision_context
+from cloudhelm_platform_api.services.agent_conversation_service import AgentConversationService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
 from cloudhelm_platform_api.services.review_invalidation_service import ReviewInvalidationService
@@ -42,6 +41,7 @@ class ApprovalService(BaseService):
         self.plans = DevelopmentPlanRepository(session)
         self.events = EventService(session)
         self.review_invalidation = ReviewInvalidationService(session)
+        self.agent_conversations = AgentConversationService(session, get_settings())
 
     def create_approval(self, task_id: UUID, data: ApprovalRequestCreate) -> ApprovalRequestRead:
         """创建审批请求并写入 ApprovalRequested 事件。"""
@@ -75,8 +75,7 @@ class ApprovalService(BaseService):
         return ApprovalRequestRead.model_validate(self._require_approval(approval_id))
 
     def list_approvals(
-        self,
-        limit: int,
+        self, limit: int,
         cursor: str | None,
         status: ApprovalStatus | None = None,
         task_id: UUID | None = None,
@@ -105,6 +104,14 @@ class ApprovalService(BaseService):
             {"approval_id": str(approval.id), "reason": reason, "action": approval.action, **resource_payload},
             approval.task_id,
         )
+        append_approval_decision_context(
+            self.agent_conversations,
+            approval,
+            status="approved",
+            actor_id=actor_id,
+            reason=reason,
+            resource_payload=resource_payload,
+        )
         self.commit()
         return ApprovalRequestRead.model_validate(approval)
 
@@ -123,6 +130,14 @@ class ApprovalService(BaseService):
             actor_id,
             {"approval_id": str(approval.id), "reason": reason, "action": approval.action, **resource_payload},
             approval.task_id,
+        )
+        append_approval_decision_context(
+            self.agent_conversations,
+            approval,
+            status="rejected",
+            actor_id=actor_id,
+            reason=reason,
+            resource_payload=resource_payload,
         )
         self.commit()
         return ApprovalRequestRead.model_validate(approval)

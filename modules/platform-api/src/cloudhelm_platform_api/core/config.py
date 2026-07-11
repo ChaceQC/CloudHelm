@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.4.2", description="当前服务版本。")
+    version: str = Field(default="0.4.3", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",
@@ -77,8 +77,16 @@ class Settings(BaseSettings):
         description="外部模型 API 模式；GPT-5.6 类推理模型优先使用 Responses API。",
     )
     llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"] = Field(
-        default="max",
-        description="OpenAI 推理强度；用户指定 gpt-5.6-sol 时使用 max。",
+        default="xhigh",
+        description="OpenAI 推理强度；当前 gpt-5.6-sol 真实流程固定使用 xhigh，同时保留 max 兼容值。",
+    )
+    llm_reasoning_summary: Literal["auto", "concise", "detailed"] | None = Field(
+        default="auto",
+        description="Responses reasoning summary 模式；隐藏思维链仍只以 encrypted content 回放。",
+    )
+    llm_reasoning_context: Literal["current_turn", "all_turns"] | None = Field(
+        default="all_turns",
+        description="Responses 多轮 reasoning 上下文；root/child conversation 各自独立。",
     )
     llm_max_output_tokens: int = Field(
         default=32768,
@@ -103,6 +111,36 @@ class Settings(BaseSettings):
         ge=0,
         le=60,
         description="外部模型重试的初始退避秒数，后续按 2 的幂增长。",
+    )
+    llm_explicit_cache_breakpoint: bool = Field(
+        default=False,
+        description=(
+            "是否发送 Responses 显式 Prompt Cache 协议："
+            "prompt_cache_options.mode=explicit 与 prompt_cache_breakpoint；"
+            "仅对明确支持该协议的端点启用。"
+        ),
+    )
+    llm_user_agent: str = Field(
+        default="codex_cli_rs/0.0.0 (CloudHelm)",
+        min_length=1,
+        description="外部模型 HTTP User-Agent；Codex 路由兼容端点需要 codex_cli_rs 标识。",
+    )
+    llm_originator: str = Field(
+        default="codex_cli_rs",
+        min_length=1,
+        description="外部模型请求 originator 审计头。",
+    )
+    agent_max_subagent_depth: int = Field(
+        default=2,
+        ge=1,
+        le=8,
+        description="显式 subagent conversation 的最大树深度。",
+    )
+    agent_max_subagent_threads: int = Field(
+        default=4,
+        ge=1,
+        le=32,
+        description="单个 Task 同时 active 的最大子 Agent 会话数。",
     )
     cors_origins: list[str] = Field(
         default=["http://127.0.0.1:5173", "http://localhost:5173"],

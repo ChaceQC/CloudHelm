@@ -1,6 +1,6 @@
 [project]
 name = "cloudhelm-agent-runtime"
-version = "0.3.1"
+version = "0.3.2"
 description = "CloudHelm M4 Agent 结构化输出运行时。"
 readme = "README.md"
 requires-python = ">=3.12"

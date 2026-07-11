@@ -5,6 +5,7 @@ Alembic env 会导入该模块以注册所有表 metadata。新增模型时必�
 """
 
 from cloudhelm_platform_api.db.base import Base
+from cloudhelm_platform_api.models.agent_conversation import AgentConversation
 from cloudhelm_platform_api.models.agent_run import AgentRun
 from cloudhelm_platform_api.models.approval import ApprovalRequest
 from cloudhelm_platform_api.models.design import TechnicalDesign
@@ -17,6 +18,7 @@ from cloudhelm_platform_api.models.tool_call import ToolCall
 
 __all__ = [
     "AgentRun",
+    "AgentConversation",
     "ApprovalRequest",
     "Base",
     "DevelopmentPlan",

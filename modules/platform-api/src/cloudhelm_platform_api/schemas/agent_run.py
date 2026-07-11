@@ -30,11 +30,24 @@ class AgentRunCreate(BaseModel):
     cost_usd: Decimal = Field(default=Decimal("0"), ge=0, description="估算成本。")
 
 
+class ProviderRequestUsageRead(BaseModel):
+    """一次真实供应商请求的 token/cache usage。"""
+
+    response_id: str | None = Field(description="供应商 response ID。")
+    prompt_cache_key: str | None = Field(description="本次请求使用的缓存路由键。")
+    input_tokens: int = Field(ge=0, description="本次请求输入 token。")
+    cached_input_tokens: int = Field(ge=0, description="本次请求真实缓存 token。")
+    output_tokens: int = Field(ge=0, description="本次请求输出 token。")
+    cache_hit: bool = Field(description="是否由 cached_input_tokens > 0 推导命中。")
+
+
 class AgentRunRead(OrmModel):
     """AgentRun 响应结构。"""
 
     id: UUID
     task_id: UUID
+    conversation_id: UUID | None
+    conversation_turn: int | None
     agent_type: str
     status: AgentRunStatus
     model_name: str | None
@@ -46,6 +59,11 @@ class AgentRunRead(OrmModel):
     error_message: str | None
     input_tokens: int
     output_tokens: int
+    cached_input_tokens: int
+    provider_request_count: int
+    provider_requests: list[ProviderRequestUsageRead]
+    provider_response_id: str | None
+    prompt_cache_key: str | None
     cost_usd: Decimal
     started_at: datetime
     finished_at: datetime | None

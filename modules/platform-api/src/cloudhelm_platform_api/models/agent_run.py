@@ -24,6 +24,7 @@ class AgentRun(UUIDPrimaryKeyMixin, Base):
     __table_args__ = (
         Index("ix_agent_runs_task_status", "task_id", "status"),
         Index("ix_agent_runs_started_at", "started_at"),
+        Index("ix_agent_runs_conversation_turn", "conversation_id", "conversation_turn"),
     )
 
     task_id: Mapped[UUID] = mapped_column(
@@ -31,6 +32,15 @@ class AgentRun(UUIDPrimaryKeyMixin, Base):
         ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=False,
         comment="所属任务 ID。",
+    )
+    conversation_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agent_conversations.id", ondelete="SET NULL"),
+        comment="本次运行所属 root 或显式 subagent conversation。",
+    )
+    conversation_turn: Mapped[int | None] = mapped_column(
+        Integer,
+        comment="本次成功输出提交后的 conversation turn。",
     )
     agent_type: Mapped[str] = mapped_column(Text, nullable=False, comment="Agent 类型。")
     status: Mapped[str] = mapped_column(Text, nullable=False, comment="运行状态。")
@@ -46,6 +56,32 @@ class AgentRun(UUIDPrimaryKeyMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text, comment="失败错误信息。")
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cached_input_tokens: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="供应商 usage 返回的真实缓存输入 token。",
+    )
+    provider_request_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="本次 AgentRun 内已完成并返回 usage 的模型请求次数。",
+    )
+    provider_requests: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        comment="每次已完成供应商请求的原始 token/cache usage 证据。",
+    )
+    provider_response_id: Mapped[str | None] = mapped_column(
+        Text,
+        comment="最后一次供应商 Responses response id。",
+    )
+    prompt_cache_key: Mapped[str | None] = mapped_column(
+        Text,
+        comment="供应商 Prompt Cache 路由键。",
+    )
     cost_usd: Mapped[Decimal] = mapped_column(
         Numeric(12, 6),
         nullable=False,

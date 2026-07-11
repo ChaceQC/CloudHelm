@@ -7,7 +7,8 @@
 工具，且真实调用必须通过 Tool Gateway。
 """
 
-from cloudhelm_agent_runtime.providers.base import StructuredAgentProvider
+from cloudhelm_agent_runtime.providers.base import ProviderConversation, StructuredAgentProvider
+from cloudhelm_agent_runtime.instructions import allowed_tools_for
 from cloudhelm_agent_runtime.schemas.requirement import RequirementAgentInput, RequirementAgentOutput
 
 
@@ -15,13 +16,22 @@ class RequirementAgent:
     """需求规格化 Agent。"""
 
     agent_type = "requirement"
-    allowed_tools = ("requirement.normalize", "repo.read_file", "repo.search_text", "repo.list_files")
+    allowed_tools = allowed_tools_for(agent_type)
 
     def __init__(self, provider: StructuredAgentProvider) -> None:
         self.provider = provider
 
-    def run(self, payload: RequirementAgentInput) -> RequirementAgentOutput:
+    def run(
+        self,
+        payload: RequirementAgentInput,
+        conversation: ProviderConversation | None = None,
+    ) -> RequirementAgentOutput:
         """生成并校验需求规格输出。"""
 
-        raw = self.provider.generate(self.agent_type, payload, RequirementAgentOutput)
+        raw = self.provider.generate(
+            self.agent_type,
+            payload,
+            RequirementAgentOutput,
+            conversation=conversation,
+        )
         return RequirementAgentOutput.model_validate(raw)

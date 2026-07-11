@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from cloudhelm_platform_api.core.config import get_settings
 from cloudhelm_platform_api.db.base import utc_now
 from cloudhelm_platform_api.models.design import TechnicalDesign
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
@@ -14,6 +15,8 @@ from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.schemas.common import ApprovalStatus, PageInfo, PageResponse, ReviewStatus, TaskStatus
 from cloudhelm_platform_api.schemas.design import TechnicalDesignCreate, TechnicalDesignRead
 from cloudhelm_platform_api.services.base import BaseService
+from cloudhelm_platform_api.services.agent_context_messages import approval_context_item
+from cloudhelm_platform_api.services.agent_conversation_service import AgentConversationService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
 from cloudhelm_platform_api.services.review_invalidation_service import ReviewInvalidationService
@@ -33,6 +36,7 @@ class DesignService(BaseService):
         self.approvals = ApprovalRepository(session)
         self.events = EventService(session)
         self.review_invalidation = ReviewInvalidationService(session)
+        self.agent_conversations = AgentConversationService(session, get_settings())
 
     def create_design(self, task_id: UUID, data: TechnicalDesignCreate) -> TechnicalDesignRead:
         """为任务创建技术设计并写入事件。"""
@@ -140,6 +144,16 @@ class DesignService(BaseService):
         )
         if task is not None:
             self._move_task_to_phase(task, "Planning", reason or "技术设计已通过。", actor_id)
+        self.agent_conversations.append_root_context_if_exists(
+            design.task_id,
+            approval_context_item(
+                action="approve_technical_design",
+                status="approved",
+                actor_id=actor_id,
+                reason=reason,
+                resource={"technical_design_id": str(design.id)},
+            ),
+        )
         self.commit()
         return TechnicalDesignRead.model_validate(design)
 
@@ -174,6 +188,16 @@ class DesignService(BaseService):
             actor_id,
             {"design_id": str(design.id), "reason": reason},
             design.task_id,
+        )
+        self.agent_conversations.append_root_context_if_exists(
+            design.task_id,
+            approval_context_item(
+                action="approve_technical_design",
+                status="changes_requested",
+                actor_id=actor_id,
+                reason=reason,
+                resource={"technical_design_id": str(design.id)},
+            ),
         )
         self.commit()
         return TechnicalDesignRead.model_validate(design)

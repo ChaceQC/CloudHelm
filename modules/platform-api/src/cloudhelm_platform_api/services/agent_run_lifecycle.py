@@ -5,12 +5,15 @@
 """
 
 from decimal import Decimal
+from uuid import UUID
 
 from cloudhelm_agent_runtime.providers import (
     AgentProviderError,
     AgentProviderRequestError,
     AgentProviderResponseError,
     MissingProviderConfigurationError,
+    ProviderCallMetadata,
+    ProviderConversation,
 )
 
 from cloudhelm_platform_api.core.config import Settings
@@ -76,19 +79,70 @@ class AgentRunLifecycle(BaseService):
         )
         return agent_run
 
-    def complete(self, agent_run: AgentRun, summary: str, output_type: str, output_json: dict) -> None:
+    def complete(
+        self,
+        agent_run: AgentRun,
+        summary: str,
+        output_type: str,
+        output_json: dict,
+        provider_metadata: ProviderCallMetadata | None = None,
+        conversation: ProviderConversation | None = None,
+    ) -> None:
         """标记 AgentRun 成功并写入完成事件。"""
 
         agent_run.status = AgentRunStatus.SUCCEEDED.value
         agent_run.summary = summary
         agent_run.structured_output_type = output_type
         agent_run.structured_output_json = output_json
+        if conversation is not None:
+            agent_run.conversation_id = UUID(conversation.conversation_id)
+            agent_run.conversation_turn = conversation.turn_count
+        if provider_metadata is not None:
+            agent_run.input_tokens = provider_metadata.input_tokens
+            agent_run.output_tokens = provider_metadata.output_tokens
+            agent_run.cached_input_tokens = provider_metadata.cached_input_tokens
+            agent_run.provider_request_count = provider_metadata.request_count
+            agent_run.provider_requests = [
+                usage.to_json()
+                for usage in provider_metadata.request_usages
+            ]
+            agent_run.provider_response_id = provider_metadata.response_id
+            agent_run.prompt_cache_key = provider_metadata.prompt_cache_key
         agent_run.finished_at = utc_now()
+        cache_payload = (
+            {
+                "prompt_cache_key": provider_metadata.prompt_cache_key,
+                "cached_input_tokens": provider_metadata.cached_input_tokens,
+                "cache_hit": provider_metadata.cached_input_tokens > 0,
+                "provider_response_id": provider_metadata.response_id,
+                "provider_request_count": provider_metadata.request_count,
+                "requests": [
+                    usage.to_json()
+                    for usage in provider_metadata.request_usages
+                ],
+            }
+            if provider_metadata is not None
+            else None
+        )
         self.events.record(
             "AgentRunCompleted",
             "agent",
             str(agent_run.id),
-            {"agent_run_id": str(agent_run.id), "agent_type": agent_run.agent_type, "summary": summary},
+            {
+                "agent_run_id": str(agent_run.id),
+                "agent_type": agent_run.agent_type,
+                "summary": summary,
+                "input_tokens": agent_run.input_tokens,
+                "output_tokens": agent_run.output_tokens,
+                "cached_input_tokens": agent_run.cached_input_tokens,
+                "conversation_id": (
+                    str(agent_run.conversation_id)
+                    if agent_run.conversation_id
+                    else None
+                ),
+                "conversation_turn": agent_run.conversation_turn,
+                "cache": cache_payload,
+            },
             agent_run.task_id,
         )
 

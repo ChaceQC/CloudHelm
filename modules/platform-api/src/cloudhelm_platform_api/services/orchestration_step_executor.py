@@ -20,6 +20,7 @@ from cloudhelm_platform_api.repositories.development_plan_repository import Deve
 from cloudhelm_platform_api.repositories.requirement_repository import RequirementRepository
 from cloudhelm_platform_api.schemas.common import DevelopmentPlanStatus, ReviewStatus
 from cloudhelm_platform_api.services.agent_provider_factory import AgentProviderFactory
+from cloudhelm_platform_api.services.agent_conversation_service import AgentConversationService
 from cloudhelm_platform_api.services.agent_run_lifecycle import AgentRunLifecycle
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
@@ -29,50 +30,75 @@ class OrchestrationStepExecutor:
     """执行 M4 三类 Agent 步骤并返回新产物。"""
 
     def __init__(self, session, provider_factory: AgentProviderFactory, lifecycle: AgentRunLifecycle) -> None:
+        self.session = session
         self.requirements = RequirementRepository(session)
         self.designs = DesignRepository(session)
         self.plans = DevelopmentPlanRepository(session)
         self.events = EventService(session)
         self.provider_factory = provider_factory
         self.lifecycle = lifecycle
+        self.conversations = AgentConversationService(
+            session,
+            provider_factory.settings,
+        )
 
     def run_requirement(self, task: Task) -> tuple[AgentRun, RequirementSpec]:
         """运行 Requirement Agent 并创建已校验需求规格。"""
 
         agent_run = self.lifecycle.start(task, "requirement")
         try:
-            output = RequirementAgent(self.provider_factory.create()).run(
-                RequirementAgentInput(
-                    task_id=task.id,
-                    project_id=task.project_id,
-                    title=task.title,
-                    description=task.description,
-                    source_type=task.source_type,
-                    source_ref=task.source_ref,
-                    risk_level=AgentRiskLevel(task.risk_level),
+            with self.session.begin_nested():
+                provider = self.provider_factory.create()
+                conversation_record, conversation = self.conversations.load_or_create_root(
+                    task,
+                    provider_name=provider.name,
+                    model_name=provider.model_name,
                 )
-            )
-            requirement = self.requirements.create(
-                RequirementSpec(
-                    task_id=task.id,
-                    project_id=task.project_id,
-                    source_type="agent",
-                    raw_input=output.raw_input,
-                    user_story=output.user_story,
-                    constraints_json=[item.model_dump(mode="json") for item in output.constraints],
-                    acceptance_criteria_json=[item.model_dump(mode="json") for item in output.acceptance_criteria],
-                    status=ReviewStatus.APPROVED.value,
-                    version=self._next_version(self.requirements.latest_by_task(task.id)),
+                output = RequirementAgent(provider).run(
+                    RequirementAgentInput(
+                        task_id=task.id,
+                        project_id=task.project_id,
+                        title=task.title,
+                        description=task.description,
+                        source_type=task.source_type,
+                        source_ref=task.source_ref,
+                        risk_level=AgentRiskLevel(task.risk_level),
+                    ),
+                    conversation=conversation,
                 )
-            )
-            self.lifecycle.complete(agent_run, output.summary, "requirement_agent_output", output.model_dump(mode="json"))
-            self.events.record(
-                "RequirementSpecCreated",
-                "agent",
-                str(agent_run.id),
-                {"requirement_id": str(requirement.id), "task_id": str(task.id), "source": "requirement_agent"},
-                task.id,
-            )
+                requirement = self.requirements.create(
+                    RequirementSpec(
+                        task_id=task.id,
+                        project_id=task.project_id,
+                        source_type="agent",
+                        raw_input=output.raw_input,
+                        user_story=output.user_story,
+                        constraints_json=[item.model_dump(mode="json") for item in output.constraints],
+                        acceptance_criteria_json=[item.model_dump(mode="json") for item in output.acceptance_criteria],
+                        status=ReviewStatus.APPROVED.value,
+                        version=self._next_version(self.requirements.latest_by_task(task.id)),
+                    )
+                )
+                self.lifecycle.complete(
+                    agent_run,
+                    output.summary,
+                    "requirement_agent_output",
+                    output.model_dump(mode="json"),
+                    provider.last_call_metadata,
+                    conversation,
+                )
+                self.conversations.save_turn(
+                    conversation_record,
+                    conversation,
+                    provider.last_call_metadata,
+                )
+                self.events.record(
+                    "RequirementSpecCreated",
+                    "agent",
+                    str(agent_run.id),
+                    {"requirement_id": str(requirement.id), "task_id": str(task.id), "source": "requirement_agent"},
+                    task.id,
+                )
             return agent_run, requirement
         except Exception as exc:
             self.lifecycle.fail(task, agent_run, exc)
@@ -88,41 +114,61 @@ class OrchestrationStepExecutor:
             raise ServiceError("requirement_not_approved", "需求规格通过后才能运行 Architect。", 409)
         agent_run = self.lifecycle.start(task, "architect")
         try:
-            output = ArchitectAgent(self.provider_factory.create()).run(
-                ArchitectAgentInput(
-                    task_id=task.id,
-                    project_id=task.project_id,
-                    requirement_spec_id=requirement.id,
-                    title=task.title,
-                    user_story=requirement.user_story or requirement.raw_input,
-                    acceptance_criteria=[AcceptanceCriterion.model_validate(item) for item in requirement.acceptance_criteria_json],
-                    constraints=[RequirementConstraint.model_validate(item) for item in requirement.constraints_json],
-                    task_risk_level=AgentRiskLevel(task.risk_level),
+            with self.session.begin_nested():
+                provider = self.provider_factory.create()
+                conversation_record, conversation = self.conversations.load_or_create_root(
+                    task,
+                    provider_name=provider.name,
+                    model_name=provider.model_name,
                 )
-            )
-            design = self.designs.create(
-                TechnicalDesign(
-                    task_id=task.id,
-                    requirement_spec_id=requirement.id,
-                    design_type="m4-agent-design",
-                    content_markdown=output.content_markdown,
-                    openapi_json=output.openapi_json,
-                    db_schema_json=output.db_schema_json,
-                    mermaid_diagram=output.mermaid_diagram,
-                    risk_level=output.risk_level.value,
-                    status=ReviewStatus.DRAFT.value if output.approval_recommended else ReviewStatus.APPROVED.value,
-                    created_by_agent_run_id=agent_run.id,
-                    version=self._next_version(self.designs.latest_by_task(task.id)),
+                output = ArchitectAgent(provider).run(
+                    ArchitectAgentInput(
+                        task_id=task.id,
+                        project_id=task.project_id,
+                        requirement_spec_id=requirement.id,
+                        title=task.title,
+                        user_story=requirement.user_story or requirement.raw_input,
+                        acceptance_criteria=[AcceptanceCriterion.model_validate(item) for item in requirement.acceptance_criteria_json],
+                        constraints=[RequirementConstraint.model_validate(item) for item in requirement.constraints_json],
+                        task_risk_level=AgentRiskLevel(task.risk_level),
+                    ),
+                    conversation=conversation,
                 )
-            )
-            self.lifecycle.complete(agent_run, output.summary, "architect_agent_output", output.model_dump(mode="json"))
-            self.events.record(
-                "TechnicalDesignCreated",
-                "agent",
-                str(agent_run.id),
-                {"design_id": str(design.id), "requirement_id": str(requirement.id), "risk_level": design.risk_level},
-                task.id,
-            )
+                design = self.designs.create(
+                    TechnicalDesign(
+                        task_id=task.id,
+                        requirement_spec_id=requirement.id,
+                        design_type="m4-agent-design",
+                        content_markdown=output.content_markdown,
+                        openapi_json=output.openapi_json,
+                        db_schema_json=output.db_schema_json,
+                        mermaid_diagram=output.mermaid_diagram,
+                        risk_level=output.risk_level.value,
+                        status=ReviewStatus.DRAFT.value if output.approval_recommended else ReviewStatus.APPROVED.value,
+                        created_by_agent_run_id=agent_run.id,
+                        version=self._next_version(self.designs.latest_by_task(task.id)),
+                    )
+                )
+                self.lifecycle.complete(
+                    agent_run,
+                    output.summary,
+                    "architect_agent_output",
+                    output.model_dump(mode="json"),
+                    provider.last_call_metadata,
+                    conversation,
+                )
+                self.conversations.save_turn(
+                    conversation_record,
+                    conversation,
+                    provider.last_call_metadata,
+                )
+                self.events.record(
+                    "TechnicalDesignCreated",
+                    "agent",
+                    str(agent_run.id),
+                    {"design_id": str(design.id), "requirement_id": str(requirement.id), "risk_level": design.risk_level},
+                    task.id,
+                )
             return agent_run, design, output
         except Exception as exc:
             self.lifecycle.fail(task, agent_run, exc)
@@ -138,37 +184,57 @@ class OrchestrationStepExecutor:
             raise ServiceError("technical_design_not_approved", "技术设计通过后才能生成开发计划。", 409)
         agent_run = self.lifecycle.start(task, "planner")
         try:
-            output = PlannerAgent(self.provider_factory.create()).run(
-                PlannerAgentInput(
-                    task_id=task.id,
-                    project_id=task.project_id,
-                    technical_design_id=design.id,
-                    title=task.title,
-                    design_summary=design.content_markdown,
-                    risk_level=AgentRiskLevel(design.risk_level),
+            with self.session.begin_nested():
+                provider = self.provider_factory.create()
+                conversation_record, conversation = self.conversations.load_or_create_root(
+                    task,
+                    provider_name=provider.name,
+                    model_name=provider.model_name,
                 )
-            )
-            plan = self.plans.create(
-                DevelopmentPlan(
-                    task_id=task.id,
-                    project_id=task.project_id,
-                    technical_design_id=design.id,
-                    summary=output.summary,
-                    steps_json=[item.model_dump(mode="json") for item in output.steps],
-                    risks_json=[item.model_dump(mode="json") for item in output.risks],
-                    status=DevelopmentPlanStatus.READY_FOR_REVIEW.value,
-                    created_by_agent_run_id=agent_run.id,
-                    version=self._next_version(self.plans.latest_by_task(task.id)),
+                output = PlannerAgent(provider).run(
+                    PlannerAgentInput(
+                        task_id=task.id,
+                        project_id=task.project_id,
+                        technical_design_id=design.id,
+                        title=task.title,
+                        design_summary=design.content_markdown,
+                        risk_level=AgentRiskLevel(design.risk_level),
+                    ),
+                    conversation=conversation,
                 )
-            )
-            self.lifecycle.complete(agent_run, output.summary, "planner_agent_output", output.model_dump(mode="json"))
-            self.events.record(
-                "DevelopmentPlanCreated",
-                "agent",
-                str(agent_run.id),
-                {"development_plan_id": str(plan.id), "technical_design_id": str(design.id)},
-                task.id,
-            )
+                plan = self.plans.create(
+                    DevelopmentPlan(
+                        task_id=task.id,
+                        project_id=task.project_id,
+                        technical_design_id=design.id,
+                        summary=output.summary,
+                        steps_json=[item.model_dump(mode="json") for item in output.steps],
+                        risks_json=[item.model_dump(mode="json") for item in output.risks],
+                        status=DevelopmentPlanStatus.READY_FOR_REVIEW.value,
+                        created_by_agent_run_id=agent_run.id,
+                        version=self._next_version(self.plans.latest_by_task(task.id)),
+                    )
+                )
+                self.lifecycle.complete(
+                    agent_run,
+                    output.summary,
+                    "planner_agent_output",
+                    output.model_dump(mode="json"),
+                    provider.last_call_metadata,
+                    conversation,
+                )
+                self.conversations.save_turn(
+                    conversation_record,
+                    conversation,
+                    provider.last_call_metadata,
+                )
+                self.events.record(
+                    "DevelopmentPlanCreated",
+                    "agent",
+                    str(agent_run.id),
+                    {"development_plan_id": str(plan.id), "technical_design_id": str(design.id)},
+                    task.id,
+                )
             return agent_run, plan
         except Exception as exc:
             self.lifecycle.fail(task, agent_run, exc)
