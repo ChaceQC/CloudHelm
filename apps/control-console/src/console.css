@@ -64,10 +64,10 @@
 .task-card.selected .tiny-button { border-color: #b7ccef; background: rgb(255 255 255 / 55%); }
 
 .detail-panel {
-  width: min(100%, 1040px);
+  width: min(100%, 1160px);
   min-height: 100%;
   margin: 0 auto;
-  padding: 26px 34px 80px;
+  padding: 30px 38px 88px;
 }
 
 .detail-panel > .section-heading {
@@ -106,6 +106,79 @@
 .welcome-state p:last-child { max-width: 560px; color: var(--muted); font-size: 15px; line-height: 1.7; }
 
 .detail-description { max-width: 840px; margin: 11px 0 20px; color: var(--text-soft); font-size: 14px; line-height: 1.7; }
+.task-hero {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  padding: 25px 26px 22px;
+  border: 1px solid #e1e6ee;
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 96%), rgb(248 251 255 / 92%)),
+    var(--surface);
+  box-shadow: 0 8px 30px rgb(60 64 67 / 7%);
+}
+.task-hero::after {
+  position: absolute;
+  top: -110px;
+  right: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(177 205 252 / 38%), rgb(221 206 250 / 18%) 52%, transparent 70%);
+  content: "";
+  pointer-events: none;
+}
+.task-hero-heading {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.task-hero-heading h2 {
+  max-width: 780px;
+  color: #202124;
+  font-size: clamp(24px, 3.2vw, 36px);
+  font-weight: 400;
+  letter-spacing: -.035em;
+  line-height: 1.18;
+}
+.task-hero .detail-description {
+  position: relative;
+  z-index: 1;
+  max-width: 880px;
+  margin: 0;
+}
+.task-metric-strip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}
+.task-metric-strip > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgb(217 225 237 / 80%);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 72%);
+}
+.task-metric-strip dt {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.task-metric-strip dd {
+  color: #26364a;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
 .meta-grid, .health-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

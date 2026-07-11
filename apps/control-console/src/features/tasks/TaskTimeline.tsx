@@ -1,5 +1,6 @@
 import { formatDateTime, formatJson } from '../../shared/api/formatters'
 import type { AgentRun, EventLog } from '../../shared/types/api'
+import { AgentRunCard } from './AgentRunCard'
 
 interface TaskTimelineProps {
   agentRuns: AgentRun[]
@@ -22,37 +23,37 @@ const streamStatusLabel: Record<TaskTimelineProps['streamStatus'], string> = {
  * 这些记录渲染成“自动 Agent 已执行”的结论。
  */
 export function TaskTimeline({ agentRuns, events, streamStatus }: TaskTimelineProps) {
+  const orderedAgentRuns = [...agentRuns].sort((left, right) => {
+    const leftTurn = left.conversation_turn ?? Number.MAX_SAFE_INTEGER
+    const rightTurn = right.conversation_turn ?? Number.MAX_SAFE_INTEGER
+    return leftTurn - rightTurn
+  })
+
   return (
-    <section className="sub-panel" aria-labelledby="timeline-title">
+    <section className="sub-panel timeline-panel" aria-labelledby="timeline-title">
       <div className="inline-heading">
-        <h3 id="timeline-title">Agent Timeline / Event Log</h3>
+        <div>
+          <p className="eyebrow">运行证据</p>
+          <h3 id="timeline-title">Agent Timeline</h3>
+        </div>
         <span className="stream-chip">SSE：{streamStatusLabel[streamStatus]}</span>
       </div>
-      <p className="muted">M2 SSE 回放当前事件并追加 heartbeat；控制台会自动重连、按事件 ID 去重并刷新 Timeline。</p>
+      <p className="muted">每个角色仍属于同一 Task 主会话；缓存数字来自供应商 usage，格式修复重试会逐请求展开。</p>
 
-      <div className="split-grid">
-        <div>
-          <h4>Agent Runs</h4>
-          {agentRuns.length === 0 ? <p className="empty-state">暂无真实 AgentRun 记录。</p> : null}
-          {agentRuns.map((run) => (
-            <article className="record-card" key={run.id}>
-              <strong>{run.agent_type}</strong>
-              <span>{run.status}</span>
-              <small>
-                {formatDateTime(run.started_at)} - {formatDateTime(run.finished_at)}
-              </small>
-              <small>
-                tokens: {run.input_tokens}/{run.output_tokens} · cost: {run.cost_usd}
-              </small>
-              {run.summary !== null ? <small>summary: {run.summary}</small> : null}
-              {run.structured_output_type !== null ? <small>output: {run.structured_output_type}</small> : null}
-              {run.error_code !== null ? <small className="error-text">error: {run.error_code}</small> : null}
-            </article>
-          ))}
+      <div className="timeline-layout">
+        <div className="agent-run-list">
+          {orderedAgentRuns.length === 0 ? <p className="empty-state">暂无真实 AgentRun 记录。</p> : null}
+          {orderedAgentRuns.map((run) => <AgentRunCard key={run.id} run={run} />)}
         </div>
 
-        <div>
-          <h4>Event Log</h4>
+        <aside className="event-log-panel" aria-label="任务事件日志">
+          <div className="event-log-heading">
+            <div>
+              <p className="eyebrow">审计轨迹</p>
+              <h4>Event Log</h4>
+            </div>
+            <span>{events.length}</span>
+          </div>
           {events.length === 0 ? <p className="empty-state">暂无真实事件。</p> : null}
           {events.map((event) => (
             <article className="record-card event-record" key={event.id}>
@@ -64,7 +65,7 @@ export function TaskTimeline({ agentRuns, events, streamStatus }: TaskTimelinePr
               <pre>{formatJson(event.payload)}</pre>
             </article>
           ))}
-        </div>
+        </aside>
       </div>
     </section>
   )

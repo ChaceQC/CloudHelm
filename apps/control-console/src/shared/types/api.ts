@@ -152,9 +152,20 @@ export interface DevelopmentPlan {
   updated_at: string
 }
 
+export interface ProviderRequestUsage {
+  response_id: string | null
+  prompt_cache_key: string | null
+  input_tokens: number
+  cached_input_tokens: number
+  output_tokens: number
+  cache_hit: boolean
+}
+
 export interface AgentRun {
   id: string
   task_id: string
+  conversation_id: string | null
+  conversation_turn: number | null
   agent_type: string
   status: AgentRunStatus
   model_name: string | null
@@ -166,6 +177,11 @@ export interface AgentRun {
   error_message: string | null
   input_tokens: number
   output_tokens: number
+  cached_input_tokens: number
+  provider_request_count: number
+  provider_requests: ProviderRequestUsage[]
+  provider_response_id: string | null
+  prompt_cache_key: string | null
   cost_usd: string
   started_at: string
   finished_at: string | null

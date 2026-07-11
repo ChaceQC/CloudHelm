@@ -1,0 +1,207 @@
+/**
+ * Agent Timeline、逐请求缓存 usage 与事件审计布局。
+ *
+ * 本文件只负责运行证据区域，基础 token、任务详情和响应式覆盖分别位于
+ * styles.css、console.css、responsive.css。
+ */
+
+.timeline-panel { padding-top: 4px; }
+.timeline-panel > .inline-heading { align-items: flex-end; margin-bottom: 6px; }
+.timeline-panel > .muted { max-width: 760px; margin-bottom: 15px; }
+
+.timeline-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.28fr) minmax(300px, .72fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.agent-run-list { display: grid; gap: 11px; }
+
+.agent-run-card {
+  display: grid;
+  gap: 13px;
+  padding: 17px 18px;
+  border: 1px solid #e1e6ee;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 4px 18px rgb(60 64 67 / 6%);
+}
+
+.agent-run-header,
+.agent-run-header > div,
+.provider-request-heading,
+.provider-request-metrics,
+.event-log-heading {
+  display: flex;
+  align-items: center;
+}
+
+.agent-run-header,
+.provider-request-heading,
+.event-log-heading {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-run-header > div { min-width: 0; gap: 10px; }
+.agent-run-header > div > div { display: grid; min-width: 0; gap: 2px; }
+.agent-run-header strong { color: #26364a; font-size: 14px; font-weight: 600; text-transform: capitalize; }
+.agent-run-header small { color: var(--muted); font-size: 10px; }
+
+.agent-avatar {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  color: #174ea6;
+  background: linear-gradient(135deg, #d3e3fd, #ece5ff);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-usage-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--outline-soft);
+  border-radius: 16px;
+  background: var(--outline-soft);
+}
+
+.agent-usage-strip > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 10px 11px;
+  background: #fbfcff;
+}
+
+.agent-usage-strip span { color: var(--muted); font-size: 9px; }
+.agent-usage-strip strong { color: #26364a; font-size: 14px; font-weight: 600; }
+.agent-usage-strip small { color: var(--green); font-size: 9px; }
+
+.cache-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8edf5;
+}
+
+.cache-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0b57d0, #7b61c9);
+  transition: width 180ms ease;
+}
+
+.agent-run-summary { color: var(--text-soft); font-size: 12px; line-height: 1.6; }
+.agent-run-details { border-top: 1px solid var(--outline-soft); padding-top: 9px; }
+
+.agent-run-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 11px;
+  list-style: none;
+}
+
+.agent-run-details > summary::-webkit-details-marker { display: none; }
+.agent-run-details > summary span:last-child { color: var(--muted); font-size: 10px; }
+
+.provider-request-list {
+  display: grid;
+  gap: 7px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider-request-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  background: #f5f8fd;
+}
+
+.provider-request-heading { color: var(--text-soft); font-size: 10px; font-weight: 600; }
+.provider-request-metrics { flex-wrap: wrap; gap: 10px; color: var(--muted); font-family: var(--mono); font-size: 9px; }
+.provider-request-row small { color: var(--faint); font-family: var(--mono); font-size: 9px; }
+
+.cache-status {
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: #e9edf3;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cache-status.hit { color: #137333; background: var(--green-soft); }
+
+.agent-run-identifiers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.agent-run-identifiers > div { min-width: 0; }
+.agent-run-identifiers dt { color: var(--faint); font-size: 9px; }
+
+.agent-run-identifiers dd {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-log-panel {
+  display: grid;
+  gap: 8px;
+  max-height: 760px;
+  padding: 15px;
+  overflow: auto;
+  border: 1px solid #e1e6ee;
+  border-radius: 24px;
+  background: rgb(248 250 253 / 88%);
+}
+
+.event-log-heading {
+  position: sticky;
+  z-index: 2;
+  top: -15px;
+  margin: -15px -15px 3px;
+  padding: 15px;
+  background: rgb(248 250 253 / 96%);
+  backdrop-filter: blur(10px);
+}
+
+.event-log-heading > span {
+  min-width: 26px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: var(--blue);
+  background: var(--blue-soft);
+  font-family: var(--mono);
+  font-size: 9px;
+  text-align: center;
+}
+
+.event-log-panel .record-card {
+  padding: 13px 13px 13px 23px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.event-log-panel .record-card pre { max-height: 180px; font-size: 9px; }

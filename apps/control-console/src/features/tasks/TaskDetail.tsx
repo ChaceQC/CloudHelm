@@ -77,26 +77,54 @@ export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProp
 
   const { task, requirements, designs, developmentPlans, agentRuns, toolCalls, approvals, timeline, orchestration } =
     detail.data
+  const completedRuns = agentRuns.filter((run) => run.status === 'succeeded').length
+  const cachedTokens = agentRuns.reduce((total, run) => total + run.cached_input_tokens, 0)
+  const pendingApprovals = approvals.filter((approval) => approval.status === 'pending').length
+  const latestTurn = agentRuns.reduce(
+    (latest, run) => Math.max(latest, run.conversation_turn ?? 0),
+    0,
+  )
 
   return (
     <section className="panel detail-panel" aria-labelledby="task-detail-title">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">任务详情</p>
-          <h2 id="task-detail-title">{task.title}</h2>
+      <div className="task-hero">
+        <div className="task-hero-heading">
+          <div>
+            <p className="eyebrow">Task workspace</p>
+            <h2 id="task-detail-title">{task.title}</h2>
+          </div>
+          <button type="button" className="ghost-button" onClick={detail.refresh}>
+            刷新
+          </button>
         </div>
-        <button type="button" className="ghost-button" onClick={detail.refresh}>
-          刷新详情
-        </button>
+
+        <div className="detail-meta">
+          <TaskStatusBadge status={task.status} riskLevel={task.risk_level} />
+          <span>阶段：{task.current_phase}</span>
+          <span>更新：{formatDateTime(task.updated_at)}</span>
+        </div>
+        <p className="detail-description">{task.description}</p>
+
+        <dl className="task-metric-strip">
+          <div>
+            <dt>主会话 Turn</dt>
+            <dd>{latestTurn}</dd>
+          </div>
+          <div>
+            <dt>成功 Agent</dt>
+            <dd>{completedRuns}</dd>
+          </div>
+          <div>
+            <dt>缓存 Token</dt>
+            <dd>{cachedTokens.toLocaleString('zh-CN')}</dd>
+          </div>
+          <div>
+            <dt>待审批</dt>
+            <dd>{pendingApprovals}</dd>
+          </div>
+        </dl>
       </div>
 
-      <div className="detail-meta">
-        <TaskStatusBadge status={task.status} riskLevel={task.risk_level} />
-        <span>阶段：{task.current_phase}</span>
-        <span>创建：{formatDateTime(task.created_at)}</span>
-        <span>更新：{formatDateTime(task.updated_at)}</span>
-      </div>
-      <p className="detail-description">{task.description}</p>
       <dl className="meta-grid">
         <div>
           <dt>任务 ID</dt>
@@ -112,6 +140,10 @@ export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProp
         <div>
           <dt>创建者</dt>
           <dd>{task.created_by}</dd>
+        </div>
+        <div>
+          <dt>创建时间</dt>
+          <dd>{formatDateTime(task.created_at)}</dd>
         </div>
       </dl>
 
