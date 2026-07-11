@@ -83,8 +83,11 @@
 - [x] 实现 Planner Agent，输出开发任务图和风险说明。
 - [x] 定义并验证结构化输出 schema。
 - [x] 控制台支持审批或要求修改需求/方案。
+- [x] 实现每个 Task 唯一 root conversation，普通 Agent 跨 API 请求共享完整 ResponseItem 历史和同一 cache key。
+- [x] 完成 Instructions v3、encrypted reasoning、工具 call/output、审批上下文和显式 subagent 父子隔离。
+- [x] 使用 `gpt-5.6-sol` / `xhigh`、Codex User-Agent 和 HTTP SSE 通过真实五轮缓存与三角色审批完整流程。
 
-完成判定：输入真实需求后，系统能生成结构化需求、技术方案和开发计划，并进入审批状态。
+完成判定：输入真实需求后，系统能在同一 Task 主会话中生成结构化需求、技术方案和开发计划，进入并完成审批；真实供应商 usage 能证明后续 turn 命中 Prompt Cache。
 
 ### M5 Tool Gateway 与本地工具层
 
@@ -158,4 +161,4 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1、M2、M3、M4、M5 已完成。下一步执行 M6：本地代码实现、测试与 PR 闭环。详细执行计划见根目录 `PROJECT_PLAN.md`。
+当前 M0、M1、M2、M3、M4、M5 已完成，最新验证基线为 `v0.4.3`。下一步执行 M6：本地代码实现、测试与 PR 闭环。详细执行计划见根目录 `PROJECT_PLAN.md`。

@@ -2,6 +2,169 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-11（Task 主会话、真实 Prompt Cache 与 Instructions v3 纠偏完成）
+
+### 已完成
+
+- 完成 `0.4.3` Task 级 Agent conversation 纠偏：Requirement、Architect、
+  Planner 跨三个独立 `run-next` 请求加载同一个 root conversation，不再按
+  Agent 角色隐式新建模型会话。
+- 新增 `agent_conversations` ORM、repository、service 和
+  `20260711_0005_create_agent_conversations.py` migration；PostgreSQL partial
+  unique index 保证每个 Task 只有一个 root。
+- 完整持久化并回放 developer/user message、assistant final answer、
+  `reasoning.encrypted_content`、function/custom tool call/output、审批上下文
+  和 subagent notification；`store=false` 只清理不可复用 item ID。
+- AgentRun 新增 `conversation_id`、`conversation_turn`、
+  `cached_input_tokens`、`provider_request_count`、`provider_requests`、
+  `provider_response_id` 和 `prompt_cache_key`。总量和逐请求 usage 均来自
+  供应商，`cache_hit` 只由 `cached_input_tokens > 0` 推导。
+- 修复跨角色 Structured Output 缓存前缀：三个普通角色使用同一扁平
+  `cloudhelm_agent_output_v1` 传输 schema，当前角色最终仍由专属 Pydantic
+  model 严格校验；不再发送会破坏前缀的角色专属 schema。
+- 完成 Instructions v3：Base/Role/Turn/Validation/Approval/Subagent 分层。
+  Requirement、Architect、Planner Instructions 均详细覆盖输入字段权威含义、
+  处理顺序、字段精度、ID/引用、工具 allowlist、审批/风险、禁止项和完成判定。
+- 工具上下文采用 Responses function/custom call 与 output 形态，严格校验同一
+  `call_id`；副作用仍只能经 Tool Gateway、Policy 和 Approval。
+- 只有 `AgentConversationService.spawn_subagent` 可以创建 child；fresh child
+  不继承父历史，full-history 只复制 system/developer/user 和 assistant
+  final answer。child 完成只向父线程追加 `<subagent_notification>`。
+- 设计/计划审批和拒绝会向现有 root 追加结构化 `<approval_context>`，审批
+  reason 明确属于业务数据，不能覆盖 Base/Role/Tool Policy。
+- 每个 Agent 步骤增加数据库 savepoint：业务产物、成功 AgentRun、
+  conversation turn 与完成事件原子保存；晚期持久化失败会整体回滚，再单独
+  提交失败 AgentRun。新增故障注入测试证明不会留下半成品。
+- 按官方 Responses 形态修正显式缓存断点：启用时发送
+  `prompt_cache_options.mode=explicit` 与 content
+  `prompt_cache_breakpoint`，并随历史保留断点；当前兼容端点真实探测返回
+  HTTP 502，因此默认关闭，不静默降级。
+- 保持 HTTP SSE 流式传输、Codex User-Agent、originator、
+  `x-client-request-id`、session/thread headers 和 child lineage headers；
+  用户已明确不实现 WebSocket。
+- 将 Provider contracts、usage、HTTP client、stream accumulator、prompt
+  cache、request payload、local provider 和 subagent 管理按职责拆分；普通
+  生产源码均不超过 300 行。
+- 控制台继续按 Gemini 浅色主题重写，新增 AgentRun 卡片、Task 主会话 turn、
+  成功 Agent 数、总缓存 token、待审批数、每次供应商请求 usage、response ID、
+  conversation ID 和 cache key 展示。
+- 项目版本提升到 `0.4.3`，Agent Runtime 提升到 `0.3.2`，控制台 package
+  同步到 `0.4.3`；OpenAPI、事件 schema、README、Agent/API/Data/Workflow/
+  Testing 文档和资料归档已同步。
+- 新增 `informations/m4-agent-context/codex-responses-context.md`，记录 OpenAI
+  官方 Prompt Caching/Reasoning/Function Calling/Streaming 资料、Codex 源码
+  commit、源码审计结论、兼容端点能力探测和采用结论，不保存真实凭据或本机
+  临时路径。
+- 提交前关键 diff 复核发现拆分后的 `local_structured.py` 返回类型使用
+  `Any` 但缺少显式 import；已补齐类型依赖，不改变运行行为。
+
+### 进行中
+
+- 本轮 Task conversation、Instructions、真实缓存、完整流程和控制台验收已完成。
+- 下一阶段按已重写的 `PROJECT_PLAN.md` 执行 M6 本地代码实现、测试与等价
+  PR 闭环。
+
+### 阻塞与风险
+
+- 当前兼容端点不支持官方显式 Prompt Cache breakpoint，真实请求返回 HTTP
+  502；默认自动缓存已经稳定命中，因此保持配置关闭。
+- Platform API 仍有 1 条 Starlette TestClient/httpx 弃用提示，不影响结果，
+  M6 查阅当前迁移建议后处理。
+- 上下文当前保存完整 ResponseItem；达到模型窗口前需要另立 compaction /
+  truncation 设计，不能静默丢弃历史。
+- Sandbox Tool 仍为本地受控 `subprocess`，Docker 资源与网络隔离属于 M6
+  前置设计。
+
+### 下一步
+
+- 创建 `informations/m6-code-test-pr/official-references.md` 和 M6 本地开发流程
+  细化设计，先确定 Sandbox/Docker 取舍。
+- 创建 `examples/sample-repo-python`，实现真实 `/health`、`/metrics`、
+  pytest、Dockerfile 和 demo issue。
+- 扩展稳定跨角色 schema/工具定义，实现 Coder、Tester、Reviewer、Security
+  Agent，继续复用同一 Task root conversation。
+- 持久化 Artifact 和本地等价 PR record，控制台展示真实 diff、测试、安全、
+  review 和 PR 证据。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `.env.example`
+- `README.md`
+- `modules/agent-runtime/**`
+- `modules/platform-api/**`
+- `apps/control-console/**`
+- `packages/shared-contracts/**`
+- `docs/03-modules/**`
+- `docs/04-agents/**`
+- `docs/08-api/**`
+- `docs/15-detailed-design/**`
+- `informations/m4-agent-context/codex-responses-context.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+
+### 验证
+
+- `git branch --show-current` -> `dev`。
+- Agent Runtime：`uv lock --check`；`uv run pytest -q` ->
+  `25 passed, 1 skipped`。
+- Tool Gateway：`uv lock --check`；`uv run pytest -q` ->
+  `25 passed, 1 skipped`。
+- Orchestrator：`uv lock --check`；`uv run pytest -q` -> `3 passed`。
+- Platform API：执行 `alembic downgrade 20260710_0004`、`upgrade head`、
+  `alembic check`，结果 `No new upgrade operations detected`；随后
+  `uv run pytest -q` -> `49 passed, 1 skipped, 1 warning`。
+- Control Console：`npm.cmd test` -> `7 passed`；
+  `npm.cmd run build` 成功。
+- FastAPI OpenAPI 与共享 YAML 反序列化后精确一致：
+  `version=0.4.3`、`paths=34`、`schemas=43`。
+- 使用 Draft 2020-12 元 schema 递归检查共享 JSON Schema，共 `15` 份有效。
+- 真实五轮 Prompt Cache 再次通过，耗时 `187.90s`：
+
+  ```text
+  turn1 input=6511  cached=0
+  turn2 input=11453 cached=5888
+  turn3 input=16422 cached=11008
+  turn4 input=21373 cached=16128
+  turn5 input=26324 cached=21248
+  ```
+
+  五轮均为一个供应商请求、同一 conversation/key，response ID 均存在。
+- 真实完整流程
+  `Project -> Task -> Requirement -> Architect -> 设计审批 -> Planner -> 计划审批`
+  通过，耗时 `827.34s`；两次人工审批由助手按用户要求代为批准。
+- 完整流程数据库证据：
+
+  ```text
+  Requirement turn=1 requests=1 input=5363  cached=0     output=3254
+  Architect   turn=2 requests=2 input=24795 cached=15872 output=31818
+    request1 input=12026 cached=4864  output=15156
+    request2 input=12769 cached=11008 output=16662
+  Planner     turn=3 requests=1 input=30484 cached=12032 output=7084
+  ```
+
+  三个 AgentRun 的 `conversation_id` 和 `prompt_cache_key` 均唯一相同；数据库
+  只有一个 root，`turn_count=3`；两次 Approval 均为 approved；共 22 个事件，
+  其中 3 个 `AgentRunCompleted` 和 1 个 `AgentConversationCreated`。
+- 官方显式 breakpoint 单请求能力探测：当前兼容端点返回 HTTP 502；未写入
+  Key、端点地址或 prompt 正文。
+- 应用内浏览器连接真实 Platform API/Vite：
+  - 1280×720：`292px / 988px`，无水平溢出，3 个 AgentRun，逐请求证据数
+    为 `[1, 2, 1]`。
+  - 1024×768：`292px / 732px`，无水平溢出，3 个 AgentRun。
+  - 窄屏实际内容宽 360：导航和主内容纵向排列，Agent card 328px、请求行
+    290px，无水平溢出。
+  - 展开 Architect usage 后正确展示 2 个真实请求、40%/86% 缓存比例、
+    conversation/cache key/response ID。
+  - 三种视口 console error/warn 均为 0；临时 API/Vite 进程已关闭。
+- `git diff --check` 通过；真实 Key 和端点域名写入扫描均为 0。
+- 生产源码未发现 TODO、FIXME、NotImplemented、空 `pass` 或超过 300 行文件。
+- 通用 secret pattern 只命中 Tool Gateway 测试夹具中的脱敏样例。
+- 补齐 `Any` import 后再次执行 Agent Runtime `uv lock --check` 和
+  `uv run pytest -q`，结果保持 `25 passed, 1 skipped`；最终轻量门禁再次确认
+  OpenAPI 精确一致、15 份 Draft 2020-12 Schema 有效且 `git diff --check`
+  通过。
+
 ## 2026-07-11（M1-M5 二次审计修复完成与 v0.4.2）
 
 ### 已完成

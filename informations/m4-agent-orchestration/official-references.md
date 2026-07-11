@@ -19,8 +19,8 @@
 
 - 官方资料：[OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
 - 补充官方资料：[Reasoning models](https://developers.openai.com/api/docs/guides/reasoning)、[Responses API migration](https://developers.openai.com/api/docs/guides/migrate-to-responses)、[OpenAI Models](https://developers.openai.com/api/docs/models)、[Rate limits](https://developers.openai.com/api/docs/guides/rate-limits)
-- 采用结论：`modules/agent-runtime` 的 `openai_compatible` provider 默认调用 Responses API，在请求中发送可配置的 `reasoning.effort`，用户指定 `gpt-5.6-sol` 时按配置透传模型字符串并使用 `max`；旧兼容端点可切换回 Chat Completions。
-- 取舍：OpenAI 公共模型目录截至 2026-07-10 已列出 `gpt-5.6-sol`，并声明支持 `none/low/medium/high/xhigh/max` reasoning effort、Responses API 和 Chat Completions。项目仍通过环境变量选择模型，避免把外部模型和凭据硬编码进业务代码。
+- 采用结论：`modules/agent-runtime` 的 `openai_compatible` provider 默认调用 HTTP SSE Responses API，在请求中发送可配置的 `reasoning.effort`；当前用户提供的兼容端点暴露 `gpt-5.6-sol`，CloudHelm 按配置原样透传模型字符串并在真实流程使用 `xhigh`。旧兼容端点可显式切换回 Chat Completions。
+- 取舍：`gpt-5.6-sol` 作为当前兼容端点能力记录，不把它误写成 OpenAI 公共模型目录结论。项目始终通过环境变量选择模型，避免把外部模型和凭据硬编码进业务代码；Provider 类型保留 `max` 枚举值用于端点兼容，但当前验收固定为 `xhigh`。
 - 结构化输出继续由 Pydantic 二次校验；因为现有 Architect 输出含开放式 OpenAPI/DB JSON 对象，请求使用 `strict=false`，避免把不符合 OpenAI strict schema 子集的动态对象伪装成严格保证。
 - 请求层对网络错误、HTTP 408/409/429/5xx 和无效结构化响应执行有界指数退避；认证等其他 4xx 不重试，避免放大无效流量。重试耗尽后由 Platform API 记录可恢复失败并暂停 Task。
 - 当前 M4 默认仍使用 `local_structured` provider，避免在无外部模型凭据时写固定假数据。切换外部 LLM 时记录 provider、model、API mode、reasoning effort 和失败事件。

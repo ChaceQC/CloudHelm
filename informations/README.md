@@ -10,6 +10,8 @@
 informations/
 ├── m1-foundation/
 │   └── official-references.md
+├── m4-agent-context/
+│   └── codex-responses-context.md
 ├── m5-tool-gateway/
 │   └── official-references.md
 └── m7-deployment/

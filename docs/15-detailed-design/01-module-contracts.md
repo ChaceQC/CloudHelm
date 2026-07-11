@@ -163,7 +163,9 @@ flowchart LR
 ### M4 落地
 
 - `modules/agent-runtime` 已提供 Requirement、Architect、Planner Agent。
-- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 默认使用 Responses API JSON Schema 输出，支持 `reasoning.effort=max`、显式模型字符串透传、可配置 timeout/attempts/backoff，并保留 Chat Completions 兼容模式。
+- 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 使用 HTTP SSE Responses API、跨角色稳定扁平 schema、完整 root conversation、encrypted reasoning 和 Codex headers。当前真实流程透传兼容端点的 `gpt-5.6-sol` / `xhigh`，支持可配置 timeout/attempts/backoff，并保留 Chat Completions 兼容模式。
+- Requirement、Architect、Planner 以及后续普通角色复用一个 Task root conversation；只有显式 spawn 才创建 child conversation。
+- 每个成功 Agent 步骤使用数据库 savepoint，业务产物、conversation turn、AgentRun 完成状态和完成事件要么一起保留，要么全部回滚；失败记录在回滚后单独提交。
 - Agent Runtime 不写数据库、不调用工具；所有输出由 Platform API 入库前再次校验。
 
 ## 6. modules/tool-gateway

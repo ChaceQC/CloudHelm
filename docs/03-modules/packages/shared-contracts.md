@@ -7,7 +7,7 @@
 
 共享契约已同步 M2 API：
 
-- `openapi/cloudhelm.openapi.yaml`：由 `modules/platform-api` 当前 FastAPI 应用导出，版本 `0.4.2`。
+- `openapi/cloudhelm.openapi.yaml`：由 `modules/platform-api` 当前 FastAPI 应用导出，版本 `0.4.3`，包含 Agent conversation 与逐请求 Provider usage 字段。
 - `schemas/events/task-event.schema.json`：补充 M2 真实事件类型。
 - `schemas/tools/tool-risk-level.schema.json`：明确 M2 只记录 ToolCall 与 ApprovalRequest，真实 Tool Gateway 拦截后续实现。
 

@@ -15,11 +15,12 @@
 - Architect Agent：生成技术设计、OpenAPI 草案、DB schema 草案、Mermaid 和风险点。
 - Planner Agent：生成 Development Plan 任务图和风险说明。
 
-默认 provider 为 `local_structured`，基于真实任务输入规则化生成结构化草案；`openai_compatible` provider 默认通过 Responses API 请求 JSON Schema 输出，支持 `reasoning.effort=max` 和显式 `gpt-5.6-sol` 模型字符串透传，并对瞬时请求和无效结构化响应执行可配置有界重试。M4 中 Agent Runtime 不写数据库、不调用工具；可恢复错误耗尽后由 Platform API 暂停 Task。
+默认 provider 为 `local_structured`，基于真实任务输入规则化生成结构化草案；`openai_compatible` provider 通过 HTTP SSE Responses API 请求稳定扁平 JSON Schema 输出，当前真实流程透传兼容端点提供的 `gpt-5.6-sol` 与 `reasoning.effort=xhigh`。普通角色共享完整 Task root conversation，只有显式 spawn 才创建 child；瞬时请求和无效结构化响应执行可配置有界重试。M4 中 Agent Runtime 不写数据库、不直接执行工具；可恢复错误耗尽后由 Platform API 暂停 Task。
 
 ## 技术栈
 
-Python + LiteLLM + Pydantic structured output + LangGraph node。
+Python + Pydantic structured output + urllib HTTP SSE；工作流状态由
+`modules/orchestrator` 的显式状态机负责。
 
 ## 上游依赖
 

@@ -22,7 +22,9 @@
 - `run-next` 一次只推进 Requirement、Architect 或 Planner 的一个步骤。
 - 结构化输出写入 `agent_runs.structured_output_json`，并同步落到 `requirement_specs`、`technical_designs` 或 `development_plans`。
 - 缺少外部 provider 配置、结构化输出校验失败和非法状态迁移均返回统一错误结构并写入可追溯事件。
-- `openai_compatible` 默认使用 Responses API，`gpt-5.6-sol` 可配置 `reasoning.effort=max`；瞬时请求与无效结构化响应执行有界重试，耗尽后可恢复错误暂停 Task。
+- `openai_compatible` 使用 HTTP SSE Responses API；当前真实流程透传兼容端点提供的 `gpt-5.6-sol`、`reasoning.effort=xhigh`、Codex User-Agent 和 thread/session headers。瞬时请求与无效结构化响应执行有界重试，耗尽后可恢复错误暂停 Task。
+- Requirement、Architect、Planner 跨独立 `run-next` 请求复用同一 Task root conversation、同一 `prompt_cache_key` 和完整有序 ResponseItem 历史；普通角色切换不得新建会话。
+- 每个 Agent 步骤使用数据库 savepoint：业务产物、成功 AgentRun、conversation turn 和完成事件原子提交；晚期失败先回滚这些半成品，再单独记录失败 AgentRun。
 - 暂停任务不能绕过 Task API 继续 start/run-next；Planning 只复用当前最新版已批准设计对应且未被要求修改的计划。
 - 需求/设计返工会级联失效旧设计、旧计划和待审批记录；设计/计划审批只接受当前产物 AgentRun，过期审批返回 `409 stale_approval`。
 - 边界：M4 不执行 Tool Gateway、Repo/Git/Docker/SSH、PR、部署或监控动作。
@@ -334,31 +336,63 @@ Approval 失效；历史设计评审返回 `409 stale_technical_design`。批准
 
 ```json
 {
-  "data": [
+  "items": [
     {
       "id": "uuid",
+      "task_id": "uuid",
+      "conversation_id": "uuid",
+      "conversation_turn": 2,
       "agent_type": "requirement",
       "status": "succeeded",
-      "model_name": "gpt-...",
-      "input_tokens": 1200,
-      "output_tokens": 800,
+      "model_name": "gpt-5.6-sol",
+      "input_tokens": 38530,
+      "cached_input_tokens": 11008,
+      "output_tokens": 4200,
+      "provider_request_count": 2,
+      "provider_requests": [
+        {
+          "response_id": "resp_...",
+          "prompt_cache_key": "cloudhelm:uuid",
+          "input_tokens": 20000,
+          "cached_input_tokens": 6144,
+          "output_tokens": 1900,
+          "cache_hit": true
+        }
+      ],
+      "provider_response_id": "resp_...",
+      "prompt_cache_key": "cloudhelm:uuid",
       "cost_usd": "0.001200",
       "started_at": "2026-07-07T10:00:00Z",
       "finished_at": "2026-07-07T10:00:10Z"
     }
-  ]
+  ],
+  "page": {
+    "limit": 50,
+    "next_cursor": null
+  }
 }
 ```
 
 用途：
 
 - 控制台 Agent Timeline。
-- 成本统计。
+- token/cache 证据和后续成本统计。
 - 失败诊断。
 
 外部 provider 的 `AgentRunStarted` 事件记录 model、API mode、
 `reasoning_effort` 和 `max_attempts`。可恢复 provider 错误耗尽重试后，
 AgentRun 为 `failed`，Task 为 `paused`，事件 payload 的 `recoverable=true`。
+
+`input_tokens`、`cached_input_tokens` 和 `output_tokens` 是 AgentRun 内全部已完成
+供应商请求的总量；`provider_requests` 保留每次结构化修复请求的原始 usage。
+`cache_hit` 只能由该请求 `cached_input_tokens > 0` 推导，不能由 CloudHelm
+估算。普通角色的 `conversation_id` 和 `prompt_cache_key` 必须相同，
+`conversation_turn` 只在结构化输出、业务产物与事件均成功保存后递增。
+
+模型请求始终使用 `stream=true` 的 HTTP SSE，不实现 WebSocket。官方显式缓存
+断点配置启用时发送 `prompt_cache_options.mode=explicit` 和 content
+`prompt_cache_breakpoint`；当前兼容端点于 2026-07-11 的真实探测返回 HTTP
+502，因此默认关闭并依靠稳定前缀自动缓存。
 
 ## 6. Tool Call API
 

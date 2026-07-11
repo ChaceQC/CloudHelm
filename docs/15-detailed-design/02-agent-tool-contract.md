@@ -197,11 +197,59 @@ M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。Im
 
 ## 8. Prompt 与输出稳定性要求
 
-- system prompt 固定角色边界。
-- developer prompt 注入当前任务目标、约束、工具权限。
-- user/task context 只传必要上下文，避免过长。
-- 输出必须先过 JSON Schema / Pydantic 校验。
-- 校验失败时执行“修复格式”重试，不重复调用高风险工具。
+- Base Instructions 在整个 conversation 内保持完全稳定；当前角色的详细
+  Instructions 作为 developer ResponseItem 进入当前 turn。
+- Requirement、Architect、Planner 以及后续普通角色属于同一 Task root
+  conversation，不按 `agent_type` 创建新会话。
+- Responses 请求发送完整有序历史：developer/user message、assistant final
+  answer、`reasoning.encrypted_content`、function/custom tool call、匹配的
+  tool output、审批上下文和 subagent notification。
+- `store=false` 只移除不可复用 item id 和内部 metadata，不删除 message phase、
+  reasoning、call status 或 call_id。
+- Responses `text.format` 使用稳定扁平 `cloudhelm_agent_output_v1`，覆盖当前
+  三个角色全部字段；当前角色输出仍由专属 Pydantic model 严格校验。禁止按角色
+  切换 schema，因为 Structured Output schema 位于消息前缀之前，会破坏缓存。
+- 校验失败时只在当前重试追加 `<validation_repair>`，不修改 Base Instructions，
+  不提交失败尝试的 ResponseItem，也不重复调用高风险工具。
+- `prompt_cache_key` 基于 conversation ID；普通角色共用，显式 child 使用新 key。
+- `cache_hit` 只能由供应商 usage 中 `cached_input_tokens > 0` 推导。AgentRun
+  记录总量，同时用 `provider_requests` 保存每次格式修复请求的原始 usage。
+- 当前真实兼容端点支持 `reasoning.context=all_turns`、encrypted reasoning、
+  Codex headers、稳定扁平 schema 和自动缓存。官方显式断点协议启用时发送
+  `prompt_cache_options.mode=explicit` 与 content `prompt_cache_breakpoint`；
+  2026-07-11 单请求真实探测返回 HTTP 502，根级 `anyOf/$ref` schema 探测也
+  返回 502。因此两项能力不进入默认请求，且不得静默吞掉启用后的真实错误。
+
+## 8.1 Instructions 分层
+
+|层|内容|稳定性|
+|---|---|---|
+|Base Instructions|会话、可信边界、ResponseItem、输出、工具、审批、风险、subagent、真实性与完成判定|整个 conversation 固定|
+|Role Instructions|目标、输入解释、处理顺序、字段精度、allowlist、禁止项、完成判定|当前 turn 追加|
+|Turn envelope|input/output contract、Task 输入、conversation scope|当前 turn 追加|
+|Validation repair|Pydantic 错误、只允许修复的字段和禁止动作|仅失败重试追加|
+|Approval context|action/status/actor/resource/version 事实和可信边界|审批决策后追加|
+|Subagent contract|parent、role、depth、fork mode、权限和回传策略|child 创建时固定|
+
+扁平传输 schema 只是缓存稳定的跨角色字段集合，不表达当前角色的完整必填和
+嵌套约束。模型必须根据 `<role_contract>.output_contract` 输出当前角色对象，
+并由专属 Pydantic model 严格校验；不得额外包裹
+`agent_type/output/result` 或输出其他角色专属字段。
+
+## 8.2 Root 与 subagent conversation
+
+- 每个 Task 通过 partial unique index 只能有一个 root conversation。
+- root 不绑定单一 agent role；角色变化只增加 turn。
+- 只有 `spawn_subagent` 可以创建 child，并校验父会话 active、父 AgentRun
+  running、同 Task、最大深度、active 数量、非空 objective 和 expected result。
+- fresh child 不复制父历史；full-history child 只复制
+  system/developer/user message 与 assistant final answer。
+- reasoning、tool call、tool output 和内部 metadata 不跨 child fork。
+- child 完成、失败或取消时，只向父 conversation 追加
+  `<subagent_notification>`；隐藏 reasoning 不合并。
+- 每个普通 Agent 成功步骤通过数据库 savepoint 原子保存业务产物、
+  AgentRun、conversation turn 和完成事件；晚期失败回滚全部成功侧写入后再
+  单独记录失败 AgentRun。
 
 ## 9. 审计字段
 

@@ -41,6 +41,10 @@ AgentRunFailed
 DevelopmentPlanCreated
 DevelopmentPlanApproved
 DevelopmentPlanChangesRequested
+AgentConversationCreated
+SubagentSpawned
+SubagentCompleted
+SubagentStopped
 ```
 
 Requirement Agent 成功后写 `RequirementSpecCreated` 并进入 `Designing`；Architect Agent 成功后写 `TechnicalDesignCreated`，低风险进入 `Planning`，L2 及以上写 `ApprovalRequested` 并进入 `WaitingDesignApproval`；Planner Agent 成功后写 `DevelopmentPlanCreated`，并创建 `approve_development_plan` 审批请求。计划审批通过写 `DevelopmentPlanApproved`；计划被拒绝或因需求/设计返工失效时写 `DevelopmentPlanChangesRequested`。M4 不写代码、不执行工具、不部署远端环境。
@@ -55,10 +59,25 @@ Approval，并分别写入 `AgentRunCancelled`、`ToolCallCancelled`、
 `AgentRunFailed(recoverable=true)` 并暂停 Task，保留当前业务阶段。认证等
 不可重试错误进入失败状态。
 
+Requirement、Architect、Planner 的普通角色变化只增加同一 Task root
+conversation 的 turn。首次模型步骤写 `AgentConversationCreated`；只有显式
+spawn 才写 `SubagentSpawned` 并创建 child。child 完成写
+`SubagentCompleted`，失败或取消写 `SubagentStopped`；父线程只收到
+`<subagent_notification>`，不复制 child 的 encrypted reasoning 和工具历史。
+
+每个模型步骤在 `AgentRunStarted` 后开启数据库 savepoint。成功时，业务产物、
+`AgentRunCompleted`、root conversation turn 与产物事件共同释放 savepoint，
+再由 Orchestrator 提交阶段迁移；任一晚期持久化错误会回滚 savepoint，只保留
+`AgentRunStarted`，随后写 `AgentRunFailed`。因此不能出现“失败 AgentRun
+同时留下成功产物或递增 conversation turn”的半提交状态。
+
 Timeline API 先取最新一页事件，再按当前页时间升序返回；SSE 端点输出当前
 已有事件并追加 heartbeat。控制台固定退避重连、按 event id 去重，并同步
 刷新 Task Detail 与 Task Board。M2 不做长连接实时推送，不使用内存事件队列
 模拟生产事件流。
+
+外部模型增量输出同样使用 HTTP SSE Responses API；本阶段不实现模型
+WebSocket 流程。
 
 ## 1. 状态机总表
 

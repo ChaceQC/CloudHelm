@@ -2,10 +2,10 @@
 
 CloudHelm 是面向毕业设计演示的多 Agent DevOps 系统。本仓库当前已完成 **M5：Tool Gateway 与本地工具层**，在 M4 结构化编排基础上接入本地工具统一入口、风险等级、审批拦截、调用限流、审计记录和控制台 ToolCall 展示。
 
-> 当前版本：`0.4.2`
+> 当前版本：`0.4.3`
 > 当前范围：控制台可通过真实 Platform API 创建 Project/Task，启动 M4 编排，并展示 M5 ToolCall 的脱敏参数摘要、审计 hash、风险等级、状态、输出摘要、错误码和审批关联。M5 只执行平台允许目录内的本地 Repo/Sandbox/Git 工具，不执行远端 SSH、远端部署、CI/CD 或监控告警。
 
-`0.4.2` 完成 M1-M5 二次审计：需求/设计/计划使用真实递增版本，历史产物不能改变当前状态；分页严格校验 cursor 并优先返回最新记录；Tool Gateway 默认拒绝未配置工作区、持久化服务端审计并脱敏参数/输出；任务取消会关闭活动 AgentRun、ToolCall 和 Approval；控制台修复快速切换竞态、历史评审按钮和 SSE 重连；外部模型调用增加有界重试与可恢复暂停。
+`0.4.3` 完成 Task 级 Agent conversation 与真实 Prompt Cache 纠偏：Requirement、Architect、Planner 跨独立 API 请求复用同一 root conversation，完整保存并回放 message、encrypted reasoning、工具项和审批上下文；只有显式 spawn 才创建 child conversation。AgentRun 记录逐请求供应商 usage，控制台按 Gemini 浅色主题展示 turn、input/cache/output token、请求次数、response ID 和 cache key。
 
 ## 目录结构
 
@@ -61,7 +61,7 @@ cd ..\orchestrator
 uv run pytest
 ```
 
-M4 默认使用 `CLOUDHELM_AGENT_PROVIDER=local_structured`，该 provider 基于真实 Task / Requirement / Design 输入生成结构化草案，并通过 Pydantic 校验。若切换到 `openai_compatible`，必须提供 `CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE` 和 `CLOUDHELM_LLM_API_KEY`；默认使用 Responses API，并支持 `CLOUDHELM_LLM_REASONING_EFFORT=max`。用户指定 `gpt-5.6-sol` 时模型字符串会原样透传给兼容端点。瞬时 HTTP/网络错误和无效结构化响应默认最多尝试 3 次；耗尽后写入失败 AgentRun，并把可恢复任务暂停在原业务阶段。
+M4 默认使用 `CLOUDHELM_AGENT_PROVIDER=local_structured`，该 provider 基于真实 Task / Requirement / Design 输入生成结构化草案，并通过 Pydantic 校验。若切换到 `openai_compatible`，必须提供 `CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE` 和 `CLOUDHELM_LLM_API_KEY`；默认使用 HTTP SSE Responses API。当前真实流程将兼容端点提供的 `gpt-5.6-sol` 模型字符串与 `CLOUDHELM_LLM_REASONING_EFFORT=xhigh` 原样透传，同时发送 `codex_cli_rs/...` User-Agent、稳定 thread headers 和完整 Task conversation 历史。瞬时 HTTP/网络错误和无效结构化响应默认最多尝试 3 次；耗尽后写入失败 AgentRun，并把可恢复任务暂停在原业务阶段。
 
 ## Tool Gateway
 
@@ -115,7 +115,7 @@ OpenAPI 覆盖当前已实现接口；Agent 输出 schema 约束 Requirement / A
 
 ```env
 CLOUDHELM_ENV=development
-CLOUDHELM_VERSION=0.4.2
+CLOUDHELM_VERSION=0.4.3
 CLOUDHELM_API_HOST=127.0.0.1
 CLOUDHELM_API_PORT=18080
 CLOUDHELM_TOOL_RATE_LIMIT_CALLS=60
@@ -123,7 +123,11 @@ CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS=60
 CLOUDHELM_TOOL_WORKSPACE_ROOTS=[]
 CLOUDHELM_DATABASE_URL=postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm
 CLOUDHELM_AGENT_PROVIDER=local_structured
-CLOUDHELM_LLM_REASONING_EFFORT=max
+CLOUDHELM_LLM_REASONING_EFFORT=xhigh
+CLOUDHELM_LLM_REASONING_SUMMARY=auto
+CLOUDHELM_LLM_REASONING_CONTEXT=all_turns
+CLOUDHELM_LLM_EXPLICIT_CACHE_BREAKPOINT=false
+CLOUDHELM_LLM_USER_AGENT=codex_cli_rs/0.0.0 (CloudHelm)
 CLOUDHELM_LLM_MAX_ATTEMPTS=3
 VITE_CLOUDHELM_API_BASE_URL=http://127.0.0.1:18080
 ```
@@ -139,6 +143,7 @@ VITE_CLOUDHELM_API_BASE_URL=http://127.0.0.1:18080
 - `informations/m2-data-api/official-references.md`
 - `informations/m3-control-console/official-references.md`
 - `informations/m4-agent-orchestration/official-references.md`
+- `informations/m4-agent-context/codex-responses-context.md`
 - `informations/m5-tool-gateway/official-references.md`
 
 ## 当前未实现能力

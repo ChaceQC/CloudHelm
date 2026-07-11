@@ -16,7 +16,35 @@ M4 已新增 `modules/agent-runtime`，实现 Requirement、Architect、Planner 
 - Architect Agent 读取最新 RequirementSpec，输出 `technical_designs` 所需的 ADR 正文、OpenAPI 草案、DB schema 草案、Mermaid 和风险等级。
 - Planner Agent 读取已通过 TechnicalDesign，输出 `development_plans` 的任务图和风险说明。
 
-M4 默认 provider 为 `local_structured`，它基于真实输入生成结构化草案并通过 Pydantic 校验；`openai_compatible` provider 仅在提供外部模型配置后启用，默认使用 Responses API，可配置 `reasoning.effort=max` 并透传 `gpt-5.6-sol` 等显式模型字符串。瞬时请求和无效结构化响应执行有界指数退避，耗尽后记录失败 AgentRun 并暂停可恢复 Task。M4 不允许上述 Agent 调用 Repo、Sandbox、Git、Docker、SSH、部署或监控工具。
+M4 默认 provider 为 `local_structured`，它基于真实输入生成结构化草案并通过 Pydantic 校验；`openai_compatible` 仅在提供外部模型配置后启用，使用 HTTP SSE Responses API。当前真实流程透传兼容端点提供的 `gpt-5.6-sol` 与 `reasoning.effort=xhigh`，并发送 Codex User-Agent、thread/session headers、稳定 `prompt_cache_key` 和完整 ResponseItem 历史。瞬时请求和无效结构化响应执行有界指数退避，耗尽后记录失败 AgentRun 并暂停可恢复 Task。M4 不允许上述 Agent 绕过 Tool Gateway 调用 Repo、Sandbox、Git、Docker、SSH、部署或监控工具。
+
+Requirement、Architect、Planner 不是三个独立模型会话，而是同一 Task root
+conversation 的连续 turn。只有显式 `spawn_subagent` 才创建 child，并保存
+parent、role、depth、fork mode 与生命周期；child 完成时只回传结构化通知，
+不把隐藏 reasoning 或工具执行历史整段合并回 root。
+
+## Instructions v3
+
+Agent Runtime 将 Instructions 分为可审计的稳定层和 turn 层：
+
+- `prompts/base.md`：整个 conversation 固定，完整定义指令优先级、prompt
+  injection 可信边界、ResponseItem/reasoning、输出真实性、Tool Gateway、
+  审批、风险、subagent 和完成判定。
+- `prompts/requirement.md`、`architect.md`、`planner.md`：精确说明当前角色的
+  唯一目标、每个输入字段的权威含义、处理顺序、每个输出字段的精度、工具
+  allowlist、禁止项和完成判定。
+- `<role_contract>`：机器可核对的 agent type、输出 contract、稳定传输 schema、
+  conversation rule、工具列表和副作用策略。
+- `<validation_repair>`：只在当前结构化修复请求出现，包含 Pydantic 错误、允许
+  修复范围和禁止动作；不会改写 Base Instructions 或污染已提交历史。
+- `<approval_context>`：只表达 action/status/actor/resource/version 的持久化
+  事实，审批 reason 属于不可信业务数据，不能覆盖 Role/Tool Policy。
+- `prompts/subagent.md` 与 `<subagent_contract>`：定义 child 的单一目标、
+  fresh/full-history、权限不继承、父子隔离、终态和最终通知。
+
+Responses `text.format` 使用扁平稳定 `cloudhelm_agent_output_v1` 作为跨角色
+传输字段集合；它不是宽松业务契约。当前 turn 最终必须通过角色专属 Pydantic
+model，不能输出其他角色字段或额外 envelope。
 
 ## 设计书摘录
 

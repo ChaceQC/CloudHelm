@@ -9,15 +9,17 @@
 |---|---|---|
 |platform-api|请求参数校验、统一 500、严格 cursor、最新优先分页、状态更新|pytest + TestClient|
 |platform-api|Task pause/resume/cancel 及 AgentRun/ToolCall/Approval 级联关闭|pytest|
+|platform-api|Task root conversation 唯一约束、跨请求加载、savepoint 回滚、subagent 生命周期|pytest + PostgreSQL|
 |orchestrator|状态机正常路径、失败路径、审批等待恢复|pytest|
-|agent-runtime|Responses API max reasoning、瞬时 HTTP 重试、无效 JSON 重试、不可重试 4xx|pytest|
+|agent-runtime|HTTP SSE Responses、`xhigh`、Codex headers、完整 ResponseItem、稳定 schema、逐请求 usage|pytest|
+|agent-runtime|瞬时 HTTP 重试、无效 JSON 修复、不可重试 4xx、官方显式缓存断点请求形态|pytest|
 |tool-gateway|参数校验、工作区 allowlist、风险分级、权限拒绝、审批拦截、审计脱敏|pytest|
 |toolservers|repo read/write、sandbox exec、git diff mock|pytest|
 |sandbox-runner|命令超时、资源限制、artifact 收集|pytest + Docker|
 |deployment-controller|release plan、compose 渲染、health check|pytest|
 |remote-agent|heartbeat、service_status、stream_logs|pytest|
 |monitoring-collector|Prometheus/Loki 查询结果转换事件|pytest|
-|control-console|最新请求门禁、评审动作策略、SSE 重连/去重、生产构建|Node test + TypeScript|
+|control-console|最新请求门禁、评审动作策略、SSE 重连/去重、AgentRun usage 展示、生产构建|Node test + TypeScript|
 
 ## 2. 集成测试矩阵
 
@@ -39,6 +41,24 @@
 |IT-014|指标查询|查询 service_up/error_rate|返回指标数据|
 |IT-015|告警处理|触发服务不可用|ProjectAlertFired 和 Incident|
 |IT-016|SRE 分析|触发 SRE Agent|生成 IncidentAnalysis 和 RunbookProposal|
+|IT-017|Task 主会话与真实缓存|连续运行 Requirement、Architect、审批、Planner、审批|三个角色同一 conversation/key；turn 为 1/2/3；逐请求 input/cached usage 可审计且后续轮次真实命中|
+|IT-018|显式 subagent 生命周期|running AgentRun 调用唯一 spawn 入口，再完成 child|只新增一个 child；parent/depth/role/fork/status 正确；父线程只收到最终通知|
+
+## 2.1 M4 conversation/cache 专项通过标准
+
+- 白盒前缀：第 N+1 次 Responses `input` 的开头必须严格等于此前已提交的完整
+  ResponseItem 历史，包含 developer/user、assistant final answer、返回的
+  `reasoning.encrypted_content`、工具 call/output 和审批上下文。
+- 稳定前缀：Base Instructions、`cloudhelm_agent_output_v1`、model、reasoning
+  配置和 `prompt_cache_key` 跨普通角色保持不变。
+- 真实五轮：使用 `gpt-5.6-sol` / `xhigh`、Codex User-Agent 和 HTTP SSE；
+  input token 逐轮递增，第 2-5 轮 `cached_input_tokens > 0`，且只记录供应商 usage。
+- 完整流程：Project → Task → Requirement → Architect → 人工设计审批 →
+  Planner → 人工计划审批；人工审批由测试执行者代为完成并保留 Approval/EventLog。
+- 事务失败：在业务产物和 conversation turn 已准备后注入晚期失败，最终不得保留
+  产物、conversation 或 `AgentRunCompleted`，只保留失败 AgentRun 与失败事件。
+- 显式断点：本地契约必须发送官方 `prompt_cache_options` /
+  `prompt_cache_breakpoint` 形态；兼容端点拒绝时记录真实 HTTP 错误，不静默删字段。
 
 ## 3. E2E 演示脚本
 
@@ -95,6 +115,8 @@
 |远端异常触发告警|IT-015|Alert / Incident|
 |SRE Agent 给出分析|IT-016|IncidentAnalysis|
 |全流程事件写入 event_logs|全流程|event_logs 查询|
+|普通 Agent 共享 Task 主会话|IT-017|Agent Timeline、AgentRun usage、数据库 root conversation|
+|只有显式 spawn 才创建子会话|IT-018|SubagentSpawned/Completed 事件与父子记录|
 
 ## 5. 缺陷分级
 

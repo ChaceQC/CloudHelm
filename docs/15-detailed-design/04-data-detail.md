@@ -43,6 +43,52 @@ M4 新增迁移 `modules/platform-api/migrations/versions/20260708_0002_create_m
 
 `development_plans` 至少包含 `id`、`task_id`、`project_id`、`technical_design_id`、`summary`、`steps_json`、`risks_json`、`status`、`version`、`created_by_agent_run_id`、`created_at`、`updated_at`。`steps_json` 和 `risks_json` 使用 PostgreSQL JSONB，并由 Pydantic schema 校验。
 
+### M4/M5 conversation 纠偏
+
+迁移 `20260711_0005_create_agent_conversations.py` 新增：
+
+#### `agent_conversations`
+
+|字段|说明|
+|---|---|
+|`task_id`|所属 Task。|
+|`source_type`|`root` 或 `subagent`。|
+|`parent_conversation_id`|child 的父 conversation；root 为 null。|
+|`spawned_by_agent_run_id`|显式 spawn 的 running 父 AgentRun。|
+|`agent_role` / `nickname`|child 角色和展示名称；root 不绑定普通角色。|
+|`objective`|显式 child 的唯一子目标；root 为 null。|
+|`depth` / `status` / `fork_mode`|父子深度、生命周期、fresh/full_history。|
+|`provider_name` / `model_name`|会话固定 Provider 与模型；中途不可切换。|
+|`prompt_cache_key`|唯一、稳定、不包含 prompt 正文的缓存路由键。|
+|`items_json`|完整可重放 ResponseItem：消息、encrypted reasoning、工具调用/结果和平台上下文。|
+|`turn_count`|只统计通过输出 schema 并已提交的成功模型 turn。|
+|`last_response_id`|最近一次成功供应商 Responses ID。|
+
+约束：
+
+- PostgreSQL partial unique index `ux_agent_conversations_task_root` 保证每个 Task
+  只有一个 root。
+- `ck_agent_conversations_source_fields` 保证 root/child 的 parent、spawn、
+  role、objective、fork mode 和 depth 组合合法。
+- 普通角色切换只更新 root `items_json/turn_count`，不新增 conversation。
+- child 只能由显式 spawn 服务创建。
+- 每个 Agent 步骤通过 savepoint 原子保存业务产物、成功 AgentRun、
+  conversation turn 和完成事件；晚期失败回滚以上成功侧写入，再记录失败运行。
+
+#### `agent_runs` conversation/cache 字段
+
+|字段|说明|
+|---|---|
+|`conversation_id` / `conversation_turn`|本次运行所属 conversation 和成功提交后的 turn。|
+|`cached_input_tokens`|AgentRun 内全部已完成供应商请求的真实缓存 token 总量。|
+|`provider_request_count`|含结构化修复在内的已完成供应商请求次数。|
+|`provider_requests`|逐请求 response ID、cache key、input/cached/output token 和 cache_hit。|
+|`provider_response_id`|最终成功请求的 response ID。|
+|`prompt_cache_key`|本次运行使用的 conversation cache key。|
+
+`cache_hit` 不单独落库为可写布尔值；API/EventLog 从每次请求真实
+`cached_input_tokens > 0` 推导，避免固定返回或本地估算。
+
 ## 1. 核心 ER 关系
 
 ```mermaid
@@ -53,6 +99,9 @@ erDiagram
     requirement_specs ||--o{ technical_designs : informs
     technical_designs ||--o{ development_plans : plans
     tasks ||--o{ agent_runs : runs
+    tasks ||--|| agent_conversations : owns_root
+    agent_conversations ||--o{ agent_conversations : spawns
+    agent_conversations ||--o{ agent_runs : records_turns
     agent_runs ||--o{ tool_calls : invokes
     tasks ||--o{ approval_requests : requires
     tasks ||--o{ event_logs : emits
@@ -147,6 +196,9 @@ suppressed
 |technical_designs|`idx_technical_designs_task_status(task_id, status)`|设计审查查询|
 |development_plans|`idx_development_plans_task_status(task_id, status)`|开发计划查询|
 |agent_runs|`idx_agent_runs_task_started(task_id, started_at DESC)`|Agent timeline|
+|agent_runs|`ix_agent_runs_conversation_turn(conversation_id, conversation_turn)`|同一会话 turn 审计|
+|agent_conversations|`ux_agent_conversations_task_root(task_id) WHERE source_type='root'`|每个 Task 唯一 root|
+|agent_conversations|`ix_agent_conversations_parent_status(parent_conversation_id,status)`|child 生命周期查询|
 |tool_calls|`idx_tool_calls_task_started(task_id, started_at DESC)`|工具调用列表|
 |tool_calls|`idx_tool_calls_agent(agent_run_id)`|Agent 详情|
 |approval_requests|`idx_approval_pending(status, risk_level, created_at)`|审批队列|
@@ -331,7 +383,7 @@ suppressed
 |---|---|
 |projects/tasks/spec/design|毕设 MVP 永久保留|
 |event_logs/tool_calls/approval_requests|append-only，永久保留或按项目归档|
-|agent prompt 原文|可保留 hash + 摘要，敏感上下文不落库|
+|Agent conversation|保存完整可重放 ResponseItem；reasoning 只保存供应商 encrypted content，不保存或展示明文思维链|
 |sandbox artifact|本地保留最近 N 次，重要报告转存 artifact|
 |远端日志|Loki 中保留短期；平台只保存摘要和引用|
 |指标数据|Prometheus 保留短期；平台保存告警和关键快照|

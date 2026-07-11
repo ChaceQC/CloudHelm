@@ -21,18 +21,25 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 ## 环境变量
 
 - `CLOUDHELM_ENV`：运行环境，默认 `development`。
-- `CLOUDHELM_VERSION`：服务版本，默认 `0.4.2`。
+- `CLOUDHELM_VERSION`：服务版本，默认 `0.4.3`。
 - `CLOUDHELM_AGENT_PROVIDER`：M4 Agent provider，默认 `local_structured`。
 - `CLOUDHELM_TOOL_RATE_LIMIT_CALLS`：单实例窗口内每个任务或 AgentRun 的最大工具调用次数，默认 60。
 - `CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS`：工具调用滑动窗口秒数，默认 60。
 - `CLOUDHELM_TOOL_WORKSPACE_ROOTS`：允许 Repo、Sandbox、Git 工具访问的根目录 JSON 数组；默认 `[]`，即拒绝工作区工具。
 - `CLOUDHELM_LLM_PROVIDER`、`CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE`、`CLOUDHELM_LLM_API_KEY`：切换 `openai_compatible` provider 时使用；真实 Key 不得提交。
 - `CLOUDHELM_LLM_API_MODE`：默认 `responses`；旧兼容服务可改为 `chat_completions`。
-- `CLOUDHELM_LLM_REASONING_EFFORT`：默认 `max`，用于用户指定的 `gpt-5.6-sol` 最大思考强度。
+- `CLOUDHELM_LLM_REASONING_EFFORT`：默认 `xhigh`，用于当前 `gpt-5.6-sol` 真实流程。
+- `CLOUDHELM_LLM_REASONING_SUMMARY`：默认 `auto`。
+- `CLOUDHELM_LLM_REASONING_CONTEXT`：默认 `all_turns`。
 - `CLOUDHELM_LLM_MAX_OUTPUT_TOKENS`：默认 `32768`，同时为 reasoning token 和最终结构化输出预留空间。
 - `CLOUDHELM_LLM_TIMEOUT_SECONDS`：单次模型 HTTP 请求超时，默认 120 秒。
 - `CLOUDHELM_LLM_MAX_ATTEMPTS`：模型请求或结构化响应失败时的总尝试次数，默认 3。
 - `CLOUDHELM_LLM_RETRY_BACKOFF_SECONDS`：首次重试退避秒数，后续按 2 的幂增长，默认 1。
+- `CLOUDHELM_LLM_EXPLICIT_CACHE_BREAKPOINT`：默认 `false`；仅兼容端点明确支持
+  Responses `prompt_cache_options` / `prompt_cache_breakpoint` 时启用。
+- `CLOUDHELM_LLM_USER_AGENT` / `CLOUDHELM_LLM_ORIGINATOR`：Codex 兼容请求头。
+- `CLOUDHELM_AGENT_MAX_SUBAGENT_DEPTH` / `CLOUDHELM_AGENT_MAX_SUBAGENT_THREADS`：
+  显式 child conversation 的深度和并发上限。
 - `CLOUDHELM_DATABASE_URL`：SQLAlchemy 数据库连接串，本地默认指向 `infra/docker-compose.dev.yml` 的 PostgreSQL。
 - `CLOUDHELM_REDIS_URL`：Redis 预留配置；M2 暂不接入生产路径。
 
@@ -49,6 +56,19 @@ src/cloudhelm_platform_api/
 ```
 
 写操作必须由 service 同步写业务表和 `event_logs`。普通数据库写入使用同一事务；Tool Gateway 为避免数据库事务跨越文件/Git/进程副作用，先用短事务原子抢占幂等键，再在第二事务写终态和事件。路由函数不得直接写 SQL。
+
+## Task Agent conversation
+
+- 每个 Task 只有一个 root `agent_conversations` 记录；Requirement、Architect、
+  Planner 和后续普通角色共享该 conversation。
+- 每次成功 turn 在业务产物、AgentRun、conversation 和 EventLog 的同一事务中
+  保存完整可重放 ResponseItem；每个 Agent 步骤使用 savepoint，晚期持久化失败
+  会回滚业务产物和 conversation turn，再单独提交失败 AgentRun。
+- `agent_runs` 同时记录总量和 `provider_requests` 逐请求 usage。`cache_hit`
+  只能由供应商 `cached_input_tokens > 0` 推导，结构化修复重试不会被隐藏。
+- 只有 `AgentConversationService.spawn_subagent` 能创建 child，要求 running
+  父 AgentRun、明确 objective/expected result，并保存 parent、role、depth、
+  fork mode 和生命周期。
 
 ## M5 Tool Gateway 接口
 
