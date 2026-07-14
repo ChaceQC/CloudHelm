@@ -2,6 +2,103 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-15（M7-1 首个代码纵切暂停点）
+
+### 已完成
+
+- M7-0 设计闭环已经提交并推送；当前功能分支为
+  `feature/m7-remote-deploy-closure`，开始本次代码纵切前的远端基线为
+  `091cab2`。
+- 按 `PROJECT_PLAN.md` 启动首个真实代码纵切
+  `Environment + RemoteTarget + machine-auth heartbeat`，并在用户要求暂停后
+  中止 `m7_platform_slice_impl` 与 `m7_remote_agent_slice_impl` 两个写代码
+  agent；当前没有继续运行的本纵切 subagent 或遗留 pytest/uv 子进程。
+- Platform API 已落地但尚未收口的本地草稿包括：
+  - `20260715_0007_create_m7_environment_remote_target.py` migration。
+  - Environment、RemoteTarget、RemoteAgentCredential、
+    RemoteAgentReplayNonce ORM。
+  - RemoteTarget server-controlled profile 配置与 provider。
+  - Environment/RemoteTarget repository 和 Pydantic schema 草稿。
+- `modules/remote-agent` 已形成未提交的模块草稿，包含 `pyproject.toml`、
+  `uv.lock`、README、`/health`、`/version`、`/capabilities`、凭据文件读取、
+  HMAC canonical/signature、HTTPX heartbeat client、CLI/worker 和 20 个测试
+  node id。
+- 已在三份 M7 API/细化设计文档中补充 machine-auth 精确请求头和 canonical
+  string：
+  `METHOD\nPATH\nTIMESTAMP\nNONCE\nBODY_SHA256`，signature 为 lowercase hex
+  HMAC-SHA256。
+- 当前 32 个变更/新增文件均可严格 UTF-8 解码，BOM 0；`git diff --check`
+  通过。
+
+### 进行中
+
+- 已按用户要求暂停。当前 Platform API 草稿尚未接入 service、API router、
+  machine-auth dependency、heartbeat 状态事务、`main.py` 和测试夹具，因此
+  Environment/RemoteTarget/heartbeat 端点目前不可调用。
+- `modules/remote-agent` 文件与测试已经生成，但 agent 在返回最终验证结果前被
+  中止；`.pytest_cache` 记录 20 个收集到的 node id 且没有 `lastfailed` 文件，
+  该缓存不能替代本线程重新执行 `uv run pytest` 的正式证据。
+
+### 阻塞与风险
+
+- 本次暂停点包含未提交的生产代码草稿；这些代码未执行完整 review、pytest、
+  Alembic upgrade/downgrade/check、OpenAPI 精确匹配或共享 JSON Schema 校验，
+  不得描述为已实现。
+- Platform API 基线回归 `uv run pytest -q` 在 184 秒命令上限处被终止，未取得
+  通过或失败结论；终止时没有保留可用于判定的完整 pytest 结果。
+- `20260715_0007` 尚未应用到开发库，也未验证 downgrade；当前已确认的开发库
+  Alembic head 仍是 `20260714_0006`，暂停前 `alembic check` 为
+  `No new upgrade operations detected`。
+- OpenAPI、共享 Environment/RemoteTarget/Heartbeat JSON Schema、事件枚举、
+  根 README、`.env.example` 和控制台类型尚未同步。
+- 当前离线判断设计只计划由 target list/detail/heartbeat reconciliation
+  触发；在 Redis/Celery 周期调度落地前，不能宣称自主实时离线检测。
+- `EventLog` 当前仍主要按 Task 查询，Environment/RemoteTarget 事件的项目级查询
+  与 M7 实时 SSE 尚未实现。
+- Roadmap 继续只勾选 M7-0；数据、API、machine authentication、Remote Agent
+  heartbeat 等 M7 实现项均保持未完成。
+
+### 下一步
+
+- 恢复时先重新检查 `git status --short` 和本暂停记录，再 review 当前未提交
+  diff；不要直接把草稿标记完成。
+- 完成 Platform API service/repository 事务边界、API router、machine-auth
+  dependency、nonce 并发唯一、online/offline/recovery 事件与真实 PostgreSQL
+  测试。
+- 在本线程重新执行 `modules/remote-agent` 的 `uv sync --locked`、
+  `uv run pytest` 和运行端点 smoke test，确认 agent 中止前生成的模块状态。
+- 同步 OpenAPI、JSON Schema、事件契约、README、环境变量和 API 文档；完成
+  Alembic upgrade/downgrade/upgrade/check、黑盒/白盒测试和敏感信息检查。
+- 只有上述验证全部通过后，才更新 Roadmap 对应实现项、提交代码并推送当前
+  功能分支。
+
+### 涉及文件
+
+- `modules/platform-api/migrations/versions/20260715_0007_create_m7_environment_remote_target.py`
+- `modules/platform-api/src/cloudhelm_platform_api/core/config.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/**`
+- `modules/platform-api/src/cloudhelm_platform_api/providers/**`
+- `modules/platform-api/src/cloudhelm_platform_api/repositories/**`
+- `modules/platform-api/src/cloudhelm_platform_api/schemas/**`
+- `modules/remote-agent/**`
+- `modules/README.md`
+- `docs/08-api/07-environment-deployment-api.md`
+- `docs/15-detailed-design/03-api-detail.md`
+- `docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md`
+
+### 验证
+
+- 已执行 `git diff --check`，当前未提交 diff 通过。
+- 已对 32 个变更/新增文件执行严格 UTF-8 与 BOM 检查，错误 0、BOM 0。
+- 已执行 `docker compose -f infra/docker-compose.dev.yml ps`，本地 PostgreSQL
+  容器为 healthy；`127.0.0.1:15432` TCP 可达。
+- 已执行 `uv run alembic current`、`uv run alembic heads` 和
+  `uv run alembic check`；暂停前数据库与代码 head 均为 `20260714_0006`，
+  check 无待生成迁移。
+- Platform API 全量 pytest 在 184 秒命令上限处被终止，未记录为通过。
+- 未执行当前草稿的 migration、Platform API M7 测试、Remote Agent 正式测试、
+  OpenAPI/JSON Schema 契约测试、前端测试或远端 E2E。
+
 ## 2026-07-15（M7-0 CI/CD 与远端部署设计闭环）
 
 ### 已完成
