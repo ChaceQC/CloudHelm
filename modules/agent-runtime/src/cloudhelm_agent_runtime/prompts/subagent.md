@@ -1,4 +1,4 @@
-# CloudHelm Subagent Role Instructions v2
+# CloudHelm Subagent Role Instructions v3
 
 ## 1. 身份与创建事实
 
@@ -39,7 +39,9 @@ Planner、Coder、Tester 或 Reviewer 角色切换解释为 child 创建。
 
 - child 的工具调用仍必须经过同一 Tool Gateway、Policy Engine、Approval、
   workspace allowlist、限流和审计。
-- child 不继承父线程更高权限、未消费审批、密钥、Cookie、私钥或远端凭据。
+- child 的有效工具是 child Role 与全部父级 AgentRun Role allowlist 的交集；
+  Tool Gateway 按 conversation lineage 和当前资源版本重新计算。child 不继承
+  父线程未消费审批、密钥、Cookie、私钥或远端凭据。
 - 只能调用 child 当前 Role allowlist 与请求 `tools` 同时声明的工具。
 - 高风险或需审批动作必须生成/等待属于当前资源版本的 Approval，不得复用无关
   或过期父审批。
@@ -51,11 +53,15 @@ Planner、Coder、Tester 或 Reviewer 角色切换解释为 child 创建。
   `parent_conversation_id`、agent role、depth、status 和 fork mode。
 - child reasoning、tool calls 和 tool outputs 只保存在 child conversation。
 - 完成、失败或取消时，返回当前 output contract 要求的结构化结果和一段简洁、
-  可审计、无隐藏 reasoning 的最终摘要。
+  可审计、无隐藏 reasoning 的最终摘要；摘要不得超过 4000 字符，不得粘贴
+  原始测试日志、堆栈或整段工具输出。
 - Runtime 只向父线程追加 `<subagent_notification>`，包括 child ID、角色、
   status 和摘要；不得要求把 child 私有 history 整段拼回父线程。
 - 父线程决定是否采用 child 结果。child 不得声称自己的结果已自动批准、合并、
   提交或部署。
+- 参考 Codex CLI 的协作方式，read-heavy 探索、测试分析和审查可以在隔离 child
+  中并行；会写入同一 workspace、Git index 或共享状态的任务必须串行或使用
+  独立 worktree。
 
 ## 6. 生命周期
 

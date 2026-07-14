@@ -18,11 +18,16 @@ from cloudhelm_agent_runtime.providers import (
     OpenAICompatibleProvider,
     PendingProviderTurn,
     ProviderConversation,
+    ProviderToolCall,
     ProviderToolDefinition,
     ProviderToolExecutionResult,
 )
 from cloudhelm_agent_runtime.providers.request_payloads import build_responses_body
 from cloudhelm_agent_runtime.providers.contracts import user_message_item
+from cloudhelm_agent_runtime.providers.local_tool_evidence import (
+    LocalToolEvidence,
+    command_execution,
+)
 from cloudhelm_agent_runtime.schemas.agent_io import (
     ChangedFile,
     CommandExecution,
@@ -82,6 +87,38 @@ def _acceptance() -> list[AcceptanceCriterion]:
 
 
 RECIPE_SHA256 = f"sha256:{'1' * 64}"
+
+
+def test_command_execution_truncates_long_output_summaries() -> None:
+    """stdout/stderr 必须在构造 CommandExecution 前收紧到契约上限。"""
+
+    execution = command_execution(
+        LocalToolEvidence(
+            call=ProviderToolCall(
+                call_id="call-long-output",
+                name="sandbox.run_command",
+                arguments={},
+            ),
+            status="failed",
+            result={
+                "stdout_summary": "o" * 4500,
+                "stderr_summary": "e" * 5000,
+                "result_json": {"exit_code": 1},
+            },
+            error_code="command_failed",
+        ),
+        PlannedCommand(
+            command=["python", "-m", "pytest"],
+            purpose="验证长输出摘要。",
+        ),
+    )
+
+    assert execution.stdout_summary is not None
+    assert execution.stderr_summary is not None
+    assert len(execution.stdout_summary) == 4000
+    assert len(execution.stderr_summary) == 4000
+    assert execution.stdout_summary.endswith("...<truncated:4500>")
+    assert execution.stderr_summary.endswith("...<truncated:5000>")
 
 
 def test_local_coder_executes_real_tool_results_in_one_logical_turn() -> None:
@@ -268,18 +305,37 @@ def test_local_reviewer_and_security_use_real_evidence() -> None:
         execution_recipe_sha256=RECIPE_SHA256,
         risk_level=RiskLevel.L1,
     )
-    reviewer = ReviewerAgent(LocalStructuredProvider()).run(
-        reviewer_payload,
-        conversation=ProviderConversation(conversation_id=str(uuid4())),
-        tools=(_tool("git.diff"),),
-        tool_executor=lambda call: ProviderToolExecutionResult(
+
+    def read_reviewer_diff(call):  # noqa: ANN001
+        assert call.arguments["max_output_chars"] == 200000
+        return ProviderToolExecutionResult(
             status="succeeded",
             result={
                 "tool_call_id": "tool-diff",
                 "summary": "已读取真实 diff。",
-                "result_json": {"paths": call.arguments["paths"]},
+                "result_json": {
+                    "paths": call.arguments["paths"],
+                    "changed_files": [
+                        "src/sample_service/main.py"
+                    ],
+                    "patch_truncated": False,
+                    "patch": (
+                        "diff --git "
+                        "a/src/sample_service/main.py "
+                        "b/src/sample_service/main.py\n"
+                        "--- a/src/sample_service/main.py\n"
+                        "+++ b/src/sample_service/main.py\n"
+                        "@@ -1 +1 @@\n-old\n+new\n"
+                    ),
+                },
             },
-        ),
+        )
+
+    reviewer = ReviewerAgent(LocalStructuredProvider()).run(
+        reviewer_payload,
+        conversation=ProviderConversation(conversation_id=str(uuid4())),
+        tools=(_tool("git.diff"),),
+        tool_executor=read_reviewer_diff,
     )
     assert reviewer.verdict == "approved"
     assert reviewer.proceed_to_security is True

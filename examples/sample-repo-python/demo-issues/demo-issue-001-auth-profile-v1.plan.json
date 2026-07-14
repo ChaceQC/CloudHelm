@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "recipe_id": "demo-issue-001-auth-profile-v1",
   "template_id": "sample-repo-python",
   "issue_path": "demo-issues/001-auth-profile.md",
@@ -131,46 +131,86 @@
   "acceptance_evidence": [
     {
       "criterion_id": "AC-AUTH-001",
+      "testcase_names": [
+        "test_register_persists_normalized_public_user_and_scrypt_hash",
+        "test_register_accepts_password_and_name_boundaries"
+      ],
       "notes": "test_register_persists_normalized_public_user_and_scrypt_hash 与 test_register_accepts_password_and_name_boundaries 验证 201、公开字段、持久化和边界。"
     },
     {
       "criterion_id": "AC-AUTH-002",
+      "testcase_names": [
+        "test_register_enforces_normalized_email_uniqueness"
+      ],
       "notes": "test_register_enforces_normalized_email_uniqueness 验证 trim/lowercase、409、email_already_registered 和仅一条记录。"
     },
     {
       "criterion_id": "AC-AUTH-003",
+      "testcase_names": [
+        "test_register_rejects_invalid_boundaries_without_writes"
+      ],
       "notes": "test_register_rejects_invalid_boundaries_without_writes 参数化覆盖 email、密码和显示名称非法输入、422、脱敏与零写入。"
     },
     {
       "criterion_id": "AC-AUTH-004",
+      "testcase_names": [
+        "test_login_issues_token_that_reads_only_public_profile"
+      ],
       "notes": "test_login_issues_token_that_reads_only_public_profile 验证 bearer、expires_in=1800 和 token 可访问资料。"
     },
     {
       "criterion_id": "AC-AUTH-005",
+      "testcase_names": [
+        "test_login_failure_does_not_reveal_account_existence"
+      ],
       "notes": "test_login_failure_does_not_reveal_account_existence 验证未知邮箱与错误密码共享 401 和 invalid_credentials。"
     },
     {
       "criterion_id": "AC-PROFILE-001",
+      "testcase_names": [
+        "test_profile_rejects_missing_tampered_and_expired_tokens"
+      ],
       "notes": "test_profile_rejects_missing_tampered_and_expired_tokens 验证缺失、篡改、过期 token 均返回 invalid_access_token。"
     },
     {
       "criterion_id": "AC-PROFILE-002",
+      "testcase_names": [
+        "test_login_issues_token_that_reads_only_public_profile"
+      ],
       "notes": "test_login_issues_token_that_reads_only_public_profile 验证 GET /profile 仅返回 token 用户的四个公开字段。"
     },
     {
       "criterion_id": "AC-PROFILE-003",
+      "testcase_names": [
+        "test_profile_update_trims_name_and_invalid_update_preserves_value"
+      ],
       "notes": "test_profile_update_trims_name_and_invalid_update_preserves_value 验证 trim、持久化更新和非法更新不改变原值。"
     },
     {
       "criterion_id": "AC-SEC-001",
+      "testcase_names": [
+        "test_register_persists_normalized_public_user_and_scrypt_hash",
+        "test_password_hash_uses_random_salt_and_rejects_wrong_password",
+        "test_token_rejects_wrong_key_and_missing_runtime_configuration",
+        "test_login_rejects_oversized_password_before_scrypt",
+        "test_password_verification_rejects_unapproved_scrypt_parameters"
+      ],
       "notes": "注册持久化、密码摘要、参数白名单与 token 配置测试验证 scrypt、随机盐、常量时间比较、资源边界、错误 key 拒绝、运行时密钥必填和敏感值不回显。"
     },
     {
       "criterion_id": "AC-OBS-001",
+      "testcase_names": [
+        "test_auth_metrics_use_route_templates_without_sensitive_labels"
+      ],
       "notes": "test_auth_metrics_use_route_templates_without_sensitive_labels 验证四类请求继续进入路由模板指标且标签不含 email、用户 ID、密码或 token。"
     },
     {
       "criterion_id": "AC-TEST-001",
+      "testcase_names": [
+        "test_health_returns_stable_service_status",
+        "test_metrics_returns_prometheus_text_and_health_observation",
+        "test_user_and_login_survive_application_recreation"
+      ],
       "notes": "完整 uv run pytest -q 同时运行新增 19 个用例与既有 health/metrics 2 个用例；持久化重建测试使用临时 SQLite，不连接外部服务。"
     }
   ]

@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel, StrictAgentModel
 from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementConstraint
@@ -40,3 +40,24 @@ class ArchitectAgentOutput(StrictAgentModel):
     risk_level: RiskLevel = Field(description="设计阶段最高风险。")
     risks: list[str] = Field(default_factory=list, description="设计风险说明。")
     approval_recommended: bool = Field(default=False, description="是否建议进入人工设计审批。")
+
+    @model_validator(mode="after")
+    def ensure_elevated_risk_requires_approval(self) -> "ArchitectAgentOutput":
+        """L2-L4 设计不得通过模型布尔值绕过人工审批。"""
+
+        if (
+            self.risk_level in {RiskLevel.L2, RiskLevel.L3, RiskLevel.L4}
+            and not self.approval_recommended
+        ):
+            raise ValueError("L2-L4 architect output requires approval_recommended=true")
+        return self
+
+    @property
+    def requires_approval(self) -> bool:
+        """返回服务层应采用的防御性审批结论。"""
+
+        return self.approval_recommended or self.risk_level in {
+            RiskLevel.L2,
+            RiskLevel.L3,
+            RiskLevel.L4,
+        }

@@ -66,6 +66,13 @@ def stable_json_hash(value: Any) -> str:
     return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
 
 
+def utf8_sha256(value: str | bytes) -> str:
+    """计算原始 UTF-8 文本或字节的 SHA-256，供 Artifact 完整性比对。"""
+
+    encoded = value if isinstance(value, bytes) else value.encode("utf-8")
+    return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+
+
 def redact_value(key: str, value: Any, max_length: int = 80) -> Any:
     """按字段名对参数值脱敏并截断。
 

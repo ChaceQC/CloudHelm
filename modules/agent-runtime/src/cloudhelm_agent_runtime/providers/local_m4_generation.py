@@ -4,10 +4,21 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from cloudhelm_agent_runtime.providers.base import UnsupportedLocalRecipeError
 from cloudhelm_agent_runtime.providers.local_requirement_rules import (
     contains_any,
     extract_acceptance_criteria,
     split_sentences,
+)
+from cloudhelm_agent_runtime.providers.local_m4_intent import (
+    is_cloudhelm_internal_design,
+    is_cloudhelm_internal_plan,
+    is_sample_auth_design,
+    is_sample_auth_plan,
+)
+from cloudhelm_agent_runtime.providers.local_m4_sample_auth import (
+    generate_sample_auth_architect,
+    generate_sample_auth_planner,
 )
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
 from cloudhelm_agent_runtime.schemas.design import (
@@ -99,6 +110,13 @@ def generate_architect(payload: BaseModel) -> ArchitectAgentOutput:
     """从需求规格生成 M4 技术设计草案。"""
 
     data = ArchitectAgentInput.model_validate(payload)
+    if is_sample_auth_design(data):
+        return generate_sample_auth_architect(data)
+    if not is_cloudhelm_internal_design(data):
+        raise UnsupportedLocalRecipeError(
+            "local_structured 仅支持受控 auth/profile demo issue 或 "
+            "CloudHelm 自身 M4 编排任务；其他需求请配置 openai_compatible provider。"
+        )
     elevated = contains_any(
         data.user_story,
         ["数据库", "迁移", "部署", "权限", "审批"],
@@ -187,14 +205,12 @@ def generate_planner(payload: BaseModel) -> PlannerAgentOutput:
     """从技术设计生成开发计划任务图。"""
 
     data = PlannerAgentInput.model_validate(payload)
-    recipe = (
-        "demo-issue-001-auth-profile-v1"
-        if contains_any(
-            f"{data.title}\n{data.design_summary}",
-            ["注册", "个人资料", "/auth/register", "/profile"],
+    if is_sample_auth_plan(data):
+        return generate_sample_auth_planner(data)
+    if not is_cloudhelm_internal_plan(data):
+        raise UnsupportedLocalRecipeError(
+            "local_structured 未找到与当前技术设计匹配的受控 execution recipe。"
         )
-        else None
-    )
     steps = [
         DevelopmentPlanStep(
             id="STEP-001",
@@ -214,7 +230,6 @@ def generate_planner(payload: BaseModel) -> PlannerAgentOutput:
             agent="coder",
             expected_artifact="platform_api_patch",
             depends_on=["STEP-001"],
-            execution_recipe=recipe,
         ),
         DevelopmentPlanStep(
             id="STEP-003",
@@ -264,6 +279,8 @@ def generate_planner(payload: BaseModel) -> PlannerAgentOutput:
         status="ready_for_review",
         risk_level=data.risk_level,
     )
+
+
 def _max_risk(left: RiskLevel, right: RiskLevel) -> RiskLevel:
     """返回两个风险等级中更高的一个。"""
 

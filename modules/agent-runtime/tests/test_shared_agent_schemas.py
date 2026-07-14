@@ -86,3 +86,20 @@ def test_shared_agent_output_fields_match_runtime_models() -> None:
 
         assert set(shared["properties"]) == set(runtime["properties"]), name
         assert set(shared["required"]) == set(runtime["required"]), name
+
+
+def test_architect_shared_schema_requires_approval_for_elevated_risk() -> None:
+    """共享契约必须显式表达 L2-L4 设计的人工审批门禁。"""
+
+    schema = _load("architect-agent-output.schema.json")
+
+    risk_gate = schema["allOf"][0]
+    assert risk_gate["if"]["properties"]["risk_level"]["enum"] == [
+        "L2",
+        "L3",
+        "L4",
+    ]
+    assert risk_gate["then"]["properties"]["approval_recommended"] == {
+        "const": True,
+    }
+    assert risk_gate["then"]["required"] == ["approval_recommended"]

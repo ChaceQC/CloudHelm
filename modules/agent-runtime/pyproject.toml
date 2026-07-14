@@ -1,6 +1,6 @@
 [project]
 name = "cloudhelm-agent-runtime"
-version = "0.4.0"
+version = "0.4.1"
 description = "CloudHelm 结构化多 Agent 运行时与 Responses 工具循环。"
 readme = "README.md"
 requires-python = ">=3.12"

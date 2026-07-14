@@ -28,6 +28,32 @@ class AcceptanceTestResult(StrictAgentModel):
     notes: str = Field(min_length=1, max_length=2000)
 
 
+class AcceptanceTestEvidence(StrictAgentModel):
+    """受控 recipe 对一个 AC 声明的稳定 pytest testcase 集合。"""
+
+    criterion_id: str = Field(
+        pattern=r"^AC-(?:[A-Z0-9]+-)*[0-9]{3}$"
+    )
+    testcase_names: list[str] = Field(min_length=1)
+    notes: str = Field(min_length=1, max_length=2000)
+
+    @model_validator(mode="after")
+    def ensure_testcase_names_are_stable(self) -> "AcceptanceTestEvidence":
+        """映射只接受唯一 pytest 函数名，不依赖临时 node id。"""
+
+        if len(self.testcase_names) != len(set(self.testcase_names)):
+            raise ValueError("acceptance testcase names must be unique")
+        if any(
+            not name.startswith("test_")
+            or any(char.isspace() for char in name)
+            for name in self.testcase_names
+        ):
+            raise ValueError(
+                "acceptance testcase names must be stable pytest function names"
+            )
+        return self
+
+
 class TesterAgentInput(StrictAgentModel):
     """运行真实测试命令所需的结构化输入。"""
 
@@ -36,12 +62,25 @@ class TesterAgentInput(StrictAgentModel):
     development_plan_id: UUID
     title: str = Field(min_length=1, max_length=300)
     acceptance_criteria: list[AcceptanceCriterion] = Field(min_length=1)
+    acceptance_evidence: list[AcceptanceTestEvidence] = Field(min_length=1)
     changed_files: list[ChangedFile] = Field(min_length=1)
     commands: list[PlannedToolCommand] = Field(min_length=1)
     execution_recipe_sha256: str = Field(
         pattern=r"^sha256:[0-9a-f]{64}$"
     )
     risk_level: RiskLevel
+
+    @model_validator(mode="after")
+    def ensure_acceptance_mapping_is_complete(self) -> "TesterAgentInput":
+        """受控 testcase 映射必须精确覆盖当前 RequirementSpec 的全部 AC。"""
+
+        criteria = [item.id for item in self.acceptance_criteria]
+        mapped = [item.criterion_id for item in self.acceptance_evidence]
+        if len(mapped) != len(set(mapped)) or set(mapped) != set(criteria):
+            raise ValueError(
+                "acceptance evidence must map every criterion exactly once"
+            )
+        return self
 
 
 class TesterAgentOutput(StrictAgentModel):

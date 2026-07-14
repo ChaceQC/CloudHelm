@@ -10,7 +10,7 @@ from cloudhelm_tool_gateway.rate_limit import SlidingWindowRateLimiter
 from cloudhelm_tool_gateway.registry import ToolRegistry
 from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel, ToolCallRequest, ToolCallResult
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 __all__ = [
     "RiskLevel",

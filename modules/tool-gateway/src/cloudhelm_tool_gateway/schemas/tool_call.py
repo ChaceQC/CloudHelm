@@ -64,12 +64,18 @@ class ToolCallResult(BaseModel):
     """Tool Gateway 执行结果。
 
     `waiting_approval` 代表策略已拦截，调用方应创建 ApprovalRequest，不得
-    执行真实工具动作。
+    执行真实工具动作。`raw_result_json` 只供同进程内创建完整性 Artifact，
+    不参与序列化、数据库持久化或 API 响应。
     """
 
     status: ToolExecutionStatus
     summary: str
     result_json: dict[str, Any] | None = None
+    raw_result_json: dict[str, Any] | None = Field(
+        default=None,
+        exclude=True,
+        repr=False,
+    )
     stdout_summary: str | None = None
     stderr_summary: str | None = None
     duration_ms: int | None = None

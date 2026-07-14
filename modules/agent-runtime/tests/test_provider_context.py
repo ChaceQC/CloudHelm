@@ -37,6 +37,10 @@ from cloudhelm_agent_runtime.providers.contracts import (
     validate_conversation_items,
 )
 from cloudhelm_agent_runtime.providers.output_schema import stable_output_schema
+from cloudhelm_agent_runtime.providers.subagent_notifications import (
+    MAX_SUBAGENT_SUMMARY_CHARS,
+    subagent_notification_item,
+)
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
 from cloudhelm_agent_runtime.schemas.design import ArchitectAgentOutput
 from cloudhelm_agent_runtime.schemas.development_plan import PlannerAgentOutput
@@ -361,6 +365,12 @@ def test_subagent_instructions_include_parent_role_depth_and_fork_mode() -> None
         agent_role="reviewer",
         depth=1,
         fork_context=True,
+        parent_agent_type="planner",
+        effective_allowed_tools=(
+            "repo.list_files",
+            "repo.read_file",
+            "repo.search_text",
+        ),
     )
     text = item["content"][0]["text"]
 
@@ -368,8 +378,37 @@ def test_subagent_instructions_include_parent_role_depth_and_fork_mode() -> None
     assert "独立 child conversation" in text
     assert '"parent_conversation_id": "parent-thread"' in text
     assert '"agent_role": "reviewer"' in text
+    assert '"parent_agent_type": "planner"' in text
     assert '"depth": 1' in text
     assert '"fork_context": true' in text
+    assert (
+        '"effective_allowed_tools": ["repo.list_files", "repo.read_file", '
+        '"repo.search_text"]'
+        in text
+    )
+    assert (
+        '"permission_inheritance": "parent_or_stricter_via_tool_gateway"'
+        in text
+    )
+
+
+def test_subagent_notification_requires_a_bounded_summary() -> None:
+    """父线程只接收简洁最终摘要，不接收空值或整段原始日志。"""
+
+    with pytest.raises(ValueError, match="non-empty"):
+        subagent_notification_item(
+            conversation_id="child-thread",
+            agent_role="reviewer",
+            status="completed",
+            summary=" ",
+        )
+    with pytest.raises(ValueError, match="4000"):
+        subagent_notification_item(
+            conversation_id="child-thread",
+            agent_role="reviewer",
+            status="completed",
+            summary="x" * (MAX_SUBAGENT_SUMMARY_CHARS + 1),
+        )
 
 
 def test_provider_conversation_appends_full_turn_and_tracks_response_id() -> None:

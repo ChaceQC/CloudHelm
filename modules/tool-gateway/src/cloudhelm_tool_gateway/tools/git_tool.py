@@ -55,17 +55,17 @@ def diff(args: GitDiffArguments, policy: ToolPolicy) -> dict:
     name_code, name_out, name_err = run_git(
         repo,
         ["diff", "--name-only", *refs, *separator],
-        args.max_output_chars,
+        None,
     )
     stat_code, stat_out, stat_err = run_git(
         repo,
         ["diff", "--stat", *refs, *separator],
-        args.max_output_chars,
+        None,
     )
     patch_code, patch_out, patch_err = run_git(
         repo,
         ["diff", f"--unified={args.context_lines}", *refs, *separator],
-        args.max_output_chars,
+        None,
     )
     changed_files = [line for line in name_out.splitlines() if line.strip()]
     untracked_files: list[str] = []
@@ -266,17 +266,17 @@ def format_patch(args: GitFormatPatchArguments, policy: ToolPolicy) -> dict:
     patch_code, patch_out, patch_err = run_git(
         repo,
         ["format-patch", "--stdout", f"{args.base_ref}..{args.head_ref}"],
-        args.max_output_chars,
+        None,
     )
     name_code, names_out, names_err = run_git(
         repo,
         ["diff", "--name-only", args.base_ref, args.head_ref],
-        50000,
+        None,
     )
     stat_code, stat_out, stat_err = run_git(
         repo,
         ["diff", "--stat", args.base_ref, args.head_ref],
-        50000,
+        None,
     )
     code = patch_code or name_code or stat_code
     patch = truncate_text(patch_out, args.max_output_chars) or ""

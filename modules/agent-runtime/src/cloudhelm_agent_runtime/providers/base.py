@@ -30,6 +30,12 @@ class MissingProviderConfigurationError(AgentProviderError):
     code = "missing_agent_provider_config"
 
 
+class UnsupportedLocalRecipeError(AgentProviderError):
+    """本地规则 provider 不支持当前需求语义。"""
+
+    code = "unsupported_local_recipe"
+
+
 class AgentProviderRequestError(AgentProviderError):
     """外部模型 HTTP 请求失败。
 

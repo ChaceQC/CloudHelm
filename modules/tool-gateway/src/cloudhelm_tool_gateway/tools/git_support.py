@@ -16,9 +16,9 @@ BRANCH_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$")
 def run_git(
     repo: Path,
     args: list[str],
-    max_chars: int = 12000,
+    max_chars: int | None = 12000,
 ) -> tuple[int, str, str]:
-    """执行 Git 命令并返回退出码和截断输出。"""
+    """执行 Git 命令并返回退出码；传入 ``None`` 时保留完整输出。"""
 
     completed = subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -29,6 +29,8 @@ def run_git(
         timeout=30,
         check=False,
     )
+    if max_chars is None:
+        return completed.returncode, completed.stdout, completed.stderr
     return (
         completed.returncode,
         truncate_text(completed.stdout, max_chars) or "",
@@ -155,13 +157,17 @@ def untracked_file_patch(
     relative_path: str,
     context_lines: int,
 ) -> str:
-    """为 UTF-8 新文件生成 `/dev/null -> b/path` unified diff。"""
+    """为 UTF-8 新文件生成带标准 Git 文件头的 unified diff。"""
 
     data = (repo / relative_path).read_bytes()
     if b"\x00" in data:
-        return f"Binary files /dev/null and b/{relative_path} differ"
+        return (
+            f"diff --git a/{relative_path} b/{relative_path}\n"
+            "new file mode 100644\n"
+            f"Binary files /dev/null and b/{relative_path} differ"
+        )
     lines = data.decode("utf-8", errors="replace").splitlines(keepends=True)
-    return "".join(
+    body = "".join(
         unified_diff(
             [],
             lines,
@@ -169,6 +175,11 @@ def untracked_file_patch(
             tofile=f"b/{relative_path}",
             n=context_lines,
         )
+    )
+    return (
+        f"diff --git a/{relative_path} b/{relative_path}\n"
+        "new file mode 100644\n"
+        f"{body}"
     )
 
 

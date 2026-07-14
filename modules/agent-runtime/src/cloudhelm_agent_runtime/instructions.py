@@ -228,6 +228,8 @@ def subagent_instructions(
     agent_role: str,
     depth: int,
     fork_context: bool,
+    parent_agent_type: str,
+    effective_allowed_tools: tuple[str, ...],
 ) -> dict[str, Any]:
     """构造 child conversation 创建时的完整边界指令。"""
 
@@ -235,11 +237,14 @@ def subagent_instructions(
         "source_type": "subagent",
         "parent_conversation_id": parent_conversation_id,
         "agent_role": agent_role,
+        "parent_agent_type": parent_agent_type,
         "depth": depth,
         "fork_context": fork_context,
         "fork_mode": "full_history" if fork_context else "fresh",
         "history_merge_policy": "final_notification_only",
-        "permission_inheritance": "none",
+        "permission_inheritance": "parent_or_stricter_via_tool_gateway",
+        "permission_policy_version": "subagent_parent_intersection_v1",
+        "effective_allowed_tools": list(effective_allowed_tools),
     }
     return developer_message_item(
         f"{_read_prompt('subagent.md')}\n\n"

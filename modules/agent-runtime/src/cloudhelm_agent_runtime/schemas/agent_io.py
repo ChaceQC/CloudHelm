@@ -29,6 +29,15 @@ class RiskLevel(str, Enum):
     L4 = "L4"
 
 
+def max_risk_level(*levels: RiskLevel) -> RiskLevel:
+    """返回输入风险中的最高等级，避免跨 Agent 传递时发生风险降级。"""
+
+    if not levels:
+        raise ValueError("at least one risk level is required")
+    order = {level: index for index, level in enumerate(RiskLevel)}
+    return max(levels, key=order.__getitem__)
+
+
 class StrictAgentModel(BaseModel):
     """Agent Runtime schema 的严格基类。"""
 

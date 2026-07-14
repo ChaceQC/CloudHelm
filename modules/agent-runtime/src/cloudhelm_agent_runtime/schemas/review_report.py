@@ -47,7 +47,7 @@ class ReviewerAgentInput(StrictAgentModel):
     acceptance_criteria: list[AcceptanceCriterion] = Field(min_length=1)
     acceptance_evidence: list[AcceptanceReview] = Field(min_length=1)
     changed_files: list[ChangedFile] = Field(min_length=1)
-    diff_paths: list[str] = Field(default_factory=list)
+    diff_paths: list[str] = Field(min_length=1)
     test_report: TesterAgentOutput
     known_issues: list[ReviewIssue] = Field(default_factory=list)
     execution_recipe_sha256: str = Field(
@@ -64,6 +64,27 @@ class ReviewerAgentInput(StrictAgentModel):
         if len(ids) != len(set(ids)):
             raise ValueError("acceptance review criterion ids must be unique")
         return value
+
+    @model_validator(mode="after")
+    def ensure_diff_paths_match_changed_files(self) -> "ReviewerAgentInput":
+        """diff_paths 必须与 changed_files 一一对应且均无重复。"""
+
+        changed_paths = [item.path for item in self.changed_files]
+        if (
+            len(changed_paths) != len(set(changed_paths))
+            or len(self.diff_paths) != len(set(self.diff_paths))
+        ):
+            raise ValueError(
+                "reviewer changed files and diff paths must be unique"
+            )
+        if (
+            len(changed_paths) != len(self.diff_paths)
+            or set(changed_paths) != set(self.diff_paths)
+        ):
+            raise ValueError(
+                "reviewer diff paths must match changed files exactly"
+            )
+        return self
 
 
 class ReviewerAgentOutput(StrictAgentModel):

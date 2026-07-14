@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from cloudhelm_tool_gateway import RiskLevel, ToolCallRequest, create_default_gateway
+from cloudhelm_tool_gateway.audit import utf8_sha256
 from cloudhelm_tool_gateway.process_runner import ProcessResult
 from cloudhelm_tool_gateway.schemas.security import (
     SecurityRunBanditArguments,
@@ -301,7 +302,14 @@ def test_git_diff_includes_untracked_and_format_patch(tmp_path: Path) -> None:
     )
     assert branch.status == "succeeded"
     (repo / "src").mkdir()
-    (repo / "src" / "feature.py").write_text("VALUE = 42\n", encoding="utf-8")
+    (repo / "src" / "feature.py").write_text(
+        "def configure("
+        "password: str, token: str, secret: str"
+        ") -> dict[str, str]:\n"
+        '    data_root = "/var/lib/cloudhelm"\n'
+        '    return {"value": "42"}\n',
+        encoding="utf-8",
+    )
 
     diff = gateway.execute(
         _request(
@@ -313,8 +321,14 @@ def test_git_diff_includes_untracked_and_format_patch(tmp_path: Path) -> None:
     )
     assert diff.status == "succeeded"
     assert diff.result_json is not None
+    assert diff.raw_result_json is not None
     assert "src/feature.py" in diff.result_json["changed_files"]
-    assert "VALUE = 42" in diff.result_json["patch"]
+    assert "password: str" in diff.raw_result_json["patch"]
+    assert "password: str" not in diff.result_json["patch"]
+    assert diff.audit_json["patch_sha256"] == utf8_sha256(
+        diff.raw_result_json["patch"]
+    )
+    assert "raw_result_json" not in diff.model_dump()
 
     commit = gateway.execute(
         _request(
@@ -339,8 +353,15 @@ def test_git_diff_includes_untracked_and_format_patch(tmp_path: Path) -> None:
     )
     assert patch.status == "succeeded"
     assert patch.result_json is not None
+    assert patch.raw_result_json is not None
     assert "src/feature.py" in patch.result_json["changed_files"]
     assert "Subject: [PATCH]" in patch.result_json["patch"]
+    assert "password: str" in patch.raw_result_json["patch"]
+    assert "password: str" not in patch.result_json["patch"]
+    assert patch.audit_json["patch_sha256"] == utf8_sha256(
+        patch.raw_result_json["patch"]
+    )
+    assert "raw_result_json" not in patch.model_dump()
 
 
 def test_git_diff_without_untracked_files_returns_empty_list(

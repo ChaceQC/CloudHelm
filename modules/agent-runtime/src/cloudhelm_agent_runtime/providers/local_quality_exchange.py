@@ -5,6 +5,9 @@ from cloudhelm_agent_runtime.providers.local_tool_evidence import (
     result_details,
     tool_call_evidence,
 )
+from cloudhelm_agent_runtime.providers.local_review_evidence import (
+    inspect_reviewer_diff,
+)
 from cloudhelm_agent_runtime.providers.local_tool_plans import (
     PlannedLocalCall,
     call_id,
@@ -26,34 +29,66 @@ from cloudhelm_agent_runtime.schemas.security_report import SecurityAgentOutput
 def reviewer_exchange(data, output_model, conversation, evidence, tool_names):
     """读取真实 diff 并根据 AC/test evidence 形成评审结论。"""
 
-    calls = (
-        [
+    issues = list(data.known_issues)
+    calls = []
+    if not data.diff_paths:
+        verdict = "blocked"
+        tool_calls = []
+        issues.append(
+            ReviewIssue(
+                id=f"ISSUE-{len(issues) + 1:03d}",
+                severity="high",
+                message="Reviewer 输入缺少 diff_paths。",
+                recommendation="从同一 Coder evidence set 重新生成变更路径。",
+            )
+        )
+    else:
+        calls = [
             PlannedLocalCall(
                 call_id=call_id(conversation, "reviewer", 1),
                 name="git.diff",
-                arguments={"paths": data.diff_paths},
+                arguments={
+                    "paths": data.diff_paths,
+                    "max_output_chars": 200000,
+                },
             )
         ]
-        if data.diff_paths
-        else []
-    )
-    missing = missing_tool_names(calls, tool_names)
-    if missing:
-        verdict = "blocked"
-        tool_calls = []
-    else:
-        pending = [call for call in calls if call.call_id not in evidence]
-        if pending:
-            return calls_result(pending)
-        paired = [evidence[call.call_id] for call in calls]
-        tool_calls = [tool_call_evidence(item) for item in paired]
-        verdict = (
-            "blocked"
-            if any(item.status != "succeeded" for item in paired)
-            else "approved"
-        )
-
-    issues = list(data.known_issues)
+        missing = missing_tool_names(calls, tool_names)
+        if missing:
+            verdict = "blocked"
+            tool_calls = []
+            issues.append(
+                ReviewIssue(
+                    id=f"ISSUE-{len(issues) + 1:03d}",
+                    severity="high",
+                    message="Reviewer 所需 git.diff 未进入稳定工具清单。",
+                    recommendation="恢复受控 git.diff 工具后重新评审。",
+                )
+            )
+        else:
+            pending = [
+                call for call in calls if call.call_id not in evidence
+            ]
+            if pending:
+                return calls_result(pending)
+            paired = [evidence[call.call_id] for call in calls]
+            tool_calls = [tool_call_evidence(item) for item in paired]
+            tool_blocked = any(
+                item.status != "succeeded" for item in paired
+            )
+            evidence_blocked = False
+            if not tool_blocked:
+                evidence_blocked, evidence_issues = inspect_reviewer_diff(
+                    data,
+                    paired[0],
+                    start_index=len(issues) + 1,
+                )
+                issues.extend(evidence_issues)
+            verdict = (
+                "blocked"
+                if tool_blocked or evidence_blocked
+                else "approved"
+            )
     for result in data.acceptance_evidence:
         if result.status != "satisfied":
             issues.append(

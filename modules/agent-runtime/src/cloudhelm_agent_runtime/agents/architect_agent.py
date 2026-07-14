@@ -9,6 +9,7 @@
 
 from cloudhelm_agent_runtime.providers.base import ProviderConversation, StructuredAgentProvider
 from cloudhelm_agent_runtime.instructions import allowed_tools_for
+from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel, max_risk_level
 from cloudhelm_agent_runtime.schemas.design import ArchitectAgentInput, ArchitectAgentOutput
 
 
@@ -34,4 +35,21 @@ class ArchitectAgent:
             ArchitectAgentOutput,
             conversation=conversation,
         )
-        return ArchitectAgentOutput.model_validate(raw)
+        output = ArchitectAgentOutput.model_validate(raw)
+        required_risk = max_risk_level(
+            payload.task_risk_level,
+            output.risk_level,
+        )
+        approval_required = required_risk in {
+            RiskLevel.L2,
+            RiskLevel.L3,
+            RiskLevel.L4,
+        }
+        return output.model_copy(
+            update={
+                "risk_level": required_risk,
+                "approval_recommended": (
+                    output.approval_recommended or approval_required
+                ),
+            }
+        )

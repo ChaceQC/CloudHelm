@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 import json
+from pathlib import Path
 from urllib import error
 from uuid import uuid4
 
@@ -16,11 +17,47 @@ from cloudhelm_agent_runtime.providers import (
     MissingProviderConfigurationError,
     OpenAICompatibleProvider,
     ProviderConversation,
+    UnsupportedLocalRecipeError,
 )
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
-from cloudhelm_agent_runtime.schemas.design import ArchitectAgentInput
+from cloudhelm_agent_runtime.schemas.design import (
+    ArchitectAgentInput,
+    ArchitectAgentOutput,
+)
 from cloudhelm_agent_runtime.schemas.development_plan import DevelopmentPlanStep, PlannerAgentInput
 from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementAgentInput, RequirementAgentOutput
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+AUTH_PROFILE_ISSUE = (
+    REPO_ROOT
+    / "examples"
+    / "sample-repo-python"
+    / "demo-issues"
+    / "001-auth-profile.md"
+)
+
+
+class StaticOutputProvider:
+    """返回指定结构化对象，用于验证 Agent 的输入关联业务门禁。"""
+
+    name = "static_output"
+    model_name = None
+
+    def __init__(self, output: dict) -> None:
+        self.output = output
+
+    def generate(
+        self,
+        _agent_type,
+        _payload,
+        _output_model,
+        *,
+        conversation=None,
+    ) -> dict:
+        """返回测试指定输出，不模拟供应商网络行为。"""
+
+        del conversation
+        return deepcopy(self.output)
 
 
 def _without_cache_breakpoint(value):
@@ -157,8 +194,8 @@ def test_architect_agent_marks_database_related_design_as_l2() -> None:
         RequirementAgentInput(
             task_id=uuid4(),
             project_id=uuid4(),
-            title="新增开发计划表",
-            description="需要新增数据库表并写入迁移，控制台可查询。",
+            title="CloudHelm M4 新增开发计划表",
+            description="CloudHelm M4 需要新增数据库表并写入迁移，控制台可查询。",
             source_type="manual",
             risk_level=RiskLevel.L1,
         )
@@ -168,7 +205,7 @@ def test_architect_agent_marks_database_related_design_as_l2() -> None:
             task_id=uuid4(),
             project_id=uuid4(),
             requirement_spec_id=uuid4(),
-            title="新增开发计划表",
+            title="CloudHelm M4 新增开发计划表",
             user_story=requirement_output.user_story,
             acceptance_criteria=requirement_output.acceptance_criteria,
             constraints=requirement_output.constraints,
@@ -179,6 +216,235 @@ def test_architect_agent_marks_database_related_design_as_l2() -> None:
     assert output.risk_level == RiskLevel.L2
     assert output.approval_recommended is True
     assert "development_plans" in str(output.db_schema_json)
+
+
+def test_local_sample_architect_and_planner_follow_auth_profile_domain() -> None:
+    """受控 sample issue 的设计和计划不得退化为 CloudHelm 平台模板。"""
+
+    provider = LocalStructuredProvider()
+    requirement = RequirementAgent(provider).run(
+        RequirementAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            title="实现注册、登录与个人资料",
+            description=AUTH_PROFILE_ISSUE.read_text(encoding="utf-8"),
+            source_type="issue",
+            source_ref="demo-issues/001-auth-profile.md",
+            risk_level=RiskLevel.L1,
+        )
+    )
+    design = ArchitectAgent(provider).run(
+        ArchitectAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            requirement_spec_id=uuid4(),
+            title="实现注册、登录与个人资料",
+            user_story=requirement.user_story,
+            acceptance_criteria=requirement.acceptance_criteria,
+            constraints=requirement.constraints,
+            task_risk_level=requirement.risk_level,
+        )
+    )
+    plan = PlannerAgent(provider).run(
+        PlannerAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            technical_design_id=uuid4(),
+            title="实现注册、登录与个人资料",
+            design_summary=design.content_markdown,
+            risk_level=design.risk_level,
+        )
+    )
+
+    assert set(design.openapi_json["paths"]) == {
+        "/auth/register",
+        "/auth/login",
+        "/profile",
+    }
+    assert design.db_schema_json["tables"][0]["name"] == "users"
+    assert design.db_schema_json["tables"][0]["columns"] == [
+        "id TEXT PRIMARY KEY",
+        "email TEXT NOT NULL UNIQUE",
+        "password_hash TEXT NOT NULL",
+        "display_name TEXT NOT NULL",
+        "created_at TEXT NOT NULL",
+    ]
+    assert "/api/tasks/{task_id}/run-next" not in str(design.openapi_json)
+    assert "development_plans" not in str(design.db_schema_json)
+    assert (
+        design.openapi_json["paths"]["/auth/register"]["post"]
+        ["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/RegisterRequest"
+    )
+    assert (
+        design.openapi_json["paths"]["/auth/login"]["post"]["responses"]
+        ["200"]["content"]["application/json"]["schema"]["$ref"]
+        == "#/components/schemas/AccessTokenResponse"
+    )
+    assert design.risk_level == RiskLevel.L2
+    assert design.requires_approval is True
+    assert [step.agent for step in plan.steps] == [
+        "scaffold",
+        "coder",
+        "tester",
+        "reviewer",
+        "security",
+    ]
+    assert plan.steps[1].execution_recipe == (
+        "demo-issue-001-auth-profile-v1"
+    )
+    assert all("M4 run-next" not in step.description for step in plan.steps)
+
+
+def test_local_architect_rejects_unsupported_domain_recipe() -> None:
+    """本地 provider 不得为无关需求返回同一套固定平台设计。"""
+
+    with pytest.raises(
+        UnsupportedLocalRecipeError,
+        match="openai_compatible",
+    ):
+        ArchitectAgent(LocalStructuredProvider()).run(
+            ArchitectAgentInput(
+                task_id=uuid4(),
+                project_id=uuid4(),
+                requirement_spec_id=uuid4(),
+                title="查询东京天气",
+                user_story="作为用户，我希望查看东京未来三天天气。",
+                acceptance_criteria=[
+                    AcceptanceCriterion(
+                        id="AC-001",
+                        description="返回未来三天天气。",
+                        verification="api",
+                    )
+                ],
+                constraints=[],
+                task_risk_level=RiskLevel.L1,
+            )
+        )
+
+
+def test_architect_output_rejects_elevated_risk_without_approval() -> None:
+    """L2-L4 输出不能依靠模型布尔值绕过设计审批。"""
+
+    with pytest.raises(ValidationError, match="requires approval"):
+        ArchitectAgentOutput(
+            summary="高风险设计",
+            content_markdown="# 高风险设计",
+            openapi_json={"openapi": "3.1.0", "paths": {}},
+            db_schema_json={"tables": []},
+            mermaid_diagram="flowchart LR\nA --> B",
+            risk_level=RiskLevel.L4,
+            risks=["涉及高风险远端操作。"],
+            approval_recommended=False,
+        )
+
+
+def test_agents_preserve_highest_risk_from_inputs_and_plan_items() -> None:
+    """外部结构化输出不得把 Task、Design 或风险项的等级向下降级。"""
+
+    requirement = RequirementAgent(
+        StaticOutputProvider(
+            {
+                "summary": "需求已整理。",
+                "raw_input": "高风险权限变更。",
+                "user_story": "作为用户，我希望调整权限。",
+                "constraints": [
+                    {
+                        "type": "security",
+                        "value": "必须人工审查。",
+                        "required": True,
+                    }
+                ],
+                "acceptance_criteria": [
+                    {
+                        "id": "AC-001",
+                        "description": "权限变更可审计。",
+                        "verification": "api",
+                        "status": "pending",
+                    }
+                ],
+                "risk_level": "L0",
+            }
+        )
+    ).run(
+        RequirementAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            title="高风险权限变更",
+            description="验证风险不得降级。",
+            source_type="manual",
+            risk_level=RiskLevel.L3,
+        )
+    )
+    assert requirement.risk_level == RiskLevel.L3
+
+    architect = ArchitectAgent(
+        StaticOutputProvider(
+            {
+                "summary": "设计已生成。",
+                "content_markdown": "# 设计",
+                "openapi_json": {"openapi": "3.1.0", "paths": {}},
+                "db_schema_json": {"tables": []},
+                "mermaid_diagram": "flowchart LR\nA --> B",
+                "risk_level": "L1",
+                "risks": [],
+                "approval_recommended": False,
+            }
+        )
+    ).run(
+        ArchitectAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            requirement_spec_id=uuid4(),
+            title="高风险权限变更",
+            user_story="作为用户，我希望调整权限。",
+            acceptance_criteria=requirement.acceptance_criteria,
+            constraints=requirement.constraints,
+            task_risk_level=RiskLevel.L4,
+        )
+    )
+    assert architect.risk_level == RiskLevel.L4
+    assert architect.requires_approval is True
+
+    planner = PlannerAgent(
+        StaticOutputProvider(
+            {
+                "summary": "计划已生成。",
+                "steps": [
+                    {
+                        "id": "STEP-001",
+                        "title": "实现权限变更",
+                        "description": "按设计实现并验证。",
+                        "agent": "coder",
+                        "expected_artifact": "diff",
+                        "depends_on": [],
+                        "execution_recipe": None,
+                        "status": "pending",
+                    }
+                ],
+                "risks": [
+                    {
+                        "id": "RISK-001",
+                        "description": "存在不可逆远端副作用。",
+                        "mitigation": "人工审批并准备回滚。",
+                        "risk_level": "L4",
+                    }
+                ],
+                "status": "ready_for_review",
+                "risk_level": "L0",
+            }
+        )
+    ).run(
+        PlannerAgentInput(
+            task_id=uuid4(),
+            project_id=uuid4(),
+            technical_design_id=uuid4(),
+            title="高风险权限变更",
+            design_summary=architect.content_markdown,
+            risk_level=RiskLevel.L3,
+        )
+    )
+    assert planner.risk_level == RiskLevel.L4
 
 
 def test_planner_agent_rejects_missing_step_dependency() -> None:
@@ -212,8 +478,8 @@ def test_planner_agent_generates_task_graph() -> None:
             task_id=uuid4(),
             project_id=uuid4(),
             technical_design_id=uuid4(),
-            title="实现 M4",
-            design_summary="需要 Platform API、控制台和测试。",
+            title="实现 CloudHelm M4",
+            design_summary="CloudHelm M4 需要 Platform API、控制台和测试。",
             risk_level=RiskLevel.L1,
         )
     )

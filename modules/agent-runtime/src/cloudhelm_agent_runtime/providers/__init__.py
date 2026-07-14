@@ -12,6 +12,7 @@ from cloudhelm_agent_runtime.providers.base import (
     MissingProviderConfigurationError,
     StructuredAgentProvider,
     ToolCapableStructuredAgentProvider,
+    UnsupportedLocalRecipeError,
 )
 from cloudhelm_agent_runtime.providers.contracts import ProviderConversation
 from cloudhelm_agent_runtime.providers.usage import (
@@ -45,6 +46,7 @@ __all__ = [
     "PendingProviderTurn",
     "StructuredAgentProvider",
     "ToolCapableStructuredAgentProvider",
+    "UnsupportedLocalRecipeError",
     "collect_tool_calls",
     "execution_result_item",
     "run_tool_capable_turn",

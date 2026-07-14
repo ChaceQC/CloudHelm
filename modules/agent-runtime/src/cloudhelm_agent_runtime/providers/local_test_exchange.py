@@ -1,5 +1,9 @@
 """Local Tester 的真实 pytest/JUnit 证据交换。"""
 
+from cloudhelm_agent_runtime.providers.local_junit_evidence import (
+    map_acceptance_results,
+    not_covered_results,
+)
 from cloudhelm_agent_runtime.providers.local_tool_evidence import (
     command_execution,
     result_details,
@@ -18,7 +22,6 @@ from cloudhelm_agent_runtime.providers.local_tool_plans import (
 )
 from cloudhelm_agent_runtime.schemas.agent_io import ArtifactEvidence
 from cloudhelm_agent_runtime.schemas.test_report import (
-    AcceptanceTestResult,
     TesterAgentOutput,
 )
 
@@ -97,11 +100,36 @@ def tester_exchange(data, output_model, conversation, evidence, tool_names):
         ]
     )
     artifacts = _junit_artifacts(junit_evidence)
-    acceptance_status = {
-        "passed": "passed",
-        "failed": "failed",
-        "blocked": "not_covered",
-    }[status]
+    evidence_refs = [item.ref for item in artifacts]
+    if status == "blocked":
+        acceptance_results = not_covered_results(
+            data,
+            "测试工具或 JUnit 读取被阻断。",
+        )
+        coverage_failures: list[str] = []
+    else:
+        acceptance_results, coverage_failures = map_acceptance_results(
+            data,
+            junit_evidence,
+            evidence_refs,
+        )
+        if any(item.status == "failed" for item in acceptance_results):
+            status = "failed"
+        elif (
+            status == "failed"
+            or any(
+                item.status == "not_covered"
+                for item in acceptance_results
+            )
+        ):
+            status = "partial"
+        else:
+            status = "passed"
+    failures.extend(coverage_failures)
+    if status == "blocked" and not failures:
+        failures.append("测试工具或 JUnit 证据不可用。")
+    if status == "failed" and not failures:
+        failures.append("至少一个映射 testcase 失败。")
     return final_result(
         output_model,
         TesterAgentOutput(
@@ -113,17 +141,7 @@ def tester_exchange(data, output_model, conversation, evidence, tool_names):
             passed_count=sum_optional(executions, "passed_count"),
             failed_count=sum_optional(executions, "failed_count"),
             skipped_count=sum_optional(executions, "skipped_count"),
-            acceptance_results=_acceptance_results(
-                data,
-                acceptance_status,
-                [item.ref for item in artifacts],
-                (
-                    "真实 pytest 与 JUnit 证据通过。"
-                    if status == "passed"
-                    else "; ".join(failures)
-                    or "真实 pytest 未通过。"
-                ),
-            ),
+            acceptance_results=acceptance_results,
             tool_calls=[
                 tool_call_evidence(item)
                 for item in [*paired, *junit_evidence]
@@ -194,23 +212,4 @@ def _junit_artifacts(junit_evidence) -> list[ArtifactEvidence]:
         )
         for item in junit_evidence
         if item.status == "succeeded"
-    ]
-
-
-def _acceptance_results(
-    data,
-    status: str,
-    evidence_refs: list[str],
-    notes: str,
-) -> list[AcceptanceTestResult]:
-    """把同一真实测试批次逐项映射到输入 AC。"""
-
-    return [
-        AcceptanceTestResult(
-            criterion_id=item.id,
-            status=status,
-            evidence_refs=evidence_refs,
-            notes=f"{item.verification}：{notes}",
-        )
-        for item in data.acceptance_criteria
     ]

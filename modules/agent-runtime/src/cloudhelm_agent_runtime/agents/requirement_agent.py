@@ -9,6 +9,7 @@
 
 from cloudhelm_agent_runtime.providers.base import ProviderConversation, StructuredAgentProvider
 from cloudhelm_agent_runtime.instructions import allowed_tools_for
+from cloudhelm_agent_runtime.schemas.agent_io import max_risk_level
 from cloudhelm_agent_runtime.schemas.requirement import RequirementAgentInput, RequirementAgentOutput
 
 
@@ -34,4 +35,6 @@ class RequirementAgent:
             RequirementAgentOutput,
             conversation=conversation,
         )
-        return RequirementAgentOutput.model_validate(raw)
+        output = RequirementAgentOutput.model_validate(raw)
+        required_risk = max_risk_level(payload.risk_level, output.risk_level)
+        return output.model_copy(update={"risk_level": required_risk})

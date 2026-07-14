@@ -14,6 +14,7 @@ from cloudhelm_tool_gateway.audit import (
     stable_json_hash,
     summarize_mapping,
     truncate_text,
+    utf8_sha256,
 )
 from cloudhelm_tool_gateway.policies import PolicyError, ToolPolicy
 from cloudhelm_tool_gateway.rate_limit import SlidingWindowRateLimiter
@@ -151,10 +152,28 @@ class ToolGateway:
         status = output.get("status", "succeeded")
         error_code = output.get("error_code")
         finished_at = utc_now()
+        raw_result_json = output.get("result_json")
+        raw_result = (
+            raw_result_json
+            if isinstance(raw_result_json, dict)
+            else None
+        )
+        audit_json = self._audit(
+            request,
+            declaration.risk_level.value,
+            status,
+            error_code,
+        )
+        if raw_result is not None:
+            patch = raw_result.get("patch")
+            if isinstance(patch, str):
+                audit_json["patch_sha256"] = utf8_sha256(patch)
+                audit_json["patch_size_bytes"] = len(patch.encode("utf-8"))
         return ToolCallResult(
             status=status,
             summary=str(output.get("summary") or ("工具执行成功。" if status == "succeeded" else "工具执行失败。")),
-            result_json=sanitize_result_for_storage(output.get("result_json")),
+            result_json=sanitize_result_for_storage(raw_result_json),
+            raw_result_json=raw_result,
             stdout_summary=redact_sensitive_text(
                 truncate_text(output.get("stdout_summary"), self.policy.max_output_chars)
             ),
@@ -167,7 +186,7 @@ class ToolGateway:
             error_code=error_code,
             requires_approval=False,
             arguments_summary=arguments_summary,
-            audit_json=self._audit(request, declaration.risk_level.value, status, error_code),
+            audit_json=audit_json,
         )
 
     def _failed(

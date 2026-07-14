@@ -14,6 +14,8 @@ from cloudhelm_agent_runtime.schemas.agent_io import (
     ToolCallEvidence,
 )
 
+_COMMAND_SUMMARY_MAX_LENGTH = 4000
+
 
 @dataclass(frozen=True, slots=True)
 class LocalToolEvidence:
@@ -113,8 +115,14 @@ def command_execution(
             or details.get("junit_path")
             or details.get("path")
         ),
-        stdout_summary=_optional_string(item.result.get("stdout_summary")),
-        stderr_summary=_optional_string(item.result.get("stderr_summary")),
+        stdout_summary=_optional_truncated_string(
+            item.result.get("stdout_summary"),
+            _COMMAND_SUMMARY_MAX_LENGTH,
+        ),
+        stderr_summary=_optional_truncated_string(
+            item.result.get("stderr_summary"),
+            _COMMAND_SUMMARY_MAX_LENGTH,
+        ),
         error_code=item.error_code,
     )
 
@@ -132,6 +140,19 @@ def _details(result: dict[str, Any]) -> dict[str, Any]:
 
 def _optional_string(value: Any) -> str | None:
     return str(value) if value is not None else None
+
+
+def _optional_truncated_string(
+    value: Any,
+    max_length: int,
+) -> str | None:
+    """把工具摘要收紧到 Agent 契约上限并保留截断标记。"""
+
+    text = _optional_string(value)
+    if text is None or len(text) <= max_length:
+        return text
+    marker = f"\n...<truncated:{len(text)}>"
+    return f"{text[: max_length - len(marker)]}{marker}"
 
 
 def _optional_int(value: Any) -> int | None:

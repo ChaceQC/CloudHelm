@@ -1,8 +1,11 @@
 # modules/tool-gateway
 
-CloudHelm Tool Gateway `0.5.0` 本地工具层。该模块提供工具注册、参数校验、
+CloudHelm Tool Gateway `0.5.1` 本地工具层。该模块提供工具注册、参数校验、
 风险等级、审批拦截、路径边界、命令超时和审计摘要，不直接依赖 FastAPI
 路由或数据库。
+
+Git diff/format-patch 会基于完整命令输出计算 SHA 和 `patch_truncated`，再按
+调用参数生成有界结果；下游发现截断时必须阻止 Reviewer 或 PR 收尾继续推进。
 
 ## 当前能力
 
