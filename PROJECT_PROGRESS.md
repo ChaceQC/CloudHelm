@@ -2,7 +2,7 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
-## 2026-07-14 至 2026-07-15（M1-M6 成果核验与缺陷修复，0.5.1 核验候选版）
+## 2026-07-14 至 2026-07-15（M1-M6 成果核验与缺陷修复，0.5.1 已同步基线）
 
 ### 已完成
 
@@ -69,14 +69,18 @@
   死锁、终态复活或 active child 残留。
 - 明确恢复边界：当前只承诺能够进入应用错误处理或留下幂等证据的失败恢复；
   进程 hard crash 后尚无 lease、heartbeat 或 stale reclaim。
-- 形成 M1-M6 核验候选版 `0.5.1`：项目、Platform API、Tool Gateway、控制台
+- 形成并同步 M1-M6 核验修复版 `0.5.1`：项目、Platform API、Tool Gateway、控制台
   和 OpenAPI 为 `0.5.1`，Agent Runtime 为 `0.4.1`，未改动的 Orchestrator
   保持 `0.4.0`；本轮不创建 `v0.5.1` tag，M7 目标版本仍为 `0.6.0`。
+- 按子系统完成并逐次推送 `dev`：`0bc15df`（Platform API、共享契约与并发/
+  subagent 门禁）、`116ffc4`（Agent Runtime 与 Tool Gateway 证据链）、
+  `63b0f05`（控制台竞态、Timeline 与 favicon）、`5e0d8e4`（文档、计划、
+  审计报告与进度同步）。
 
 ### 进行中
 
-- M1-M6 核验、修复、全量回归和文档同步已完成；当前收口 Git diff、提交与
-  远端同步。
+- M1-M6 核验、修复、全量回归、文档和 Git 同步均已完成。M7 生产实现尚未
+  开始，下一步严格按 `PROJECT_PLAN.md` 从已同步基线进入功能分支。
 
 ### 阻塞与风险
 
@@ -101,7 +105,7 @@
 
 ### 下一步
 
-- 按 `PROJECT_PLAN.md` 从 `0.5.1` 干净基线进入 M7，先核验并归档
+- 按 `PROJECT_PLAN.md` 从 `0.5.1` 已同步跟踪基线进入 M7，先核验并归档
   Gitea Actions、OCI digest、Remote Agent、Deployment Controller、TLS 和
   systemd 官方实践。
 - 在 M7 worker/remote execution 设计中明确 lease、heartbeat、stale reclaim
@@ -170,6 +174,10 @@
   300 行；588 个文本文件 UTF-8 解码错误 0、BOM 0；405 个 Markdown 相对链接
   失效 0；生产源码、配置和文档高置信凭据命中 0。测试目录中的 4 个模拟凭据
   均为脱敏功能 fixture，不进入生产路径。
+- Git 收口：四个代码/契约/控制台/文档提交均已逐次 `git push origin dev`；
+  `origin` 为 `https://github.com/ChaceQC/CloudHelm.git`。本条进度同步作为
+  最终收口提交继续推送；`informations/m7-ci-remote-deploy/` 仍按下一阶段资料
+  保持未跟踪，不属于本轮提交。
 
 ## 2026-07-14（M6 本地代码、测试与等价 PR 闭环完成，版本 0.5.0）
 

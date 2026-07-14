@@ -8,8 +8,9 @@
 完成当前 M1-M6 核验 Git 收口后的下一实施阶段为 M7：CI/CD 与远端部署闭环。
 
 前置基线：M6 已完成并通过 2026-07-14 至 2026-07-15 的 M1-M6 全量核验，
-当前项目版本为 `0.5.1`。完成本轮 Git 收口并确认 `origin/dev` 同步后，才进入
-本计划的 M7 实施。该基线已经具备：
+当前项目版本为 `0.5.1`。本轮核验修复的跟踪文件已按子系统提交并同步
+`origin/dev`；`informations/m7-ci-remote-deploy/` 属于下一阶段资料，不纳入
+本轮基线。后续从该同步基线进入本计划的 M7 实施。该基线已经具备：
 
 - 已审批最新版 DevelopmentPlan 驱动的 Scaffold、Coder、Tester、Reviewer、
   Security 本地开发闭环。

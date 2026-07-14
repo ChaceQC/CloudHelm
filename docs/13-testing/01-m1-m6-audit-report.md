@@ -3,11 +3,11 @@
 > 核验日期：2026-07-14 至 2026-07-15
 > 核验分支：`dev`
 > 核验基线：`a89b566`
-> 核验修复候选版：项目 / Platform API / Tool Gateway / Control Console `0.5.1`，
+> 核验修复版：项目 / Platform API / Tool Gateway / Control Console `0.5.1`，
 > Agent Runtime `0.4.1`，Orchestrator `0.4.0`。
 > 状态：M1-M6 在本文声明的同步本地闭环边界内核验通过；hard crash 自动恢复
-> 和真实 subagent 执行调度作为明确剩余边界保留。尚待完成 Git 提交并同步
-> `origin/dev`，本轮不创建 `v0.5.1` tag。
+> 和真实 subagent 执行调度作为明确剩余边界保留。修复代码、共享契约、控制台
+> 与文档已按子系统提交并同步 `origin/dev`；本轮不创建 `v0.5.1` tag。
 
 ## 1. 核验目标
 
