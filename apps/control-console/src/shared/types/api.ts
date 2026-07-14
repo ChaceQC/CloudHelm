@@ -260,6 +260,7 @@ export interface EventLog {
 export interface OrchestrationActionRequest {
   actor_id?: string
   reason?: string | null
+  expected_phase?: string | null
 }
 
 export interface OrchestrationState {

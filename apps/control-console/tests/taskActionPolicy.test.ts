@@ -7,6 +7,7 @@ import {
   canResumeTask,
   canRunNextOrchestration,
   canStartOrchestration,
+  buildOrchestrationActionRequest,
 } from '../src/features/tasks/taskActionPolicy.ts'
 
 test('任务状态操作只在后端允许的状态启用', () => {
@@ -35,4 +36,18 @@ test('编排按钮同时受任务状态和 next_action 约束', () => {
   assert.equal(canRunNextOrchestration('running', 'unexpected_action'), false)
   assert.equal(canRunNextOrchestration('paused', 'run_requirement'), false)
   assert.equal(canRunNextOrchestration('failed', 'run_requirement'), false)
+})
+
+test('编排写请求携带当前 Task 阶段作为并发前置条件', () => {
+  assert.deepEqual(
+    buildOrchestrationActionRequest(
+      'RequirementClarifying',
+      '用户推进编排',
+    ),
+    {
+      actor_id: 'control-console',
+      reason: '用户推进编排',
+      expected_phase: 'RequirementClarifying',
+    },
+  )
 })

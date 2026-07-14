@@ -1,6 +1,7 @@
 import { formatDateTime, formatJson } from '../../shared/api/formatters'
 import type { AgentRun, EventLog } from '../../shared/types/api'
 import { AgentRunCard } from './AgentRunCard'
+import { orderAgentRunsForTimeline } from './taskTimelineOrdering'
 
 interface TaskTimelineProps {
   agentRuns: AgentRun[]
@@ -19,15 +20,11 @@ const streamStatusLabel: Record<TaskTimelineProps['streamStatus'], string> = {
 /**
  * Agent Timeline 与 Event Log。
  *
- * AgentRun 来自 M2 内部联调记录，Event Log 来自 `event_logs`；M3 不把
- * 这些记录渲染成“自动 Agent 已执行”的结论。
+ * AgentRun 来自当前任务各阶段的真实 Agent 执行记录，Event Log 来自
+ * `event_logs`；失败运行也按真实开始时间保留在审计顺序中。
  */
 export function TaskTimeline({ agentRuns, events, streamStatus }: TaskTimelineProps) {
-  const orderedAgentRuns = [...agentRuns].sort((left, right) => {
-    const leftTurn = left.conversation_turn ?? Number.MAX_SAFE_INTEGER
-    const rightTurn = right.conversation_turn ?? Number.MAX_SAFE_INTEGER
-    return leftTurn - rightTurn
-  })
+  const orderedAgentRuns = orderAgentRunsForTimeline(agentRuns)
 
   return (
     <section className="sub-panel timeline-panel" aria-labelledby="timeline-title">

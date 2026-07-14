@@ -1,4 +1,7 @@
-import type { TaskStatus } from '../../shared/types/api'
+import type {
+  OrchestrationActionRequest,
+  TaskStatus,
+} from '../../shared/types/api'
 
 const PAUSABLE_STATUSES: readonly TaskStatus[] = ['created', 'running', 'waiting_approval']
 const TERMINAL_STATUSES: readonly TaskStatus[] = ['failed', 'done', 'cancelled']
@@ -40,6 +43,20 @@ export function canStartOrchestration(status: TaskStatus, nextAction: string): b
  */
 export function canRunNextOrchestration(status: TaskStatus, nextAction: string): boolean {
   return !isOrchestrationBlocked(status) && EXECUTABLE_NEXT_ACTIONS.includes(nextAction)
+}
+
+/**
+ * 构造带阶段前置条件的 M4 写请求，避免重复点击推进两个 Agent 步骤。
+ */
+export function buildOrchestrationActionRequest(
+  expectedPhase: string,
+  reason: string,
+): OrchestrationActionRequest {
+  return {
+    actor_id: 'control-console',
+    reason,
+    expected_phase: expectedPhase,
+  }
 }
 
 function isOrchestrationBlocked(status: TaskStatus): boolean {
