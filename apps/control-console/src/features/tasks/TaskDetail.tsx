@@ -1,5 +1,9 @@
+import { useCallback } from 'react'
 import { DesignReviewPanel } from '../design-review/DesignReviewPanel'
 import { ApprovalPanel } from '../approvals/ApprovalPanel'
+import { LocalDevelopmentControls } from '../local-development/LocalDevelopmentControls'
+import { LocalDevelopmentEvidence } from '../local-development/LocalDevelopmentEvidence'
+import { useLocalDevelopmentEvidence } from '../local-development/useLocalDevelopmentEvidence'
 import { DevelopmentPlanPanel } from '../planning/DevelopmentPlanPanel'
 import { ToolCallList } from '../tool-calls/ToolCallList'
 import { formatDateTime } from '../../shared/api/formatters'
@@ -18,11 +22,26 @@ interface TaskDetailProps {
 /**
  * Task Detail 主面板。
  *
- * 聚合任务详情、Requirement、Technical Design、Timeline、ToolCall 和
- * Approval。所有数据均来自 Platform API；空状态表示数据库当前没有记录。
+ * 聚合任务详情、规格评审、M6 开发证据、Timeline、ToolCall 和 Approval。
+ * 所有数据均来自 Platform API；空状态表示数据库当前没有记录。
  */
 export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProps) {
   const detail = useTaskDetail(taskId, refreshKey, onTaskChanged)
+  const latestDevelopmentPlan = detail.data?.developmentPlans[0] ?? null
+  const localDevelopmentEnabled = latestDevelopmentPlan?.status === 'approved'
+  const handleLocalDevelopmentChanged = useCallback(async () => {
+    await Promise.all([
+      detail.refresh(),
+      Promise.resolve(onTaskChanged()),
+    ])
+  }, [detail.refresh, onTaskChanged])
+  const localDevelopment = useLocalDevelopmentEvidence(
+    taskId,
+    localDevelopmentEnabled,
+    refreshKey,
+    detail.streamEventRevision,
+    handleLocalDevelopmentChanged,
+  )
 
   const decideRequirement: typeof detail.decideRequirement = async (...args) => {
     return refreshAfterSuccess(detail.decideRequirement, onTaskChanged, ...args)
@@ -43,7 +62,7 @@ export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProp
           <span className="welcome-spark" aria-hidden="true">✦</span>
           <p className="eyebrow">CloudHelm 工作台</p>
           <h2>今天想推进哪个研发任务？</h2>
-          <p>从左侧选择任务，即可查看真实的 Requirement、Design、Timeline、ToolCall 和 Approval 数据。</p>
+          <p>从左侧选择任务，即可查看真实的规格、开发证据、Timeline、ToolCall 和 Approval 数据。</p>
         </div>
       </section>
     )
@@ -161,6 +180,21 @@ export function TaskDetail({ taskId, refreshKey, onTaskChanged }: TaskDetailProp
         onDecideDesign={decideDesign}
       />
       <DevelopmentPlanPanel developmentPlans={developmentPlans} />
+      <LocalDevelopmentControls
+        task={task}
+        workflowState={localDevelopment.data?.workflowState ?? null}
+        loadStatus={localDevelopment.status}
+        onStart={localDevelopment.start}
+        onRunNext={localDevelopment.runNext}
+      />
+      <LocalDevelopmentEvidence
+        enabled={localDevelopmentEnabled}
+        status={localDevelopment.status}
+        data={localDevelopment.data}
+        error={localDevelopment.error}
+        warning={localDevelopment.warning}
+        onRetry={localDevelopment.refresh}
+      />
       <TaskTimeline agentRuns={agentRuns} events={timeline} streamStatus={detail.streamStatus} />
       <ToolCallList toolCalls={toolCalls} />
       <ApprovalPanel approvals={approvals} onDecideApproval={decideApproval} />

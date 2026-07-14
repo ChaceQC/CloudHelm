@@ -1,5 +1,5 @@
 /**
- * CloudHelm M2-M4 API 类型。
+ * CloudHelm M2-M6 API 类型。
  *
  * 本文件手写映射 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
  * 中当前控制台需要的 DTO。后续如接入 OpenAPI 类型生成器，应以该契约为
@@ -168,6 +168,9 @@ export interface AgentRun {
   conversation_turn: number | null
   agent_type: string
   status: AgentRunStatus
+  workflow_step: string | null
+  attempt: number | null
+  idempotency_key: string | null
   model_name: string | null
   prompt_hash: string | null
   summary: string | null
@@ -192,6 +195,8 @@ export interface ToolCall {
   task_id: string
   agent_run_id: string | null
   tool_name: string
+  provider_call_id: string | null
+  provider_item_type: string | null
   risk_level: RiskLevel
   arguments_summary: string
   audit_json: Record<string, JsonValue>
@@ -275,3 +280,5 @@ export interface OrchestrationStepResult {
   development_plan: DevelopmentPlan | null
   approval: ApprovalRequest | null
 }
+
+export type * from './localDevelopment'

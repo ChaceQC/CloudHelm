@@ -73,6 +73,7 @@ export function useTaskDetail(
   })
   const requestSequence = useRef(0)
   const streamRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [streamEventRevision, setStreamEventRevision] = useState(0)
 
   const refresh = useCallback(async () => {
     const sequence = requestSequence.current + 1
@@ -82,7 +83,7 @@ export function useTaskDetail(
       return
     }
 
-    setState((current) => ({ ...current, status: 'loading', data: null, error: null }))
+    setState((current) => ({ ...current, status: 'loading', error: null }))
     try {
       const [task, requirements, designs, developmentPlans, agentRuns, toolCalls, approvals, timeline, orchestration] =
         await Promise.all([
@@ -184,6 +185,10 @@ export function useTaskDetail(
   }, [refresh, refreshKey])
 
   useEffect(() => {
+    setStreamEventRevision(0)
+  }, [taskId])
+
+  useEffect(() => {
     if (taskId === null) {
       return undefined
     }
@@ -201,7 +206,10 @@ export function useTaskDetail(
       }, 150)
     }
     const closeStream = openTaskEventStream(taskId, {
-      onEvent: scheduleRefresh,
+      onEvent: () => {
+        setStreamEventRevision((current) => current + 1)
+        scheduleRefresh()
+      },
       onStatus: (streamStatus) => {
         setState((current) => ({ ...current, streamStatus }))
       },
@@ -223,5 +231,6 @@ export function useTaskDetail(
     decideApproval,
     startOrchestration,
     runNextOrchestration,
+    streamEventRevision,
   }
 }

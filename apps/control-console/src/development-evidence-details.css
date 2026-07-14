@@ -1,0 +1,149 @@
+/**
+ * M6 命令、AC、finding、PR 摘要与响应式覆盖。
+ */
+
+.command-evidence-list {
+  display: grid;
+  gap: 7px;
+}
+
+.command-evidence {
+  min-width: 0;
+  padding: 10px 11px;
+  border-radius: 15px;
+  background: #f5f8fd;
+}
+
+.command-evidence > summary code {
+  color: #26364a;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.command-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.command-meta > div { min-width: 0; }
+
+.command-output-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.command-output-grid > div { min-width: 0; }
+.command-output-grid h4 { color: var(--muted); font-size: 9px; }
+.command-output-grid pre { max-height: 180px; overflow: auto; }
+
+.acceptance-result-list,
+.finding-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.acceptance-result-list article,
+.finding-list article {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 11px;
+  border-radius: 14px;
+  background: #f5f8fd;
+}
+
+.acceptance-result-list article > div,
+.finding-list article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  min-width: 0;
+}
+
+.acceptance-result-list strong,
+.finding-list strong { color: #26364a; font-family: var(--mono); font-size: 10px; overflow-wrap: anywhere; }
+.acceptance-result-list p,
+.finding-list p { color: var(--text-soft); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.acceptance-result-list small,
+.finding-list small { color: var(--muted); font-family: var(--mono); font-size: 9px; overflow-wrap: anywhere; }
+.finding-list .evidence-recommendation { color: var(--muted); font-size: 10px; }
+
+.evidence-callout,
+.evidence-warning {
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 11px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.evidence-callout { display: grid; gap: 5px; }
+.evidence-callout ul { margin: 0; padding-left: 18px; }
+.evidence-warning { color: var(--amber); background: var(--amber-soft); }
+
+.local-pr-boundary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 15px;
+  color: #31506f;
+  background: var(--blue-surface);
+  font-size: 11px;
+}
+
+.local-pr-boundary strong { font-weight: 500; overflow-wrap: anywhere; }
+.local-pr-boundary a { color: var(--blue); }
+
+.branch-flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 15px;
+  background: #eef3f8;
+}
+
+.branch-flow code {
+  min-width: 0;
+  color: #26364a;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .evidence-grid { grid-template-columns: 1fr; }
+  .evidence-card-wide { grid-column: auto; }
+}
+
+@media (max-width: 680px) {
+  .local-development-panel,
+  .evidence-card {
+    padding: 14px;
+    border-radius: 19px;
+  }
+
+  .artifact-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .command-output-grid { grid-template-columns: 1fr; }
+  .diff-scroll { max-height: 430px; }
+  .branch-flow { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 430px) {
+  .local-development-actions > button { flex: 1 1 100%; }
+  .report-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .artifact-meta-grid,
+  .command-meta { grid-template-columns: 1fr; }
+  .artifact-meta-grid .wide { grid-column: auto; }
+  .evidence-card-heading { align-items: flex-start; flex-direction: column; }
+  .changed-file-list li { align-items: flex-start; flex-direction: column; }
+  .evidence-disclosure > summary { align-items: flex-start; }
+}

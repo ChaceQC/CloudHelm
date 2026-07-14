@@ -3,15 +3,21 @@ import type {
   AgentRun,
   ApprovalRequest,
   ApprovalStatus,
+  ArtifactDetailRead,
+  ArtifactRead,
   DevelopmentPlan,
   DecisionRequest,
   EventLog,
+  LocalDevelopmentActionRequest,
+  LocalDevelopmentStateRead,
+  LocalDevelopmentStepRead,
   OrchestrationActionRequest,
   OrchestrationState,
   OrchestrationStepResult,
   PageResponse,
   Project,
   ProjectCreateInput,
+  PullRequestRecordRead,
   RequirementSpec,
   Task,
   TaskCreateInput,
@@ -78,6 +84,42 @@ export function runNextTaskOrchestration(
   payload: OrchestrationActionRequest,
 ): Promise<OrchestrationStepResult> {
   return apiPost<OrchestrationStepResult>(`/api/tasks/${taskId}/run-next`, payload)
+}
+
+export function getLocalDevelopmentState(taskId: string): Promise<LocalDevelopmentStateRead> {
+  return apiGet<LocalDevelopmentStateRead>(`/api/tasks/${taskId}/local-development`)
+}
+
+export function startLocalDevelopment(
+  taskId: string,
+  payload: LocalDevelopmentActionRequest,
+): Promise<LocalDevelopmentStepRead> {
+  return apiPost<LocalDevelopmentStepRead>(`/api/tasks/${taskId}/local-development/start`, payload)
+}
+
+export function runNextLocalDevelopment(
+  taskId: string,
+  payload: LocalDevelopmentActionRequest,
+): Promise<LocalDevelopmentStepRead> {
+  return apiPost<LocalDevelopmentStepRead>(`/api/tasks/${taskId}/local-development/run-next`, payload)
+}
+
+export function listArtifacts(taskId: string, artifactType?: string): Promise<PageResponse<ArtifactRead>> {
+  return apiGet<PageResponse<ArtifactRead>>(`/api/tasks/${taskId}/artifacts`, {
+    artifact_type: artifactType,
+  })
+}
+
+export function getArtifactDetail(artifactId: string): Promise<ArtifactDetailRead> {
+  return apiGet<ArtifactDetailRead>(`/api/artifacts/${artifactId}`)
+}
+
+export function listPullRequestRecords(taskId: string): Promise<PageResponse<PullRequestRecordRead>> {
+  return apiGet<PageResponse<PullRequestRecordRead>>(`/api/tasks/${taskId}/pull-request-records`)
+}
+
+export function getPullRequestRecord(recordId: string): Promise<PullRequestRecordRead> {
+  return apiGet<PullRequestRecordRead>(`/api/pull-request-records/${recordId}`)
 }
 
 export function listRequirements(taskId: string): Promise<PageResponse<RequirementSpec>> {
