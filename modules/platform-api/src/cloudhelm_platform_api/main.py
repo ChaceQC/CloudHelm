@@ -13,13 +13,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from cloudhelm_platform_api.api.agent_runs import router as agent_run_router
 from cloudhelm_platform_api.api.approvals import router as approval_router
+from cloudhelm_platform_api.api.artifacts import router as artifact_router
 from cloudhelm_platform_api.api.designs import router as design_router
 from cloudhelm_platform_api.api.development_plans import router as development_plan_router
 from cloudhelm_platform_api.api.errors import register_exception_handlers
 from cloudhelm_platform_api.api.events import router as event_router
 from cloudhelm_platform_api.api.health import router as health_router
+from cloudhelm_platform_api.api.local_development import (
+    router as local_development_router,
+)
 from cloudhelm_platform_api.api.orchestration import router as orchestration_router
 from cloudhelm_platform_api.api.projects import router as project_router
+from cloudhelm_platform_api.api.pull_request_records import (
+    router as pull_request_record_router,
+)
 from cloudhelm_platform_api.api.requirements import router as requirement_router
 from cloudhelm_platform_api.api.tasks import router as task_router
 from cloudhelm_platform_api.api.tool_calls import router as tool_call_router
@@ -39,7 +46,10 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="CloudHelm Platform API",
-        description="CloudHelm 平台 API。M5 提供真实数据库驱动的任务编排、审批、事件和受控本地 Tool Gateway。",
+        description=(
+            "CloudHelm 平台 API。M6 提供真实数据库驱动的 Agent 编排、"
+            "受控本地代码/测试/安全工具、Artifact 与本地等价 PR record。"
+        ),
         version=settings.version,
         responses={
             400: {"model": ErrorResponse, "description": "业务请求错误。"},
@@ -53,7 +63,9 @@ def create_app() -> FastAPI:
     app.state.tool_gateway = create_default_gateway(
         max_calls=settings.tool_rate_limit_calls,
         window_seconds=settings.tool_rate_limit_window_seconds,
-        allowed_workspace_roots=settings.tool_workspace_roots,
+        max_timeout_seconds=settings.tool_max_timeout_seconds,
+        max_output_chars=settings.tool_max_output_chars,
+        allowed_workspace_roots=settings.effective_tool_workspace_roots,
     )
 
     @app.middleware("http")
@@ -82,9 +94,12 @@ def create_app() -> FastAPI:
     app.include_router(agent_run_router)
     app.include_router(tool_call_router)
     app.include_router(tool_gateway_router)
+    app.include_router(artifact_router)
+    app.include_router(pull_request_record_router)
     app.include_router(approval_router)
     app.include_router(event_router)
     app.include_router(orchestration_router)
+    app.include_router(local_development_router)
     return app
 
 

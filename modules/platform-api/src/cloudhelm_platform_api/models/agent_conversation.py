@@ -55,6 +55,10 @@ class AgentConversation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="ck_agent_conversations_source_fields",
         ),
         CheckConstraint("depth >= 0", name="ck_agent_conversations_depth"),
+        CheckConstraint(
+            "revision >= 0",
+            name="ck_agent_conversations_revision",
+        ),
         UniqueConstraint(
             "prompt_cache_key",
             name="uq_agent_conversations_prompt_cache_key",
@@ -153,6 +157,12 @@ class AgentConversation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=0,
         comment="已成功提交的模型 turn 数。",
+    )
+    revision: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="会话任意历史变更的乐观并发版本。",
     )
     last_response_id: Mapped[str | None] = mapped_column(
         Text,

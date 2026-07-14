@@ -101,6 +101,8 @@ class AgentConversationService:
         record: AgentConversation,
         conversation: ProviderConversation,
         metadata: ProviderCallMetadata | None,
+        *,
+        expected_revision: int | None = None,
     ) -> None:
         """在业务事务内保存已通过 schema 的完整 conversation turn。"""
 
@@ -110,6 +112,27 @@ class AgentConversationService:
                 "Provider conversation 与数据库记录不一致。",
                 409,
             )
+        current = self.conversations.get(record.id, for_update=True)
+        if current is None:
+            raise ServiceError(
+                "agent_conversation_not_found",
+                "Agent conversation 不存在。",
+                404,
+            )
+        if (
+            expected_revision is not None
+            and current.revision != expected_revision
+        ):
+            raise ServiceError(
+                "agent_conversation_revision_conflict",
+                "Agent 执行期间 conversation 已被其他请求更新，请重试当前步骤。",
+                409,
+                {
+                    "expected_revision": expected_revision,
+                    "actual_revision": current.revision,
+                },
+            )
+        record = current
         self._ensure_active(record)
         if (
             metadata is not None
@@ -124,6 +147,7 @@ class AgentConversationService:
         record.items_json = deepcopy(conversation.items)
         record.turn_count = conversation.turn_count
         record.last_response_id = conversation.last_response_id
+        record.revision += 1
 
     def append_root_context_if_exists(
         self,
@@ -139,6 +163,7 @@ class AgentConversationService:
         conversation = to_provider_conversation(record)
         conversation.append_context_item(item)
         record.items_json = deepcopy(conversation.items)
+        record.revision += 1
 
     def spawn_subagent(
         self,

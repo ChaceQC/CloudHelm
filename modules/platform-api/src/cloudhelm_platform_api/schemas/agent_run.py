@@ -50,6 +50,9 @@ class AgentRunRead(OrmModel):
     conversation_turn: int | None
     agent_type: str
     status: AgentRunStatus
+    workflow_step: str | None
+    attempt: int | None
+    idempotency_key: str | None
     model_name: str | None
     prompt_hash: str | None
     summary: str | None

@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/artifacts/pull-request-record.schema.json",
+  "$defs": {
+    "PullRequestProvider": {
+      "description": "PR record 提供方。",
+      "enum": [
+        "local",
+        "github",
+        "gitea"
+      ],
+      "title": "PullRequestProvider",
+      "type": "string"
+    },
+    "PullRequestRecordStatus": {
+      "description": "PR record 生命周期状态。",
+      "enum": [
+        "open",
+        "superseded",
+        "closed"
+      ],
+      "title": "PullRequestRecordStatus",
+      "type": "string"
+    }
+  },
+  "description": "本地等价 PR record 响应。",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "task_id": {
+      "format": "uuid",
+      "title": "Task Id",
+      "type": "string"
+    },
+    "project_id": {
+      "format": "uuid",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "development_plan_id": {
+      "format": "uuid",
+      "title": "Development Plan Id",
+      "type": "string"
+    },
+    "created_by_agent_run_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Created By Agent Run Id"
+    },
+    "branch_tool_call_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Branch Tool Call Id"
+    },
+    "commit_tool_call_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Commit Tool Call Id"
+    },
+    "provider": {
+      "$ref": "#/$defs/PullRequestProvider"
+    },
+    "status": {
+      "$ref": "#/$defs/PullRequestRecordStatus"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "base_branch": {
+      "title": "Base Branch",
+      "type": "string"
+    },
+    "head_branch": {
+      "title": "Head Branch",
+      "type": "string"
+    },
+    "base_commit_sha": {
+      "title": "Base Commit Sha",
+      "type": "string"
+    },
+    "commit_sha": {
+      "title": "Commit Sha",
+      "type": "string"
+    },
+    "changed_files_json": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Changed Files Json",
+      "type": "array"
+    },
+    "diff_stat_json": {
+      "additionalProperties": true,
+      "title": "Diff Stat Json",
+      "type": "object"
+    },
+    "diff_artifact_id": {
+      "format": "uuid",
+      "title": "Diff Artifact Id",
+      "type": "string"
+    },
+    "test_artifact_id": {
+      "format": "uuid",
+      "title": "Test Artifact Id",
+      "type": "string"
+    },
+    "review_artifact_id": {
+      "format": "uuid",
+      "title": "Review Artifact Id",
+      "type": "string"
+    },
+    "security_artifact_id": {
+      "format": "uuid",
+      "title": "Security Artifact Id",
+      "type": "string"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Url"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "task_id",
+    "project_id",
+    "development_plan_id",
+    "created_by_agent_run_id",
+    "branch_tool_call_id",
+    "commit_tool_call_id",
+    "provider",
+    "status",
+    "title",
+    "summary",
+    "base_branch",
+    "head_branch",
+    "base_commit_sha",
+    "commit_sha",
+    "changed_files_json",
+    "diff_stat_json",
+    "diff_artifact_id",
+    "test_artifact_id",
+    "review_artifact_id",
+    "security_artifact_id",
+    "url",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "PullRequestRecordRead",
+  "type": "object"
+}

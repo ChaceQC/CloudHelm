@@ -34,6 +34,55 @@ class ToolCallRepository:
             select(ToolCall).where(ToolCall.task_id == task_id, ToolCall.idempotency_key == idempotency_key).limit(1)
         ).scalar_one_or_none()
 
+    def get_by_agent_provider_call(
+        self,
+        agent_run_id: UUID,
+        provider_call_id: str,
+    ) -> ToolCall | None:
+        """按 AgentRun 和供应商 call_id 读取 ToolCall。"""
+
+        return self.session.scalar(
+            select(ToolCall)
+            .where(
+                ToolCall.agent_run_id == agent_run_id,
+                ToolCall.provider_call_id == provider_call_id,
+            )
+            .limit(1)
+        )
+
+    def latest_by_task_and_tool(
+        self,
+        task_id: UUID,
+        tool_name: str,
+        *,
+        status: str | None = None,
+    ) -> ToolCall | None:
+        """读取任务指定工具的最新调用。"""
+
+        statement = select(ToolCall).where(
+            ToolCall.task_id == task_id,
+            ToolCall.tool_name == tool_name,
+        )
+        if status is not None:
+            statement = statement.where(ToolCall.status == status)
+        return self.session.scalar(
+            statement.order_by(
+                ToolCall.started_at.desc(),
+                ToolCall.id.desc(),
+            ).limit(1)
+        )
+
+    def list_by_agent_run(self, agent_run_id: UUID) -> list[ToolCall]:
+        """按开始时间返回一个 AgentRun 的全部 ToolCall。"""
+
+        return list(
+            self.session.scalars(
+                select(ToolCall)
+                .where(ToolCall.agent_run_id == agent_run_id)
+                .order_by(ToolCall.started_at.asc(), ToolCall.id.asc())
+            )
+        )
+
     def list_by_task(self, task_id: UUID, limit: int, cursor: str | None) -> tuple[list[ToolCall], str | None]:
         """分页读取某个任务的工具调用。"""
 

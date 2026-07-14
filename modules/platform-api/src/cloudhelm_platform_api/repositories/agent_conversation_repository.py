@@ -26,7 +26,9 @@ class AgentConversationRepository:
 
         statement = select(AgentConversation).where(AgentConversation.id == conversation_id)
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
         return self.session.scalar(statement)
 
     def get_root(self, task_id: UUID, *, for_update: bool = False) -> AgentConversation | None:
@@ -37,7 +39,9 @@ class AgentConversationRepository:
             AgentConversation.source_type == "root",
         )
         if for_update:
-            statement = statement.with_for_update()
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
         return self.session.scalar(statement)
 
     def list_children(self, parent_conversation_id: UUID) -> list[AgentConversation]:

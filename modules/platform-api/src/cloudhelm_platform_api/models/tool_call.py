@@ -4,7 +4,15 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, Text, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -30,6 +38,27 @@ class ToolCall(UUIDPrimaryKeyMixin, Base):
             unique=True,
             postgresql_where=text("idempotency_key IS NOT NULL"),
         ),
+        Index(
+            "ux_tool_calls_agent_provider_call",
+            "agent_run_id",
+            "provider_call_id",
+            unique=True,
+            postgresql_where=text("provider_call_id IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "provider_item_type IS NULL "
+            "OR provider_item_type IN ('function_call', 'custom_tool_call')",
+            name="ck_tool_calls_provider_item_type",
+        ),
+        CheckConstraint(
+            "("
+            "provider_call_id IS NULL AND provider_item_type IS NULL"
+            ") OR ("
+            "provider_call_id IS NOT NULL AND provider_item_type IS NOT NULL "
+            "AND agent_run_id IS NOT NULL"
+            ")",
+            name="ck_tool_calls_provider_identity",
+        ),
     )
 
     task_id: Mapped[UUID] = mapped_column(
@@ -44,6 +73,14 @@ class ToolCall(UUIDPrimaryKeyMixin, Base):
         comment="触发该工具调用的 AgentRun。",
     )
     tool_name: Mapped[str] = mapped_column(Text, nullable=False, comment="工具名称。")
+    provider_call_id: Mapped[str | None] = mapped_column(
+        Text,
+        comment="供应商 function/custom tool call_id。",
+    )
+    provider_item_type: Mapped[str | None] = mapped_column(
+        Text,
+        comment="供应商调用项类型：function_call 或 custom_tool_call。",
+    )
     risk_level: Mapped[str] = mapped_column(Text, nullable=False, comment="工具风险等级。")
     arguments_json: Mapped[dict[str, Any]] = mapped_column(
         JSONB,

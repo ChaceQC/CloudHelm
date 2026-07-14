@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/artifacts/artifact.schema.json",
+  "$defs": {
+    "ArtifactPreview": {
+      "description": "受大小和媒体类型限制的 Artifact 内容预览。",
+      "properties": {
+        "kind": {
+          "enum": [
+            "text",
+            "json"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "json_value": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Json Value"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "bytes_returned": {
+          "maximum": 65536,
+          "minimum": 0,
+          "title": "Bytes Returned",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "truncated",
+        "bytes_returned"
+      ],
+      "title": "ArtifactPreview",
+      "type": "object"
+    },
+    "ArtifactProducerType": {
+      "description": "Artifact 生产者类型。",
+      "enum": [
+        "agent",
+        "tool",
+        "system"
+      ],
+      "title": "ArtifactProducerType",
+      "type": "string"
+    },
+    "ArtifactStatus": {
+      "description": "Artifact 可用状态。",
+      "enum": [
+        "available",
+        "invalidated",
+        "missing"
+      ],
+      "title": "ArtifactStatus",
+      "type": "string"
+    }
+  },
+  "description": "Artifact 详情，可由 service 注入安全内容预览。",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "task_id": {
+      "format": "uuid",
+      "title": "Task Id",
+      "type": "string"
+    },
+    "agent_run_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Agent Run Id"
+    },
+    "tool_call_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Tool Call Id"
+    },
+    "producer_type": {
+      "$ref": "#/$defs/ArtifactProducerType"
+    },
+    "artifact_type": {
+      "title": "Artifact Type",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ArtifactStatus"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "media_type": {
+      "title": "Media Type",
+      "type": "string"
+    },
+    "uri": {
+      "title": "Uri",
+      "type": "string"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    },
+    "size_bytes": {
+      "title": "Size Bytes",
+      "type": "integer"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    },
+    "metadata_json": {
+      "additionalProperties": true,
+      "title": "Metadata Json",
+      "type": "object"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "preview": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtifactPreview"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "id",
+    "task_id",
+    "agent_run_id",
+    "tool_call_id",
+    "producer_type",
+    "artifact_type",
+    "status",
+    "display_name",
+    "media_type",
+    "uri",
+    "sha256",
+    "size_bytes",
+    "summary",
+    "metadata_json",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "ArtifactDetailRead",
+  "type": "object"
+}

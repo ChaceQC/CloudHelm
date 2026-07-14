@@ -3,16 +3,21 @@
 配置通过环境变量注入，避免把数据库地址、端口、环境、版本和后续外部
 服务地址写死在业务代码中。M2 开始接入 PostgreSQL，所有数据库连接均
 从 `CLOUDHELM_DATABASE_URL` 读取，便于本地开发、测试和后续部署环境
-使用不同配置。M4 增加 Agent provider 配置；M5 增加 Tool Gateway 入口。
+使用不同配置。M4 增加 Agent provider 配置；M5 增加 Tool Gateway 入口；
+M6 增加受控 sample workspace、Artifact 与本地开发工具配置。
 真实密钥只允许通过环境变量
 注入，不能提交到 Git。
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
 
 
 class Settings(BaseSettings):
@@ -25,7 +30,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.4.3", description="当前服务版本。")
+    version: str = Field(default="0.5.0", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",
@@ -51,6 +56,50 @@ class Settings(BaseSettings):
     tool_workspace_roots: list[str] = Field(
         default_factory=list,
         description="Tool Gateway 允许访问的本地 workspace 根目录；空列表默认拒绝文件和命令工具。",
+    )
+    tool_max_timeout_seconds: int = Field(
+        default=300,
+        ge=1,
+        le=600,
+        description="M6 pytest、安全扫描和本地命令的统一最大超时。",
+    )
+    tool_max_output_chars: int = Field(
+        default=50000,
+        ge=1000,
+        le=1000000,
+        description="Tool Gateway stdout/stderr 默认最大保存字符数。",
+    )
+    m6_sample_repo_root: str = Field(
+        default=str(_REPOSITORY_ROOT / "examples" / "sample-repo-python"),
+        description="M6 受控 sample repo fixture 根目录。",
+    )
+    m6_recipe_root: str = Field(
+        default=str(
+            _REPOSITORY_ROOT
+            / "examples"
+            / "sample-repo-python"
+            / "demo-issues"
+        ),
+        description="M6 已批准本地 execution recipe 的受控根目录。",
+    )
+    m6_workspace_root: str = Field(
+        default=str(_REPOSITORY_ROOT / "output" / "m6-workspaces"),
+        description="M6 Task 独立 Git workspace 父目录。",
+    )
+    artifact_root: str = Field(
+        default=str(_REPOSITORY_ROOT / "output" / "artifacts"),
+        description="Artifact 文件内容的受控本地存储根目录。",
+    )
+    artifact_preview_bytes: int = Field(
+        default=65536,
+        ge=1024,
+        le=65536,
+        description="Artifact 详情 API 最大预览字节数。",
+    )
+    m6_branch_prefix: str = Field(
+        default="codex",
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$",
+        description="M6 本地任务分支前缀。",
     )
     agent_provider: str = Field(
         default="local_structured",
@@ -146,6 +195,17 @@ class Settings(BaseSettings):
         default=["http://127.0.0.1:5173", "http://localhost:5173"],
         description="本地控制台允许访问平台 API 的来源。",
     )
+
+    @property
+    def effective_tool_workspace_roots(self) -> list[str]:
+        """合并显式 allowlist 与 M6 固定 fixture/workspace 根目录。"""
+
+        ordered = [
+            *self.tool_workspace_roots,
+            self.m6_sample_repo_root,
+            self.m6_workspace_root,
+        ]
+        return list(dict.fromkeys(ordered))
 
 
 @lru_cache(maxsize=1)

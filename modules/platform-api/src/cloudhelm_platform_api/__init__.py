@@ -1,9 +1,9 @@
-"""CloudHelm 平台 API 包。
+"""CloudHelm 统一平台 API。
 
-M1 仅暴露最小健康检查服务，后续会在本包内继续扩展 API、schemas、
-services、repositories 和 workflows 分层。
+当前包提供项目、任务、审批、Agent/Tool 审计以及 M6 本地开发闭环接口；
+业务规则、持久化和工作流分别保持在 services、repositories 与专用编排层。
 """
 
 __all__ = ["__version__"]
 
-__version__ = "0.1.0"
+__version__ = "0.5.0"

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/events/task-event.schema.json",
   "title": "CloudHelm Task Event",
-  "description": "CloudHelm 任务事件流的基础结构。M2-M5 已接入真实 event_logs，事件来自数据库而非内存模拟。",
+  "description": "CloudHelm 任务事件流的基础结构。M2-M6 已接入真实 event_logs，事件来自数据库而非内存模拟。",
   "type": "object",
   "required": ["id", "task_id", "event_type", "actor_type", "created_at", "payload"],
   "properties": {
@@ -51,9 +51,22 @@
         "ApprovalRequested",
         "ApprovalApproved",
         "ApprovalRejected",
-        "ApprovalExpired"
+        "ApprovalExpired",
+        "LocalDevelopmentStarted",
+        "ScaffoldCompleted",
+        "CodePatchGenerated",
+        "TestRunStarted",
+        "TestRunPassed",
+        "TestRunFailed",
+        "ReviewCompleted",
+        "SecurityScanCompleted",
+        "SecurityScanBlocked",
+        "ArtifactCreated",
+        "BranchCreated",
+        "CommitCreated",
+        "PullRequestRecordCreated"
       ],
-      "description": "M2-M5 真实写入的事件类型。"
+      "description": "M2-M6 真实写入的事件类型。"
     },
     "actor_type": {
       "type": "string",

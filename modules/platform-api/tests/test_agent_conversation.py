@@ -30,18 +30,23 @@ def test_normal_agent_roles_share_one_task_root_conversation(
 
     requirement_step = client.post(f"/api/tasks/{task['id']}/run-next")
     assert requirement_step.status_code == 200, requirement_step.text
+    assert _root_revision(task["id"]) == 1
     design_step = client.post(f"/api/tasks/{task['id']}/run-next")
     assert design_step.status_code == 200, design_step.text
+    assert _root_revision(task["id"]) == 2
     assert client.post(
         f"/api/technical-designs/{design_step.json()['technical_design']['id']}/approve",
         json={"actor_id": "architect", "reason": "设计已人工确认"},
     ).status_code == 200
+    assert _root_revision(task["id"]) == 3
     plan_step = client.post(f"/api/tasks/{task['id']}/run-next")
     assert plan_step.status_code == 200, plan_step.text
+    assert _root_revision(task["id"]) == 4
     assert client.post(
         f"/api/approvals/{plan_step.json()['approval']['id']}/approve",
         json={"actor_id": "reviewer", "reason": "计划已人工确认"},
     ).status_code == 200
+    assert _root_revision(task["id"]) == 5
 
     runs = client.get(f"/api/tasks/{task['id']}/agent-runs").json()["items"]
     ordered_runs = sorted(runs, key=lambda item: item["conversation_turn"])
@@ -70,6 +75,7 @@ def test_normal_agent_roles_share_one_task_root_conversation(
         assert root.parent_conversation_id is None
         assert root.agent_role is None
         assert root.turn_count == 3
+        assert root.revision == 5
         assert root.prompt_cache_key.startswith("cloudhelm:")
         serialized = json.dumps(root.items_json, ensure_ascii=False)
         assert "Requirement Agent Role Instructions v3" in serialized
@@ -105,6 +111,7 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
         )
         assert root is not None
         parent_turn_count = root.turn_count
+        parent_revision = root.revision
         child, provider_conversation = service.spawn_subagent(
             parent_conversation_id=root.id,
             agent_role="reviewer",
@@ -121,6 +128,8 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
         assert child.depth == 1
         assert child.fork_mode == "fresh"
         assert child.status == "active"
+        assert child.revision == 0
+        assert root.revision == parent_revision
         assert child.objective == "只审查当前 Requirement 输出是否满足结构化契约和风险边界。"
         assert provider_conversation.source_type == "subagent"
         assert provider_conversation.parent_conversation_id == str(root.id)
@@ -144,7 +153,9 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
 
         assert child.status == "completed"
         assert child.completed_at is not None
+        assert child.revision == 1
         assert root.turn_count == parent_turn_count
+        assert root.revision == parent_revision + 1
         parent_text = json.dumps(root.items_json, ensure_ascii=False)
         assert "<subagent_notification>" in parent_text
         assert str(child.id) in parent_text
@@ -215,3 +226,17 @@ def test_late_step_failure_rolls_back_artifact_and_conversation_turn(
         for event in client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
     ]
     assert event_types == ["TaskCreated", "TaskPhaseChanged", "AgentRunStarted", "AgentRunFailed"]
+
+
+def _root_revision(task_id: str) -> int:
+    """读取 Task root conversation 当前乐观并发版本。"""
+
+    with Session(get_engine()) as session:
+        revision = session.scalar(
+            select(AgentConversation.revision).where(
+                AgentConversation.task_id == UUID(task_id),
+                AgentConversation.source_type == "root",
+            )
+        )
+    assert revision is not None
+    return revision

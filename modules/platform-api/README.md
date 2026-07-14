@@ -1,6 +1,8 @@
 # modules/platform-api
 
-CloudHelm 平台 API 服务。M5 使用 FastAPI + SQLAlchemy + Alembic + PostgreSQL 提供真实数据库驱动的 Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、ToolCall、Approval、Event Timeline、Orchestration API 和 Tool Gateway 调用入口。
+CloudHelm 平台 API 服务。M6 使用 FastAPI + SQLAlchemy + Alembic +
+PostgreSQL 提供真实数据库驱动的 Agent 编排、Tool Gateway、本地开发单步流程、
+Artifact 与本地等价 PR record。
 
 ## 命令
 
@@ -21,11 +23,19 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 ## 环境变量
 
 - `CLOUDHELM_ENV`：运行环境，默认 `development`。
-- `CLOUDHELM_VERSION`：服务版本，默认 `0.4.3`。
+- `CLOUDHELM_VERSION`：服务版本，默认 `0.5.0`。
 - `CLOUDHELM_AGENT_PROVIDER`：M4 Agent provider，默认 `local_structured`。
 - `CLOUDHELM_TOOL_RATE_LIMIT_CALLS`：单实例窗口内每个任务或 AgentRun 的最大工具调用次数，默认 60。
 - `CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS`：工具调用滑动窗口秒数，默认 60。
 - `CLOUDHELM_TOOL_WORKSPACE_ROOTS`：允许 Repo、Sandbox、Git 工具访问的根目录 JSON 数组；默认 `[]`，即拒绝工作区工具。
+- `CLOUDHELM_TOOL_MAX_TIMEOUT_SECONDS`：M6 测试、安全扫描和本地命令的统一最大超时。
+- `CLOUDHELM_TOOL_MAX_OUTPUT_CHARS`：Tool Gateway 子进程有界保存的最大输出字符数。
+- `CLOUDHELM_M6_SAMPLE_REPO_ROOT` / `CLOUDHELM_M6_RECIPE_ROOT`：受控
+  sample fixture 与 execution recipe 根目录。
+- `CLOUDHELM_M6_WORKSPACE_ROOT` / `CLOUDHELM_ARTIFACT_ROOT`：Task 独立
+  Git workspace 与 Artifact 文件根目录。
+- `CLOUDHELM_ARTIFACT_PREVIEW_BYTES`：Artifact 安全预览上限，最大 65536。
+- `CLOUDHELM_M6_BRANCH_PREFIX`：M6 本地任务分支前缀，默认 `codex`。
 - `CLOUDHELM_LLM_PROVIDER`、`CLOUDHELM_LLM_MODEL`、`CLOUDHELM_LLM_API_BASE`、`CLOUDHELM_LLM_API_KEY`：切换 `openai_compatible` provider 时使用；真实 Key 不得提交。
 - `CLOUDHELM_LLM_API_MODE`：默认 `responses`；旧兼容服务可改为 `chat_completions`。
 - `CLOUDHELM_LLM_REASONING_EFFORT`：默认 `xhigh`，用于当前 `gpt-5.6-sol` 真实流程。
@@ -64,6 +74,9 @@ src/cloudhelm_platform_api/
 - 每次成功 turn 在业务产物、AgentRun、conversation 和 EventLog 的同一事务中
   保存完整可重放 ResponseItem；每个 Agent 步骤使用 savepoint，晚期持久化失败
   会回滚业务产物和 conversation turn，再单独提交失败 AgentRun。
+- M6 工具步骤已经产生真实 ToolCall 后若发生基础设施失败，会保存配对的
+  provider call/output 与 `<failed_step_context>`，并把失败 AgentRun 关联到该
+  conversation turn；不会把失败步骤写成成功业务产物。
 - `agent_runs` 同时记录总量和 `provider_requests` 逐请求 usage。`cache_hit`
   只能由供应商 `cached_input_tokens > 0` 推导，结构化修复重试不会被隐藏。
 - 只有 `AgentConversationService.spawn_subagent` 能创建 child，要求 running
@@ -85,6 +98,32 @@ Agent 调用必须绑定属于当前任务且状态为 `running` 的 AgentRun，
 Tool Gateway 返回的主体、风险、幂等键、参数 hash 和终态保存在
 `tool_calls.audit_json`。
 
+带 `workflow_step` 的 M6 AgentRun 只能由内部 Agent executor 调用 Tool
+Gateway。公开 HTTP 入口不能绕过该边界；executor 按工具名、Pydantic 默认值
+规范化后的模型可见参数和允许次数绑定 execution recipe，未批准调用只保存
+失败 ToolCall，不进入 handler。
+
+## M6 本地开发接口
+
+```text
+GET  /api/tasks/{task_id}/local-development
+POST /api/tasks/{task_id}/local-development/start
+POST /api/tasks/{task_id}/local-development/run-next
+GET  /api/tasks/{task_id}/artifacts
+GET  /api/artifacts/{artifact_id}
+GET  /api/tasks/{task_id}/pull-request-records
+GET  /api/pull-request-records/{record_id}
+```
+
+每次 `run-next` 只推进 Scaffold、Coder、Tester、Reviewer、Security 或 Git
+收尾中的一个动作。工作区、命令、分支与 Artifact 根目录均由服务端绑定；PR
+门禁要求 diff/test/review/security 来自同一 DevelopmentPlan、recipe hash 和
+evidence set。`provider=local` 的 PR record 强制 `url=null`。
+
 ## 当前边界
 
-M5 提供本地 Tool Gateway、Repo Tool、Sandbox Tool 和 Git Tool，并以应用级共享 Gateway 执行单实例调用限流。Sandbox Tool 暂用平台 allowlist 内的本地目录 + `subprocess` 超时，不接 Docker；Repo/Git 仅执行已注册的本地低风险动作，不执行 push、远端 SSH、部署或监控操作。`/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件，暂不实现生产级事件总线推送。
+M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branch/commit 和
+本地等价 PR record。Sandbox 暂用 allowlist 内本地目录 + 受控 `subprocess`，
+具备命令数组、环境白名单、超时、进程树清理和有界输出，但不具备 Docker 的
+CPU、内存、PID、只读挂载与网络隔离；不执行 push、远端 SSH、部署或监控操作。
+`/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件。

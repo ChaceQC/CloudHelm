@@ -7,6 +7,8 @@
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
+
 from cloudhelm_agent_runtime.providers import (
     AgentProviderError,
     AgentProviderRequestError,
@@ -26,6 +28,41 @@ from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
 
+RECOVERABLE_SERVICE_ERROR_CODES = {
+    "agent_conversation_revision_conflict",
+    "command_not_found",
+    "command_timeout",
+    "database_error",
+    "git_add_failed",
+    "git_branch_exists",
+    "git_commit_failed",
+    "git_create_branch_failed",
+    "git_diff_failed",
+    "git_format_patch_failed",
+    "git_index_check_failed",
+    "git_index_not_clean",
+    "git_no_staged_changes",
+    "git_not_found",
+    "git_ref_not_found",
+    "git_status_failed",
+    "git_timeout",
+    "junit_parse_failed",
+    "m6_junit_artifact_empty",
+    "m6_junit_artifact_missing",
+    "m6_junit_integrity_mismatch",
+    "pytest_command_not_found",
+    "pytest_execution_failed",
+    "pytest_timeout",
+    "security_command_not_found",
+    "security_report_parse_failed",
+    "security_scan_failed",
+    "security_scan_timeout",
+    "task_state_changed_during_tool_execution",
+    "tool_execution_error",
+    "tool_executor_error",
+    "tool_manifest_incomplete",
+}
+
 
 class AgentRunLifecycle(BaseService):
     """创建、完成和失败 AgentRun，并维护对应事件。"""
@@ -36,31 +73,71 @@ class AgentRunLifecycle(BaseService):
         self.agent_runs = AgentRunRepository(session)
         self.events = EventService(session)
 
-    def start(self, task: Task, agent_type: str) -> AgentRun:
-        """创建 running AgentRun 并写入启动事件。"""
+    def start(
+        self,
+        task: Task,
+        agent_type: str,
+        *,
+        workflow_step: str | None = None,
+    ) -> AgentRun:
+        """创建 running AgentRun 并写入启动事件。
+
+        M6 工作流步骤使用 task/step/attempt 形成数据库幂等身份；M4 调用方
+        继续省略 ``workflow_step``，保持原有 AgentRun 语义。
+        """
 
         provider_name = self.settings.agent_provider
-        model_name = self.settings.llm_model if provider_name == "openai_compatible" else "local-rules-m4-v1"
+        model_name = (
+            self.settings.llm_model
+            if provider_name == "openai_compatible"
+            else (
+                "local-rules-m6-v1"
+                if workflow_step is not None
+                else "local-rules-m4-v1"
+            )
+        )
         prompt_hash = (
             (
-                f"m4-v3:{self.settings.llm_api_mode}:{self.settings.llm_reasoning_effort}:"
+                f"{'m6-v1' if workflow_step else 'm4-v3'}:"
+                f"{self.settings.llm_api_mode}:{self.settings.llm_reasoning_effort}:"
                 f"attempts={self.settings.llm_max_attempts}"
             )
             if provider_name == "openai_compatible"
-            else "m4-v1"
+            else ("m6-v1" if workflow_step is not None else "m4-v1")
         )
-        agent_run = self.agent_runs.create(
-            AgentRun(
-                task_id=task.id,
-                agent_type=agent_type,
-                status=AgentRunStatus.RUNNING.value,
-                model_name=model_name,
-                prompt_hash=prompt_hash,
-                input_tokens=0,
-                output_tokens=0,
-                cost_usd=Decimal("0"),
+        attempt = (
+            self.agent_runs.next_attempt(task.id, workflow_step)
+            if workflow_step is not None
+            else None
+        )
+        idempotency_key = (
+            f"m6:{workflow_step}:{attempt}"
+            if workflow_step is not None and attempt is not None
+            else None
+        )
+        try:
+            agent_run = self.agent_runs.create(
+                AgentRun(
+                    task_id=task.id,
+                    agent_type=agent_type,
+                    status=AgentRunStatus.RUNNING.value,
+                    workflow_step=workflow_step,
+                    attempt=attempt,
+                    idempotency_key=idempotency_key,
+                    model_name=model_name,
+                    prompt_hash=prompt_hash,
+                    input_tokens=0,
+                    output_tokens=0,
+                    cost_usd=Decimal("0"),
+                )
             )
-        )
+        except IntegrityError as exc:
+            self.session.rollback()
+            raise ServiceError(
+                "local_development_step_active",
+                "当前 Task 已有 active M6 AgentRun。",
+                409,
+            ) from exc
         self.events.record(
             "AgentRunStarted",
             "orchestrator",
@@ -68,6 +145,8 @@ class AgentRunLifecycle(BaseService):
             {
                 "agent_run_id": str(agent_run.id),
                 "agent_type": agent_type,
+                "workflow_step": workflow_step,
+                "attempt": attempt,
                 "provider": provider_name,
                 "api_mode": self.settings.llm_api_mode if provider_name == "openai_compatible" else None,
                 "reasoning_effort": (
@@ -78,6 +157,33 @@ class AgentRunLifecycle(BaseService):
             task.id,
         )
         return agent_run
+
+    def claim_or_start(
+        self,
+        task: Task,
+        agent_type: str,
+        *,
+        workflow_step: str,
+    ) -> AgentRun:
+        """复用初始 Task lock 事务已抢占的 run，否则原子创建。"""
+
+        active = self.agent_runs.active_workflow_run(
+            task.id,
+            workflow_step,
+        )
+        if active is not None:
+            if active.agent_type != agent_type:
+                raise ServiceError(
+                    "local_development_step_claim_mismatch",
+                    "Active AgentRun 与当前 M6 步骤角色不一致。",
+                    409,
+                )
+            return active
+        return self.start(
+            task,
+            agent_type,
+            workflow_step=workflow_step,
+        )
 
     def complete(
         self,
@@ -160,6 +266,10 @@ class AgentRunLifecycle(BaseService):
             isinstance(exc, MissingProviderConfigurationError)
             or isinstance(exc, AgentProviderResponseError)
             or (isinstance(exc, AgentProviderRequestError) and exc.retryable)
+            or (
+                isinstance(exc, ServiceError)
+                and exc.code in RECOVERABLE_SERVICE_ERROR_CODES
+            )
         )
         task.status = TaskStatus.PAUSED.value if recoverable else TaskStatus.FAILED.value
         self.events.record(

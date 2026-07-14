@@ -46,6 +46,8 @@ class ToolCallRead(BaseModel):
     task_id: UUID
     agent_run_id: UUID | None
     tool_name: str
+    provider_call_id: str | None
+    provider_item_type: str | None
     risk_level: RiskLevel
     arguments_summary: str
     audit_json: dict[str, Any]
@@ -81,6 +83,8 @@ def tool_call_to_read(tool_call: ToolCall) -> ToolCallRead:
         task_id=tool_call.task_id,
         agent_run_id=tool_call.agent_run_id,
         tool_name=tool_call.tool_name,
+        provider_call_id=tool_call.provider_call_id,
+        provider_item_type=tool_call.provider_item_type,
         risk_level=RiskLevel(tool_call.risk_level),
         arguments_summary=tool_call.arguments_summary or summarize_arguments(tool_call.arguments_json),
         audit_json=tool_call.audit_json,

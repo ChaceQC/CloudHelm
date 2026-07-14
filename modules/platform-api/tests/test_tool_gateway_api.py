@@ -128,8 +128,11 @@ def test_l3_tool_gateway_call_creates_approval_without_execution(client: TestCli
     assert approvals[0]["action"] == "approval.request_remote_action"
 
 
-def test_duplicate_idempotency_key_returns_traceable_conflict(client: TestClient, tmp_path: Path) -> None:
-    """重复幂等键返回稳定 409 错误和 trace_id。"""
+def test_idempotent_replay_reuses_call_and_argument_conflict_is_traceable(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """完全相同的重放复用终态，参数漂移返回稳定 409。"""
 
     task = _task(client)
     body = {
@@ -142,10 +145,27 @@ def test_duplicate_idempotency_key_returns_traceable_conflict(client: TestClient
     (tmp_path / "README.md").write_text("# demo\n", encoding="utf-8")
     first = client.post(f"/api/tasks/{task['id']}/tool-gateway/call", json=body)
     assert first.status_code == 201, first.text
-    second = client.post(f"/api/tasks/{task['id']}/tool-gateway/call", json=body)
-    assert second.status_code == 409
-    error = second.json()
-    assert error["code"] == "duplicate_idempotency_key"
+    replay = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json=body,
+    )
+    assert replay.status_code == 201, replay.text
+    assert replay.json()["id"] == first.json()["id"]
+
+    (tmp_path / "OTHER.md").write_text("# other\n", encoding="utf-8")
+    conflict = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            **body,
+            "arguments": {
+                "workspace_root": str(tmp_path),
+                "path": "OTHER.md",
+            },
+        },
+    )
+    assert conflict.status_code == 409
+    error = conflict.json()
+    assert error["code"] == "idempotency_conflict"
     assert error["trace_id"]
 
 

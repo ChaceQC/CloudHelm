@@ -22,10 +22,17 @@ class TaskRepository:
         self.session.flush()
         return task
 
-    def get(self, task_id: UUID) -> Task | None:
-        """按 ID 读取 Task。"""
+    def get(self, task_id: UUID, *, for_update: bool = False) -> Task | None:
+        """按 ID 读取 Task，可选加行锁用于短事务步骤抢占。"""
 
-        return self.session.get(Task, task_id)
+        if not for_update:
+            return self.session.get(Task, task_id)
+        return self.session.scalar(
+            select(Task)
+            .where(Task.id == task_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     def list(
         self,

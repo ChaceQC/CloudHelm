@@ -6,7 +6,16 @@ from uuid import UUID
 
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, Text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +34,41 @@ class AgentRun(UUIDPrimaryKeyMixin, Base):
         Index("ix_agent_runs_task_status", "task_id", "status"),
         Index("ix_agent_runs_started_at", "started_at"),
         Index("ix_agent_runs_conversation_turn", "conversation_id", "conversation_turn"),
+        Index(
+            "ix_agent_runs_task_workflow_attempt",
+            "task_id",
+            "workflow_step",
+            "attempt",
+        ),
+        Index(
+            "ux_agent_runs_task_idempotency",
+            "task_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+        Index(
+            "ux_agent_runs_task_active_workflow",
+            "task_id",
+            unique=True,
+            postgresql_where=text(
+                "workflow_step IS NOT NULL "
+                "AND status IN ('pending', 'running')"
+            ),
+        ),
+        CheckConstraint(
+            "attempt IS NULL OR attempt > 0",
+            name="ck_agent_runs_attempt_positive",
+        ),
+        CheckConstraint(
+            "("
+            "workflow_step IS NULL AND attempt IS NULL AND idempotency_key IS NULL"
+            ") OR ("
+            "workflow_step IS NOT NULL AND attempt IS NOT NULL "
+            "AND idempotency_key IS NOT NULL"
+            ")",
+            name="ck_agent_runs_workflow_identity",
+        ),
     )
 
     task_id: Mapped[UUID] = mapped_column(
@@ -44,6 +88,18 @@ class AgentRun(UUIDPrimaryKeyMixin, Base):
     )
     agent_type: Mapped[str] = mapped_column(Text, nullable=False, comment="Agent 类型。")
     status: Mapped[str] = mapped_column(Text, nullable=False, comment="运行状态。")
+    workflow_step: Mapped[str | None] = mapped_column(
+        Text,
+        comment="M6 工作流步骤，例如 run_coder 或 run_tester。",
+    )
+    attempt: Mapped[int | None] = mapped_column(
+        Integer,
+        comment="同一任务工作流步骤的重试序号，从 1 开始。",
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(
+        Text,
+        comment="任务内 Agent 步骤幂等键。",
+    )
     model_name: Mapped[str | None] = mapped_column(Text, comment="使用的模型名称。")
     prompt_hash: Mapped[str | None] = mapped_column(Text, comment="Prompt 版本或哈希。")
     summary: Mapped[str | None] = mapped_column(Text, comment="结构化输出或失败摘要。")

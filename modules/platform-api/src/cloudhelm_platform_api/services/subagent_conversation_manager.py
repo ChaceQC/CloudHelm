@@ -154,6 +154,7 @@ class SubagentConversationManager:
 
         child.status = status
         child.completed_at = utc_now()
+        child.revision += 1
         parent_conversation = to_provider_conversation(parent)
         parent_conversation.append_context_item(
             subagent_notification_item(
@@ -164,6 +165,7 @@ class SubagentConversationManager:
             )
         )
         parent.items_json = deepcopy(parent_conversation.items)
+        parent.revision += 1
         self.events.record(
             "SubagentCompleted" if status == "completed" else "SubagentStopped",
             "agent",

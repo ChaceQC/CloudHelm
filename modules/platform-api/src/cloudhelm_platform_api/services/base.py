@@ -3,6 +3,10 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from cloudhelm_platform_api.services.artifact_storage import (
+    accept_pending_artifacts,
+    discard_pending_artifacts,
+)
 from cloudhelm_platform_api.services.exceptions import ServiceError
 
 
@@ -23,9 +27,12 @@ class BaseService:
             self.session.commit()
         except SQLAlchemyError as exc:
             self.session.rollback()
+            discard_pending_artifacts(self.session)
             raise ServiceError(
                 code="database_error",
                 message="数据库写入失败。",
                 status_code=500,
                 detail=str(exc),
             ) from exc
+        else:
+            accept_pending_artifacts(self.session)

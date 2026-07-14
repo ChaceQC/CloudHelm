@@ -1,35 +1,29 @@
 """Platform API Tool Gateway 集成服务。"""
 
+from typing import Literal
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from cloudhelm_tool_gateway import ToolCallRequest, ToolGateway, create_default_gateway
-from cloudhelm_tool_gateway.audit import sanitize_arguments_for_storage, stable_json_hash, summarize_mapping
 from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel as GatewayRiskLevel
 
 from cloudhelm_platform_api.core.config import get_settings
-from cloudhelm_platform_api.db.base import utc_now
-from cloudhelm_platform_api.models.approval import ApprovalRequest
-from cloudhelm_platform_api.models.tool_call import ToolCall
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
-from cloudhelm_platform_api.repositories.approval_repository import ApprovalRepository
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
-from cloudhelm_platform_api.repositories.tool_call_repository import ToolCallRepository
 from cloudhelm_platform_api.schemas.common import (
     AgentRunStatus,
-    ApprovalStatus,
     PageInfo,
     PageResponse,
     TaskStatus,
-    ToolCallStatus,
 )
 from cloudhelm_platform_api.schemas.tool_call import ToolCallRead, tool_call_to_read
 from cloudhelm_platform_api.schemas.tool_gateway import ToolDeclarationRead, ToolGatewayCallCreate
 from cloudhelm_platform_api.services.base import BaseService
-from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
+from cloudhelm_platform_api.services.tool_call_execution import (
+    ToolCallExecution,
+)
 
 
 class ToolGatewayService(BaseService):
@@ -39,9 +33,7 @@ class ToolGatewayService(BaseService):
         super().__init__(session)
         self.tasks = TaskRepository(session)
         self.agent_runs = AgentRunRepository(session)
-        self.tool_calls = ToolCallRepository(session)
-        self.approvals = ApprovalRepository(session)
-        self.events = EventService(session)
+        self.execution = ToolCallExecution(session)
         settings = get_settings()
         self.gateway = gateway or create_default_gateway(
             max_calls=settings.tool_rate_limit_calls,
@@ -55,7 +47,15 @@ class ToolGatewayService(BaseService):
         items = [ToolDeclarationRead.model_validate(item) for item in self.gateway.list_tools()]
         return PageResponse(items=items, page=PageInfo(limit=len(items), next_cursor=None))
 
-    def call_tool(self, task_id: UUID, data: ToolGatewayCallCreate) -> ToolCallRead:
+    def call_tool(
+        self,
+        task_id: UUID,
+        data: ToolGatewayCallCreate,
+        *,
+        execution_source: Literal["public_api", "agent_executor"] = "public_api",
+        execution_policy_fingerprint: str | None = None,
+        execution_policy_error: tuple[str, str] | None = None,
+    ) -> ToolCallRead:
         """原子抢占幂等键后执行本地工具或创建审批请求。"""
 
         task = self.tasks.get(task_id)
@@ -70,6 +70,19 @@ class ToolGatewayService(BaseService):
             raise ServiceError("agent_run_not_running", "只有 running AgentRun 可以调用 Tool Gateway。", 409)
         if agent_run is not None and task.status != TaskStatus.RUNNING.value:
             raise ServiceError("task_not_running", "只有 running 任务中的 AgentRun 可以调用 Tool Gateway。", 409)
+        if agent_run is not None and agent_run.workflow_step is not None:
+            if execution_source != "agent_executor":
+                raise ServiceError(
+                    "m6_agent_tool_executor_required",
+                    "M6 AgentRun 的工具调用只能由本地开发执行器提交。",
+                    403,
+                )
+            if execution_policy_fingerprint is None:
+                raise ServiceError(
+                    "m6_execution_policy_missing",
+                    "M6 AgentRun 缺少 execution recipe 调用指纹。",
+                    409,
+                )
         if agent_run is None and task.status in {
             TaskStatus.DONE.value,
             TaskStatus.FAILED.value,
@@ -78,12 +91,35 @@ class ToolGatewayService(BaseService):
             raise ServiceError("task_terminal", "终态任务不能创建新的 ToolCall。", 409)
 
         agent_type = agent_run.agent_type if agent_run else None
-        tool_call = self._claim_idempotency_key(task_id, data, agent_type)
+        tool_call, claimed = self.execution.claim(
+            task_id,
+            data,
+            agent_type,
+        )
+        if not claimed:
+            return tool_call_to_read(tool_call)
+        if execution_policy_error is not None:
+            code, message = execution_policy_error
+            self.execution.reject_execution_policy(
+                tool_call,
+                code,
+                message,
+                execution_policy_fingerprint,
+            )
+            self.execution.record_terminal_event(
+                task_id,
+                tool_call,
+                "failed",
+            )
+            self.commit()
+            return tool_call_to_read(tool_call)
         gateway_result = self.gateway.execute(
             ToolCallRequest(
                 task_id=task_id,
                 agent_run_id=data.agent_run_id,
                 agent_type=agent_type,
+                provider_call_id=data.provider_call_id,
+                provider_item_type=data.provider_item_type,
                 tool_name=data.tool_name,
                 risk_level=GatewayRiskLevel(data.risk_level.value),
                 idempotency_key=data.idempotency_key,
@@ -91,114 +127,34 @@ class ToolGatewayService(BaseService):
                 reason=data.reason,
             )
         )
-        approval_id = self._create_approval_if_required(task_id, data, gateway_result)
-        self._apply_gateway_result(tool_call, gateway_result, approval_id)
-        self._record_terminal_event(task_id, tool_call, gateway_result.status)
+        guarded = self.execution.guard_late_result(
+            task_id,
+            data.agent_run_id,
+            tool_call.id,
+            execution_policy_fingerprint,
+        )
+        if guarded is not None:
+            return guarded
+        approval_id = self.execution.create_approval_if_required(
+            task_id,
+            data,
+            gateway_result,
+        )
+        self.execution.apply_gateway_result(
+            tool_call,
+            gateway_result,
+            approval_id,
+        )
+        if execution_policy_fingerprint is not None:
+            tool_call.audit_json = {
+                **(tool_call.audit_json or {}),
+                "execution_source": execution_source,
+                "execution_policy_fingerprint": execution_policy_fingerprint,
+            }
+        self.execution.record_terminal_event(
+            task_id,
+            tool_call,
+            gateway_result.status,
+        )
         self.commit()
         return tool_call_to_read(tool_call)
-
-    def _claim_idempotency_key(
-        self,
-        task_id: UUID,
-        data: ToolGatewayCallCreate,
-        agent_type: str | None,
-    ) -> ToolCall:
-        """先持久化 pending 调用，数据库唯一索引负责并发幂等。"""
-
-        tool_call = ToolCall(
-            task_id=task_id,
-            agent_run_id=data.agent_run_id,
-            tool_name=data.tool_name,
-            risk_level=data.risk_level.value,
-            arguments_json=sanitize_arguments_for_storage(data.arguments),
-            audit_json={
-                "tool": data.tool_name,
-                "task_id": str(task_id),
-                "agent_run_id": str(data.agent_run_id) if data.agent_run_id else None,
-                "agent_type": agent_type,
-                "risk_level": data.risk_level.value,
-                "idempotency_key": data.idempotency_key,
-                "arguments_hash": stable_json_hash(data.arguments),
-                "reason_hash": stable_json_hash({"reason": data.reason}),
-                "status": ToolCallStatus.PENDING.value,
-            },
-            status=ToolCallStatus.PENDING.value,
-            idempotency_key=data.idempotency_key,
-            arguments_summary=summarize_mapping(data.arguments),
-            started_at=utc_now(),
-        )
-        try:
-            self.tool_calls.create(tool_call)
-            self.events.record(
-                "ToolCallStarted",
-                "agent" if data.agent_run_id else "system",
-                str(data.agent_run_id) if data.agent_run_id else "tool-gateway",
-                {"tool_call_id": str(tool_call.id), "tool_name": data.tool_name, "risk_level": data.risk_level.value},
-                task_id,
-            )
-            self.session.commit()
-        except IntegrityError as exc:
-            self.session.rollback()
-            raise ServiceError("duplicate_idempotency_key", "同一任务内 idempotency_key 已使用。", 409) from exc
-        return tool_call
-
-    def _create_approval_if_required(self, task_id, data, gateway_result) -> UUID | None:
-        """为 waiting_approval 结果创建审批记录。"""
-
-        if gateway_result.status != "waiting_approval":
-            return None
-        approval = self.approvals.create(
-            ApprovalRequest(
-                task_id=task_id,
-                action=data.tool_name,
-                risk_level=data.risk_level.value,
-                reason=gateway_result.approval_reason or data.reason,
-                status=ApprovalStatus.PENDING.value,
-                requested_by_agent_run_id=data.agent_run_id,
-            )
-        )
-        return approval.id
-
-    def _apply_gateway_result(self, tool_call: ToolCall, gateway_result, approval_id: UUID | None) -> None:
-        """把 Tool Gateway 稳定结果写回已抢占的 ToolCall。"""
-
-        tool_call.result_json = gateway_result.result_json
-        tool_call.status = self._status_from_gateway(gateway_result.status)
-        tool_call.approval_id = approval_id
-        tool_call.arguments_summary = gateway_result.arguments_summary
-        tool_call.result_summary = gateway_result.summary
-        tool_call.stdout_summary = gateway_result.stdout_summary
-        tool_call.stderr_summary = gateway_result.stderr_summary
-        tool_call.duration_ms = gateway_result.duration_ms
-        tool_call.error_code = gateway_result.error_code
-        tool_call.audit_json = gateway_result.audit_json
-        tool_call.started_at = gateway_result.started_at
-        tool_call.finished_at = gateway_result.finished_at
-
-    def _record_terminal_event(self, task_id: UUID, tool_call: ToolCall, status: str) -> None:
-        """写入工具调用终态事件。"""
-
-        payload = {
-            "tool_call_id": str(tool_call.id),
-            "tool_name": tool_call.tool_name,
-            "risk_level": tool_call.risk_level,
-            "summary": tool_call.result_summary,
-            "error_code": tool_call.error_code,
-        }
-        if status == "succeeded":
-            event_type = "ToolCallSucceeded"
-        elif status == "waiting_approval":
-            event_type = "ApprovalRequested"
-            payload["approval_id"] = str(tool_call.approval_id)
-        else:
-            event_type = "ToolCallFailed"
-        self.events.record(event_type, "system", "tool-gateway", payload, task_id)
-
-    def _status_from_gateway(self, status: str) -> str:
-        """映射 Tool Gateway 状态到 Platform API ToolCall 状态。"""
-
-        if status == "succeeded":
-            return ToolCallStatus.SUCCEEDED.value
-        if status == "waiting_approval":
-            return ToolCallStatus.WAITING_APPROVAL.value
-        return ToolCallStatus.FAILED.value

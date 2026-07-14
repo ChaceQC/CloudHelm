@@ -1,16 +1,15 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M5 提供真实数据库驱动的任务编排、审批、事件和受控本地 Tool Gateway。
-  version: 0.4.3
+  description: CloudHelm 平台 API。M6 提供真实数据库驱动的 Agent 编排、受控本地代码/测试/安全工具、Artifact 与本地等价 PR record。
+  version: 0.5.0
 paths:
   /health:
     get:
       tags:
       - health
       summary: 读取平台 API 健康状态
-      description: "返回平台 API 的真实运行元数据。\n\n参数:\n    settings: 由环境变量解析得到的服务配置。\n\n返回:\n\
-        \    服务名、状态、版本、运行环境和服务端当前 UTC 时间。"
+      description: "返回平台 API 的真实运行元数据。\n\n参数:\n    settings: 由环境变量解析得到的服务配置。\n\n返回:\n    服务名、状态、版本、运行环境和服务端当前 UTC 时间。"
       operationId: read_health_health_get
       responses:
         '200':
@@ -1790,6 +1789,294 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/artifacts:
+    get:
+      tags:
+      - artifacts
+      summary: 分页读取任务 Artifact
+      description: 读取指定 Task 的安全 Artifact 元数据。
+      operationId: list_artifacts_api_tasks__task_id__artifacts_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: artifact_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 80
+          - type: 'null'
+          description: 按 Artifact 类型过滤。
+          title: Artifact Type
+        description: 按 Artifact 类型过滤。
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactStatus'
+          - type: 'null'
+          description: 按 Artifact 可用状态过滤。
+          title: Status
+        description: 按 Artifact 可用状态过滤。
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
+          - type: 'null'
+          description: 非负十进制 offset cursor。
+          title: Cursor
+        description: 非负十进制 offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_ArtifactRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/artifacts/{artifact_id}:
+    get:
+      tags:
+      - artifacts
+      summary: 读取 Artifact 安全详情
+      description: 读取单个 Artifact，并返回经 hash 校验和大小限制的安全预览。
+      operationId: get_artifact_api_artifacts__artifact_id__get
+      parameters:
+      - name: artifact_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Artifact Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactDetailRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/pull-request-records:
+    get:
+      tags:
+      - pull-request-records
+      summary: 分页读取任务本地 PR records
+      description: 读取指定 Task 的本地 branch、commit 和门禁证据记录。
+      operationId: list_pull_request_records_api_tasks__task_id__pull_request_records_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/PullRequestRecordStatus'
+          - type: 'null'
+          description: 按 PR record 状态过滤。
+          title: Status
+        description: 按 PR record 状态过滤。
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
+          - type: 'null'
+          description: 非负十进制 offset cursor。
+          title: Cursor
+        description: 非负十进制 offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_PullRequestRecordRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/pull-request-records/{record_id}:
+    get:
+      tags:
+      - pull-request-records
+      summary: 读取本地 PR record
+      description: 读取单个本地等价 PR record；local provider 不返回伪造 URL。
+      operationId: get_pull_request_record_api_pull_request_records__record_id__get
+      parameters:
+      - name: record_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Record Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PullRequestRecordRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/tasks/{task_id}/approvals:
     post:
       tags:
@@ -2414,6 +2701,178 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/local-development:
+    get:
+      tags:
+      - local-development
+      summary: 读取 M6 本地开发状态
+      description: 返回当前阶段、下一动作及最新 Artifact/PR 引用。
+      operationId: get_local_development_state_api_tasks__task_id__local_development_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDevelopmentStateRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/local-development/start:
+    post:
+      tags:
+      - local-development
+      summary: 启动 M6 本地开发闭环
+      description: 校验最新版审批链，并从 Planning 进入 Scaffolding。
+      operationId: start_local_development_api_tasks__task_id__local_development_start_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/LocalDevelopmentActionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDevelopmentStepRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/local-development/run-next:
+    post:
+      tags:
+      - local-development
+      summary: 推进一个 M6 本地开发步骤
+      description: 执行 Scaffold、Coder、Tester、Reviewer、Security 或本地 PR 收尾。
+      operationId: run_next_local_development_api_tasks__task_id__local_development_run_next_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/LocalDevelopmentActionRequest'
+              - type: 'null'
+              title: Payload
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocalDevelopmentStepRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     AgentRunCreate:
@@ -2525,6 +2984,21 @@ components:
           title: Agent Type
         status:
           $ref: '#/components/schemas/AgentRunStatus'
+        workflow_step:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workflow Step
+        attempt:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Attempt
+        idempotency_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency Key
         model_name:
           anyOf:
           - type: string
@@ -2610,6 +3084,9 @@ components:
       - conversation_turn
       - agent_type
       - status
+      - workflow_step
+      - attempt
+      - idempotency_key
       - model_name
       - prompt_hash
       - summary
@@ -2639,49 +3116,6 @@ components:
       - cancelled
       title: AgentRunStatus
       description: AgentRun 状态。
-    ProviderRequestUsageRead:
-      properties:
-        response_id:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Response Id
-          description: 供应商 response ID。
-        prompt_cache_key:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Prompt Cache Key
-          description: 本次请求使用的缓存路由键。
-        input_tokens:
-          type: integer
-          minimum: 0.0
-          title: Input Tokens
-          description: 本次请求输入 token。
-        cached_input_tokens:
-          type: integer
-          minimum: 0.0
-          title: Cached Input Tokens
-          description: 本次请求真实缓存 token。
-        output_tokens:
-          type: integer
-          minimum: 0.0
-          title: Output Tokens
-          description: 本次请求输出 token。
-        cache_hit:
-          type: boolean
-          title: Cache Hit
-          description: 是否由 cached_input_tokens > 0 推导命中。
-      type: object
-      required:
-      - response_id
-      - prompt_cache_key
-      - input_tokens
-      - cached_input_tokens
-      - output_tokens
-      - cache_hit
-      title: ProviderRequestUsageRead
-      description: 一次真实供应商请求的 token/cache usage。
     ApprovalRequestCreate:
       properties:
         action:
@@ -2775,6 +3209,217 @@ components:
       - expired
       title: ApprovalStatus
       description: ApprovalRequest 状态。
+    ArtifactDetailRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Run Id
+        tool_call_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Tool Call Id
+        producer_type:
+          $ref: '#/components/schemas/ArtifactProducerType'
+        artifact_type:
+          type: string
+          title: Artifact Type
+        status:
+          $ref: '#/components/schemas/ArtifactStatus'
+        display_name:
+          type: string
+          title: Display Name
+        media_type:
+          type: string
+          title: Media Type
+        uri:
+          type: string
+          title: Uri
+        sha256:
+          type: string
+          title: Sha256
+        size_bytes:
+          type: integer
+          title: Size Bytes
+        summary:
+          type: string
+          title: Summary
+        metadata_json:
+          additionalProperties: true
+          type: object
+          title: Metadata Json
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        preview:
+          anyOf:
+          - $ref: '#/components/schemas/ArtifactPreview'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - task_id
+      - agent_run_id
+      - tool_call_id
+      - producer_type
+      - artifact_type
+      - status
+      - display_name
+      - media_type
+      - uri
+      - sha256
+      - size_bytes
+      - summary
+      - metadata_json
+      - created_at
+      - updated_at
+      title: ArtifactDetailRead
+      description: Artifact 详情，可由 service 注入安全内容预览。
+    ArtifactPreview:
+      properties:
+        kind:
+          type: string
+          enum:
+          - text
+          - json
+          title: Kind
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+        json_value:
+          anyOf:
+          - {}
+          - type: 'null'
+          title: Json Value
+        truncated:
+          type: boolean
+          title: Truncated
+        bytes_returned:
+          type: integer
+          maximum: 65536.0
+          minimum: 0.0
+          title: Bytes Returned
+      type: object
+      required:
+      - kind
+      - truncated
+      - bytes_returned
+      title: ArtifactPreview
+      description: 受大小和媒体类型限制的 Artifact 内容预览。
+    ArtifactProducerType:
+      type: string
+      enum:
+      - agent
+      - tool
+      - system
+      title: ArtifactProducerType
+      description: Artifact 生产者类型。
+    ArtifactRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Run Id
+        tool_call_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Tool Call Id
+        producer_type:
+          $ref: '#/components/schemas/ArtifactProducerType'
+        artifact_type:
+          type: string
+          title: Artifact Type
+        status:
+          $ref: '#/components/schemas/ArtifactStatus'
+        display_name:
+          type: string
+          title: Display Name
+        media_type:
+          type: string
+          title: Media Type
+        uri:
+          type: string
+          title: Uri
+        sha256:
+          type: string
+          title: Sha256
+        size_bytes:
+          type: integer
+          title: Size Bytes
+        summary:
+          type: string
+          title: Summary
+        metadata_json:
+          additionalProperties: true
+          type: object
+          title: Metadata Json
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - task_id
+      - agent_run_id
+      - tool_call_id
+      - producer_type
+      - artifact_type
+      - status
+      - display_name
+      - media_type
+      - uri
+      - sha256
+      - size_bytes
+      - summary
+      - metadata_json
+      - created_at
+      - updated_at
+      title: ArtifactRead
+      description: Artifact 列表和引用响应；不包含内部 storage key。
+    ArtifactStatus:
+      type: string
+      enum:
+      - available
+      - invalidated
+      - missing
+      title: ArtifactStatus
+      description: Artifact 可用状态。
     DecisionRequest:
       properties:
         actor_id:
@@ -2975,6 +3620,106 @@ components:
         字段需要与 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
 
         保持一致，确保前端和后续部署健康检查使用同一契约。'
+    LocalDevelopmentActionRequest:
+      properties:
+        actor_id:
+          type: string
+          maxLength: 160
+          minLength: 1
+          title: Actor Id
+          description: 操作人或调用组件标识。
+          default: control-console
+        reason:
+          anyOf:
+          - type: string
+            maxLength: 2000
+          - type: 'null'
+          title: Reason
+          description: 推进原因。
+      type: object
+      title: LocalDevelopmentActionRequest
+      description: 启动或推进本地开发闭环的请求体。
+    LocalDevelopmentStateRead:
+      properties:
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        current_phase:
+          type: string
+          title: Current Phase
+        next_action:
+          type: string
+          title: Next Action
+        development_plan_id:
+          type: string
+          format: uuid
+          title: Development Plan Id
+        active_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Active Agent Run Id
+        latest_artifact_ids:
+          additionalProperties:
+            type: string
+            format: uuid
+          type: object
+          title: Latest Artifact Ids
+        latest_pull_request_record_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Latest Pull Request Record Id
+      type: object
+      required:
+      - task_id
+      - current_phase
+      - next_action
+      - development_plan_id
+      title: LocalDevelopmentStateRead
+      description: 任务当前 M6 本地开发状态摘要。
+    LocalDevelopmentStepRead:
+      properties:
+        task:
+          $ref: '#/components/schemas/TaskRead'
+        action:
+          type: string
+          title: Action
+        message:
+          type: string
+          title: Message
+        agent_run:
+          anyOf:
+          - $ref: '#/components/schemas/AgentRunRead'
+          - type: 'null'
+        tool_calls:
+          items:
+            $ref: '#/components/schemas/ToolCallRead'
+          type: array
+          title: Tool Calls
+        artifacts:
+          items:
+            $ref: '#/components/schemas/ArtifactRead'
+          type: array
+          title: Artifacts
+        pull_request_record:
+          anyOf:
+          - $ref: '#/components/schemas/PullRequestRecordRead'
+          - type: 'null'
+        gate_evidence:
+          additionalProperties: true
+          type: object
+          title: Gate Evidence
+      type: object
+      required:
+      - task
+      - action
+      - message
+      title: LocalDevelopmentStepRead
+      description: 一次本地开发 run-next 的可审计结果。
     OrchestrationActionRequest:
       properties:
         actor_id:
@@ -3125,6 +3870,22 @@ components:
       - items
       - page
       title: PageResponse[ApprovalRequestRead]
+    PageResponse_ArtifactRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ArtifactRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[ArtifactRead]
     PageResponse_DevelopmentPlanRead_:
       properties:
         items:
@@ -3173,6 +3934,22 @@ components:
       - items
       - page
       title: PageResponse[ProjectRead]
+    PageResponse_PullRequestRecordRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/PullRequestRecordRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[PullRequestRecordRead]
     PageResponse_RequirementSpecRead_:
       properties:
         items:
@@ -3321,6 +4098,190 @@ components:
       - updated_at
       title: ProjectRead
       description: Project 响应结构。
+    ProviderRequestUsageRead:
+      properties:
+        response_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Response Id
+          description: 供应商 response ID。
+        prompt_cache_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prompt Cache Key
+          description: 本次请求使用的缓存路由键。
+        input_tokens:
+          type: integer
+          minimum: 0.0
+          title: Input Tokens
+          description: 本次请求输入 token。
+        cached_input_tokens:
+          type: integer
+          minimum: 0.0
+          title: Cached Input Tokens
+          description: 本次请求真实缓存 token。
+        output_tokens:
+          type: integer
+          minimum: 0.0
+          title: Output Tokens
+          description: 本次请求输出 token。
+        cache_hit:
+          type: boolean
+          title: Cache Hit
+          description: 是否由 cached_input_tokens > 0 推导命中。
+      type: object
+      required:
+      - response_id
+      - prompt_cache_key
+      - input_tokens
+      - cached_input_tokens
+      - output_tokens
+      - cache_hit
+      title: ProviderRequestUsageRead
+      description: 一次真实供应商请求的 token/cache usage。
+    PullRequestProvider:
+      type: string
+      enum:
+      - local
+      - github
+      - gitea
+      title: PullRequestProvider
+      description: PR record 提供方。
+    PullRequestRecordRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        development_plan_id:
+          type: string
+          format: uuid
+          title: Development Plan Id
+        created_by_agent_run_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Created By Agent Run Id
+        branch_tool_call_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Branch Tool Call Id
+        commit_tool_call_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Commit Tool Call Id
+        provider:
+          $ref: '#/components/schemas/PullRequestProvider'
+        status:
+          $ref: '#/components/schemas/PullRequestRecordStatus'
+        title:
+          type: string
+          title: Title
+        summary:
+          type: string
+          title: Summary
+        base_branch:
+          type: string
+          title: Base Branch
+        head_branch:
+          type: string
+          title: Head Branch
+        base_commit_sha:
+          type: string
+          title: Base Commit Sha
+        commit_sha:
+          type: string
+          title: Commit Sha
+        changed_files_json:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Changed Files Json
+        diff_stat_json:
+          additionalProperties: true
+          type: object
+          title: Diff Stat Json
+        diff_artifact_id:
+          type: string
+          format: uuid
+          title: Diff Artifact Id
+        test_artifact_id:
+          type: string
+          format: uuid
+          title: Test Artifact Id
+        review_artifact_id:
+          type: string
+          format: uuid
+          title: Review Artifact Id
+        security_artifact_id:
+          type: string
+          format: uuid
+          title: Security Artifact Id
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - task_id
+      - project_id
+      - development_plan_id
+      - created_by_agent_run_id
+      - branch_tool_call_id
+      - commit_tool_call_id
+      - provider
+      - status
+      - title
+      - summary
+      - base_branch
+      - head_branch
+      - base_commit_sha
+      - commit_sha
+      - changed_files_json
+      - diff_stat_json
+      - diff_artifact_id
+      - test_artifact_id
+      - review_artifact_id
+      - security_artifact_id
+      - url
+      - created_at
+      - updated_at
+      title: PullRequestRecordRead
+      description: 本地等价 PR record 响应。
+    PullRequestRecordStatus:
+      type: string
+      enum:
+      - open
+      - superseded
+      - closed
+      title: PullRequestRecordStatus
+      description: PR record 生命周期状态。
     RequirementSpecCreate:
       properties:
         source_type:
@@ -3684,7 +4645,6 @@ components:
       title: TechnicalDesignRead
       description: 技术设计响应结构。
     ToolCallCreate:
-      additionalProperties: false
       properties:
         agent_run_id:
           anyOf:
@@ -3767,6 +4727,7 @@ components:
           - type: 'null'
           title: Error Code
           description: 失败错误码。
+      additionalProperties: false
       type: object
       required:
       - tool_name
@@ -3797,6 +4758,16 @@ components:
         tool_name:
           type: string
           title: Tool Name
+        provider_call_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Call Id
+        provider_item_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Item Type
         risk_level:
           $ref: '#/components/schemas/RiskLevel'
         arguments_summary:
@@ -3866,6 +4837,8 @@ components:
       - task_id
       - agent_run_id
       - tool_name
+      - provider_call_id
+      - provider_item_type
       - risk_level
       - arguments_summary
       - audit_json
@@ -3911,6 +4884,11 @@ components:
         requires_approval:
           type: boolean
           title: Requires Approval
+        audit_fields:
+          items:
+            type: string
+          type: array
+          title: Audit Fields
         allowed_agent_types:
           items:
             type: string
@@ -3919,15 +4897,19 @@ components:
         allow_system_call:
           type: boolean
           title: Allow System Call
-        audit_fields:
+        bound_arguments:
           items:
             type: string
           type: array
-          title: Audit Fields
+          title: Bound Arguments
         arguments_schema:
           additionalProperties: true
           type: object
           title: Arguments Schema
+        provider_arguments_schema:
+          additionalProperties: true
+          type: object
+          title: Provider Arguments Schema
         result_schema:
           additionalProperties: true
           type: object
@@ -3941,7 +4923,9 @@ components:
       - audit_fields
       - allowed_agent_types
       - allow_system_call
+      - bound_arguments
       - arguments_schema
+      - provider_arguments_schema
       - result_schema
       title: ToolDeclarationRead
       description: 控制台和 Agent 可见的工具声明。
@@ -3954,6 +4938,22 @@ components:
           - type: 'null'
           title: Agent Run Id
           description: 触发工具调用且状态必须为 running 的 AgentRun。
+        provider_call_id:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 1
+          - type: 'null'
+          title: Provider Call Id
+          description: Responses function/custom call_id。
+        provider_item_type:
+          anyOf:
+          - type: string
+            enum:
+            - function_call
+            - custom_tool_call
+          - type: 'null'
+          title: Provider Item Type
         tool_name:
           type: string
           minLength: 1
@@ -3978,6 +4978,7 @@ components:
           minLength: 1
           title: Reason
           description: 调用原因或审批说明。
+      additionalProperties: false
       type: object
       required:
       - tool_name
