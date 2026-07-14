@@ -1,7 +1,7 @@
 {
   "$defs": {
     "RiskLevel": {
-      "description": "CloudHelm M4 复用的风险等级。\n\nL0/L1 可在 M4 内自动推进；L2 及以上需要进入设计审批或后续工具审批。",
+      "description": "CloudHelm M4-M6 复用的风险等级。\n\nL0/L1 可自动推进；L2 及以上需要进入设计或工具审批。",
       "enum": [
         "L0",
         "L1",
@@ -72,6 +72,7 @@
     "mermaid_diagram",
     "risk_level"
   ],
+  "additionalProperties": false,
   "title": "ArchitectAgentOutput",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",

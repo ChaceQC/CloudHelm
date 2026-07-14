@@ -11,6 +11,7 @@ from cloudhelm_agent_runtime.providers.base import (
     AgentProviderResponseError,
     MissingProviderConfigurationError,
     StructuredAgentProvider,
+    ToolCapableStructuredAgentProvider,
 )
 from cloudhelm_agent_runtime.providers.contracts import ProviderConversation
 from cloudhelm_agent_runtime.providers.usage import (
@@ -20,7 +21,10 @@ from cloudhelm_agent_runtime.providers.usage import (
 from cloudhelm_agent_runtime.providers.tools import (
     ProviderToolCall,
     ProviderToolDefinition,
+    ProviderToolExecutionResult,
     collect_tool_calls,
+    execution_result_item,
+    stable_tool_definitions,
     tool_result_item,
 )
 
@@ -36,8 +40,15 @@ __all__ = [
     "ProviderRequestUsage",
     "ProviderToolCall",
     "ProviderToolDefinition",
+    "ProviderToolExecutionResult",
+    "ProviderExchangeResult",
+    "PendingProviderTurn",
     "StructuredAgentProvider",
+    "ToolCapableStructuredAgentProvider",
     "collect_tool_calls",
+    "execution_result_item",
+    "run_tool_capable_turn",
+    "stable_tool_definitions",
     "tool_result_item",
 ]
 
@@ -57,4 +68,20 @@ def __getattr__(name: str):
         )
 
         return LocalStructuredProvider
+    if name in {
+        "PendingProviderTurn",
+        "ProviderExchangeResult",
+        "run_tool_capable_turn",
+    }:
+        from cloudhelm_agent_runtime.providers.exchange import (
+            PendingProviderTurn,
+            ProviderExchangeResult,
+            run_tool_capable_turn,
+        )
+
+        return {
+            "PendingProviderTurn": PendingProviderTurn,
+            "ProviderExchangeResult": ProviderExchangeResult,
+            "run_tool_capable_turn": run_tool_capable_turn,
+        }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

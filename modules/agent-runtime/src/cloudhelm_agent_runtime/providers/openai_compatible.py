@@ -7,13 +7,12 @@ ProviderConversation；只有显式 subagent conversation 才会发送新的 thr
 
 from __future__ import annotations
 
-import json
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar
 from urllib import request
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from cloudhelm_agent_runtime.instructions import build_turn_input_items
 from cloudhelm_agent_runtime.providers.base import (
@@ -21,11 +20,11 @@ from cloudhelm_agent_runtime.providers.base import (
     AgentProviderResponseError,
     MissingProviderConfigurationError,
     StructuredAgentProvider,
+    ToolCapableStructuredAgentProvider,
 )
 from cloudhelm_agent_runtime.providers.contracts import (
     ProviderConversation,
     assistant_message_item,
-    normalize_response_item,
 )
 from cloudhelm_agent_runtime.providers.http_client import (
     DEFAULT_CODEX_ORIGINATOR,
@@ -35,24 +34,35 @@ from cloudhelm_agent_runtime.providers.http_client import (
     resolve_endpoint,
     validate_header_value,
 )
+from cloudhelm_agent_runtime.providers.exchange import (
+    PendingProviderTurn,
+    ProviderExchangeResult,
+)
+from cloudhelm_agent_runtime.providers.openai_generation import (
+    exchange_responses,
+    generate_chat_completions,
+    generate_responses,
+)
+from cloudhelm_agent_runtime.providers.openai_provider_support import (
+    parse_structured_output,
+    run_with_retries,
+)
 from cloudhelm_agent_runtime.providers.prompt_cache import (
     combine_call_metadata,
-    extract_call_metadata,
 )
 from cloudhelm_agent_runtime.providers.request_payloads import (
     ApiMode,
     ReasoningContext,
     ReasoningEffort,
     ReasoningSummary,
-    build_chat_completions_body,
-    build_responses_body,
-)
-from cloudhelm_agent_runtime.providers.stream_events import (
-    ChatCompletionsStreamAccumulator, ResponsesStreamAccumulator,
 )
 from cloudhelm_agent_runtime.providers.usage import ProviderCallMetadata
+from cloudhelm_agent_runtime.providers.tools import ProviderToolDefinition
 
-class OpenAICompatibleProvider(StructuredAgentProvider):
+T = TypeVar("T")
+
+
+class OpenAICompatibleProvider(ToolCapableStructuredAgentProvider):
     """OpenAI 兼容模型 provider。"""
 
     name = "openai_compatible"
@@ -170,6 +180,40 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
         self.last_call_metadata = metadata
         return result
 
+    def exchange(
+        self,
+        agent_type: str,
+        payload: BaseModel,
+        output_model: type[BaseModel],
+        *,
+        conversation: ProviderConversation,
+        pending_turn: PendingProviderTurn,
+        tools: tuple[ProviderToolDefinition, ...] = (),
+    ) -> ProviderExchangeResult:
+        """执行一次 Responses 交换，允许工具-only response。
+
+        本方法不执行工具，也不修改 `conversation` / `pending_turn`；Platform API
+        或通用 runner 负责执行 Tool Gateway、追加 output 并最终提交逻辑 turn。
+        """
+
+        self._ensure_configured()
+        if self.api_mode != "responses":
+            raise AgentProviderResponseError(
+                "tool-capable exchange requires Responses API mode"
+            )
+        def request_once() -> ProviderExchangeResult:
+            return exchange_responses(
+                self,
+                agent_type,
+                payload,
+                output_model,
+                conversation,
+                pending_turn,
+                tools=tools,
+            )
+
+        return self._run_with_retries(request_once)
+
     def _generate_responses(
         self, agent_type: str, payload: BaseModel,
         output_model: type[BaseModel],
@@ -178,36 +222,18 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
     ) -> str:
         """以 SSE 调用 Responses API 并保存完整有序 output items。"""
 
-        if self.model_name is None:
-            raise MissingProviderConfigurationError("model name is missing")
-        body, prompt_cache_key = build_responses_body(
-            agent_type=agent_type,
-            payload=payload,
-            output_model=output_model,
-            model_name=self.model_name,
-            current_input_items=current_input_items,
-            conversation=conversation,
-            reasoning_effort=self.reasoning_effort,
-            reasoning_summary=self.reasoning_summary,
-            reasoning_context=self.reasoning_context,
-            max_output_tokens=self.max_output_tokens,
-            explicit_cache_breakpoint=self.explicit_cache_breakpoint,
+        result = generate_responses(
+            self,
+            agent_type,
+            payload,
+            output_model,
+            conversation,
+            current_input_items,
         )
-        accumulator = ResponsesStreamAccumulator()
-        self._post_sse("/v1/responses", body, accumulator.handle, conversation)
-        content = accumulator.output_text()
-        if accumulator.completed_response is not None:
-            self._completed_call_metadata.append(
-                extract_call_metadata(accumulator.completed_response, prompt_cache_key)
-            )
-        try:
-            self._last_response_items = [
-                normalize_response_item(item)
-                for item in accumulator.response_items
-            ]
-        except ValueError as exc:
-            raise AgentProviderResponseError(f"responses API returned invalid output item: {exc}") from exc
-        return content
+        if result.metadata is not None:
+            self._completed_call_metadata.append(result.metadata)
+        self._last_response_items = result.response_items
+        return result.content
 
     def _generate_chat_completions(
         self, agent_type: str,
@@ -217,20 +243,13 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
     ) -> str:
         """以 SSE 兼容仍只提供 Chat Completions 的服务。"""
 
-        if self.model_name is None:
-            raise MissingProviderConfigurationError("model name is missing")
-        body = build_chat_completions_body(
-            agent_type=agent_type,
-            output_model=output_model,
-            model_name=self.model_name,
-            conversation=conversation,
-            current_input_items=current_input_items,
-            reasoning_effort=self.reasoning_effort,
-            max_output_tokens=self.max_output_tokens,
+        return generate_chat_completions(
+            self,
+            agent_type,
+            output_model,
+            conversation,
+            current_input_items,
         )
-        accumulator = ChatCompletionsStreamAccumulator()
-        self._post_sse("/v1/chat/completions", body, accumulator.handle, conversation)
-        return accumulator.output_text()
 
     def _post_sse(
         self,
@@ -255,27 +274,15 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
             urlopen=request.urlopen,
         )
 
-    def _run_with_retries(self, operation: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+    def _run_with_retries(self, operation: Callable[[], T]) -> T:
         """对瞬时请求错误和无效结构化响应执行有界指数退避重试。"""
 
-        for attempt in range(1, self.max_attempts + 1):
-            try:
-                return operation()
-            except AgentProviderRequestError as exc:
-                if not exc.retryable or attempt == self.max_attempts:
-                    raise
-                retry_after_seconds = exc.retry_after_seconds or 0
-            except AgentProviderResponseError:
-                if attempt == self.max_attempts:
-                    raise
-                retry_after_seconds = 0
-            delay_seconds = max(
-                self.retry_backoff_seconds * (2 ** (attempt - 1)),
-                retry_after_seconds,
-            )
-            if delay_seconds > 0:
-                time.sleep(delay_seconds)
-        raise RuntimeError("unreachable provider retry state")
+        return run_with_retries(
+            operation,
+            max_attempts=self.max_attempts,
+            retry_backoff_seconds=self.retry_backoff_seconds,
+            sleep=time.sleep,
+        )
 
     def _ensure_configured(self) -> None:
         """拒绝缺少真实外部模型配置的调用。"""
@@ -290,10 +297,4 @@ class OpenAICompatibleProvider(StructuredAgentProvider):
     def _parse_output(content: str, output_model: type[BaseModel]) -> dict[str, Any]:
         """解析并用调用方指定的 Pydantic 模型再次校验。"""
 
-        try:
-            parsed = json.loads(content)
-            return output_model.model_validate(parsed).model_dump(mode="json")
-        except (json.JSONDecodeError, ValidationError, TypeError) as exc:
-            raise AgentProviderResponseError(
-                f"structured output validation failed: {exc}"
-            ) from exc
+        return parse_structured_output(content, output_model)

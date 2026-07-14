@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/coder-agent-output.schema.json",
+  "title": "CoderAgentOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "development_plan_id",
+    "step_ids",
+    "summary",
+    "status",
+    "risk_level"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "format": "uuid"},
+    "development_plan_id": {"type": "string", "format": "uuid"},
+    "step_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "pattern": "^STEP-[0-9]{3}$"}
+    },
+    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "status": {
+      "type": "string",
+      "enum": ["completed", "partial", "blocked"]
+    },
+    "branch_name": {
+      "anyOf": [
+        {"type": "string", "maxLength": 80},
+        {"type": "null"}
+      ]
+    },
+    "diff_paths": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ChangedFile"}
+    },
+    "verification": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/CommandExecution"}
+    },
+    "tests_added": {"type": "array", "items": {"type": "string"}},
+    "tool_calls": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ToolCallEvidence"}
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ArtifactEvidence"}
+    },
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "risks": {"type": "array", "items": {"type": "string"}},
+    "risk_level": {"$ref": "./agent-common.schema.json#/$defs/RiskLevel"}
+  }
+}

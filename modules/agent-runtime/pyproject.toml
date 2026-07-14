@@ -1,7 +1,7 @@
 [project]
 name = "cloudhelm-agent-runtime"
-version = "0.3.2"
-description = "CloudHelm M4 Agent 结构化输出运行时。"
+version = "0.4.0"
+description = "CloudHelm 结构化多 Agent 运行时与 Responses 工具循环。"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

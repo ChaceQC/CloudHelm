@@ -2,125 +2,160 @@
 
 from __future__ import annotations
 
-import re
-import subprocess
-from pathlib import Path
-
 from cloudhelm_tool_gateway.audit import truncate_text
 from cloudhelm_tool_gateway.policies import PolicyError, ToolPolicy
-from cloudhelm_tool_gateway.schemas.git import GitCommitArguments, GitCreateBranchArguments, GitDiffArguments, GitStatusArguments
-
-BRANCH_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$")
-
-
-def _run_git(repo: Path, args: list[str], max_chars: int = 12000) -> tuple[int, str, str]:
-    """执行 git 命令并返回退出码和截断输出。"""
-
-    completed = subprocess.run(
-        ["git", "-C", str(repo), *args],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=30,
-        check=False,
-    )
-    return completed.returncode, truncate_text(completed.stdout, max_chars) or "", truncate_text(completed.stderr, max_chars) or ""
-
-
-def _repo_root(repo_root: str, policy: ToolPolicy) -> Path:
-    """校验 repo_root 是受控 Git 仓库根目录。"""
-
-    root = policy.resolve_workspace_root(repo_root)
-    code, stdout, stderr = _run_git(root, ["rev-parse", "--show-toplevel"])
-    if code != 0:
-        raise PolicyError("not_git_repo", f"repo_root 不是 Git 仓库：{stderr.strip()}")
-    top = Path(stdout.strip()).resolve(strict=True)
-    if top != root:
-        raise PolicyError("repo_root_mismatch", "Git Tool 只能操作仓库根目录。")
-    return root
-
-
-def _validate_branch_name(branch_name: str) -> None:
-    """校验分支名，阻止 rev 注入和 Git 保留后缀。"""
-
-    if not BRANCH_PATTERN.match(branch_name) or ".." in branch_name or branch_name.endswith(("/", ".lock")):
-        raise PolicyError("invalid_branch_name", "分支名包含 Git 不安全字符或保留格式。")
-
-
-def _commit_paths(repo: Path, requested_paths: list[str], policy: ToolPolicy) -> list[str]:
-    """把提交路径规范化为显式文件列表。
-
-    Git Tool 不接受仓库根目录或目录 pathspec，避免调用方用 `.` 把未审查
-    文件整体加入提交。已删除文件仅在仍是 Git tracked 文件时允许提交。
-    """
-
-    paths: list[str] = []
-    for requested_path in requested_paths:
-        checked = policy.resolve_workspace_path(repo, requested_path, allow_missing=True)
-        relative = checked.relative_to(repo).as_posix()
-        if relative in {"", "."} or (checked.exists() and not checked.is_file()):
-            raise PolicyError("git_commit_path_not_file", "git.commit 只接受显式文件路径，不能提交仓库根目录或目录。")
-        if not checked.exists():
-            tracked_code, _, _ = _run_git(repo, ["ls-files", "--error-unmatch", "--", relative])
-            if tracked_code != 0:
-                raise PolicyError("git_commit_path_not_found", f"提交路径不存在且不是 tracked 文件：{relative}")
-        if relative not in paths:
-            paths.append(relative)
-    return paths
+from cloudhelm_tool_gateway.schemas.git import (
+    GitCommitArguments,
+    GitCreateBranchArguments,
+    GitDiffArguments,
+    GitFormatPatchArguments,
+    GitStatusArguments,
+)
+from cloudhelm_tool_gateway.tools.git_support import (
+    append_untracked_stat,
+    commit_paths,
+    parse_porcelain,
+    resolve_repo_root,
+    run_git,
+    untracked_file_patch,
+    untracked_files as list_untracked_files,
+    validate_branch_name,
+)
 
 
 def status(args: GitStatusArguments, policy: ToolPolicy) -> dict:
     """读取 git status。"""
 
-    repo = _repo_root(args.repo_root, policy)
-    git_args = ["status", "--short", "--branch"] if args.porcelain else ["status"]
-    code, stdout, stderr = _run_git(repo, git_args)
+    repo = resolve_repo_root(args.repo_root, policy)
+    git_args = ["status", "--porcelain=v1", "--branch"] if args.porcelain else ["status"]
+    code, stdout, stderr = run_git(repo, git_args)
+    parsed = parse_porcelain(stdout) if code == 0 and args.porcelain else {}
     return {
         "status": "succeeded" if code == 0 else "failed",
         "error_code": None if code == 0 else "git_status_failed",
         "summary": "已读取 Git 状态。" if code == 0 else "读取 Git 状态失败。",
         "stdout_summary": stdout,
         "stderr_summary": stderr,
-        "result_json": {"exit_code": code, "porcelain": args.porcelain},
+        "result_json": {"exit_code": code, "porcelain": args.porcelain, **parsed},
     }
 
 
 def diff(args: GitDiffArguments, policy: ToolPolicy) -> dict:
     """读取 git diff 和 diff stat。"""
 
-    repo = _repo_root(args.repo_root, policy)
+    repo = resolve_repo_root(args.repo_root, policy)
     paths = []
     for path in args.paths:
         checked = policy.resolve_workspace_path(repo, path, allow_missing=True)
         paths.append(checked.relative_to(repo).as_posix())
+    if args.to_ref is not None and args.from_ref is None:
+        raise PolicyError("git_diff_ref_invalid", "指定 to_ref 时必须同时指定 from_ref。")
+    refs = [value for value in (args.from_ref, args.to_ref) if value is not None]
     separator = ["--", *paths] if paths else []
-    stat_code, stat_out, stat_err = _run_git(repo, ["diff", "--stat", *separator], args.max_output_chars)
-    patch_code, patch_out, patch_err = _run_git(repo, ["diff", f"--unified={args.context_lines}", *separator], args.max_output_chars)
-    code = stat_code or patch_code
+    name_code, name_out, name_err = run_git(
+        repo,
+        ["diff", "--name-only", *refs, *separator],
+        args.max_output_chars,
+    )
+    stat_code, stat_out, stat_err = run_git(
+        repo,
+        ["diff", "--stat", *refs, *separator],
+        args.max_output_chars,
+    )
+    patch_code, patch_out, patch_err = run_git(
+        repo,
+        ["diff", f"--unified={args.context_lines}", *refs, *separator],
+        args.max_output_chars,
+    )
+    changed_files = [line for line in name_out.splitlines() if line.strip()]
+    untracked_files: list[str] = []
+    untracked_files_for_diff: list[str] = []
+    if args.include_untracked and args.to_ref is None:
+        untracked_files = untracked_files_for_diff = list_untracked_files(
+            repo,
+            paths,
+            policy,
+        )
+        for path in untracked_files_for_diff:
+            if path not in changed_files:
+                changed_files.append(path)
+        if untracked_files_for_diff:
+            untracked_patch = "\n".join(
+                untracked_file_patch(repo, path, args.context_lines)
+                for path in untracked_files_for_diff
+            )
+            patch_out = "\n".join(part for part in (patch_out, untracked_patch) if part)
+            stat_out = append_untracked_stat(
+                repo,
+                stat_out,
+                untracked_files_for_diff,
+            )
+    code = name_code or stat_code or patch_code
+    patch = truncate_text(patch_out, args.max_output_chars) or ""
     return {
         "status": "succeeded" if code == 0 else "failed",
         "error_code": None if code == 0 else "git_diff_failed",
         "summary": "已读取 Git diff。" if code == 0 else "读取 Git diff 失败。",
-        "stdout_summary": patch_out,
-        "stderr_summary": stat_err or patch_err,
-        "result_json": {"exit_code": code, "stat": stat_out, "paths": paths},
+        "stdout_summary": patch,
+        "stderr_summary": name_err or stat_err or patch_err,
+        "result_json": {
+            "exit_code": code,
+            "stat": stat_out,
+            "paths": paths,
+            "changed_files": changed_files,
+            "untracked_files": untracked_files,
+            "patch": patch,
+            "patch_truncated": len(patch_out) > len(patch),
+            "from_ref": args.from_ref,
+            "to_ref": args.to_ref,
+        },
     }
 
 
 def create_branch(args: GitCreateBranchArguments, policy: ToolPolicy) -> dict:
     """创建并切换本地分支。"""
 
-    repo = _repo_root(args.repo_root, policy)
-    _validate_branch_name(args.branch_name)
-    code, stdout, stderr = _run_git(repo, ["switch", "-c", args.branch_name])
+    repo = resolve_repo_root(args.repo_root, policy)
+    validate_branch_name(args.branch_name)
+    _, current_out, _ = run_git(repo, ["branch", "--show-current"])
+    current_branch = current_out.strip()
+    if current_branch == args.branch_name:
+        _, commit_out, _ = run_git(repo, ["rev-parse", "HEAD"])
+        return {
+            "status": "succeeded",
+            "summary": f"已位于分支 {args.branch_name}。",
+            "result_json": {
+                "branch_name": args.branch_name,
+                "base_commit": commit_out.strip(),
+                "reused": True,
+                "exit_code": 0,
+            },
+        }
+    exists_code, _, _ = run_git(
+        repo,
+        ["show-ref", "--verify", "--quiet", f"refs/heads/{args.branch_name}"],
+    )
+    if exists_code == 0:
+        return {
+            "status": "failed",
+            "error_code": "git_branch_exists",
+            "summary": f"分支 {args.branch_name} 已存在但当前未位于该分支。",
+            "result_json": {"branch_name": args.branch_name},
+        }
+    _, base_out, _ = run_git(repo, ["rev-parse", "HEAD"])
+    code, stdout, stderr = run_git(repo, ["switch", "-c", args.branch_name])
     return {
         "status": "succeeded" if code == 0 else "failed",
         "error_code": None if code == 0 else "git_create_branch_failed",
         "summary": f"已创建并切换到 {args.branch_name}。" if code == 0 else "创建分支失败。",
         "stdout_summary": stdout,
         "stderr_summary": stderr,
-        "result_json": {"branch_name": args.branch_name, "exit_code": code},
+        "result_json": {
+            "branch_name": args.branch_name,
+            "base_commit": base_out.strip(),
+            "reused": False,
+            "exit_code": code,
+        },
     }
 
 
@@ -131,8 +166,8 @@ def commit(args: GitCommitArguments, policy: ToolPolicy) -> dict:
     git add 或 git commit 失败时会撤销本次新增的暂存状态，但不修改工作区。
     """
 
-    repo = _repo_root(args.repo_root, policy)
-    index_code, index_out, index_err = _run_git(repo, ["diff", "--cached", "--name-only"])
+    repo = resolve_repo_root(args.repo_root, policy)
+    index_code, index_out, index_err = run_git(repo, ["diff", "--cached", "--name-only"])
     if index_code != 0:
         return {"status": "failed", "error_code": "git_index_check_failed", "summary": "检查 Git index 失败。", "stderr_summary": index_err}
     if index_out.strip():
@@ -143,18 +178,59 @@ def commit(args: GitCommitArguments, policy: ToolPolicy) -> dict:
             "result_json": {"staged_paths": index_out.splitlines()},
         }
 
-    paths = _commit_paths(repo, args.paths, policy)
-    add_code, _, add_err = _run_git(repo, ["add", "--", *paths])
+    paths = commit_paths(repo, args.paths, policy)
+    _, base_out, _ = run_git(repo, ["rev-parse", "HEAD"])
+    diff_code, diff_stat, diff_err = run_git(repo, ["diff", "--stat", "--", *paths])
+    if diff_code != 0:
+        return {
+            "status": "failed",
+            "error_code": "git_diff_failed",
+            "summary": "提交前读取 diff stat 失败。",
+            "stderr_summary": diff_err,
+        }
+    add_code, _, add_err = run_git(repo, ["add", "--", *paths])
     if add_code != 0:
-        _run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
+        run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
         return {"status": "failed", "error_code": "git_add_failed", "summary": "git add 失败。", "stderr_summary": add_err}
-    check_code, _, _ = _run_git(repo, ["diff", "--cached", "--quiet", "--", *paths])
+    cached_stat_code, cached_stat, cached_stat_err = run_git(
+        repo,
+        ["diff", "--cached", "--stat", "--", *paths],
+    )
+    if cached_stat_code != 0:
+        run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
+        return {
+            "status": "failed",
+            "error_code": "git_diff_failed",
+            "summary": "提交前读取 staged diff stat 失败。",
+            "stderr_summary": cached_stat_err,
+        }
+    if cached_stat:
+        diff_stat = cached_stat
+    check_code, _, _ = run_git(repo, ["diff", "--cached", "--quiet", "--", *paths])
     if check_code == 0:
+        _, subject_out, _ = run_git(repo, ["log", "-1", "--format=%s"])
+        _, committed_paths_out, _ = run_git(repo, ["show", "--format=", "--name-only", "HEAD"])
+        committed_paths = {line for line in committed_paths_out.splitlines() if line}
+        if subject_out.strip() == args.message and set(paths) <= committed_paths:
+            _, commit_out, _ = run_git(repo, ["rev-parse", "HEAD"])
+            return {
+                "status": "succeeded",
+                "summary": f"复用已有本地提交 {commit_out.strip()}。",
+                "result_json": {
+                    "paths": paths,
+                    "changed_files": paths,
+                    "base_commit": None,
+                    "commit_hash": commit_out.strip(),
+                    "diff_stat": "",
+                    "reused": True,
+                    "exit_code": 0,
+                },
+            }
         return {"status": "failed", "error_code": "git_no_staged_changes", "summary": "指定文件没有可提交变更。"}
-    commit_code, commit_out, commit_err = _run_git(repo, ["commit", "--only", "-m", args.message, "--", *paths])
+    commit_code, commit_out, commit_err = run_git(repo, ["commit", "--only", "-m", args.message, "--", *paths])
     if commit_code != 0:
-        _run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
-    hash_code, hash_out, _ = _run_git(repo, ["rev-parse", "HEAD"])
+        run_git(repo, ["reset", "--quiet", "HEAD", "--", *paths])
+    hash_code, hash_out, _ = run_git(repo, ["rev-parse", "HEAD"])
     commit_hash = hash_out.strip() if hash_code == 0 else None
     return {
         "status": "succeeded" if commit_code == 0 else "failed",
@@ -162,5 +238,61 @@ def commit(args: GitCommitArguments, policy: ToolPolicy) -> dict:
         "summary": f"已创建本地提交 {commit_hash}。" if commit_code == 0 else "本地提交失败。",
         "stdout_summary": commit_out,
         "stderr_summary": commit_err,
-        "result_json": {"paths": paths, "commit_hash": commit_hash, "exit_code": commit_code},
+        "result_json": {
+            "paths": paths,
+            "changed_files": paths,
+            "base_commit": base_out.strip(),
+            "commit_hash": commit_hash,
+            "diff_stat": diff_stat,
+            "reused": False,
+            "exit_code": commit_code,
+        },
+    }
+
+
+def format_patch(args: GitFormatPatchArguments, policy: ToolPolicy) -> dict:
+    """生成 base/head 的可审计 patch，不创建远端 PR。"""
+
+    repo = resolve_repo_root(args.repo_root, policy)
+    for ref in (args.base_ref, args.head_ref):
+        code, _, stderr = run_git(repo, ["rev-parse", "--verify", ref])
+        if code != 0:
+            return {
+                "status": "failed",
+                "error_code": "git_ref_not_found",
+                "summary": f"Git ref 不存在：{ref}。",
+                "stderr_summary": stderr,
+            }
+    patch_code, patch_out, patch_err = run_git(
+        repo,
+        ["format-patch", "--stdout", f"{args.base_ref}..{args.head_ref}"],
+        args.max_output_chars,
+    )
+    name_code, names_out, names_err = run_git(
+        repo,
+        ["diff", "--name-only", args.base_ref, args.head_ref],
+        50000,
+    )
+    stat_code, stat_out, stat_err = run_git(
+        repo,
+        ["diff", "--stat", args.base_ref, args.head_ref],
+        50000,
+    )
+    code = patch_code or name_code or stat_code
+    patch = truncate_text(patch_out, args.max_output_chars) or ""
+    return {
+        "status": "succeeded" if code == 0 else "failed",
+        "error_code": None if code == 0 else "git_format_patch_failed",
+        "summary": "已生成本地 format-patch。" if code == 0 else "生成 format-patch 失败。",
+        "stdout_summary": truncate_text(patch, 50000),
+        "stderr_summary": patch_err or names_err or stat_err,
+        "result_json": {
+            "base_ref": args.base_ref,
+            "head_ref": args.head_ref,
+            "changed_files": [line for line in names_out.splitlines() if line],
+            "stat": stat_out,
+            "patch": patch,
+            "patch_truncated": len(patch_out) > len(patch),
+            "exit_code": code,
+        },
     }

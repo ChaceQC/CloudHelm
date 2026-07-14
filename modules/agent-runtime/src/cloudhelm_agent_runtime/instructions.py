@@ -40,18 +40,68 @@ ROLE_ALLOWED_TOOLS: dict[str, tuple[str, ...]] = {
         "repo.search_text",
         "repo.list_files",
     ),
+    "scaffold": (
+        "scaffold.prepare_workspace",
+        "repo.read_file",
+        "repo.search_text",
+        "repo.list_files",
+    ),
+    "coder": (
+        "repo.read_file",
+        "repo.search_text",
+        "repo.list_files",
+        "repo.write_file",
+        "sandbox.run_command",
+        "git.status",
+        "git.diff",
+        "git.create_branch",
+        "git.commit",
+    ),
+    "tester": (
+        "repo.read_file",
+        "repo.list_files",
+        "test.run_pytest",
+        "git.status",
+        "git.diff",
+    ),
+    "reviewer": (
+        "repo.read_file",
+        "repo.search_text",
+        "repo.list_files",
+        "git.status",
+        "git.diff",
+    ),
+    "security": (
+        "repo.read_file",
+        "repo.search_text",
+        "repo.list_files",
+        "security.run_bandit",
+        "security.run_pip_audit",
+        "git.status",
+        "git.diff",
+    ),
 }
 
 ROLE_PROMPT_FILES = {
     "requirement": "requirement.md",
     "architect": "architect.md",
     "planner": "planner.md",
+    "scaffold": "scaffold.md",
+    "coder": "coder.md",
+    "tester": "tester.md",
+    "reviewer": "reviewer.md",
+    "security": "security.md",
 }
 
 ROLE_OUTPUT_CONTRACTS = {
     "requirement": "RequirementAgentOutput",
     "architect": "ArchitectAgentOutput",
     "planner": "PlannerAgentOutput",
+    "scaffold": "ScaffoldAgentOutput",
+    "coder": "CoderAgentOutput",
+    "tester": "TesterAgentOutput",
+    "reviewer": "ReviewerAgentOutput",
+    "security": "SecurityAgentOutput",
 }
 
 

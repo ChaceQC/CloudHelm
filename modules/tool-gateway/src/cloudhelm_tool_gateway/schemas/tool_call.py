@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class RiskLevel(str, Enum):
@@ -35,11 +35,29 @@ class ToolCallRequest(BaseModel):
     task_id: UUID = Field(description="所属任务 ID。")
     agent_run_id: UUID | None = Field(default=None, description="触发工具调用的 AgentRun；与 agent_type 必须成对出现。")
     agent_type: str | None = Field(default=None, description="由 Platform API 从 AgentRun 解析的 Agent 类型。")
+    provider_call_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+        description="Responses function/custom call_id；模型工具调用时必填。",
+    )
+    provider_item_type: Literal["function_call", "custom_tool_call"] | None = Field(
+        default=None,
+        description="供应商工具调用 item 类型。",
+    )
     tool_name: str = Field(min_length=1, description="工具名称。")
     risk_level: RiskLevel = Field(description="调用方认为的风险等级；必须与注册声明一致。")
     idempotency_key: str = Field(min_length=1, max_length=128, description="任务内幂等键。")
     arguments: dict[str, Any] = Field(description="工具参数；无参数工具也必须显式传入空对象。")
     reason: str = Field(min_length=1, description="调用原因，用于审计和审批说明。")
+
+    @model_validator(mode="after")
+    def validate_provider_call_pair(self) -> "ToolCallRequest":
+        """provider call ID 与 item type 必须成对出现。"""
+
+        if (self.provider_call_id is None) != (self.provider_item_type is None):
+            raise ValueError("provider_call_id and provider_item_type must be provided together")
+        return self
 
 
 class ToolCallResult(BaseModel):

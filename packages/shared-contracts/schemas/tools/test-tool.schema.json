@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/test-tool.schema.json",
+  "title": "CloudHelm Test Tool",
+  "description": "M6 Test Tool 在服务端绑定 workspace 中执行 pytest 并生成/解析 JUnit XML。",
+  "type": "object",
+  "required": ["tools"],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "risk_level", "requires_approval", "arguments"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["test.run_pytest"]
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": ["L1"]
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "const": false
+          },
+          "arguments": {
+            "type": "object",
+            "required": ["workspace_root"],
+            "properties": {
+              "workspace_root": {"type": "string"},
+              "cwd": {
+                "type": "string",
+                "default": "."
+              },
+              "pytest_args": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": 24
+              },
+              "junit_path": {
+                "type": "string",
+                "default": ".cloudhelm/artifacts/junit.xml"
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 300,
+                "default": 180
+              },
+              "max_output_chars": {
+                "type": "integer",
+                "minimum": 200,
+                "maximum": 50000,
+                "default": 12000
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

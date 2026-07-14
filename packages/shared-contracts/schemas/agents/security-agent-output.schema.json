@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/security-agent-output.schema.json",
+  "title": "SecurityAgentOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "development_plan_id",
+    "summary",
+    "verdict",
+    "blocking",
+    "risk_level"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "format": "uuid"},
+    "development_plan_id": {"type": "string", "format": "uuid"},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "verdict": {
+      "type": "string",
+      "enum": ["passed", "failed", "partial", "blocked"]
+    },
+    "scanners": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/CommandExecution"}
+    },
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/SecurityFinding"}
+    },
+    "tool_calls": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ToolCallEvidence"}
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ArtifactEvidence"}
+    },
+    "remaining_risks": {"type": "array", "items": {"type": "string"}},
+    "blocking": {"type": "boolean"},
+    "risk_level": {"$ref": "./agent-common.schema.json#/$defs/RiskLevel"}
+  }
+}

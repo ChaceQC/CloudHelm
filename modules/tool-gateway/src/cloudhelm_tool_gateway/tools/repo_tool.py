@@ -55,7 +55,7 @@ def read_file(args: RepoReadFileArguments, policy: ToolPolicy) -> dict:
 
 
 def write_file(args: RepoWriteFileArguments, policy: ToolPolicy) -> dict:
-    """写入 workspace 内文本文件。"""
+    """以 replace 方式写入文本文件，并支持内容 hash 乐观锁。"""
 
     root = policy.resolve_workspace_root(args.workspace_root)
     target = policy.resolve_workspace_path(root, args.path, allow_missing=True)
@@ -66,12 +66,21 @@ def write_file(args: RepoWriteFileArguments, policy: ToolPolicy) -> dict:
         policy.create_workspace_directories(root, parent)
     if target.exists() and not target.is_file():
         raise PolicyError("path_not_file", "repo.write_file 只能写入文件。")
-    mode = "a" if args.mode == "append" else "w"
-    with target.open(mode, encoding="utf-8", newline="\n") as file:
+    if args.expected_sha256 == "missing" and target.exists():
+        raise PolicyError("file_hash_conflict", "目标文件已存在，不满足 expected_sha256=missing。")
+    if args.expected_sha256 and args.expected_sha256 != "missing":
+        if not target.exists() or _sha256_file(target) != args.expected_sha256:
+            raise PolicyError("file_hash_conflict", "目标文件 hash 已变化，拒绝覆盖。")
+    with target.open("w", encoding="utf-8", newline="\n") as file:
         file.write(args.content)
+    sha256 = _sha256_file(target)
     return {
-        "summary": f"已{('追加' if args.mode == 'append' else '写入')} {_relative(root, target)}。",
-        "result_json": {"path": _relative(root, target), "bytes_written": len(args.content.encode("utf-8"))},
+        "summary": f"已写入 {_relative(root, target)}。",
+        "result_json": {
+            "path": _relative(root, target),
+            "bytes_written": len(args.content.encode("utf-8")),
+            "sha256": sha256,
+        },
     }
 
 

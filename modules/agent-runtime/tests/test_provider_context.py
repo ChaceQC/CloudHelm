@@ -5,7 +5,16 @@ from uuid import uuid4
 
 import pytest
 
-from cloudhelm_agent_runtime.agents import ArchitectAgent, PlannerAgent, RequirementAgent
+from cloudhelm_agent_runtime.agents import (
+    ArchitectAgent,
+    CoderAgent,
+    PlannerAgent,
+    RequirementAgent,
+    ReviewerAgent,
+    ScaffoldAgent,
+    SecurityAgent,
+    TesterAgent as RuntimeTesterAgent,
+)
 from cloudhelm_agent_runtime.instructions import (
     allowed_tools_for,
     base_instructions,
@@ -31,10 +40,15 @@ from cloudhelm_agent_runtime.providers.output_schema import stable_output_schema
 from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
 from cloudhelm_agent_runtime.schemas.design import ArchitectAgentOutput
 from cloudhelm_agent_runtime.schemas.development_plan import PlannerAgentOutput
+from cloudhelm_agent_runtime.schemas.implementation import CoderAgentOutput
 from cloudhelm_agent_runtime.schemas.requirement import (
     RequirementAgentInput,
     RequirementAgentOutput,
 )
+from cloudhelm_agent_runtime.schemas.review_report import ReviewerAgentOutput
+from cloudhelm_agent_runtime.schemas.scaffold import ScaffoldAgentOutput
+from cloudhelm_agent_runtime.schemas.security_report import SecurityAgentOutput
+from cloudhelm_agent_runtime.schemas.test_report import TesterAgentOutput as TestReportOutput
 
 
 def _requirement_input() -> RequirementAgentInput:
@@ -78,22 +92,55 @@ def test_base_instructions_are_detailed_stable_and_role_neutral() -> None:
 
 
 @pytest.mark.parametrize(
-    ("agent_type", "agent_class", "required_phrases"),
+    ("agent_type", "agent_class", "required_phrases", "minimum_length"),
     [
         (
             "requirement",
             RequirementAgent,
             ("用户故事", "验收标准", "不得声称测试已经通过"),
+            4000,
         ),
         (
             "architect",
             ArchitectAgent,
             ("OpenAPI 3.1", "数据库", "人工设计审批"),
+            4000,
         ),
         (
             "planner",
             PlannerAgent,
             ("STEP-001", "depends_on", "ready_for_review"),
+            4000,
+        ),
+        (
+            "scaffold",
+            ScaffoldAgent,
+            ("planned_files", "repo.write_file", "ScaffoldAgentOutput"),
+            1200,
+        ),
+        (
+            "coder",
+            CoderAgent,
+            ("planned_changes", "repo.write_file", "CoderAgentOutput"),
+            1200,
+        ),
+        (
+            "tester",
+            RuntimeTesterAgent,
+            ("exit code", "failure_reasons", "TesterAgentOutput"),
+            1200,
+        ),
+        (
+            "reviewer",
+            ReviewerAgent,
+            ("Acceptance Criteria", "proceed_to_security", "ReviewerAgentOutput"),
+            1200,
+        ),
+        (
+            "security",
+            SecurityAgent,
+            ("FINDING-001", "blocking", "SecurityAgentOutput"),
+            1200,
         ),
     ],
 )
@@ -101,12 +148,13 @@ def test_role_instructions_are_precise_and_match_tool_policy(
     agent_type: str,
     agent_class,
     required_phrases: tuple[str, ...],
+    minimum_length: int,
 ) -> None:
     """角色 Instructions 必须覆盖流程、输出、工具、禁止项和完成判定。"""
 
     instructions = role_instructions(agent_type)
 
-    assert len(instructions) >= 4000
+    assert len(instructions) >= minimum_length
     for section in ("当前职责与唯一目标", "输入字段", "精度要求", "工具", "完成判定"):
         assert section in instructions
     for phrase in required_phrases:
@@ -159,6 +207,11 @@ def test_stable_transport_schema_is_flat_and_covers_every_role_output() -> None:
         RequirementAgentOutput,
         ArchitectAgentOutput,
         PlannerAgentOutput,
+        ScaffoldAgentOutput,
+        CoderAgentOutput,
+        TestReportOutput,
+        ReviewerAgentOutput,
+        SecurityAgentOutput,
     )
     schemas = [stable_output_schema(model) for model in models]
 
@@ -257,7 +310,7 @@ def test_tool_definition_uses_responses_function_shape() -> None:
         "name": "repo.read_file",
         "description": "读取受控工作区内 UTF-8 文件。",
         "parameters": definition.parameters,
-        "strict": True,
+        "strict": False,
     }
 
 

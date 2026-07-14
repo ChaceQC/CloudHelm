@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.cloudhelm
+.coverage
+htmlcov
+*.py[cod]
+*.log
+*.tmp
+dist
+build

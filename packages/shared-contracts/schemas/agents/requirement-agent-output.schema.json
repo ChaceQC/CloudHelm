@@ -4,8 +4,8 @@
       "description": "验收标准项。",
       "properties": {
         "id": {
-          "description": "稳定验收标准编号。",
-          "pattern": "^AC-[0-9]{3}$",
+          "description": "稳定验收标准编号，可保留领域前缀。",
+          "pattern": "^AC-(?:[A-Z0-9]+-)*[0-9]{3}$",
           "title": "Id",
           "type": "string"
         },
@@ -22,6 +22,7 @@
           "type": "string"
         },
         "status": {
+          "const": "pending",
           "default": "pending",
           "description": "验收状态，M4 仅生成 pending。",
           "title": "Status",
@@ -33,6 +34,7 @@
         "description",
         "verification"
       ],
+      "additionalProperties": false,
       "title": "AcceptanceCriterion",
       "type": "object"
     },
@@ -62,6 +64,7 @@
         "type",
         "value"
       ],
+      "additionalProperties": false,
       "title": "RequirementConstraint",
       "type": "object"
     },
@@ -129,6 +132,7 @@
     "acceptance_criteria",
     "risk_level"
   ],
+  "additionalProperties": false,
   "title": "RequirementAgentOutput",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -2,21 +2,86 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/tools/tool-call-request.schema.json",
   "title": "CloudHelm ToolCallRequest",
-  "description": "M5 Tool Gateway 统一工具调用请求。调用方必须提供任务、工具名、风险等级、幂等键、参数和调用原因。",
+  "description": "M5-M6 Tool Gateway 统一内部执行请求。Agent 身份与 provider call 身份均按调用来源绑定，参数和原因用于幂等、策略与审计。",
   "type": "object",
-  "required": ["task_id", "tool_name", "risk_level", "idempotency_key", "arguments", "reason"],
+  "required": [
+    "task_id",
+    "tool_name",
+    "risk_level",
+    "idempotency_key",
+    "arguments",
+    "reason"
+  ],
   "properties": {
-    "task_id": { "type": "string", "format": "uuid" },
-    "agent_run_id": { "type": ["string", "null"], "format": "uuid" },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "agent_run_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
     "agent_type": {
       "type": ["string", "null"],
-      "description": "Platform API 根据 AgentRun 解析的 Agent 类型；与 agent_run_id 成对出现。"
+      "description": "Platform API 根据 AgentRun 解析的 Agent 类型。"
     },
-    "tool_name": { "type": "string", "minLength": 1 },
-    "risk_level": { "type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"] },
-    "idempotency_key": { "type": "string", "minLength": 1, "maxLength": 128 },
-    "arguments": { "type": "object", "additionalProperties": true },
-    "reason": { "type": "string", "minLength": 1 }
+    "provider_call_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Responses function/custom call_id；模型工具调用时必填。"
+    },
+    "provider_item_type": {
+      "type": ["string", "null"],
+      "enum": ["function_call", "custom_tool_call", null]
+    },
+    "tool_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    }
   },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "provider_call_id": {"type": "null"},
+            "provider_item_type": {"type": "null"}
+          }
+        },
+        {
+          "required": ["provider_call_id", "provider_item_type"],
+          "properties": {
+            "provider_call_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "provider_item_type": {
+              "type": "string",
+              "enum": ["function_call", "custom_tool_call"]
+            }
+          }
+        }
+      ]
+    }
+  ],
   "additionalProperties": false
 }

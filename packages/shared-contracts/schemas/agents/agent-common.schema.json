@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/agent-common.schema.json",
+  "title": "CloudHelm Agent Common Types",
+  "$defs": {
+    "RiskLevel": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "ToolCallEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["call_id", "tool_name", "status", "summary"],
+      "properties": {
+        "call_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "tool_name": {"type": "string", "minLength": 1, "maxLength": 120},
+        "status": {
+          "type": "string",
+          "enum": ["succeeded", "failed", "waiting_approval"]
+        },
+        "tool_call_id": {"type": ["string", "null"]},
+        "error_code": {"type": ["string", "null"]},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1000}
+      }
+    },
+    "ArtifactEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ref"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1, "maxLength": 80},
+        "ref": {"type": "string", "minLength": 1, "maxLength": 500},
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "size_bytes": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "ChangedFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "operation", "intent"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 500},
+        "operation": {
+          "type": "string",
+          "enum": ["created", "updated", "deleted"]
+        },
+        "intent": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "tool_call_id": {"type": ["string", "null"]},
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "CommandExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["call_id", "command", "purpose", "status"],
+      "properties": {
+        "call_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "tool_call_id": {"type": ["string", "null"]},
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string"}
+        },
+        "purpose": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "status": {
+          "type": "string",
+          "enum": ["succeeded", "failed", "waiting_approval"]
+        },
+        "exit_code": {"type": ["integer", "null"]},
+        "passed_count": {"type": ["integer", "null"], "minimum": 0},
+        "failed_count": {"type": ["integer", "null"], "minimum": 0},
+        "skipped_count": {"type": ["integer", "null"], "minimum": 0},
+        "duration_ms": {"type": ["integer", "null"], "minimum": 0},
+        "report_ref": {"type": ["string", "null"], "maxLength": 500},
+        "stdout_summary": {"type": ["string", "null"], "maxLength": 4000},
+        "stderr_summary": {"type": ["string", "null"], "maxLength": 4000},
+        "error_code": {"type": ["string", "null"], "maxLength": 120}
+      }
+    },
+    "AcceptanceReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterion_id", "status", "notes"],
+      "properties": {
+        "criterion_id": {"type": "string", "pattern": "^AC-[0-9]{3}$"},
+        "status": {
+          "type": "string",
+          "enum": ["satisfied", "partial", "missing"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "notes": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    },
+    "ReviewIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "severity", "message", "recommendation"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^ISSUE-[0-9]{3}$"},
+        "severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "path": {"type": ["string", "null"], "maxLength": 500},
+        "line": {"type": ["integer", "null"], "minimum": 1},
+        "message": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "recommendation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    },
+    "SecurityFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scanner", "rule_id", "severity", "message"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^FINDING-[0-9]{3}$"},
+        "scanner": {"type": "string", "minLength": 1, "maxLength": 120},
+        "rule_id": {"type": "string", "minLength": 1, "maxLength": 300},
+        "severity": {
+          "type": "string",
+          "enum": ["info", "low", "medium", "high", "critical"]
+        },
+        "path": {"type": ["string", "null"], "maxLength": 500},
+        "line": {"type": ["integer", "null"], "minimum": 1},
+        "message": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    }
+  }
+}

@@ -1,15 +1,25 @@
 # modules/agent-runtime
 
-CloudHelm M4 Agent Runtime 提供 Requirement / Architect / Planner 三类 Agent
-的结构化输入输出、版本化 Instructions、Codex 风格 ResponseItem 会话和
-provider 适配层。
+CloudHelm Agent Runtime `0.4.0` 提供 Requirement / Architect / Planner /
+Scaffold / Coder / Tester / Reviewer / Security 八类 Agent 的结构化输入输出、
+版本化 Instructions、Codex 风格 ResponseItem 会话和 provider 适配层。
 
-## M4 能力边界
+M6 新增 Responses 工具交换循环、稳定工具 manifest、逐 AC Tester 结果、
+真实 diff/JUnit/安全扫描证据消费；Agent 仍不直接执行副作用，全部工具请求
+交给 Platform API 与 Tool Gateway。
 
-- Agent 只生成需求规格、技术设计和开发计划类结构化对象。
-- Agent Runtime 不直接写数据库，不调用 Repo、Docker、Git、SSH 或远端工具。
+## M4-M6 能力边界
+
+- Requirement、Architect、Planner 生成需求规格、技术设计和开发计划。
+- Scaffold、Coder、Tester、Reviewer、Security 生成受严格 Pydantic 校验的
+  workspace、实现、测试、审查和安全结构化结果，并消费真实 ToolCall/Artifact
+  证据。
+- Agent Runtime 不直接写数据库或执行副作用；Repo、Scaffold、Sandbox、
+  Test、Security、Git 请求都由 Platform API 绑定服务端参数后交给 Tool Gateway。
 - 所有输出必须经过 Pydantic 校验后，才允许由 Platform API / Orchestrator 写入业务表。
-- 默认 `local_structured` provider 是 M4 MVP 的规则化结构化生成器：它只根据真实 Task / Requirement / Design 输入拆分字段，不使用固定样例或测试假数据。
+- 默认 `local_structured` provider 根据真实 Task、Requirement、Design、
+  DevelopmentPlan、execution recipe 和工具结果生成结构化输出，不使用静态
+  演示结果冒充执行证据。
 - `openai_compatible` 默认使用 HTTP SSE Responses API，发送稳定 Base Instructions、完整历史、`reasoning.encrypted_content`、Codex User-Agent、thread/session headers 和稳定 `prompt_cache_key`；本轮明确不实现 WebSocket。
 - Requirement、Architect、Planner 是同一 Task root conversation 的连续 turn。只有显式 `spawn_subagent` 才创建 child conversation。
 - Responses `text.format` 使用跨角色一致的扁平 `cloudhelm_agent_output_v1` 传输 schema，当前角色输出再由对应 Pydantic model 严格校验。这样避免角色专属 schema 从请求开头破坏 Prompt Cache。
@@ -22,12 +32,16 @@ provider 适配层。
 
 - `prompts/base.md`：跨角色稳定的 Base Instructions，定义会话、可信边界、
   ResponseItem、工具、审批、风险、subagent 和完成判定。
-- `prompts/requirement.md`、`architect.md`、`planner.md`：当前 turn 的详细角色
+- `prompts/requirement.md`、`architect.md`、`planner.md`、`scaffold.md`、
+  `coder.md`、`tester.md`、`reviewer.md`、`security.md`：当前 turn 的详细角色
   Instructions，包含输入解释、处理顺序、字段精度、allowlist、禁止项和完成判定。
 - `prompts/subagent.md`：child conversation 的 fresh/full-history、权限、生命周期
   和最终通知边界。
 - 格式修复只在当前请求追加 `<validation_repair>`，不会改写 Base Instructions；
-  只有通过 Pydantic 的最终尝试才会原子追加到 conversation。
+  成功业务 turn 只有通过 Pydantic 的最终尝试才会原子追加到 conversation。
+- M6 工具步骤在基础设施失败时保留已经真实发生的 function/custom call 与匹配
+  output，并追加 `<failed_step_context>`；该失败上下文只用于可审计重试，不会
+  伪装成成功结构化输出。
 - 完整历史保存 developer/user/message、assistant final answer、encrypted reasoning、
   function/custom tool call 和匹配的 tool output；`store=false` 只移除不可复用 item id。
 

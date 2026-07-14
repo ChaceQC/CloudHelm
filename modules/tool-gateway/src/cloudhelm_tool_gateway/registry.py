@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from copy import deepcopy
 from typing import Any
 
 from pydantic import BaseModel
@@ -34,6 +35,28 @@ class ToolDeclaration:
     handler: ToolHandler
     allowed_agent_types: tuple[str, ...] = ()
     allow_system_call: bool = True
+    bound_arguments: tuple[str, ...] = ()
+
+    def provider_parameters_schema(self) -> dict[str, Any]:
+        """返回模型可见参数 schema，并移除只能由服务端绑定的路径字段。
+
+        Tool Gateway 的完整 `input_model` 仍是最终校验来源。Platform API
+        在执行前注入 `bound_arguments`，模型既不能选择本机根目录，也不会因
+        workspace 路径变化破坏稳定 tools 前缀。
+        """
+
+        schema = deepcopy(self.input_model.model_json_schema())
+        properties = schema.get("properties")
+        if not isinstance(properties, dict):
+            return schema
+        for field_name in self.bound_arguments:
+            properties.pop(field_name, None)
+        required = schema.get("required")
+        if isinstance(required, list):
+            schema["required"] = [
+                field_name for field_name in required if field_name not in self.bound_arguments
+            ]
+        return schema
 
     def public_dict(self) -> dict[str, Any]:
         """返回可暴露给控制台或 Agent 的工具声明。"""
@@ -46,7 +69,9 @@ class ToolDeclaration:
             "audit_fields": list(self.audit_fields),
             "allowed_agent_types": list(self.allowed_agent_types),
             "allow_system_call": self.allow_system_call,
+            "bound_arguments": list(self.bound_arguments),
             "arguments_schema": self.input_model.model_json_schema(),
+            "provider_arguments_schema": self.provider_parameters_schema(),
             "result_schema": ToolCallResult.model_json_schema(),
         }
 

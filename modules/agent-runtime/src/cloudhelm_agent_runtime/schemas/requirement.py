@@ -2,12 +2,14 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from typing import Literal
 
-from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
+from pydantic import Field, field_validator
+
+from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel, StrictAgentModel
 
 
-class RequirementConstraint(BaseModel):
+class RequirementConstraint(StrictAgentModel):
     """需求约束项。
 
     约束必须说明类型、内容和是否硬性要求，避免后续 Architect / Planner
@@ -19,16 +21,19 @@ class RequirementConstraint(BaseModel):
     required: bool = Field(default=True, description="是否为必须满足的硬约束。")
 
 
-class AcceptanceCriterion(BaseModel):
+class AcceptanceCriterion(StrictAgentModel):
     """验收标准项。"""
 
-    id: str = Field(pattern=r"^AC-[0-9]{3}$", description="稳定验收标准编号。")
+    id: str = Field(
+        pattern=r"^AC-(?:[A-Z0-9]+-)*[0-9]{3}$",
+        description="稳定验收标准编号，可保留领域前缀。",
+    )
     description: str = Field(min_length=1, description="从用户视角可验证的验收描述。")
     verification: str = Field(min_length=1, description="建议验证方式，例如 pytest、API、manual。")
-    status: str = Field(default="pending", description="验收状态，M4 仅生成 pending。")
+    status: Literal["pending"] = Field(default="pending", description="验收状态，M4 仅生成 pending。")
 
 
-class RequirementAgentInput(BaseModel):
+class RequirementAgentInput(StrictAgentModel):
     """Requirement Agent 输入。
 
     输入必须来自真实 Task，不允许使用测试夹具或固定样例冒充需求来源。
@@ -43,7 +48,7 @@ class RequirementAgentInput(BaseModel):
     risk_level: RiskLevel = Field(description="任务初始风险等级。")
 
 
-class RequirementAgentOutput(BaseModel):
+class RequirementAgentOutput(StrictAgentModel):
     """Requirement Agent 输出。
 
     Platform API 会把该对象映射到 `requirement_specs`，其中 JSON 数组字段

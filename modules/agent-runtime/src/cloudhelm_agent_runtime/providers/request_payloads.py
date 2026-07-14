@@ -17,6 +17,10 @@ from cloudhelm_agent_runtime.providers.output_schema import (
     stable_output_schema,
 )
 from cloudhelm_agent_runtime.providers.prompt_cache import build_prompt_cache_key
+from cloudhelm_agent_runtime.providers.tools import (
+    ProviderToolDefinition,
+    stable_tool_definitions,
+)
 
 ApiMode = Literal["responses", "chat_completions"]
 ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"]
@@ -37,6 +41,7 @@ def build_responses_body(
     reasoning_context: ReasoningContext | None,
     max_output_tokens: int,
     explicit_cache_breakpoint: bool,
+    tools: tuple[ProviderToolDefinition, ...] | list[ProviderToolDefinition] = (),
 ) -> tuple[dict[str, Any], str]:
     """构造 Responses 请求体并返回实际 prompt cache key。"""
 
@@ -56,6 +61,7 @@ def build_responses_body(
     if reasoning_context is not None:
         reasoning["context"] = reasoning_context
 
+    stable_tools = stable_tool_definitions(tools)
     body = {
         "model": model_name,
         "instructions": base_instructions(),
@@ -78,6 +84,8 @@ def build_responses_body(
         "stream": True,
         "include": ["reasoning.encrypted_content"],
         "prompt_cache_key": prompt_cache_key,
+        "tools": [tool.to_responses_json() for tool in stable_tools],
+        "parallel_tool_calls": False,
     }
     if explicit_cache_breakpoint:
         body["prompt_cache_options"] = {"mode": "explicit"}

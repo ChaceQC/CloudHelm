@@ -13,7 +13,7 @@ wheels = [
 
 [[package]]
 name = "cloudhelm-tool-gateway"
-version = "0.4.2"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },

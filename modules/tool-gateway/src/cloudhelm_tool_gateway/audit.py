@@ -13,6 +13,13 @@ import re
 from typing import Any
 
 SENSITIVE_KEYWORDS = ("password", "token", "secret", "key", "credential", "cookie", "content")
+INTERNAL_PATH_KEYS = {
+    "artifact_root",
+    "repo_root",
+    "source_root",
+    "storage_key",
+    "workspace_root",
+}
 STORAGE_SENSITIVE_KEYS = (
     "password",
     "passwd",
@@ -39,6 +46,17 @@ SENSITIVE_TEXT_PATTERNS = (
     re.compile(r"(?i)\b(password|token|secret|api[_-]?key)\s*[:=]\s*([^\s,;]+)"),
     re.compile(r"(?i)\b(cookie|set-cookie)\s*[:=]\s*([^\r\n]+)"),
 )
+LOCAL_PATH_PATTERNS = (
+    re.compile(
+        r"(?<![A-Za-z0-9])(?:[A-Za-z]:[\\/]|\\\\)"
+        r"[^\s\"'<>]+"
+    ),
+    re.compile(
+        r"(?<![:/A-Za-z0-9])/"
+        r"(?:home|Users|tmp|var|opt|srv|workspace|mnt|etc|usr|root|private|app|data)"
+        r"(?:/[^/\s\"'<>]+)+"
+    ),
+)
 
 
 def stable_json_hash(value: Any) -> str:
@@ -58,6 +76,9 @@ def redact_value(key: str, value: Any, max_length: int = 80) -> Any:
     """
 
     lowered = key.lower()
+    normalized_key = lowered.replace("-", "_")
+    if normalized_key in INTERNAL_PATH_KEYS:
+        return "<server-bound-path>"
     if any(keyword in lowered for keyword in SENSITIVE_KEYWORDS):
         if isinstance(value, str):
             return f"<redacted:{len(value)} chars>"
@@ -106,6 +127,8 @@ def redact_sensitive_text(value: str | bytes | None) -> str | None:
             text = pattern.sub(lambda match: f"{match.group(1)}=<redacted>", text)
         else:
             text = pattern.sub("<redacted>", text)
+    for pattern in LOCAL_PATH_PATTERNS:
+        text = pattern.sub("<redacted-local-path>", text)
     return text
 
 
@@ -129,6 +152,8 @@ def _sanitize_value(value: Any, *, key: str | None, redact_content: bool) -> Any
 
     lowered = (key or "").lower()
     normalized_key = lowered.replace("-", "_")
+    if normalized_key in INTERNAL_PATH_KEYS:
+        return "<server-bound-path>"
     if any(keyword in normalized_key for keyword in STORAGE_SENSITIVE_KEYS):
         return "<redacted>"
     if redact_content and lowered == "content" and isinstance(value, str):

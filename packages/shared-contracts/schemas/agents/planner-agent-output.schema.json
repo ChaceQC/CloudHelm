@@ -32,11 +32,12 @@
         "mitigation",
         "risk_level"
       ],
+      "additionalProperties": false,
       "title": "DevelopmentPlanRisk",
       "type": "object"
     },
     "DevelopmentPlanStep": {
-      "description": "开发计划步骤。\n\nM4 只生成任务图，不执行代码、工具或 Git 操作。",
+      "description": "开发计划步骤。\n\nM4 生成任务图；M6 可由已审批步骤引用受控 execution recipe。",
       "properties": {
         "id": {
           "description": "步骤编号。",
@@ -58,7 +59,19 @@
         },
         "agent": {
           "description": "建议负责的后续 Agent。",
-          "minLength": 1,
+          "enum": [
+            "requirement",
+            "architect",
+            "planner",
+            "scaffold",
+            "coder",
+            "tester",
+            "reviewer",
+            "security",
+            "release",
+            "deploy",
+            "sre"
+          ],
           "title": "Agent",
           "type": "string"
         },
@@ -76,7 +89,22 @@
           "title": "Depends On",
           "type": "array"
         },
+        "execution_recipe": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9._-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "M6 受控本地 execution recipe ID。",
+          "title": "Execution Recipe"
+        },
         "status": {
+          "const": "pending",
           "default": "pending",
           "description": "M4 仅生成 pending 状态。",
           "title": "Status",
@@ -90,6 +118,7 @@
         "agent",
         "expected_artifact"
       ],
+      "additionalProperties": false,
       "title": "DevelopmentPlanStep",
       "type": "object"
     },
@@ -132,6 +161,7 @@
       "type": "array"
     },
     "status": {
+      "const": "ready_for_review",
       "default": "ready_for_review",
       "description": "计划状态。",
       "title": "Status",
@@ -147,6 +177,7 @@
     "steps",
     "risk_level"
   ],
+  "additionalProperties": false,
   "title": "PlannerAgentOutput",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",

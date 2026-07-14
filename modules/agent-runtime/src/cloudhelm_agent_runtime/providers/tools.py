@@ -20,7 +20,7 @@ class ProviderToolDefinition:
     name: str
     description: str
     parameters: dict[str, Any]
-    strict: bool = True
+    strict: bool = False
 
     def to_responses_json(self) -> dict[str, Any]:
         """转换为 Responses `tools` 数组项。"""
@@ -79,6 +79,21 @@ class ProviderToolCall:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderToolExecutionResult:
+    """调用方执行 Tool Gateway 后返回给 Agent Runtime 的脱敏结果。"""
+
+    status: str
+    result: dict[str, Any]
+    error_code: str | None = None
+
+    def __post_init__(self) -> None:
+        """拒绝 Gateway 契约之外的状态。"""
+
+        if self.status not in {"succeeded", "failed", "waiting_approval"}:
+            raise ValueError(f"unsupported tool execution status: {self.status}")
+
+
 def collect_tool_calls(response_items: list[dict[str, Any]]) -> list[ProviderToolCall]:
     """按响应顺序提取模型工具调用。"""
 
@@ -87,6 +102,18 @@ def collect_tool_calls(response_items: list[dict[str, Any]]) -> list[ProviderToo
         for item in response_items
         if item.get("type") in {"function_call", "custom_tool_call"}
     ]
+
+
+def stable_tool_definitions(
+    tools: tuple[ProviderToolDefinition, ...] | list[ProviderToolDefinition],
+) -> tuple[ProviderToolDefinition, ...]:
+    """按名称稳定排序工具声明并拒绝重复名称。"""
+
+    ordered = tuple(sorted(tools, key=lambda item: item.name))
+    names = [item.name for item in ordered]
+    if len(names) != len(set(names)):
+        raise ValueError("provider tool names must be unique")
+    return ordered
 
 
 def tool_result_item(
@@ -116,3 +143,17 @@ def tool_result_item(
             ),
         }
     return function_call_output_item(call.call_id, payload)
+
+
+def execution_result_item(
+    call: ProviderToolCall,
+    result: ProviderToolExecutionResult,
+) -> dict[str, Any]:
+    """把调用方的真实执行结果转换为与模型 call 配对的 output item。"""
+
+    return tool_result_item(
+        call,
+        status=result.status,
+        result=result.result,
+        error_code=result.error_code,
+    )

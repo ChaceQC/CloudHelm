@@ -94,6 +94,16 @@ class ResponsesStreamAccumulator:
     def output_text(self) -> str:
         """校验完成状态并返回最终结构化文本。"""
 
+        text = self.output_text_optional()
+        if text is not None:
+            return text
+        raise AgentProviderResponseError(
+            "responses API completed with tool calls but without final output text"
+        )
+
+    def output_text_optional(self) -> str | None:
+        """返回最终文本；合法工具-only response 返回空值。"""
+
         if self.completed_response is not None and self.completed_response.get("status") not in {None, "completed"}:
             details = (
                 self.completed_response.get("incomplete_details")
@@ -109,6 +119,11 @@ class ResponsesStreamAccumulator:
             try:
                 return extract_responses_text(self.completed_response)
             except ValueError as exc:
+                if any(
+                    item.get("type") in {"function_call", "custom_tool_call"}
+                    for item in self.response_items
+                ):
+                    return None
                 raise AgentProviderResponseError(str(exc)) from exc
         raise AgentProviderResponseError("responses API stream ended before response.completed")
 

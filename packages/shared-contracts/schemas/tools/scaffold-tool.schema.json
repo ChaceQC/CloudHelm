@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/tools/scaffold-tool.schema.json",
+  "title": "CloudHelm Scaffold Tool",
+  "description": "M6 Scaffold Tool 从服务端受控 fixture 准备 Task 独立 Git workspace。",
+  "type": "object",
+  "required": ["tools"],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "risk_level", "requires_approval", "arguments"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["scaffold.prepare_workspace"]
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": ["L1"]
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "const": false
+          },
+          "arguments": {
+            "type": "object",
+            "required": ["source_root", "workspace_root", "target_directory"],
+            "properties": {
+              "template_id": {
+                "type": "string",
+                "const": "sample-repo-python",
+                "default": "sample-repo-python"
+              },
+              "source_root": {"type": "string"},
+              "workspace_root": {"type": "string"},
+              "target_directory": {"type": "string"},
+              "baseline_branch": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$",
+                "default": "main"
+              },
+              "git_user_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120,
+                "default": "CloudHelm Agent"
+              },
+              "git_user_email": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200,
+                "default": "cloudhelm@example.invalid"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

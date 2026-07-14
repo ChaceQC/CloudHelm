@@ -218,6 +218,8 @@ class ToolGateway:
             "task_id": str(request.task_id),
             "agent_run_id": str(request.agent_run_id) if request.agent_run_id else None,
             "agent_type": request.agent_type,
+            "provider_call_id": request.provider_call_id,
+            "provider_item_type": request.provider_item_type,
             "risk_level": risk_level,
             "idempotency_key": request.idempotency_key,
             "arguments_hash": stable_json_hash(request.arguments),
@@ -232,11 +234,17 @@ class ToolGateway:
 def create_default_gateway(
     max_calls: int = 60,
     window_seconds: int = 60,
+    max_timeout_seconds: int = 300,
+    max_output_chars: int = 50000,
     allowed_workspace_roots: tuple[str | Path, ...] | list[str | Path] = (),
 ) -> ToolGateway:
-    """创建包含 M5 默认工具集和调用限流的 Gateway。"""
+    """创建包含 M6 默认工具集、路径策略和调用限流的 Gateway。"""
 
     return ToolGateway(
-        policy=ToolPolicy(allowed_workspace_roots=allowed_workspace_roots),
+        policy=ToolPolicy(
+            max_timeout_seconds=max_timeout_seconds,
+            max_output_chars=max_output_chars,
+            allowed_workspace_roots=allowed_workspace_roots,
+        ),
         rate_limiter=SlidingWindowRateLimiter(max_calls=max_calls, window_seconds=window_seconds),
     )

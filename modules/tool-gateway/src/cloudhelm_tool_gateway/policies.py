@@ -7,19 +7,14 @@
 from __future__ import annotations
 
 import os
+import signal
+import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
 from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel
-
-
-class PolicyError(Exception):
-    """策略拒绝时抛出的稳定异常。"""
-
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-        self.message = message
+from cloudhelm_tool_gateway.environment import build_safe_subprocess_env
+from cloudhelm_tool_gateway.policy_errors import PolicyError
 
 
 class ToolPolicy:
@@ -67,12 +62,9 @@ class ToolPolicy:
         "bash",
         "sh",
     }
-    base_env_names = {"PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE", "LANG"}
-    allowed_env_prefixes = ("CLOUDHELM_", "PYTHON", "NODE_", "NPM_CONFIG_")
-
     def __init__(
         self,
-        max_timeout_seconds: int = 60,
+        max_timeout_seconds: int = 300,
         max_output_chars: int = 12000,
         allowed_workspace_roots: Iterable[str | Path] = (),
     ) -> None:
@@ -193,7 +185,7 @@ class ToolPolicy:
         """校验相对路径不包含依赖目录、构建产物或敏感文件。"""
 
         parts = [part.lower() for part in relative_path.parts]
-        if any(part in self.denied_dir_names for part in parts[:-1]):
+        if any(part in self.denied_dir_names for part in parts):
             raise PolicyError("path_denied_directory", "目标路径位于禁止访问的依赖、构建或 Git 内部目录。")
         name = parts[-1] if parts else ""
         if name in self.denied_file_names:
@@ -203,17 +195,30 @@ class ToolPolicy:
         if any(name.endswith(suffix) for suffix in self.denied_suffixes):
             raise PolicyError("path_sensitive_file", "目标路径命中密钥、证书或私钥后缀。")
 
-    def validate_timeout(self, timeout_seconds: int) -> int:
+    def validate_timeout(self, timeout_seconds: int, *, maximum: int | None = None) -> int:
         """限制命令执行超时，避免长时间占用本地环境。"""
 
+        allowed_maximum = self.max_timeout_seconds if maximum is None else min(
+            maximum,
+            self.max_timeout_seconds,
+        )
         if timeout_seconds < 1:
             raise PolicyError("timeout_too_short", "timeout_seconds 不能小于 1。")
-        if timeout_seconds > self.max_timeout_seconds:
-            raise PolicyError("timeout_too_long", f"timeout_seconds 不能超过 {self.max_timeout_seconds}。")
+        if timeout_seconds > allowed_maximum:
+            raise PolicyError("timeout_too_long", f"timeout_seconds 不能超过 {allowed_maximum}。")
         return timeout_seconds
 
-    def validate_command(self, command: Iterable[str]) -> list[str]:
-        """校验本地命令数组，不允许 shell 字符串、交互式或高危命令。"""
+    def validate_command(
+        self,
+        command: Iterable[str],
+        *,
+        allowed_programs: Iterable[str] | None = None,
+    ) -> list[str]:
+        """校验本地命令数组，不允许 shell 字符串、交互式或高危命令。
+
+        `allowed_programs` 用于 pytest/security 等领域工具的正向命令
+        profile；通用 sandbox 仍执行基础拒绝清单。
+        """
 
         command_list = [str(item) for item in command]
         if not command_list:
@@ -223,6 +228,13 @@ class ToolPolicy:
             program = program[:-4]
         if program in self.denied_programs:
             raise PolicyError("command_denied", f"M5 Sandbox Tool 不允许执行 {program}。")
+        if allowed_programs is not None:
+            normalized_allowed = {
+                Path(item).name.lower().removesuffix(".exe")
+                for item in allowed_programs
+            }
+            if program not in normalized_allowed:
+                raise PolicyError("command_profile_denied", f"当前命令 profile 不允许执行 {program}。")
         lowered_args = [item.lower() for item in command_list[1:]]
         if program in {"npm", "pnpm", "yarn"} and ("-g" in lowered_args or "--global" in lowered_args):
             raise PolicyError("command_denied", "M5 Sandbox Tool 不允许执行全局 Node 依赖安装。")
@@ -230,13 +242,36 @@ class ToolPolicy:
             raise PolicyError("command_denied", "M5 Sandbox Tool 不允许污染用户或系统 Python 环境。")
         return command_list
 
+    @staticmethod
+    def subprocess_group_options() -> dict[str, object]:
+        """返回跨平台创建独立进程组所需 Popen 参数。"""
+
+        if os.name == "nt":
+            return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+        return {"start_new_session": True}
+
+    @staticmethod
+    def terminate_process_tree(process: subprocess.Popen[str]) -> None:
+        """终止超时命令及其子进程，避免后台进程残留。
+
+        Windows 使用 `taskkill /T`；POSIX 使用独立 session 的 process group。
+        清理失败时再回退到直接 kill 当前进程。
+        """
+
+        try:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                    capture_output=True,
+                    check=False,
+                    timeout=10,
+                )
+            else:
+                os.killpg(process.pid, signal.SIGKILL)
+        except (OSError, subprocess.SubprocessError):
+            process.kill()
+
     def build_subprocess_env(self, requested_env: dict[str, str] | None = None) -> dict[str, str]:
         """构造最小环境变量集合并应用白名单覆盖。"""
 
-        env = {name: os.environ[name] for name in self.base_env_names if name in os.environ}
-        for key, value in (requested_env or {}).items():
-            upper_key = key.upper()
-            if not (upper_key in self.base_env_names or upper_key.startswith(self.allowed_env_prefixes)):
-                raise PolicyError("env_denied", f"环境变量 {key} 不在 M5 白名单内。")
-            env[key] = str(value)
-        return env
+        return build_safe_subprocess_env(requested_env)

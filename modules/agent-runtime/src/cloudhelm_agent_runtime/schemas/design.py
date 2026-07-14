@@ -3,13 +3,13 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
+from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel, StrictAgentModel
 from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementConstraint
 
 
-class ArchitectAgentInput(BaseModel):
+class ArchitectAgentInput(StrictAgentModel):
     """Architect Agent 输入。
 
     设计必须基于已持久化 RequirementSpec，而不是重新解析用户自然语言。
@@ -25,7 +25,7 @@ class ArchitectAgentInput(BaseModel):
     task_risk_level: RiskLevel = Field(description="任务初始风险等级。")
 
 
-class ArchitectAgentOutput(BaseModel):
+class ArchitectAgentOutput(StrictAgentModel):
     """Architect Agent 输出。
 
     输出映射到 `technical_designs`。OpenAPI / DB schema 是草案，不执行迁移

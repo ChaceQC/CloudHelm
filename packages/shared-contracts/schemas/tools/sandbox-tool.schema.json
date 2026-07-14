@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/tools/sandbox-tool.schema.json",
   "title": "CloudHelm Sandbox Tool",
-  "description": "M5 Sandbox Tool 使用本地受控目录和 subprocess 超时；Docker sandbox 留到后续增强。",
+  "description": "M5-M6 Sandbox Tool 使用本地受控目录、命令数组、环境白名单、subprocess 超时和有界输出；Docker sandbox 留到后续增强。",
   "type": "object",
   "required": ["tools"],
   "properties": {
@@ -12,21 +12,55 @@
         "type": "object",
         "required": ["name", "risk_level", "requires_approval", "arguments"],
         "properties": {
-          "name": { "type": "string", "enum": ["sandbox.run_command", "sandbox.collect_artifact"] },
-          "risk_level": { "type": "string", "enum": ["L0", "L1"] },
-          "requires_approval": { "type": "boolean", "const": false },
+          "name": {
+            "type": "string",
+            "enum": ["sandbox.run_command", "sandbox.collect_artifact"]
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": ["L0", "L1"]
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "const": false
+          },
           "arguments": {
             "type": "object",
             "required": ["workspace_root"],
             "properties": {
-              "workspace_root": { "type": "string" },
-              "cwd": { "type": "string" },
-              "command": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-              "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 60 },
-              "env": { "type": "object", "additionalProperties": { "type": "string" } },
-              "max_output_chars": { "type": "integer", "minimum": 100, "maximum": 12000 },
-              "path": { "type": "string" },
-              "max_bytes": { "type": "integer", "minimum": 1 }
+              "workspace_root": {"type": "string"},
+              "cwd": {
+                "type": "string",
+                "default": "."
+              },
+              "command": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 300,
+                "default": 10
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": {"type": "string"}
+              },
+              "max_output_chars": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 12000,
+                "default": 4000
+              },
+              "path": {"type": "string"},
+              "max_bytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5242880,
+                "default": 1048576
+              }
             },
             "additionalProperties": false
           }

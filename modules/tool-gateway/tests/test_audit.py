@@ -4,6 +4,7 @@ from cloudhelm_tool_gateway.audit import (
     redact_sensitive_text,
     sanitize_arguments_for_storage,
     sanitize_result_for_storage,
+    summarize_mapping,
 )
 from cloudhelm_tool_gateway.gateway import create_default_gateway
 from cloudhelm_tool_gateway.schemas.tool_call import RiskLevel, ToolCallRequest
@@ -58,6 +59,32 @@ def test_result_and_output_redact_common_credential_patterns() -> None:
     assert result["headers"]["Cookie"] == "<redacted>"
     assert result["items"][0]["password"] == "<redacted>"
     assert result["items"][1]["safe"] == "ok"
+
+
+def test_audit_redacts_server_paths_but_keeps_repository_relative_paths() -> None:
+    """控制台摘要和结果文本不得暴露服务端 workspace 绝对路径。"""
+
+    arguments = {
+        "workspace_root": r"D:\CloudHelm\output\m6-workspaces\task\repo",
+        "source_root": "/opt/cloudhelm/fixtures/sample-repo-python",
+        "path": "src/sample_service/main.py",
+    }
+    stored = sanitize_arguments_for_storage(arguments)
+    summary = summarize_mapping(arguments)
+    output = redact_sensitive_text(
+        "failed in D:\\CloudHelm\\output\\m6-workspaces\\task\\repo\\tests "
+        "and /tmp/cloudhelm-workspace/tests"
+    )
+
+    assert stored["workspace_root"] == "<server-bound-path>"
+    assert stored["source_root"] == "<server-bound-path>"
+    assert stored["path"] == "src/sample_service/main.py"
+    assert "D:" not in summary
+    assert "/opt/" not in summary
+    assert "<server-bound-path>" in summary
+    assert "D:" not in output
+    assert "/tmp/" not in output
+    assert output.count("<redacted-local-path>") == 2
 
 
 def test_failed_validation_result_and_audit_are_sanitized() -> None:

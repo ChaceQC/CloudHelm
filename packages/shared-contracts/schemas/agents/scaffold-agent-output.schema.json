@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/agents/scaffold-agent-output.schema.json",
+  "title": "ScaffoldAgentOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "development_plan_id",
+    "step_id",
+    "summary",
+    "status",
+    "risk_level"
+  ],
+  "properties": {
+    "task_id": {"type": "string", "format": "uuid"},
+    "development_plan_id": {"type": "string", "format": "uuid"},
+    "step_id": {"type": "string", "pattern": "^STEP-[0-9]{3}$"},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "status": {
+      "type": "string",
+      "enum": ["completed", "partial", "blocked"]
+    },
+    "workspace_key": {
+      "anyOf": [
+        {"type": "string", "maxLength": 500},
+        {"type": "null"}
+      ]
+    },
+    "baseline_branch": {
+      "anyOf": [
+        {"type": "string", "maxLength": 120},
+        {"type": "null"}
+      ]
+    },
+    "baseline_commit": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"
+        },
+        {"type": "null"}
+      ]
+    },
+    "baseline_files": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ChangedFile"}
+    },
+    "verification": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/CommandExecution"}
+    },
+    "tool_calls": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ToolCallEvidence"}
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "./agent-common.schema.json#/$defs/ArtifactEvidence"}
+    },
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "risk_level": {"$ref": "./agent-common.schema.json#/$defs/RiskLevel"}
+  }
+}

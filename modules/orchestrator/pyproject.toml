@@ -1,7 +1,7 @@
 [project]
 name = "cloudhelm-orchestrator"
-version = "0.3.0"
-description = "CloudHelm M4 Orchestrator 状态机。"
+version = "0.4.0"
+description = "CloudHelm M4/M6 显式 Orchestrator 状态机。"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

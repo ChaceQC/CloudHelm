@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/agents/agent-run-output.schema.json",
   "title": "AgentRunStructuredOutput",
-  "description": "AgentRun.structured_output_json ???? M4 ??????????",
+  "description": "AgentRun.structured_output_json 可保存的 M4-M6 八类普通 Agent 结构化输出联合契约。",
   "oneOf": [
     {
       "$ref": "./requirement-agent-output.schema.json"
@@ -12,6 +12,21 @@
     },
     {
       "$ref": "./planner-agent-output.schema.json"
+    },
+    {
+      "$ref": "./scaffold-agent-output.schema.json"
+    },
+    {
+      "$ref": "./coder-agent-output.schema.json"
+    },
+    {
+      "$ref": "./tester-agent-output.schema.json"
+    },
+    {
+      "$ref": "./reviewer-agent-output.schema.json"
+    },
+    {
+      "$ref": "./security-agent-output.schema.json"
     }
   ]
 }

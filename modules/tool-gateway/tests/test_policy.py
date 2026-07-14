@@ -29,6 +29,20 @@ def test_policy_blocks_sensitive_files(tmp_path: Path) -> None:
     assert error.value.code == "path_sensitive_file"
 
 
+@pytest.mark.parametrize("directory", [".git", ".venv", "node_modules"])
+def test_policy_blocks_exact_denied_directory(
+    tmp_path: Path,
+    directory: str,
+) -> None:
+    """目标本身就是禁止目录时也必须拒绝。"""
+
+    (tmp_path / directory).mkdir()
+    policy = ToolPolicy(allowed_workspace_roots=[tmp_path])
+    with pytest.raises(PolicyError) as error:
+        policy.resolve_workspace_path(tmp_path, directory)
+    assert error.value.code == "path_denied_directory"
+
+
 def test_policy_requires_approval_for_l3_l4() -> None:
     """L3/L4 风险等级必须进入审批。"""
 
@@ -99,3 +113,15 @@ def test_policy_denies_unconfigured_or_outside_workspace(tmp_path: Path) -> None
     with pytest.raises(PolicyError) as denied:
         policy.resolve_workspace_root(outside)
     assert denied.value.code == "workspace_not_allowed"
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["PATH", "PYTHONPATH", "PYTHONSTARTUP", "NODE_OPTIONS"],
+)
+def test_policy_blocks_environment_resolution_injection(name: str) -> None:
+    """调用方不得覆盖命令解析或解释器启动环境。"""
+
+    with pytest.raises(PolicyError) as error:
+        ToolPolicy().build_subprocess_env({name: "attacker-controlled"})
+    assert error.value.code == "env_override_denied"
