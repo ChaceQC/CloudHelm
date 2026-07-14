@@ -175,9 +175,9 @@
   失效 0；生产源码、配置和文档高置信凭据命中 0。测试目录中的 4 个模拟凭据
   均为脱敏功能 fixture，不进入生产路径。
 - Git 收口：四个代码/契约/控制台/文档提交均已逐次 `git push origin dev`；
-  `origin` 为 `https://github.com/ChaceQC/CloudHelm.git`。本条进度同步作为
-  最终收口提交继续推送；`informations/m7-ci-remote-deploy/` 仍按下一阶段资料
-  保持未跟踪，不属于本轮提交。
+  `origin` 为 `https://github.com/ChaceQC/CloudHelm.git`。最终检查确认本轮
+  跟踪文件 HEAD 与 `origin/dev` 一致；`informations/m7-ci-remote-deploy/`
+  仍按下一阶段资料保持未跟踪，不属于本轮提交。
 
 ## 2026-07-14（M6 本地代码、测试与等价 PR 闭环完成，版本 0.5.0）
 
