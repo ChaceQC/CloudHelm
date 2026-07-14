@@ -5,7 +5,15 @@
 ## 使用方式
 
 - 参考项目只作为架构和交互借鉴，不要求全部集成。
-- MVP 优先参考：Codex-like 控制台、MCP 工具生态、LangGraph 编排、Gitea/CI 制品流水线、Prometheus/Loki、Release / Deploy Agent + SSH/Docker Compose 远端部署。
+- MVP 优先参考：Codex-like 控制台、MCP 工具生态、LangGraph 编排、M7 的
+  Gitea/CI 制品与 Remote Agent + Docker Compose 部署链，以及 M8 的
+  Prometheus/Loki 观测链；SSH 只作为审批后的固定只读诊断。
+- M7 对参考项目的采用结论固定为：release candidate approval 后发布受控 ref，
+  Platform API 只用固定 workflow 的 `workflow_dispatch` 触发 CI；CI 只产出测试、
+  安全、构建结果和不可变 OCI digest，deployment approval 后才允许 Remote Agent
+  执行 Linux staging / demo 部署。
+- Ansible、Kubernetes、GitOps、production 和交互式远程终端仅作为后续增强参考，
+  不属于 M7 已选实现。
 
 ## 设计书摘录
 
@@ -57,8 +65,8 @@
 
 |项目|地址|借鉴点|
 |---|---|---|
-|Gitea|[about.gitea.com](https://about.gitea.com/)|自托管 Git 服务，适合毕设本地部署|
-|Argo CD|[github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd)|GitOps 持续部署参考|
+|Gitea|[about.gitea.com](https://about.gitea.com/)|M7 自托管 Git 与 Actions 服务；固定 workflow 仅由 Platform API 通过 `workflow_dispatch` 触发，不监听 push|
+|Argo CD|[github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd)|生产扩展版 GitOps 持续部署参考，不进入 M7|
 |Prometheus|[prometheus.io](https://prometheus.io/)|指标采集与告警|
 |Grafana|[github.com/grafana/grafana](https://github.com/grafana/grafana)|观测面板|
 |Loki|[grafana.com/oss/loki](https://grafana.com/oss/loki/)|日志聚合|
@@ -73,16 +81,21 @@
 
 |项目|地址|借鉴点|
 |---|---|---|
-|Ansible|[github.com/ansible/ansible](https://github.com/ansible/ansible)|基于 SSH 的远程部署、配置管理、批量命令执行|
+|Ansible|[github.com/ansible/ansible](https://github.com/ansible/ansible)|增强版配置管理参考；M7 部署执行入口固定为 Remote Agent，不使用 Ansible/SSH 部署|
 |Rundeck|[github.com/rundeck/rundeck](https://github.com/rundeck/rundeck)|参考远端作业的审批、受控执行、执行记录和回滚脚本管理，用于设计 Agent 经审批后执行部署动作|
 |Windmill|[github.com/windmill-labs/windmill](https://github.com/windmill-labs/windmill)|参考把脚本封装为可审批、可审计的自动化动作，辅助设计 Deploy Tool / Runbook Tool|
 |Kestra|[github.com/kestra-io/kestra](https://github.com/kestra-io/kestra)|参考事件驱动工作流和远端任务编排，辅助设计 Release / Deploy Agent 的部署流程|
-|Apache Guacamole|[github.com/apache/guacamole-client](https://github.com/apache/guacamole-client)|无客户端远程桌面 / SSH / RDP / VNC 网关，参考远程会话管理|
-|MeshCentral|[github.com/Ylianst/MeshCentral](https://github.com/Ylianst/MeshCentral)|开源远程设备管理，参考 agent 心跳、远程终端、远程文件和设备状态|
-|Teleport|[github.com/gravitational/teleport](https://github.com/gravitational/teleport)|基础设施访问平台，参考 SSH / Kubernetes / Database 访问审计和权限控制|
+|Apache Guacamole|[github.com/apache/guacamole-client](https://github.com/apache/guacamole-client)|增强版远程桌面 / SSH / RDP / VNC 会话管理参考；M7 不提供交互会话|
+|MeshCentral|[github.com/Ylianst/MeshCentral](https://github.com/Ylianst/MeshCentral)|M7 借鉴 agent 心跳和设备状态；远程终端、文件管理属于增强版|
+|Teleport|[github.com/gravitational/teleport](https://github.com/gravitational/teleport)|借鉴主机身份、SSH host verification 和访问审计；Kubernetes/交互访问属于生产扩展版|
 |Terraform / OpenTofu|[github.com/opentofu/opentofu](https://github.com/opentofu/opentofu)|云资源声明式管理，后续扩展云主机、网络、Kubernetes 集群创建|
 
-本项目的远程部署不是“CI/CD 独立把代码推到远端”，而是参考上述受控远程执行与 Runbook 系统：CI 负责构建、测试和产物交付，Release / Deploy Agent 在审批后通过 Tool Gateway、Deploy Tool、Deployment Controller 与 Remote Agent 完成远端部署。
+本项目的远程部署不是“CI/CD 独立把代码推到远端”，而是参考上述受控远程执行与
+Runbook 系统：第一道审批允许发布 release candidate 并触发唯一
+`workflow_dispatch`，CI 负责测试、安全扫描、构建和不可变 OCI 制品交付；
+第二道 deployment approval 通过后，Release / Deploy Agent 才通过 Tool
+Gateway、Deploy Tool、Deployment Controller 与 Remote Agent 完成远端部署。
+SSH 诊断不是部署回退路径。
 
 ### 4.7 远端业务项目运维参考
 

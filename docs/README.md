@@ -196,3 +196,5 @@
 - [15-detailed-design/05-workflow-state-events.md](15-detailed-design/05-workflow-state-events.md)
 - [15-detailed-design/06-deployment-observability-detail.md](15-detailed-design/06-deployment-observability-detail.md)
 - [15-detailed-design/07-testing-acceptance-matrix.md](15-detailed-design/07-testing-acceptance-matrix.md)
+- [15-detailed-design/08-m6-local-development-flow.md](15-detailed-design/08-m6-local-development-flow.md)
+- [15-detailed-design/09-m7-ci-remote-deployment-flow.md](15-detailed-design/09-m7-ci-remote-deployment-flow.md)

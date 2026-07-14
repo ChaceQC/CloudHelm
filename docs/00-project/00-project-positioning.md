@@ -5,7 +5,10 @@
 ## 阅读要点
 
 - CloudHelm 不是单纯聊天机器人，而是面向真实软件工程流程的多 Agent DevOps 平台。
-- MVP 重点打通：本地 Agent 开发、Release / Deploy Agent 执行远端部署、远端业务项目实时监控运维。
+- MVP 重点打通：本地 Agent 开发、真实 CI 制品、Release / Deploy Agent 经两道
+  审批执行远端部署，以及远端业务项目监控运维。
+- M7 固定使用 Gitea `workflow_dispatch`、不可变 OCI digest、Remote Agent 和
+  Docker Compose 部署到 Linux staging / demo；CI 不执行部署。
 - 关键闭环是 `Observe -> Plan -> Implement -> Verify -> Review -> Deploy -> Monitor -> Remediate -> Learn`。
 
 ## 设计书摘录
@@ -26,7 +29,10 @@
 
 “云舵”中的“云”代表远端服务器、云端部署环境和远程运行的业务项目；“舵”代表控制、调度、接管、审批、回滚和运维决策。整个名称强调：开发者在本地控制台中像驾驶员一样掌舵，通过 Agent、工具系统和远程控制平面，由 Release / Deploy Agent 把本地隔离环境中完成的软件开发结果安全地部署到远端环境，并持续监控和运维远端业务项目。
 
-英文名 **CloudHelm** 中的 “Helm” 有“船舵、掌舵”的含义，同时也与 Kubernetes 生态中的 Helm 形成技术联想，适合表达本项目“本地控制、Agent 执行远端部署、持续运维”的系统定位。
+英文名 **CloudHelm** 中的 “Helm” 有“船舵、掌舵”的含义，同时也与
+Kubernetes 生态中的 Helm 形成未来扩展联想，适合表达本项目“本地控制、Agent
+执行远端部署、持续运维”的系统定位；该命名不代表 M7 使用 Kubernetes，K8s
+属于生产扩展版。
 
 ---
 
@@ -37,7 +43,14 @@
 系统的核心目标是打通三类场景：
 
 1. **本地 Agent 开发**：开发者不是直接手写代码，而是在本机通过桌面控制台向 Agents 提出产品目标、功能需求、技术约束、验收标准和修改意见；Agents 在本地 Git worktree 与 Docker sandbox 中完成需求分析、架构设计、代码生成、测试、重构、文档和 PR。
-2. **Agent 执行远程部署**：代码通过 Git / CI 生成可追踪产物后，由 Release / Deploy Agent 在审批通过后经 Tool Gateway 调用 Deploy Tool、Deployment Controller 与 Remote Agent，将业务项目部署到远程服务器、云主机或 Kubernetes 集群；CI / CD 不再被视为唯一执行者，而是为 Agent 部署闭环提供构建、测试、安全扫描和制品交付能力。
+2. **Agent 执行远程部署**：M6 形成的精确 commit 先经过 release candidate
+   approval，随后才允许发布受控 Gitea ref，并由 Platform API 通过唯一固定
+   workflow 的 `workflow_dispatch` 触发 CI。CI 只负责测试、安全扫描、构建和
+   发布带不可变 OCI digest 的制品，不执行远端部署。Release / Deploy Agent
+   生成 ReleasePlan 后还必须经过独立的 deployment approval，才可经 Tool
+   Gateway、Deploy Tool、Deployment Controller 和 Remote Agent 部署到 Linux
+   staging / demo 的 Docker Compose 环境。SSH 只用于单独审批后的固定只读诊断；
+   production、Kubernetes 和 GitOps 属于增强版或生产扩展版。
 3. **实时监控运维**：运维对象是 **已经由 Agent 部署到远端环境的业务项目**，包括该项目的进程、容器、服务、日志、指标、告警、发布版本和运行健康状态；这些数据实时回传到控制台，由 SRE Agent / Release Agent 进行分析、建议修复或触发审批。
 
 系统目标是把软件生产过程抽象成一条可审计、可暂停、可回滚、可人工接管的自治流水线：
@@ -56,11 +69,18 @@ Observe -> Plan -> Implement -> Verify -> Review -> Deploy -> Monitor -> Remedia
     -> 自动运行测试 / 安全扫描
     -> 生成 Git branch / commit / PR
     -> Reviewer Agent 审查
-    -> 人类在桌面控制台 Approve / Reject / Pause / Takeover
-    -> CI 构建镜像 / 制品
-    -> Release / Deploy Agent 经审批后执行远程 staging / demo 部署
+    -> 人类审批或拒绝 release candidate
+    -> 发布受控 Gitea ref
+    -> Platform API 通过固定 workflow_dispatch 触发 CI
+    -> CI 运行测试 / 安全扫描 / 构建并产出不可变 OCI digest
+    -> Release / Deploy Agent 生成 ReleasePlan
+    -> 人类独立审批或拒绝 deployment
+    -> Remote Agent 执行远程 Linux staging / demo Docker Compose 部署
     -> 远程监控 Agent 实时采集该业务项目的日志、指标和告警
     -> 全流程事件审计
 ```
+
+M7 的完成边界止于 staging / demo 部署、健康验证和向 Monitoring 状态交接。
+production、Kubernetes、自动回滚和交互式远程终端保留为后续增强能力。
 
 ---

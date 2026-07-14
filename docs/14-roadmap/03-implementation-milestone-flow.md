@@ -23,7 +23,7 @@
 |M4|Agent 编排与规格化闭环|实现需求规格化、技术设计、任务拆分和状态机推进|M2、M3|
 |M5|Tool Gateway 与本地工具层|实现工具统一入口、风险等级、审计、Repo/Sandbox/Git 工具|M4|
 |M6|本地代码实现、测试与 PR 闭环|让 Agent 真实修改 sample repo、测试、审查并生成 PR|M5|
-|M7|CI/CD 与远端部署闭环|审批后部署 sample repo 到远端 staging/demo 并健康检查|M6|
+|M7|CI/CD 与远端部署闭环|精确 PR record/commit 经两道审批、唯一 CI 和不可变 digest 后部署 staging/demo|M6|
 |M8|远端监控、告警与 SRE 分析|采集日志指标告警，生成 incident 分析和 runbook 建议|M7|
 |M9|审批、安全与可观测性加固|完善 L3/L4 审批、安全扫描、审计、trace、成本统计|M5-M8|
 |M10|答辩演示与最终验收|完成演示脚本、验收矩阵、截图、报告和最终版本|M1-M9|
@@ -117,15 +117,44 @@
 
 ### M7 CI/CD 与远端部署闭环
 
+- [x] 完成 M7-0 细化设计、总体设计书/API/Data/Workflow/Testing 同步和官方资料归档。
+- [ ] 实现 ProjectRepositoryBinding、ReleaseCandidate、WorkflowJob、Environment、
+  RemoteTarget、CIRun、Deployment、ServiceInstance 数据与 migration。
+- [ ] 接入 Redis + Celery workflow worker，实现 claim、lease、heartbeat、
+  stale reclaim 和 recovery_required。
+- [ ] 实现 Environment / RemoteTarget API、machine authentication 和
+  Remote Agent online/offline/recovery 心跳。
+- [ ] 建立固定版本的 Gitea Actions、act_runner 和 registry；CI 只执行
+  test/security/build/artifact，workflow 不监听 push，输出不可变 OCI digest。
+- [ ] 实现绑定最新版 PullRequestRecord、完整 commit、candidate ref 和 request
+  hash 的 release candidate 审批；审批前禁止 push 和 CI。
+- [ ] 审批通过后发布受控 ref，复核 ref 指向精确 commit，并执行唯一
+  `workflow_dispatch`。
 - [ ] 准备远端 Linux staging/demo 主机和 Docker Compose 环境。
-- [ ] 实现 Remote Agent 心跳、服务状态上报和日志流。
-- [ ] 实现 Release / Deploy Agent 的 release plan、部署审批、部署执行和健康检查。
-- [ ] 实现 Deployment Controller。
-- [ ] 实现 Deploy Tool 和 Remote Control Tool。
-- [ ] 渲染 compose 文件和 `.env`，执行真实远端部署。
-- [ ] 控制台展示远端环境、部署版本、服务状态和健康检查结果。
+- [ ] 实现 Remote Agent operation store、Compose policy、实际 digest 复核、
+  服务状态、受限日志和 diagnostics。
+- [ ] 实现 Release / Deploy Agent 的 ReleasePlan、第二道部署审批、部署执行和
+  健康检查；实现者不得自批。
+- [ ] 实现 Deployment Controller 的 StrictUndefined 渲染、TLS client 和
+  幂等 operation 查询。
+- [ ] 实现 CI Tool、Deploy Tool 和 Remote Control Tool 的固定 schema、风险、
+  审批恢复和审计；M7 Remote Control Tool 只提供 status、受限 logs 和固定
+  diagnostics。
+- [ ] 使用固定 OCI digest、远端 env profile / credential store 和受控 Compose
+  模板执行真实远端部署；M7 不自动回滚。
+- [ ] 扩展 Orchestrator 与 SSE，使 Task 每次只推进一步并在成功后进入 Monitoring。
+- [ ] 控制台展示 CI、ReleasePlan、两道审批、部署版本、Remote Agent、服务健康
+  和 M7 受限日志。
+- [ ] 完成真实 Gitea CI + registry + Linux staging E2E，并保存 manifest、
+  Approval、DeploymentResult、health、timeline 和清理证据。
 
-完成判定：审批后能把 sample repo 部署到远端 staging/demo，且 `/health` 成功。
+M7 不包含 remote session、WebSocket terminal、服务重启、metrics、Loki
+集中日志、告警分析或自动回滚。metrics、集中日志、告警和 runbook proposal
+进入 M8；交互式远程接管属于 M8 之后的增强版。
+
+完成判定：精确 M6 commit 经 release candidate 审批、唯一真实 CI、不可变 digest、
+ReleasePlan 和 L3 deployment approval 后，只执行一次远端 operation；sample repo
+在 Linux staging/demo `/health` 成功，Task 进入 Monitoring，且完整证据可追溯。
 
 ### M8 远端监控、告警与 SRE 分析
 
@@ -141,7 +170,8 @@
 ### M9 审批、安全与可观测性加固
 
 - [ ] 完善 Approval API 和审批面板。
-- [ ] 完成 L3/L4 风险操作审批、拒绝、暂停、接管记录。
+- [ ] 完成 L3/L4 风险操作审批、拒绝、暂停记录；remote session 与接管记录仅在
+  后续增强版纳入实现和验收。
 - [ ] 接入 Semgrep / Trivy / dependency audit 的报告展示。
 - [ ] 完善 audit log、event log、tool call trace。
 - [ ] 接入平台自身指标和基础 dashboard。
@@ -165,5 +195,6 @@
 
 当前 M0、M1、M2、M3、M4、M5、M6 已完成，M1-M6 核验修复版本为
 `0.5.1`，相关跟踪文件已按子系统提交并同步 `origin/dev`；本轮不创建
-`v0.5.1` tag。下一步从该基线执行 M7：CI/CD 与远端部署闭环，详细执行计划
-见根目录 `PROJECT_PLAN.md`。
+`v0.5.1` tag。M7-0 设计、契约和资料闭环已经完成，下一步按
+`PROJECT_PLAN.md` 实施首个真实代码纵切：
+`Environment + RemoteTarget + machine-auth heartbeat`。

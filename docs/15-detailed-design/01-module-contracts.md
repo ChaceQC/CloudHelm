@@ -10,17 +10,20 @@ flowchart LR
     Console["apps/control-console"]
     API["modules/platform-api"]
     Orchestrator["modules/orchestrator"]
+    Workflow["modules/workflow-engine"]
     Runtime["modules/agent-runtime"]
     Gateway["modules/tool-gateway"]
     Tools["modules/toolservers"]
     Sandbox["modules/sandbox-runner"]
     ReleaseAgent["Release / Deploy Agent"]
     Deploy["modules/deployment-controller"]
-    RemotePlane["modules/remote-control-plane"]
+    RemotePlane["modules/remote-control-plane（增强版）"]
     RemoteAgent["modules/remote-agent"]
-    Monitor["modules/monitoring-collector"]
+    Monitor["modules/monitoring-collector（M8）"]
     Policy["modules/policy-engine"]
     Audit["modules/audit-log"]
+    CI["Gitea Actions / act_runner"]
+    Registry["OCI Registry"]
     DB[("PostgreSQL")]
     Redis[("Redis")]
 
@@ -28,6 +31,11 @@ flowchart LR
     API --> DB
     API --> Redis
     API --> Orchestrator
+    Redis --> Workflow
+    Workflow --> DB
+    Workflow --> CI
+    Workflow --> Gateway
+    CI --> Registry
     Orchestrator --> Runtime
     Runtime --> Gateway
     Gateway --> Policy
@@ -35,37 +43,50 @@ flowchart LR
     Gateway --> Audit
     Tools --> Sandbox
     Tools --> Deploy
-    Tools --> RemotePlane
+    Tools -. "增强版" .-> RemotePlane
     Runtime --> ReleaseAgent
     ReleaseAgent --> Gateway
     Deploy --> RemoteAgent
-    RemoteAgent --> Monitor
+    RemoteAgent --> Registry
+    RemoteAgent -. "MonitoringRegistered / M8 交接" .-> Monitor
     Monitor --> API
 ```
+
+M7 的真实部署唯一链路是 Release / Deploy Agent → Tool Gateway → Deploy Tool →
+Deployment Controller → Linux Remote Agent。CI 只生成制品；Remote Control
+Plane、RemoteSession、production 和 Kubernetes 均为增强版，不在 M7 主链路。
 
 ## 2. apps/control-console
 
 ### 职责
 
-- 展示项目、任务、Agent timeline、工具调用、审批卡片、diff、测试报告、远端状态。
-- 发起开发目标、设计审批、PR 合并审批、远程接管、部署审批。
-- 通过 SSE/WebSocket 接收实时任务事件、远端日志和远程终端流。
+- 展示项目、任务、Agent timeline、工具调用、审批卡片、diff、测试报告、CI、
+  不可变 digest、远端状态和受限直读日志。
+- 发起开发目标、设计/计划审批、release candidate approval 和 deployment
+  approval；审批本身不直接执行 push、CI 或远端副作用。
+- 通过 SSE 接收任务、CI、审批、部署、心跳、服务与
+  `MonitoringRegistered` 事件。
+- RemoteSession、远程终端 WebSocket 和人工接管 UI 只保留增强版设计，M7
+  不提供入口。
 
 ### 输入
 
 - 用户输入：自然语言需求、Issue、附件、技术约束、审批决策。
-- API 数据：Project、Task、RequirementSpec、TechnicalDesign、ToolCall、ApprovalRequest、Deployment、Alert、Incident。
+- API 数据：Project、Task、RequirementSpec、TechnicalDesign、ToolCall、
+  ApprovalRequest、ReleaseCandidate、CIRun、Environment、RemoteTarget、
+  Deployment、ServiceInstance；Alert、Incident 属于 M8。
 
 ### 输出
 
-- REST 请求：创建任务、审批、暂停、恢复、接管、部署请求。
+- REST 请求：创建任务、审批、暂停、恢复、创建环境、启动/逐步推进 M7 发布。
 - UI 状态：任务看板、时间线、diff、远端状态面板。
 
 ### 失败处理
 
 - API 失败：展示错误卡片和 trace_id。
 - SSE 断开：自动重连，并通过 timeline API 补齐事件。
-- 远程终端断开：关闭输入，保留输出日志，允许重新建立 session。
+- 受限日志断开：停止当前流并按游标/时间窗重新读取；终端 session 的断线恢复
+  属于增强版。
 
 ## 3. modules/platform-api
 
@@ -78,12 +99,14 @@ flowchart LR
 ### 输入
 
 - 控制台请求。
-- Webhook：CI 结果、告警、部署状态、Remote Agent 心跳。
+- Webhook/机器请求：Gitea CI 结果和 Remote Agent heartbeat；告警属于 M8。
 - Orchestrator 回调事件。
 
 ### 输出
 
-- 数据库写入：Project、Task、Spec、Design、Approval、Deployment、Alert、Incident、EventLog。
+- 数据库写入：Project、Task、Spec、Design、Approval、RepositoryBinding、
+  ReleaseCandidate、CIRun、WorkflowJob、Environment、RemoteTarget、
+  Deployment、ServiceInstance、EventLog；Alert、Incident 属于 M8。
 - Orchestrator 启动/恢复信号。
 - SSE/WebSocket 事件。
 
@@ -99,8 +122,16 @@ flowchart LR
 |OrchestrationService|M4 start/run-next 编排、AgentRun、状态迁移和事件副作用|
 |ApprovalService|审批请求、批准、拒绝、过期处理|
 |EventService|append event、timeline 查询、SSE 广播|
-|DeploymentService|部署记录、健康检查、回滚请求|
-|IncidentService|告警确认、incident 创建、runbook proposal|
+|RepositoryBindingService|从服务端 profile 建立受控 Gitea repository/workflow/credential 绑定|
+|ReleaseCandidateService|绑定 M6 PR record、精确 commit、candidate ref 和第一道审批|
+|CIService|以唯一 `workflow_dispatch` 触发/收敛 run/job/manifest，不执行部署|
+|EnvironmentService|管理 staging/demo Environment、Linux RemoteTarget 和 machine heartbeat|
+|DeploymentService|绑定 ReleasePlan、不可变 digest 和第二道审批，记录部署、健康与 rollback request/candidate；不执行 restart/rollback|
+|IncidentService|M8 告警确认、incident 创建、runbook proposal|
+
+M7 API 不接受任意 host、endpoint、credential、workflow path、refspec、image、
+Compose、文件路径或 command；这些值必须从受控 binding/target/profile 与已批准
+资源派生。
 
 ## 4. modules/orchestrator
 
@@ -112,7 +143,9 @@ flowchart LR
 
 ### 输入
 
-- TaskCreated、RequirementApproved、DesignApproved、ToolCallCompleted、ApprovalApproved、CIWebhookFailed、ProjectAlertFired。
+- TaskCreated、RequirementApproved、DesignApproved、ToolCallCompleted、
+  ApprovalApproved、ReleaseCandidatePublished、CIRunPassed、DeploymentHealthy；
+  ProjectAlertFired 属于 M8。
 
 ### 输出
 
@@ -141,6 +174,30 @@ flowchart LR
 - 测试、审查或安全门禁要求修改时可回到 `Implementing`。
 - Platform API 负责 AgentRun、ToolCall、Artifact、PullRequestRecord、
   conversation 与 EventLog 的事务和外部副作用边界；Orchestrator 不直接执行工具。
+
+### M7 计划契约
+
+- `PullRequestCreated -> WaitingMergeApproval -> CIValidating ->
+  ReleasePlanning -> WaitingDeployApproval -> Deploying ->
+  VerifyingDeployment -> Monitoring`；`WaitingMergeApproval` 在 M7 绑定的是
+  release candidate approval，不表示 CI 可以由 push 自动触发。
+- 第一道人工作为 candidate 发布门禁，第二道人工作为远端部署门禁；实现者不得
+  自批，过期、已消费或 request hash 漂移的审批不得恢复副作用。
+- Gitea workflow 不监听 push；candidate ref 发布后只能创建一个有效
+  `workflow_dispatch` CIRun。CI 成功只产生 manifest 与不可变 digest。
+- 部署健康后写 `MonitoringRegistered` 并停在 `Monitoring`，把监控告警交给
+  M8；健康失败只保存 rollback candidate/request。
+
+## 4.1 modules/workflow-engine（M7 计划）
+
+- 使用 Redis + Celery 投递，task payload 只包含 PostgreSQL
+  `workflow_job_id`。
+- PostgreSQL WorkflowJob 保存 request hash、idempotency key、claim、lease、
+  heartbeat、attempt、retry、cancel requested、结果与 `recovery_required`。
+- worker 在短事务 claim 后执行 Git、CI、HTTP 或远端副作用，再用新事务写终态；
+  不得在 Task/Job 行锁内等待外部系统。
+- stale reclaim 必须先查询 Gitea run 或 Remote Agent operation；状态未知时
+  转 `recovery_required`，不得盲目重放 push、CI 或部署。
 
 ## 5. modules/agent-runtime
 
@@ -222,10 +279,14 @@ flowchart LR
 |Design Tool|generate_architecture、generate_api_design、generate_db_design|
 |Repo Tool|list_files、read_file、write_file、search_code、apply_patch|
 |Sandbox Tool|exec、install_deps、run_tests、collect_artifacts|
-|Git Tool|status、diff、branch、commit、create_pr|
+|Git Tool|status、diff、branch、commit、create_pr、publish_release_candidate；candidate ref 只能在第一道审批后发布|
+|CI Tool|trigger_workflow、get_workflow_status、get_job_logs、get_artifact_manifest；`trigger_workflow` 只允许固定 workflow 的唯一 `workflow_dispatch`|
 |Deploy Tool|render_manifest、deploy_staging、health_check、rollback_request|
 |Monitoring Tool|query_metrics、search_logs、list_alerts、get_recent_deployments|
-|Remote Control Tool|service_status、stream_logs、ssh_exec_readonly、open_terminal|
+|Remote Control Tool|M7 仅 service_status、stream_logs、collect_diagnostics 和审批后的固定只读 ssh diagnostic；open_terminal、RemoteSession、restart、rollback 执行均为增强版|
+
+CI Tool 不提供 deploy/restart/SSH/Remote Agent 调用；Deploy Tool 的
+`rollback_request` 只生成 candidate/request，不执行 rollback。
 
 ## 8. modules/sandbox-runner
 
@@ -250,39 +311,46 @@ flowchart LR
 
 ### 职责
 
-- 根据 commit/image/release 生成部署计划。
+- 验证 Release / Deploy Agent 已生成并由 Platform API 持久化的 ReleasePlan。
+- 从受控模板渲染固定 OCI digest 的 Compose 和 manifest hash。
 - 调用 Remote Agent 在远端执行部署。
-- 记录 deployment、service_instances。
+- 返回 DeploymentResult；Platform API 负责记录 deployment、service_instances
+  和 EventLog。
 - 接受 Release / Deploy Agent 经 Tool Gateway 发起的部署请求。
-- 触发健康检查与回滚建议。
+- 触发健康检查并生成 rollback candidate/request；M7 不执行 restart 或
+  rollback。
 
 ### 输入
 
 - Release / Deploy Agent deployment request。
-- CI build artifact。
-- deployment request。
+- 已验证的 ReleasePlan。
+- CI artifact manifest 摘要与不可变 digest。
+- 已消费 deployment approval 对应的 deployment request。
 - environment / remote target。
 
 ### 输出
 
-- release plan。
 - rendered compose / manifest。
 - deployment result。
 - health check result。
+- rollback candidate/request 摘要，不包含自动执行动作。
 
 ## 10. modules/remote-agent
 
 ### 职责
 
-- 部署在远端主机。
-- 心跳、服务发现、命令执行、日志流、指标导出。
+- 以 systemd 部署在受控 Linux staging/demo 主机。
+- 心跳、受控 deployment operation、服务状态、受限日志和固定 diagnostics。
 - 默认只服务绑定的项目环境。
+- 只接受 Deployment Controller 的认证固定部署请求；不提供 open_terminal、
+  RemoteSession、自由命令、文件传输、restart、rollback 或任意 Docker 管理入口。
+- production 和 Kubernetes agent/target 只保留增强版契约。
 
 ### 输入
 
-- Control Plane 指令。
+- Deployment Controller 的认证请求，以及 Platform API heartbeat 配置。
 - 本地 Docker/systemd 状态。
-- 应用日志和指标。
+- 应用状态与受限日志；集中指标/日志采集属于 M8。
 
 ### 输出
 
@@ -290,9 +358,14 @@ flowchart LR
 - service status。
 - deploy result。
 - log stream。
-- metric endpoint。
+- version/capabilities 与 machine heartbeat。
+- metric endpoint 仅作为 M8 增强接口预留。
 
 ## 11. modules/monitoring-collector
+
+本模块从 `MonitoringRegistered` 开始接管 M7 健康部署，属于 M8；M7 只写交接
+事件、保存服务状态和提供 Remote Agent 受限直读日志，不把 Loki/Alertmanager
+能力写成已交付。
 
 ### 职责
 
@@ -317,7 +390,8 @@ flowchart LR
 
 ### Audit Log
 
-- 输入：工具调用、审批、远端会话、部署、回滚、人工接管。
+- 输入：工具调用、两道发布/部署审批、部署、rollback request/candidate；
+  远端会话、rollback 执行和人工接管属于增强版。
 - 输出：append-only EventLog，可按 task/project/environment 查询。
 ## M5 实现同步：Tool Gateway 模块契约
 

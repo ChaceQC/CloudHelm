@@ -4,7 +4,16 @@
 > 目的：说明从需求到 PR 的规格化、设计、脚手架、实现和验收工具链。
 ## 产物链
 
-`requirement_spec -> technical_design -> development_plan -> patch/diff -> test_report -> PR`。
+```text
+requirement_spec -> technical_design -> development_plan -> patch/diff
+  -> test_report -> PR / 精确 commit
+  -> release candidate approval -> 受控 ref -> workflow_dispatch
+  -> CI manifest / immutable OCI digest
+  -> ReleasePlan -> deployment approval -> staging/demo deployment
+```
+
+PR 之前是本地 Agent 指导开发链；PR 之后的 M7 发布链仍由同一 Task 审计，但
+CI 只生成制品，不执行部署。
 
 ## 设计书摘录
 
@@ -23,5 +32,9 @@
 |接口与类型|OpenAPI Generator / TypeScript types|client SDK / server stub|保证前后端接口契约一致|
 |数据库变更|Alembic / Prisma Migrate|migration file|数据库 schema 变更必须可审查，可回滚|
 |测试验收|pytest / vitest / Playwright / Storybook|test report / screenshot|Tester Agent 自动生成和运行单元测试、集成测试、E2E 测试|
-|远端发布|Release / Deploy Agent + Deploy Tool + Deployment Controller + Remote Agent|deployment / release status|CI 只提供构建产物，Release / Deploy Agent 在审批后执行部署、健康检查和状态回传|
-|人工指导|Control Console approval / comment|approval record / redirect event|开发者可以审批方案、要求重做、补充约束、对 diff 提意见|
+|CI 制品|Gitea Actions + 固定 `workflow_dispatch` + OCI Registry|CI manifest / report / immutable digest|release candidate approval 后才发布受控 ref 并触发唯一 workflow；workflow 不监听 push，且不得包含部署命令|
+|远端发布|Release / Deploy Agent + Deploy Tool + Deployment Controller + Remote Agent + Docker Compose|ReleasePlan / deployment / service status|deployment approval 后才把不可变 OCI digest 部署到 Linux staging / demo，并执行健康检查和状态回传|
+|人工指导|Control Console approval / comment|approval record / redirect event|开发者可以审批方案、要求重做、补充约束、对 diff 提意见，并分别处理 release candidate 与 deployment 审批|
+
+M7 的 SSH 能力只接受单独审批的固定只读 diagnostic profile，不是部署回退路径。
+production、Kubernetes、GitOps、自动回滚和交互式远程终端属于后续增强能力。

@@ -1,7 +1,7 @@
 # 桌面端关键交互
 
 > 来源：[设计书 13.2](../../云舵 CloudHelm 毕设设计书.md)  
-> 目的：定义需求输入、方案审批、实时跟踪、工具记录、接管和完成展示。
+> 目的：定义需求输入、方案审批、实时跟踪、工具记录、本地接管与远端运维边界。
 ## 交互验收
 
 - 能输入自然语言需求、Issue、截图、接口草稿、约束和验收标准。
@@ -47,6 +47,28 @@
 - M6 证据请求沿用“最后发起的请求才允许更新状态”的并发保护；SSE 高频刷新时保留当前已展示数据，避免整块内容闪烁，操作成功后也会主动刷新证据和任务状态。
 - 响应式边界保持 Gemini 式浅色阅读流：`980px` 以下证据卡片改为单列；`680px` 以下压缩卡片间距、命令输出改为单列、diff 保持局部滚动；`430px` 以下操作按钮、指标和元数据改为移动端布局。1280、1024 和 375 像素目标视口均要求 document 不产生水平溢出。
 
+## M7 规划交互边界
+
+M7 控制台尚未实现；落地时必须严格展示服务端真实证据，并按以下顺序推进：
+
+1. 展示最新版 PullRequestRecord、完整 commit、RepositoryBinding、Environment
+   和 active RemoteTarget，用户发起 release candidate approval。
+2. 第一道审批卡片必须展示 PR record、commit、candidate ref 与 request hash；
+   审批前 UI 不得显示已 push 或已触发 CI。
+3. 审批通过后展示受控 ref 校验和唯一 `workflow_dispatch` 对应的 CIRun、job、
+   manifest、测试/安全结果与不可变 OCI digest。
+4. Release / Deploy Agent 生成 ReleasePlan 后，第二道 deployment approval
+   必须展示精确 digest、Environment、RemoteTarget、计划摘要和
+   `release_plan_sha256`。
+5. 第二道审批通过并显式推进后，展示 Deployment Controller 与 Remote Agent
+   operation、Compose 步骤、digest 复核、健康检查和最终 DeploymentResult。
+6. M7 Remote Ops 只展示服务 status、受时间/行数/字节限制且脱敏的直读 logs，
+   以及固定只读 diagnostics；页面不提供 remote session、WebSocket terminal、
+   restart、metrics 或集中日志检索入口。
+
+Prometheus/Loki/Alertmanager、metrics、集中日志、告警和 runbook proposal 属于
+M8；交互式远程接管属于 M8 之后的增强版。
+
 ## 设计书摘录
 
 ### 13.2 关键交互
@@ -64,7 +86,8 @@
    - 输出摘要。
 7. 如果遇到 L3 / L4 操作，控制台弹出审批卡片。
 8. 用户可以随时 Pause。
-9. 用户可以 Takeover，打开 sandbox shell 或远程受控 shell 接管操作。
+9. 用户可以 Takeover；sandbox shell 用于本地开发接管，远程受控 shell 仅属于
+   M8 之后的增强版。M7 远端只提供固定 diagnostics，不创建交互式会话。
 10. 完成后展示：
    - 需求符合度。
    - PR 链接。

@@ -21,9 +21,19 @@ POST   /api/environments/{environment_id}/remote-targets
 GET    /api/environments/{environment_id}/remote-targets
 POST   /api/remote-targets/{target_id}/test-connection
 
-POST   /api/deployments
+POST   /api/remote-agents/heartbeat
+GET    /api/tasks/{task_id}/release-candidate
+GET    /api/tasks/{task_id}/ci-runs
+POST   /api/webhooks/ci/gitea
+GET    /api/tasks/{task_id}/remote-deployment
+POST   /api/tasks/{task_id}/remote-deployment/start
+POST   /api/tasks/{task_id}/remote-deployment/run-next
 GET    /api/projects/{project_id}/deployments
 GET    /api/deployments/{deployment_id}
 POST   /api/deployments/{deployment_id}/health-check
 POST   /api/deployments/{deployment_id}/rollback-request
 ```
+
+`remote-deployment/start` 只接受 `environment_id`；PullRequestRecord、完整 commit、
+repository binding、RemoteTarget、CI manifest 和 OCI digest 均由服务端派生。
+调用方不得提交任意 host、URL、workflow path、credential、image 或 Compose。

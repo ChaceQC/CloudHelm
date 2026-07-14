@@ -62,22 +62,35 @@
 5. 实现 create PR。
 6. 控制台展示需求规格、技术方案、diff、测试报告、验收结果和 PR 链接。
 
-### 第五阶段：远端部署闭环
+### 第五阶段（M7）：CI/CD 与远端部署闭环
 
-目标：让 Release / Deploy Agent 在 PR 合并后，基于 CI 产物和人工审批，把业务项目部署到远端 staging / demo 环境。
+目标：把 M6 的精确 PullRequestRecord / commit 经 release candidate approval、
+受控 ref、唯一 `workflow_dispatch`、CI 不可变 OCI digest、ReleasePlan 和
+deployment approval 后，由 Deployment Controller 与 Remote Agent 部署到远端
+staging/demo。
 
 任务：
 
-1. 准备远端 Linux 主机或云服务器。
-2. 实现 Remote Agent 心跳和状态上报。
-3. 实现 Release / Deploy Agent 的 release plan、部署审批、部署执行和健康检查逻辑。
-4. 实现 Deployment Controller。
-5. 实现 Deploy Tool 和 Remote Control Tool。
-6. 编写 Docker Compose 部署模板。
-7. 实现远端部署状态、服务状态、健康检查 API。
-8. 控制台展示远端环境、部署版本和服务状态。
+1. 实现 RepositoryBinding、Environment、RemoteTarget、Remote Agent machine
+   authentication、心跳和状态上报。
+2. 创建绑定最新版 PullRequestRecord、完整 commit、candidate ref 和 request
+   hash 的 release candidate approval。
+3. 审批通过后发布受控 ref，并对不监听 push 的固定 workflow 执行唯一一次
+   `workflow_dispatch`。
+4. CI 只执行 test/security/build/artifact，输出 manifest、报告和不可变 OCI
+   digest，不在 workflow 内执行部署。
+5. Release / Deploy Agent 校验 PR/commit/manifest/digest 全链并生成 ReleasePlan。
+6. 为精确 ReleasePlan、digest、Environment 和 RemoteTarget 创建第二道
+   deployment approval。
+7. 审批通过并显式推进后，由 Deploy Tool 调用 Deployment Controller，再由
+   Remote Agent 执行受控 Docker Compose、digest 复核和健康检查。
+8. 实现远端部署、服务 status、受限直读 logs 和固定 diagnostics API。
+9. 控制台展示两道审批、CIRun、ReleasePlan、不可变 digest、部署 operation、
+   服务健康、受限 logs 和 diagnostics。
 
-### 第六阶段：远端业务项目监控运维
+M7 不提供 remote session、服务重启、metrics、集中日志、告警或自动回滚。
+
+### 第六阶段（M8）：远端业务项目监控运维
 
 目标：对远端已部署业务项目进行实时监控和运维分析。
 
@@ -116,8 +129,10 @@
 
 1. 准备示例需求、示例仓库和待实现功能。
 2. 准备远端 staging / demo 部署环境。
-3. 录制或现场演示“开发者指导 Agents 实现功能 -> PR -> Release / Deploy Agent 执行远端部署”。
-4. 演示远端业务项目监控、告警、日志分析和 runbook 建议。
+3. 录制或现场演示“开发者指导 Agents 实现功能 -> PR record / 精确 commit ->
+   candidate approval -> 受控 ref / 唯一 CI -> 不可变 digest -> ReleasePlan /
+   deployment approval -> Controller / Remote Agent 部署”。
+4. 在 M8 验证后演示远端业务项目监控、告警、集中日志分析和 runbook 建议。
 5. 统计任务耗时、工具调用次数、测试通过率、部署耗时、告警响应时间。
 6. 编写系统设计、实现细节、测试报告。
 7. 准备风险分析和后续展望。

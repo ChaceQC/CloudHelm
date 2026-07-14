@@ -36,7 +36,7 @@ Remote Linux Server / VM
 └── /opt/cloudhelm/projects/sample-repo-python
     ├── current -> releases/20260707-001
     ├── docker-compose.yml
-    ├── .env
+    ├── release-metadata.json
     ├── logs/
     └── rollback.json
 ```
@@ -48,20 +48,28 @@ Remote Linux Server / VM
 ```json
 {
   "project_id": "uuid",
+  "task_id": "uuid",
   "environment_id": "uuid",
+  "remote_target_id": "uuid",
+  "pull_request_record_id": "uuid",
+  "ci_run_id": "uuid",
   "version": "20260707-001",
-  "commit_sha": "abc123",
-  "image_tag": "registry.local/sample:abc123",
+  "commit_sha": "40-or-64-char-full-sha",
+  "image_ref": "registry.local/sample",
+  "image_digest": "sha256:...",
+  "env_profile_ref": "sample/staging-v1",
+  "compose_template_revision": "sha256:...",
   "services": [
     {
       "name": "api",
-      "image": "registry.local/sample-api:abc123",
+      "image": "registry.local/sample-api@sha256:...",
       "health_url": "http://sample.local/health",
       "ports": ["8000:8000"]
     }
   ],
-  "rollback_target": "20260706-002",
-  "risk_level": "L3"
+  "rollback_candidate": "20260706-002",
+  "risk_level": "L3",
+  "release_plan_sha256": "sha256:..."
 }
 ```
 
@@ -70,27 +78,30 @@ Remote Linux Server / VM
 Deployment Controller 生成或更新：
 
 - `docker-compose.yml`
-- `.env`
+- release metadata。
 - `rollback.json`
-- release metadata
+
+secret 不写入 ReleasePlan、Compose 或 Artifact。Remote Agent 只根据
+`env_profile_ref` 从 systemd credential / `_FILE` / 受控 credential store 读取。
 
 ## 4. 部署步骤
 
 ```text
-1. CI 构建镜像并推送 registry。
-2. Release / Deploy Agent 读取 CI 产物并创建 ReleasePlan。
-3. Release / Deploy Agent 通过 Tool Gateway 发起 `deploy.deploy_staging`。
-4. Tool Gateway 判断 deploy.staging 为 L3。
-5. Approval API 创建审批请求。
-6. 审批通过后，Release / Deploy Agent 调用 Deployment Controller。
-7. Deployment Controller 下发部署任务给 Remote Agent。
-8. Remote Agent 写入 compose 和 env。
-9. 执行 docker compose pull。
-10. 执行 docker compose up -d。
-11. 执行 docker compose ps。
-12. 调用 /health。
-13. 注册 service_instances。
-14. Monitoring Collector 开始采集。
+1. 用户批准绑定 PullRequestRecord、完整 commit、受控 ref 的 release candidate。
+2. Git Tool 验证远端 ref，Platform API 使用固定 workflow id 执行
+   `workflow_dispatch`。
+3. CI 完成 test/security/build，推送镜像并发布 manifest/digest。
+4. Release / Deploy Agent 校验 commit/digest 全链并创建 ReleasePlan。
+5. Tool Gateway 为 `deploy.deploy_staging` 创建 L3 deployment approval。
+6. 审批通过并显式推进后，workflow worker 调用 Deployment Controller。
+7. Controller 渲染固定 digest 的 Compose 和 manifest hash。
+8. Remote Agent 执行 `docker compose config` 和安全 policy。
+9. 执行 pull，并用 registry/`RepoDigests`/平台 manifest 复核 digest。
+10. 执行 `docker compose up -d --wait`。
+11. 执行 `docker compose ps` 和资源 inspect。
+12. 调用独立 HTTP `/health`。
+13. Platform API 注册 service_instances 和 MonitoringRegistered。
+14. Task 进入 Monitoring；M7 只保留 rollback candidate，不自动回滚。
 ```
 
 ## 5. 健康检查

@@ -2,6 +2,105 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-15（M7-0 CI/CD 与远端部署设计闭环）
+
+### 已完成
+
+- 在 `feature/m7-remote-deploy-closure` 上完成 M7-0，工作基线为
+  `b4243ef`；本次只收敛设计、契约、资料和执行计划，不提前宣称 M7
+  生产能力已经实现。
+- 新增 `docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md`，固定
+  Gitea CI、Release / Deploy Agent、Tool Gateway、Deployment Controller、
+  Remote Agent、双审批、远端部署和 Monitoring 交接的完整拓扑、状态、身份、
+  风险、失败恢复与 E2E 证据。
+- 将异步执行器固定为 Redis + Celery，同时以 PostgreSQL `workflow_jobs`
+  保存业务权威、claim、lease、heartbeat、retry、stale reclaim 和
+  `recovery_required`；Celery task 只携带 `workflow_job_id`，不得携带 secret、
+  任意 URL、Compose 或自由命令。
+- 固定两道独立审批：release candidate approval 绑定 PullRequestRecord、精确
+  commit、受控 repository binding 和 target ref；deployment approval 绑定
+  CIRun、CI manifest、不可变 OCI digest、ReleasePlan、Environment 与
+  RemoteTarget。实现代码、提交或 PR record 的 AgentRun 不得自批。
+- 固定 CI 唯一触发方式为受控 ref 上的 `workflow_dispatch`；workflow 不监听
+  push，CI 只执行 test/security/build/artifact，不执行 SSH、Compose 上线、
+  Remote Agent 调用、服务重启或部署 webhook。
+- 固定 Remote Agent 为 M7 唯一远端部署执行入口；SSH 仅允许审批后的固定只读
+  诊断。M7 使用受控 Docker Compose、远端 credential file/store 和不可变 OCI
+  digest，并在 pull 后复核 `RepoDigests`；Ansible、Kubernetes、Argo CD、
+  交互终端和 production 属于后续增强范围。
+- 明确 M7 只提供 Remote Agent 受限直读日志，M8 再接 Loki 集中检索；M7
+  只生成 rollback candidate/request，不自动执行回滚。
+- 同步总体设计书、架构、技术栈、部署工作流、数据、API、远程接管、详细设计、
+  测试验收矩阵、文档索引和 Roadmap；移除旧 `POST /api/deployments`、可变
+  `image_tag`、CI 直连部署与 M7 交互终端等冲突语义。
+- 核验并补齐 `informations/m7-ci-remote-deploy/official-references.md` 与
+  `reference-projects.md`。共检查 76 个唯一 URL，74 个在批量 HTTP 检查中直接
+  成功；两个 Celery 官方页面因自动化请求频率返回 429，已单独打开官方页面
+  确认内容可达。
+- 细化 `PROJECT_PLAN.md` 的固定实施顺序、文件清单、逐任务验证、证据和 Roadmap
+  映射；首个生产代码纵切固定为
+  `Environment + RemoteTarget + machine-auth heartbeat`。
+- 将 Roadmap 仅有证据支撑的 M7-0 设计项标记为完成；migration、worker、API、
+  CI、Remote Agent、Controller、Tool、Agent、控制台和远端 E2E 等实现项继续
+  保持未完成。
+
+### 进行中
+
+- M7 已从计划准备进入首个代码纵切实施前状态；尚未创建 M7 migration、生产
+  API、Celery worker 或 Remote Agent 模块。
+
+### 阻塞与风险
+
+- 当前尚无真实 Gitea Actions run、registry OCI digest、Linux staging 主机、
+  Remote Agent systemd 服务或远端部署 E2E 证据，因此 M7 总里程碑不得标记完成。
+- M7 当前项目版本仍为 `0.5.1`；只有完整 M7 代码、契约、黑盒/白盒测试和真实
+  远端 E2E 通过后才允许升级到 `0.6.0`。
+- 官方 URL 批量检查可能触发站点限流；限流结果不等同于失效链接，后续资料更新
+  应保留有界重试与单页复核记录。
+
+### 下一步
+
+- 先实现 Environment、RemoteTarget、machine credential/replay nonce 数据表和
+  Alembic migration，并验证 upgrade、downgrade 与 `alembic check`。
+- 按 `api -> schemas -> services -> repositories -> models` 分层实现 Environment
+  创建/列表/详情、RemoteTarget 注册/列表和
+  `POST /api/remote-agents/heartbeat`。
+- machine authentication 签名覆盖
+  `method + path + timestamp + nonce + body_sha256`，补齐跨 target、过期、
+  撤销、重复 nonce 和新旧 key 轮换测试。
+- 建立最小真实 `modules/remote-agent`，提供 `/health`、version/capabilities、
+  `_FILE` credential 配置和签名 heartbeat client。
+- 同步 OpenAPI、Heartbeat/Environment/RemoteTarget JSON Schema、事件文档和
+  Roadmap；完成真实 PostgreSQL 黑盒/白盒测试后再勾选对应实现项。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `云舵 CloudHelm 毕设设计书.md`
+- `docs/00-project/02-references.md`
+- `docs/01-architecture/**`
+- `docs/02-tech-stack/**`
+- `docs/06-workflows/**`
+- `docs/07-data/01-database-schema.md`
+- `docs/08-api/**`
+- `docs/12-deployment/01-remote-demo-deployment.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/**`
+- `informations/m7-ci-remote-deploy/**`
+
+### 验证
+
+- 已执行 `git diff --check`，通过。
+- 已对 37 个变更/新增 Markdown 执行严格 UTF-8 解码和 BOM 检查，错误 0、
+  BOM 0。
+- 已检查上述 Markdown 中 189 个相对链接，失效 0。
+- 已扫描旧 `POST /api/deployments`、可变 `image_tag`、CI 直连 Deployment
+  Controller 和 M7 交互终端语义，有效冲突 0。
+- 已扫描高置信私钥、Token、密码赋值和公网 IPv4，命中 0。
+- 本次为文档、契约和资料闭环，未运行 pytest、Alembic、前端 build、真实 CI
+  或远端 E2E；这些验证将在对应生产代码子任务完成后执行并记录。
+
 ## 2026-07-14 至 2026-07-15（M1-M6 成果核验与缺陷修复，0.5.1 已同步基线）
 
 ### 已完成

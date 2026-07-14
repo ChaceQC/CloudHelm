@@ -9,9 +9,12 @@
 1. 用户入口：Desktop Control Console。
 2. 控制平面：FastAPI、Orchestrator、Tool Gateway、PostgreSQL、Redis。
 3. Agent 运行层：Requirement / Planner / Architect / Coder / Tester / Reviewer / Release / SRE。
-4. 工具层：MCP Tool Servers、Sandbox、Git、CI、Deploy、Remote、Monitoring、Security。
-5. 远端业务运行层：Remote Agent、Docker Compose/K8s、业务服务。
-6. 观测层：Prometheus、Grafana、Loki、Langfuse、Alertmanager。
+4. 工具层：MCP Tool Servers、Sandbox、Git、CI、Deploy、Remote、Monitoring、
+   Security；M7 的 CI Tool 只触发固定 `workflow_dispatch` 并收集制品，不部署。
+5. 远端业务运行层：M7 为 Remote Agent + Docker Compose + Linux staging /
+   demo；Kubernetes 与 production 属于增强版或生产扩展版。
+6. 观测层：M8 远端观测使用 Prometheus、Grafana、Loki、Alertmanager；Langfuse
+   用于 Agent 观测。
 
 ## M1-M6 当前实现拓扑
 
@@ -45,6 +48,28 @@ flowchart LR
 - MCP 独立 Tool Server、真实远端 PR/CI、部署、Remote Agent、监控/SRE
   尚未进入 M1-M6 生产路径。
 
+## M7 固定控制流
+
+M7 在上述 M1-M6 基础上增加真实 CI 与远端部署，但不把 CI 变成部署执行器：
+
+```text
+精确 commit
+  -> release candidate approval
+  -> 受控 Gitea ref
+  -> Platform API 调用固定 workflow_dispatch
+  -> CI test / security / build / artifact
+  -> commit 绑定的不可变 OCI digest
+  -> ReleasePlan
+  -> deployment approval
+  -> Tool Gateway / Deploy Tool / Deployment Controller
+  -> Remote Agent / Docker Compose / Linux staging-demo
+  -> health verification / Monitoring
+```
+
+两道审批分别绑定 release candidate 发布和 deployment 远端副作用，不能合并或
+互相复用。SSH 只保留为单独审批的固定只读诊断；CI workflow 内禁止 SSH、远端
+Compose、Remote Agent 调用、部署 API 或服务重启。
+
 ## 设计书目标架构
 
 ### 6.1 架构图
@@ -65,10 +90,14 @@ flowchart TB
     DevTools["Development Tools\nScaffold / Design / OpenAPI / DB Migration"]
     Sandbox["Target Docker Sandbox"]
     Git["Gitea / GitHub"]
+    ReleaseApproval["Release Candidate Approval\n精确 commit / ref / request hash"]
+    ControlledRef["Controlled Gitea Ref"]
     CI["CI Runner"]
-    Deploy["Deploy Controller\nSSH / Ansible / Docker Compose / K8s"]
-    RemoteAgent["Remote Runtime Agent\n远程主机 / 云服务器 / K8s Node"]
-    RemoteEnv["Remote Project Runtime Env\n远端业务项目 staging / demo / production"]
+    CIManifest["CI Manifest\ncommit + immutable OCI digest"]
+    DeploymentApproval["Deployment Approval\nmanifest / digest / target / plan hash"]
+    Deploy["Deployment Controller\nM7: Remote Agent + Docker Compose\nEnhanced: Ansible / K8s adapters"]
+    RemoteAgent["Remote Runtime Agent\nM7: Linux staging / demo\nEnhanced: K8s Node"]
+    RemoteEnv["Remote Project Runtime Env\nM7: staging / demo\nEnhanced: production / K8s"]
     Monitor["Project Monitoring Agent\n项目 Metrics / Logs / Alerts"]
     Security["Semgrep / Trivy"]
     Obs["Prometheus / Grafana / Loki / Langfuse"]
@@ -84,6 +113,8 @@ flowchart TB
     API --> DB
     API --> Redis
     API --> Orchestrator
+    API --> ReleaseApproval
+    API --> DeploymentApproval
     Orchestrator --> Spec
     Orchestrator --> AgentRuntime
     AgentRuntime --> LLM
@@ -94,8 +125,14 @@ flowchart TB
     LocalDev --> Sandbox
     MCP --> Sandbox
     MCP --> Git
-    MCP --> CI
-    CI --> Deploy
+    ReleaseApproval -->|"approved resume"| ToolGateway
+    Git --> ControlledRef
+    ControlledRef -.->|"exact checkout source"| CI
+    MCP -->|"fixed workflow_dispatch"| CI
+    CI --> CIManifest
+    CIManifest --> API
+    DeploymentApproval -->|"approved resume"| ToolGateway
+    MCP --> Deploy
     Deploy --> RemoteAgent
     RemoteAgent --> RemoteEnv
     RemoteEnv --> Monitor
@@ -106,3 +143,9 @@ flowchart TB
     Orchestrator --> Obs
     ToolGateway --> Obs
 ```
+
+- `ControlledRef` 只是 CI 检出的精确来源，不通过 push 自动触发 workflow。
+- CI 返回 run/job/report/manifest/digest 证据到控制平面，不连接部署执行链。
+- Deployment Controller 只接受第二道审批绑定的不可变 OCI digest，并通过
+  服务端登记的 Remote Agent endpoint 执行。
+- production、Kubernetes、GitOps、自动回滚和交互式远程终端不属于 M7。

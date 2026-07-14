@@ -158,15 +158,26 @@ erDiagram
     tasks ||--o{ pull_request_records : records
     development_plans ||--o{ pull_request_records : gates
     artifacts ||--o{ pull_request_records : evidences
+    projects ||--|| project_repository_bindings : binds
+    pull_request_records ||--o| release_candidates : promotes
+    project_repository_bindings ||--o{ release_candidates : publishes
+    release_candidates ||--|| ci_runs : dispatches
+    tasks ||--o{ workflow_jobs : schedules
     tasks ||--o{ approval_requests : requires
     tasks ||--o{ event_logs : emits
     environments ||--o{ remote_targets : contains
     projects ||--o{ deployments : deploys
     environments ||--o{ deployments : receives
+    remote_targets ||--o{ deployments : executes
+    ci_runs ||--o{ deployments : supplies
     deployments ||--o{ service_instances : creates
+    remote_targets ||--o{ service_instances : hosts
     service_instances ||--o{ project_alerts : triggers
-    environments ||--o{ remote_sessions : opens
 ```
+
+上图的 M7 远端目标只表示运行 Remote Agent 的 Linux staging/demo 主机。
+`project_alerts` 从 M8 才启用；production、Kubernetes target 和
+`remote_sessions` 保留在增强版数据模型，不进入 M7 migration 或验收。
 
 ## 2. 状态枚举建议
 
@@ -199,7 +210,11 @@ Reviewing
 SecurityScanning
 PullRequestCreated
 WaitingMergeApproval
+CIValidating
+ReleasePlanning
+WaitingDeployApproval
 Deploying
+VerifyingDeployment
 Monitoring
 Remediating
 WaitingOpsApproval
@@ -217,19 +232,80 @@ expired
 cancelled
 ```
 
+M7 L3/L4 审批还必须保存 `resource_type`、`resource_id`、`request_hash`、
+`expires_at` 和 `consumed_at`。审批目标变化、hash 漂移、过期、已消费或实现者
+自批均不得恢复副作用。
+
 ### deployments.status
 
 ```text
 planned
 pending_approval
+queued
 deploying
+verifying
 healthy
 unhealthy
 failed
 rollback_requested
-rolled_back
 cancelled
 ```
+
+M7 不自动写 `rolled_back`；rollback request 只保存 candidate/plan，后续执行必须
+创建新的 Deployment 和独立审批。
+
+### workflow_jobs.status
+
+```text
+pending
+claimed
+running
+succeeded
+failed
+cancel_requested
+recovery_required
+```
+
+`workflow_jobs` 是 PostgreSQL 业务权威，Redis/Celery 只投递 job id。
+`recovery_required` 表示远端状态不明，禁止盲目重放 candidate push、CI 或部署。
+
+### M7 新增权威表
+
+- `project_repository_bindings`：服务端 Gitea profile、repository identity、
+  workflow id 和 credential ref。
+- `release_candidates`：PullRequestRecord、完整 commit、target ref、审批、
+  request hash 和远端 SHA 校验。
+- `workflow_jobs`：PostgreSQL 业务 job、attempt、lease、heartbeat、retry 和
+  recovery 状态；Celery task 只携带 job id。
+- `environments`：只允许 `staging`、`demo`，保存 base URL 与受控 env profile
+  引用；`production` 属于增强版。
+- `remote_targets`：Linux Remote Agent 的 `display_name`、`target_type`、
+  `agent_id`、`agent_endpoint`、`credential_ref`、`tls_fingerprint`、
+  `agent_version`、`capabilities`、status、heartbeat 和 error。读取 API 隐藏
+  `credential_ref` 并只展示脱敏 endpoint；Kubernetes context/namespace 属于
+  增强版独立 schema。
+- `ci_runs`：run/job、commit、manifest 和 webhook 幂等身份。
+- `deployments`、`service_instances`：审批后的部署、远端 operation、健康和服务
+  实例。
+
+M7 审批与制品不变量：
+
+1. `release_candidates.approval_id` 绑定第一道 release candidate approval；
+   审批前不得发布 candidate ref 或触发 CI。
+2. Gitea workflow 不监听 push，只允许固定 workflow、精确 ref 和结构化 inputs
+   的唯一 `workflow_dispatch`；同一 ReleaseCandidate 只允许一个有效 CIRun，
+   CI 不调用 SSH、Compose、Remote Agent 或任何部署接口。
+3. CIRun manifest、ReleasePlan 和 Deployment 必须绑定 M6 精确 commit、
+   OCI index digest 与目标平台 manifest digest，禁止使用可变 tag 或 image id
+   代替。
+4. `deployments.approval_id` 绑定第二道 deployment approval；过期、已消费、
+   request hash 漂移或实现者自批均不得恢复副作用。
+5. M7 只保存 `rollback_candidate_id` / rollback request Artifact，不写
+   restart/rollback 执行状态。部署健康后写 `MonitoringRegistered`，Task 停在
+   `Monitoring` 等待 M8。
+
+完整字段、约束和删除规则见
+[09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)。
 
 ### project_alerts.status
 
@@ -260,10 +336,14 @@ suppressed
 |event_logs|`idx_event_logs_task_created(task_id, created_at)`|timeline / SSE 回放|
 |event_logs|`idx_event_logs_type_created(event_type, created_at)`|事件查询|
 |environments|`idx_environments_project(project_id, type)`|环境列表|
+|remote_targets|`idx_remote_targets_environment_status(environment_id, status)`|目标在线状态与心跳扫描|
+|release_candidates|`ux_release_candidates_binding_ref(repository_binding_id, target_ref)`|受控 candidate ref 唯一|
+|ci_runs|`ux_ci_runs_release_candidate(release_candidate_id)`|同一 candidate 唯一有效 dispatch/run|
+|workflow_jobs|`idx_workflow_jobs_status_lease(status, lease_expires_at)`|worker claim 与 stale reclaim|
 |deployments|`idx_deployments_env_started(environment_id, started_at DESC)`|部署历史|
 |service_instances|`idx_service_instances_env_status(environment_id, status)`|远端服务面板|
-|project_alerts|`idx_alerts_project_status(project_id, status, fired_at DESC)`|告警列表|
-|remote_sessions|`idx_remote_sessions_env_started(environment_id, started_at DESC)`|远程接管审计|
+|project_alerts|`idx_alerts_project_status(project_id, status, fired_at DESC)`|M8 告警列表|
+|remote_sessions|`idx_remote_sessions_env_started(environment_id, started_at DESC)`|增强版远程接管审计，非 M7|
 
 ## 4. JSONB 字段约束
 
@@ -412,18 +492,45 @@ suppressed
 - BranchCreated
 - CommitCreated
 - PullRequestCreated
-- CIFailed
-- CIPassed
+- ReleaseCandidateApprovalRequested
+- ReleaseCandidateApproved
+- ReleaseCandidateRejected
+- ReleaseCandidatePublished
+- CIRunTriggered
+- CIRunStarted
+- CIRunPassed
+- CIRunFailed
+- CIArtifactPublished
+- ReleasePlanCreated
+- DeploymentApprovalRequested
 - DeploymentRequested
 - DeploymentStarted
+- DeploymentStepUpdated
 - DeploymentHealthy
 - DeploymentUnhealthy
+- DeploymentFailed
 - RollbackRequested
+- ServiceInstanceRegistered
+- MonitoringRegistered
 
-### 远端运维
+其中 `CIRunTriggered` 只对应唯一 `workflow_dispatch`，不由 push 自动触发；
+`RollbackRequested` 只记录 candidate/request，不代表已经执行回滚。
 
+### M7 远端状态
+
+- EnvironmentCreated
+- RemoteTargetRegistered
 - RemoteAgentHeartbeat
+- RemoteAgentOnline
+- RemoteAgentOffline
 - ProjectServiceStatusChanged
+
+普通高频 heartbeat 只更新 `last_heartbeat_at`；首次上线、离线、恢复或错误状态
+变化才写 EventLog，避免事件风暴。M7 受限直读日志不把原始日志正文写入
+EventLog。
+
+### M8 监控与增强版运维
+
 - ProjectLogReceived
 - ProjectMetricUpdated
 - ProjectAlertFired
@@ -431,6 +538,9 @@ suppressed
 - RunbookProposed
 - RemoteSessionOpened
 - RemoteSessionClosed
+
+`ProjectLogReceived`、指标、告警和 Incident 从 `MonitoringRegistered` 后由 M8
+接管；RemoteSession 事件只用于增强版。
 
 ## 6. 数据生命周期
 
@@ -440,9 +550,10 @@ suppressed
 |event_logs/tool_calls/approval_requests|append-only，永久保留或按项目归档|
 |Agent conversation|保存完整可重放 ResponseItem；reasoning 只保存供应商 encrypted content，不保存或展示明文思维链|
 |sandbox artifact|本地保留最近 N 次，重要报告转存 artifact|
-|远端日志|Loki 中保留短期；平台只保存摘要和引用|
-|指标数据|Prometheus 保留短期；平台保存告警和关键快照|
-|remote_sessions 输出|MVP 可保存文本摘要，完整输出按风险配置保留|
+|M7 受限直读日志|Remote Agent 按时间、行数和字节上限即时返回并脱敏；平台只保存请求/结果摘要，不建立集中日志库|
+|M8 远端日志|Loki 中保留短期；平台只保存摘要和引用|
+|M8 指标数据|Prometheus 保留短期；平台保存告警和关键快照|
+|remote_sessions 输出|增强版可保存文本摘要，完整输出按风险配置保留；M7 不创建 session|
 
 ## 7. Migration 规则
 

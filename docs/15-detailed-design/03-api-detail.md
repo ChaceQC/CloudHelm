@@ -272,7 +272,10 @@ DTO；Task 创建接口也不接受 `auto_start`。
 - 对实际关闭的资源写入 `AgentRunCancelled`、`ToolCallCancelled`、
   `ApprovalExpired`，最后写入 `TaskCancelled`。
 
-### POST /api/tasks/{task_id}/takeover（规划接口，M1-M6 未实现）
+### POST /api/tasks/{task_id}/takeover（增强版规划接口，M7 不实现）
+
+该接口及 `remote_sessions`/WebSocket terminal 属于 M7 之后的增强能力。M7
+远端只提供服务状态、受限日志和固定只读 diagnostics。
 
 请求：
 
@@ -542,30 +545,55 @@ SSE 事件类型：
 - 客户端保存 last_event_id。
 - 重连时使用 `Last-Event-ID`。
 - 服务端从 `event_logs` 回放缺失事件。
+- 连接建立后服务端继续轮询/tail 新增 EventLog；M7 必须验证 CI、deployment 和
+  heartbeat 状态事件能在同一连接中到达，而不只支持历史回放。
 
-## 9. Deployment / Remote Ops API（M7 以后规划）
+## 9. Deployment / Remote Ops API（M7 设计基线）
 
-本节是后续契约草案，不在 M1-M6 FastAPI OpenAPI 中。
+本节在 M1-M6 FastAPI OpenAPI 中尚未实现；实现时以
+[09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)
+为权威细化契约。
 
-### POST /api/deployments
+### POST /api/tasks/{task_id}/remote-deployment/start
 
 请求：
 
 ```json
 {
-  "project_id": "uuid",
-  "environment_id": "uuid",
-  "version": "20260707-001",
-  "commit_sha": "abc123",
-  "image_tag": "registry.local/sample:abc123"
+  "environment_id": "uuid"
 }
 ```
 
 行为：
 
-- 创建 `deployment`，初始状态 `pending_approval` 或 `queued`。
-- L3 默认创建审批。
-- 审批后由 Release / Deploy Agent 经 Tool Gateway 调用 Deployment Controller。
+- 服务端读取最新版 PullRequestRecord、ProjectRepositoryBinding、Environment
+  和 active RemoteTarget。
+- 创建绑定完整 commit、candidate ref 和 request hash 的 release candidate
+  approval。
+- 不 push、不触发 CI、不创建远端副作用。
+- 调用方不得提交 commit、image、target endpoint、workflow path 或 credential。
+
+### POST /api/tasks/{task_id}/remote-deployment/run-next
+
+- 每次只推进 publish candidate、workflow dispatch、CI poll、Release Agent、
+  deployment approval、dispatch、health verification 或 Monitoring handoff 中
+  的一个动作。
+- 外部动作通过 PostgreSQL WorkflowJob + Redis/Celery 执行，不在 HTTP 事务内
+  等待 Git、CI、HTTP 或 Compose。
+- deployment approval 前禁止任何 Remote Agent 副作用。
+
+### POST /api/remote-agents/heartbeat
+
+- 使用 machine credential 签名；签名覆盖 method、path、timestamp、nonce 和
+  body SHA-256。
+- credential 绑定 target/agent/key id；跨 target、过期、撤销和 replay 返回
+  稳定认证错误。
+- 响应不返回 credential ref、完整 endpoint 或 secret。
+
+### GET /api/tasks/{task_id}/release-candidate
+
+- 返回 candidate、审批、远端 ref 校验和当前 CI 关联状态。
+- commit 使用完整 SHA，credential 和原始 provider token 不返回。
 
 ### GET /api/services/{service_id}/logs
 

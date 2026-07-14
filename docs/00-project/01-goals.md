@@ -47,20 +47,26 @@
    - Tester Agent：生成测试、运行测试、分析失败原因。
    - Reviewer Agent：代码审查、需求符合度检查、可维护性检查。
    - Security Agent：安全扫描与风险提示。
-- Release / Deploy Agent：生成发布计划、执行经审批的远端部署、检查发布健康状态并生成回滚方案。
+   - Release / Deploy Agent：生成发布计划、执行经两道审批的远端部署、检查发布健康状态并生成回滚候选方案。
    - SRE Agent：分析远端已部署业务项目的运行问题。
 5. 支持 Agent 调用工具，而不是只输出文本。
 6. 所有工具调用必须经过统一 Tool Gateway。
 7. 支持 Docker Sandbox 隔离执行命令和修改代码。
-8. 支持 Git 分支、commit、diff、PR 工作流。
-9. 支持远程部署目标管理，包括远程主机、云服务器、Kubernetes 集群、staging / production 环境。
-10. 支持远程控制能力，包括远程命令执行、远程服务状态查看、远程日志拉取、部署状态查询和人工接管。
+8. 支持 Git 分支、commit、diff、PR 工作流；M7 进一步把精确 commit 绑定到
+   release candidate，并只通过固定 Gitea workflow 的 `workflow_dispatch`
+   触发 CI。
+9. 支持远程部署目标管理；M7 只管理 Linux staging / demo Environment 和
+   RemoteTarget，production、Kubernetes 集群和 GitOps 目标属于后续扩展。
+10. 支持远程服务状态、受限日志、部署状态和固定 diagnostics 查询；M7 默认通过
+    Remote Agent，SSH 只执行单独审批的固定只读诊断，不提供任意远程命令或交互
+    终端。
 11. 支持实时监控运维，包括指标、日志、告警、发布状态、错误率、延迟和资源使用率。
-12. 支持人类审批、暂停、接管、拒绝和回滚。
+12. 支持人类审批、暂停、接管、拒绝和回滚请求；M7 明确区分 release candidate
+    approval 与 deployment approval，审批记录本身不直接执行副作用。
 13. 支持事件日志、审计日志、Agent 运行轨迹和成本统计。
 14. 支持桌面端控制台，体验参考 Codex App：
    - 项目 / 任务线程。
-   - 内嵌终端。
+   - 本地开发内嵌终端；交互式远程终端属于增强版。
    - diff 查看。
    - 测试报告。
    - 远程环境状态。
@@ -74,9 +80,13 @@
 2. **可观测性**：记录每次 Agent 决策、工具调用、命令输出和测试结果。
 3. **可恢复性**：任务状态可持久化，失败后可重试或人工接管。
 4. **远程可控性**：远程部署和运维动作必须可追踪、可中断、可审批、可回放。
-5. **云端适配性**：部署目标可以是单台云服务器，也可以扩展到 Kubernetes / GitOps。
+5. **云端适配性**：M7 先适配单台 Linux staging / demo 主机，后续再扩展到
+   production、Kubernetes / GitOps。
 6. **可扩展性**：工具通过 MCP / Tool Server 扩展。
 7. **可替换性**：模型通过 LiteLLM 接入，支持 OpenAI、Claude、本地模型等。
-8. **可演示性**：毕设答辩时可以完整演示“开发者指导 Agents 实现功能 -> 本地 sandbox 验证 -> PR -> Release / Deploy Agent 执行远程部署 -> 实时监控 -> 运维反馈”的闭环。
+8. **可演示性**：毕设答辩时可以完整演示“开发者指导 Agents 实现功能 -> 本地
+   sandbox 验证 -> PR -> release candidate 审批 -> `workflow_dispatch` CI ->
+   不可变 OCI 制品 -> deployment 审批 -> Remote Agent 执行 Linux staging /
+   demo 部署 -> 实时监控 -> 运维反馈”的闭环。
 
 ---

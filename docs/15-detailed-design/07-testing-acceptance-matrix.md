@@ -8,7 +8,7 @@
 - M1-M6 当前闭环止于：Project/Task → Requirement/Design/Plan → 真实本地
   workspace 文件修改 → pytest/JUnit → Review → Bandit/pip-audit → branch/commit
   → `provider=local` 的等价 PR record。
-- M7 的 CI、真实远端 PR、Release / Deploy 和 M8 的远端监控/SRE 尚未进入
+- M7 的受控 candidate ref、真实 CI、Release / Deploy 和 M8 的远端监控/SRE 尚未进入
   M1-M6 完成判定；下文相应测试项标记为“规划”，不得用静态数据或假返回冒充。
 - M6 的 `sandbox.*` 使用 allowlist 本地目录和受控 `subprocess`，不是 Docker
   sandbox。Docker CPU/内存/PID/网络隔离属于后续边界。
@@ -30,8 +30,9 @@
 |模块|规划测试项|计划工具|
 |---|---|---|
 |sandbox-runner|容器创建、只读挂载、命令超时、CPU/内存/PID/网络限制、清理|pytest + Docker|
-|deployment-controller|release plan、Compose 渲染、健康检查、回滚计划与幂等|pytest + Docker Compose|
-|remote-agent|heartbeat、service status、日志流、命令审批和断线恢复|pytest + 远端 fixture|
+|workflow-engine|PostgreSQL job claim/lease/heartbeat/stale reclaim、Celery 投递与未知状态恢复|pytest + PostgreSQL + Redis/Celery|
+|deployment-controller|ReleasePlan、不可变 digest、Compose 渲染、健康检查、rollback candidate/request 与幂等；不执行 restart/rollback|pytest + Docker Compose|
+|remote-agent|Linux staging/demo heartbeat、capabilities、service status、受限日志、operation 幂等和断线恢复；无 RemoteSession/restart/rollback|pytest + 远端 fixture|
 |monitoring-collector|Prometheus/Loki 查询、告警转换、Incident 事件|pytest + 真实观测栈|
 
 ## 2. 集成测试矩阵
@@ -52,9 +53,17 @@
 |IT-018|M4-M6 会话/权限原语已实现；执行调度后续|显式 child conversation 持久化与隔离|running Task/AgentRun 调用内部唯一 spawn 入口；顺序与并发触发 active 上限；尝试暂停后 spawn、父 child 提前结束、遗留写角色、跨 Task root、终态 child、递归越权和策略漂移重放|只新增独立 child；默认拒绝 depth>1 和第 7 个 active child；并发配额不超限；parent/role/fork/status 正确；Tool Gateway 强制 active lineage 工具交集并审计拒绝；完成必须叶子优先且无 active AgentRun；父线程只收到非空、脱敏、≤4000 字符的最终通知；不把真实 child provider 执行、wait-all、steer/queue 或 thread UI 写成已交付|
 |IT-019|M2-M6 已实现|测试数据库隔离|并行启动两个 Platform API pytest 会话|分别创建 `cloudhelm_test_<pid>_<uuid>`，均不重置开发库，结束后删除临时库|
 |IT-020|M4 已实现|重复推进门禁|两个调用基于同一 `expected_phase` 请求 start/run-next|Task 行锁串行化；阶段已变化的请求返回 `409 orchestration_phase_changed`|
-|IT-011|M7 规划|部署审批|Release / Deploy 请求 staging|ApprovalRequest 风险 L3|
-|IT-012|M7 规划|Agent 化远端部署|审批后调用 Deployment Controller|DeploymentHealthy 与可追溯发布记录|
-|IT-013|M8 规划|日志查询|控制台打开服务日志|返回远端业务日志|
+|IT-011|M7 规划|Release candidate 审批|启动 remote-deployment|审批绑定最新版 PR、完整 commit、受控 ref 和 request hash；审批前无 push/CI；实现者自批拒绝|
+|IT-012|M7 规划|真实 CI 与不可变制品|candidate 发布后对固定 workflow/ref 发起唯一 `workflow_dispatch`|workflow 不监听 push；同一 candidate 只有一个有效 run；run/job/commit/JUnit/security/SBOM/scan/OCI digest 可追溯，CI 无 SSH/Compose/Remote Agent/restart/部署命令|
+|IT-021|M7 规划|Remote Agent machine heartbeat|对含 `agent_endpoint`、`credential_ref`、`tls_fingerprint`、`capabilities` 的 Linux target 执行合法、跨 target、过期、撤销、重放心跳|online/offline/recovery 正确，credential/完整 endpoint 不泄露，fingerprint/capabilities 可审计|
+|IT-022|M7 规划|部署审批与单次恢复|Release Agent 请求 staging，审批后并发 run-next|Approval L3 绑定 ReleasePlan/digest/target/hash；过期/已消费/hash 漂移拒绝；只执行一次 operation|
+|IT-023|M7 规划|worker hard-crash 恢复|claim 后终止 worker并使 lease 过期|查询 Gitea/Remote operation 后收敛；未知状态进入 recovery_required，不盲目重放|
+|IT-024|M7 规划|Agent 化远端部署|第二道审批后调用 Controller/Linux Remote Agent|危险 Compose 拒绝；config/pull/RepoDigests/up/health 真实执行，生成 DeploymentResult/ServiceInstance；不执行 restart/rollback|
+|IT-025|M7 规划|受限远端日志|控制台读取 Remote Agent service logs|限制时间、行数、字节并脱敏；不提供自由 query/终端|
+|IT-026|M7 规划|真实远端 E2E|精确 commit 从 Gitea CI 部署到 Linux staging|DeploymentHealthy、MonitoringRegistered、Task=Monitoring、证据和清理记录完整|
+|IT-027|M7 规划|健康失败与回滚边界|制造 `/health` 失败并请求 rollback|只保存 DeploymentUnhealthy、rollback candidate/request；无 restart/rollback operation|
+|IT-028|M7 规划|增强能力裁剪|尝试创建 production、Kubernetes target、RemoteSession 或终端|M7 API/schema/UI 不暴露对应生产入口，能力保持增强版|
+|IT-013|M8 规划|集中日志查询|控制台通过 Loki 查询服务日志|返回按 project/environment/service 聚合的远端业务日志|
 |IT-014|M8 规划|指标查询|查询 service_up/error_rate|返回真实指标|
 |IT-015|M8 规划|告警处理|触发服务不可用|ProjectAlertFired 和 Incident|
 |IT-016|M8 规划|SRE 分析|触发 SRE Agent|生成 IncidentAnalysis 和 RunbookProposal|
@@ -104,8 +113,9 @@
 
 ### 3.2 M7-M8 后续演示
 
-真实远端 PR/CI、部署审批、staging 发布、Remote Agent、日志指标、告警和 SRE
-分析在对应里程碑完成后追加；当前不纳入 M1-M6 演示通过结论。
+M7 的受控 candidate ref/真实 CI、两道审批、Linux staging 发布、Remote Agent
+和 `MonitoringRegistered`，以及 M8 的集中日志/指标、告警和 SRE 分析在对应
+里程碑完成后追加；当前不纳入 M1-M6 演示通过结论。
 
 ## 4. M1-M6 验收标准映射
 
@@ -134,10 +144,16 @@
 
 |设计书验收点|测试编号|计划证据|
 |---|---|---|
-|L3 部署动作进入审批|IT-011|ApprovalRequest|
-|Release / Deploy Agent 部署到远端 staging/demo|IT-012|DeploymentHealthy|
-|Remote Agent 回传心跳和状态|IT-012|Remote status|
-|控制台查看远端日志、指标|IT-013、IT-014|Logs / Metrics panel|
+|release candidate 审批前无发布/CI|IT-011|ReleaseCandidate + ApprovalRequest|
+|真实 CI 由唯一 workflow_dispatch 触发且只生成不可变制品|IT-012|run/job/artifact/manifest/digest 与 workflow 静态检查|
+|L3 部署动作进入审批且单次消费|IT-022|ApprovalRequest + waiting/resumed ToolCall|
+|Release / Deploy Agent 部署到远端 staging/demo|IT-024、IT-026|DeploymentHealthy + E2E timeline|
+|Remote Agent 回传心跳和状态|IT-021|RemoteTarget + heartbeat EventLog|
+|M7 控制台查看受限直读日志|IT-025|Remote Agent logs panel|
+|M7 不执行 restart/rollback|IT-027|rollback candidate/request，且无远端执行 operation|
+|production/Kubernetes/RemoteSession 为增强版|IT-028|M7 API/schema/UI 裁剪检查|
+|M7 健康部署交接 Monitoring|IT-026|MonitoringRegistered + Task `Monitoring`|
+|M8 控制台查看集中日志、指标|IT-013、IT-014|Loki Logs / Metrics panel|
 |远端异常触发告警|IT-015|Alert / Incident|
 |SRE Agent 给出分析|IT-016|IncidentAnalysis|
 
@@ -150,6 +166,9 @@
   因此不得把“进程 hard crash 后自动恢复”写入 M6 通过结论。
 - 在 lease/recovery 实现前，演示和测试应把该场景登记为剩余风险，并通过数据库
   审计与人工处置恢复。
+- M7 计划使用 PostgreSQL `workflow_jobs` + Redis/Celery worker 实现
+  claim/lease/heartbeat/stale reclaim；只有 IT-023 和真实远端 operation 查询
+  通过后，才允许把该边界标记为已关闭。
 
 ## 6. 缺陷分级
 
@@ -181,5 +200,7 @@ artifacts/demo-run-YYYYMMDD-HHMM/
 └── timeline.json
 ```
 
-M7-M8 完成后再追加 `deployment_result.json`、远端日志/指标证据和
+M7 完成后追加 `release_candidate.json`、`ci_manifest.json`、
+`release_plan.json`、两道审批记录、`deployment_result.json`、
+`monitoring_registered.json` 和受限日志摘要；M8 再追加集中日志/指标证据和
 `incident_analysis.md`。

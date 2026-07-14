@@ -23,7 +23,8 @@ OpenAPI Generator + Alembic / Prisma Migrate
 pytest / vitest / Playwright / Storybook
 Docker Sandbox
 Gitea + Gitea Actions
-Release / Deploy Agent + SSH Remote Agent + Docker Compose Deploy
+Release / Deploy Agent + Deploy Tool + Deployment Controller + Remote Agent
+Docker Compose Deploy + OCI digest + Redis/Celery workflow worker
 Semgrep + Trivy
 Langfuse
 Prometheus + Grafana

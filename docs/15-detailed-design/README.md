@@ -13,6 +13,7 @@
 - [06-deployment-observability-detail.md](06-deployment-observability-detail.md)
 - [07-testing-acceptance-matrix.md](07-testing-acceptance-matrix.md)
 - [08-m6-local-development-flow.md](08-m6-local-development-flow.md)
+- [09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)
 
 ## 使用顺序
 
@@ -25,3 +26,5 @@
 7. 收尾验收读 [07-testing-acceptance-matrix.md](07-testing-acceptance-matrix.md)。
 8. 实现 M6 本地代码、测试、安全与等价 PR 闭环时读
    [08-m6-local-development-flow.md](08-m6-local-development-flow.md)。
+9. 实现 M7 CI、Release / Deploy Agent、Deployment Controller 和 Remote Agent
+   时读 [09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)。

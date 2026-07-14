@@ -51,10 +51,11 @@ Remote Linux Server / VPS
 2. Release / Deploy Agent 读取 CI 产物并生成 release plan。
 3. Release / Deploy Agent 通过 Tool Gateway 发起部署请求。
 4. 用户在控制台审批部署 staging。
-5. Deployment Controller 生成 compose 文件和 .env。
-6. Remote Agent 拉取 compose 文件和镜像 tag。
-7. 远端执行 docker compose up -d。
-8. 远端执行 health check。
-9. Prometheus / Loki 开始采集该版本运行数据。
-10. 控制台展示远端服务状态、日志、指标和部署版本。
+5. Deployment Controller 从受控模板生成固定 OCI digest 的 Compose；secret
+   只使用远端 env profile / systemd credential / `_FILE` 引用。
+6. Remote Agent 拉取 `repository@sha256:...` 并复核 registry/RepoDigests。
+7. 远端执行 `docker compose config`、`pull`、`up -d --wait`。
+8. 远端执行独立 HTTP health check。
+9. Platform API 注册 ServiceInstance 和 MonitoringRegistered。
+10. 控制台展示远端服务状态、M7 受限日志和部署版本；M8 再接集中监控。
 ```

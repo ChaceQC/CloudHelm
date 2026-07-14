@@ -1,4 +1,4 @@
-# PR 合并到远端部署流程
+# PR Record 与精确 commit 到远端部署流程
 
 > 来源：[设计书 10 章](../../云舵 CloudHelm 毕设设计书.md)  
 > 目的：定义端到端业务流程、参与模块和关键产物。
@@ -12,9 +12,12 @@
 
 ## 设计书摘录
 
-### 10.2 PR 合并到远端部署流程
+### 10.2 PR Record 与精确 commit 到远端部署流程
 
-该流程的目标是把 Agents 在本地隔离环境中完成的软件开发结果，通过 Release / Deploy Agent 部署到远端业务项目运行环境，并把远端运行状态回传到控制台。CI 负责构建、测试、安全扫描和制品交付，远端部署动作由 Agent 经 Tool Gateway、Deploy Tool、Deployment Controller 与 Remote Agent 执行。
+该流程的目标是把 M6 固化的 PullRequestRecord 与精确 commit，经两道人工审批、
+唯一一次真实 CI 和不可变制品校验后部署到远端 staging/demo。CI 只负责构建、
+测试、安全扫描和制品交付；远端部署动作固定由 Release / Deploy Agent 经
+Tool Gateway、Deploy Tool、Deployment Controller 与 Remote Agent 执行。
 
 ```mermaid
 sequenceDiagram
@@ -28,45 +31,74 @@ sequenceDiagram
     participant RA as Release/Deploy Agent
     participant D as Deployment Controller
     participant R as Remote Agent
-    participant M as Monitoring Collector
 
-    U->>C: 审批合并 / 部署 staging
-    C->>API: POST /deployments
-    API->>O: start deploy workflow
-    O->>RA: 启动发布 / 部署 Agent
-    RA->>T: git.merge_pr / ci.trigger
-    T->>G: 合并 PR / 触发 CI
+    U->>C: 选择精确 PullRequestRecord / commit / environment
+    C->>API: POST /api/tasks/{task_id}/remote-deployment/start
+    API->>O: 派生 binding/target 并创建 candidate approval
+    U->>C: 批准绑定 PR record / commit 的 candidate
+    O->>T: 发布受控 candidate ref
+    T->>G: 校验 target ref == 精确 commit
+    O->>T: 唯一 workflow_dispatch
     G->>CI: build / test / image scan
-    CI->>RA: 发布制品 image tag / artifact
-    RA->>T: deploy.render_manifest / deploy.deploy_staging
+    CI->>API: 回传 run/job/manifest 与不可变 OCI digest
+    API->>RA: 启动 Release / Deploy Agent
+    RA->>API: 校验 commit/digest 并保存 ReleasePlan
+    RA->>T: deploy.render_manifest / 请求 deploy_staging
+    T->>API: 创建 L3 deployment approval
+    U->>C: 批准精确 ReleasePlan / digest / target
+    O->>RA: run-next 恢复部署步骤
+    RA->>T: deploy.deploy_staging
     T->>D: 调用 Deployment Controller
     D->>R: deploy project version
-    R->>R: docker compose pull && up -d
+    R->>R: config / pull / digest verify / up / health
     R->>D: 返回部署状态
-    D->>M: 注册 release 与服务实例
-    M->>R: 采集业务项目日志 / 指标 / 健康检查
-    M->>API: ProjectDeploymentHealthy / Unhealthy
-    API->>C: 展示远端版本、服务状态、日志、指标
+    D->>API: 返回 DeploymentResult
+    API->>API: 注册 ServiceInstance / MonitoringRegistered
+    API->>C: 展示版本、status、受限 logs 和 diagnostics
 ```
 
-MVP 中部署动作由 Release / Deploy Agent 编排执行，可以实现为：
+M7 部署动作按以下固定顺序执行：
 
 ```text
-1. CI 构建业务项目 Docker 镜像并输出 image tag / artifact。
-2. Release / Deploy Agent 读取 CI 结果和 release plan，向 Tool Gateway 发起 `deploy.render_manifest` / `deploy.deploy_staging`。
-3. Tool Gateway 校验风险等级，必要时创建审批。
-4. 审批通过后，Deployment Controller 生成 compose 文件和 .env。
-5. Remote Agent 在远端业务项目目录执行：
+1. `remote-deployment/start` 从服务端读取最新版 PullRequestRecord、完整 commit、
+   RepositoryBinding、Environment 和 active RemoteTarget，创建 release candidate
+   approval；审批前不 push、不触发 CI。
+2. 用户批准绑定精确 PR record、commit、candidate ref 和 request hash 的
+   release candidate。
+3. Git Tool 发布受控 candidate ref 并复核该 ref 仍指向精确 commit，Platform
+   API 随后对固定 workflow 执行唯一一次
+   `workflow_dispatch`。
+4. CI 生成 JUnit、安全报告、SBOM、扫描结果、manifest 和不可变 OCI digest；
+   workflow 内禁止部署动作。
+5. Release / Deploy Agent 校验 PR record、commit、CI manifest 与 digest 全链，
+   生成并固化 ReleasePlan。
+6. Tool Gateway 为 `deploy.deploy_staging` 创建绑定 ReleasePlan、digest、
+   Environment 和 RemoteTarget 的 L3 deployment approval。
+7. 审批通过并由 `run-next` 显式恢复后，Deploy Tool 调用 Deployment
+   Controller；Controller 从受控模板渲染 Compose，
+   secret 只使用远端 env profile / credential store 引用。
+8. Remote Agent 在远端业务项目目录执行：
+   docker compose config
    docker compose pull
-   docker compose up -d
-6. Remote Agent 执行健康检查：
+   verify RepoDigests / platform manifest
+   docker compose up -d --wait
+9. Remote Agent 执行健康检查：
    curl /health
    docker compose ps
-7. Monitoring Collector 注册：
+10. Platform API 注册：
    project_id
    environment_id
    deployment_id
    service_id
-   image_tag
+   image_digest
    commit_sha
+11. M7 Remote Ops 只提供服务 status、受时间/行数/字节限制且脱敏的直读 logs
+    和固定只读 diagnostics。
+12. Task 进入 Monitoring 并写入 MonitoringRegistered；M7 不自动回滚。
 ```
+
+M7 不提供 remote session、WebSocket terminal、服务重启、metrics 或 Loki
+集中日志查询；指标、集中日志与告警进入 M8，交互式远程接管属于后续增强版。
+
+详细事务、worker、数据、认证与失败恢复契约见
+[M7 CI/CD 与远端部署闭环细化设计](../15-detailed-design/09-m7-ci-remote-deployment-flow.md)。

@@ -8,7 +8,12 @@
 - RequirementSpec、TechnicalDesign、DevelopmentPlan、AgentConversation、
   AgentRun、ToolCall、Artifact、PullRequestRecord、ApprovalRequest、EventLog
   共同描述当前 M6 开发闭环。
-- Environment、RemoteTarget、Deployment、ServiceInstance、ProjectAlert、Incident、RemoteSession 描述远端业务项目运行与运维闭环。
+- ProjectRepositoryBinding、ReleaseCandidate、CIRun、WorkflowJob、Environment、
+  RemoteTarget、Deployment、ServiceInstance 共同描述 M7 的 CI 与远端
+  staging/demo 部署闭环。
+- M7 的 RemoteTarget 固定为运行 Remote Agent 的 Linux 主机；production、
+  Kubernetes target、RemoteSession、ProjectMetric、ProjectAlert 和 Incident
+  保留为 M8 或增强版实体，不计入 M7 完成范围。
 
 ## 设计书摘录
 
@@ -30,11 +35,15 @@
 |SandboxSession|沙箱会话|
 |PullRequestRecord|PR 记录|
 |PolicyDecision|权限策略判断结果|
-|Environment|远端业务项目环境，例如 staging、demo、production|
-|RemoteTarget|远端部署目标，例如云服务器、Linux 主机、K8s namespace|
-|Deployment|业务项目一次远端部署记录|
+|ProjectRepositoryBinding|Project 与受控 Gitea repository/profile、固定 workflow 和 credential 引用的绑定|
+|ReleaseCandidate|M6 PullRequestRecord 的精确 commit、受控 candidate ref 和第一道审批记录|
+|CIRun|由唯一 `workflow_dispatch` 触发的真实 CI run/job、commit 与不可变制品身份|
+|WorkflowJob|PostgreSQL 中保存 claim、lease、heartbeat、retry 和恢复状态的异步业务任务|
+|Environment|M7 远端业务项目环境，只允许 staging、demo；production 属于增强版|
+|RemoteTarget|M7 运行 Remote Agent 的 Linux 目标，保存 agent endpoint、credential 引用、TLS 指纹、capabilities 和心跳；Kubernetes target 属于增强版|
+|Deployment|业务项目一次远端部署记录，绑定第二道审批、ReleasePlan、CI digest 和远端 operation|
 |ServiceInstance|远端业务服务实例，例如 API、Worker、Frontend|
-|ProjectMetric|远端业务项目指标快照或指标引用|
-|ProjectAlert|远端业务项目告警|
-|Incident|远端业务项目故障事件|
-|RemoteSession|远程终端 / 远程接管会话|
+|ProjectMetric|M8 远端业务项目指标快照或指标引用|
+|ProjectAlert|M8 远端业务项目告警|
+|Incident|M8 远端业务项目故障事件|
+|RemoteSession|增强版远程终端 / 远程接管会话，M7 不创建|
