@@ -115,6 +115,13 @@
 
 - 开发分支：`feature/m6-local-dev-closure`，基线为 `origin/dev` 的
   `615ab2e`。
+- 按可验证范围提交：
+  `a09d80c feat: 完成本地 Agent 工具与样例仓库闭环`、
+  `da8a3ca feat: 持久化 M6 工作流证据与等价 PR`、
+  `3d99fe4 feat: 展示 M6 本地开发与质量证据`、
+  `a021709 docs: 同步 M6 验收并规划 M7`。功能分支已 push 到
+  `origin/feature/m6-local-dev-closure`，随后以 fast-forward 合并到 `dev`
+  并 push `origin/dev`。
 - Platform API：`uv lock --check`；最新全量 `uv run pytest -q` ->
   `103 passed, 1 skipped`。唯一 skip 为未注入真实外部 LLM endpoint/key。
 - 数据库：真实 PostgreSQL `127.0.0.1:15432`；执行
