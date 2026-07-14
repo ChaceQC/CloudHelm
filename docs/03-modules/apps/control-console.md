@@ -7,7 +7,25 @@
 
 桌面控制台，负责开发者需求输入、Agent 指导、方案审查、diff、日志、审批、远程状态和终端接管。
 
-## 技术栈
+## M3-M6 实现状态
+
+当前 Web 控制台已经接入真实 Project、Task、Requirement、TechnicalDesign、
+DevelopmentPlan、AgentRun、ToolCall、Approval、Timeline、Artifact 和
+PullRequestRecord API。M6 页面可以启动/推进本地开发步骤，并展示真实 diff、
+pytest/JUnit、Review、Bandit、pip-audit 与本地等价 PR record。
+
+SSE 显式监听 M2-M6 事件并按 event id 去重；切换 Project/Task 使用最新请求门禁。
+1280、1024 和 375 像素目标视口要求 document 无水平溢出，长 diff 只在局部容器
+滚动。
+
+当前不包含远端部署、监控、任意工具调试或交互终端。
+
+## 当前技术栈
+
+React + TypeScript + Vite。Tauri、Tailwind CSS、shadcn/ui、Monaco 和 xterm.js
+是目标技术组合，尚未全部进入当前工程。
+
+## 目标技术栈
 
 Tauri + React + TypeScript + Tailwind CSS + shadcn/ui + Monaco Editor + xterm.js。
 

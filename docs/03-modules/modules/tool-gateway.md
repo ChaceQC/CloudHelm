@@ -7,9 +7,31 @@
 
 工具统一入口，负责权限、审批、审计、限流、MCP 路由。
 
-## 技术栈
+## M5-M6 实现状态
 
-Python + MCP Client + Policy Engine + PostgreSQL audit。
+`modules/tool-gateway` `0.5.0` 当前注册：
+
+- `requirement.normalize`、`design.render_markdown`
+- `repo.read_file`、`repo.search_text`、`repo.list_files`、`repo.write_file`
+- `scaffold.prepare_workspace`
+- `sandbox.run_command`、`sandbox.collect_artifact`
+- `test.run_pytest`
+- `security.run_bandit`、`security.run_pip_audit`
+- `git.status`、`git.diff`、`git.create_branch`、`git.commit`、
+  `git.format_patch`
+- `approval.request_remote_action`
+
+Gateway 负责 Pydantic 参数校验、角色 allowlist、风险比对、审批拦截、workspace
+边界、进程超时、输出脱敏和统一结果。数据库 ToolCall、Approval 与 EventLog 由
+Platform API service 持久化；本模块本身不依赖 FastAPI 或数据库。
+
+M6 仍使用受控目录与 `subprocess`，未启用独立 MCP Tool Server、Docker
+sandbox 或分布式限流。
+
+## 当前技术栈
+
+Python + Pydantic + 本地工具 adapter。MCP Client、Redis 分布式限流和独立
+Policy Engine 属于后续扩展。
 
 ## 上游依赖
 

@@ -61,8 +61,9 @@ M4 新增迁移 `modules/platform-api/migrations/versions/20260708_0002_create_m
 |`provider_name` / `model_name`|会话固定 Provider 与模型；中途不可切换。|
 |`prompt_cache_key`|唯一、稳定、不包含 prompt 正文的缓存路由键。|
 |`items_json`|完整可重放 ResponseItem：消息、encrypted reasoning、工具调用/结果和平台上下文。|
-|`turn_count`|只统计通过输出 schema 并已提交的成功模型 turn。|
-|`last_response_id`|最近一次成功供应商 Responses ID。|
+|`turn_count`|已提交的逻辑 turn；通常为成功角色输出，M6 工具失败时也可提交配对 call/output 与失败上下文。|
+|`revision`|会话历史乐观并发版本；任何成功保存的 turn/context 都递增。|
+|`last_response_id`|最近一次已保存供应商 Responses ID。|
 
 约束：
 
@@ -74,6 +75,8 @@ M4 新增迁移 `modules/platform-api/migrations/versions/20260708_0002_create_m
 - child 只能由显式 spawn 服务创建。
 - 每个 Agent 步骤通过 savepoint 原子保存业务产物、成功 AgentRun、
   conversation turn 和完成事件；晚期失败回滚以上成功侧写入，再记录失败运行。
+- M6 工具调用已落库后发生基础设施失败时，保存配对 provider call/output 与
+  `<failed_step_context>`；失败 AgentRun 关联该 turn，但成功业务产物仍回滚。
 
 #### `agent_runs` conversation/cache 字段
 
@@ -89,6 +92,52 @@ M4 新增迁移 `modules/platform-api/migrations/versions/20260708_0002_create_m
 `cache_hit` 不单独落库为可写布尔值；API/EventLog 从每次请求真实
 `cached_input_tokens > 0` 推导，避免固定返回或本地估算。
 
+## M6 落地状态
+
+迁移 `20260714_0006_create_m6_local_development.py` 新增：
+
+### `agent_runs` M6 身份
+
+|字段|说明|
+|---|---|
+|`workflow_step`|`run_scaffold`、`run_coder`、`run_tester`、`run_reviewer`、`run_security`。|
+|`attempt`|同一 Task/step 的重试序号，从 1 开始。|
+|`idempotency_key`|任务内 Agent 步骤幂等键。|
+
+- 三个字段必须同时为空或同时非空。
+- `(task_id, idempotency_key)` 在非空时唯一。
+- partial unique index 保证每个 Task 同时最多一个
+  `workflow_step IS NOT NULL AND status IN ('pending','running')` 的 AgentRun。
+
+### `tool_calls` provider 身份
+
+|字段|说明|
+|---|---|
+|`provider_call_id`|Responses function/custom call ID。|
+|`provider_item_type`|`function_call` 或 `custom_tool_call`。|
+
+provider pair 必须同时存在或同时为空；存在时必须绑定 AgentRun，并通过
+`(agent_run_id, provider_call_id)` 唯一索引防止重复映射。
+
+### `artifacts`
+
+保存 producer 引用、artifact type/status、展示名、媒体类型、内部相对
+`storage_key`、SHA-256、大小、摘要、metadata 和任务内幂等键：
+
+- producer 为 agent/tool/system 时，只允许对应审计引用存在。
+- `(task_id, idempotency_key)` 与 `storage_key` 唯一。
+- API 不返回 `storage_key`，只返回 `artifact://<id>` 和受限安全预览。
+
+### `pull_request_records`
+
+保存 Task/Project/DevelopmentPlan、本地 branch/commit、changed files、diff stat、
+branch/commit ToolCall 和 diff/test/review/security Artifact：
+
+- provider 为 `local/github/gitea`，M6 使用 `local`。
+- local record 必须 `url IS NULL`。
+- `(task_id, commit_sha)` 与 `(task_id, idempotency_key)` 唯一。
+- base/head branch 必须不同；四类质量 Artifact 不可为空。
+
 ## 1. 核心 ER 关系
 
 ```mermaid
@@ -103,6 +152,12 @@ erDiagram
     agent_conversations ||--o{ agent_conversations : spawns
     agent_conversations ||--o{ agent_runs : records_turns
     agent_runs ||--o{ tool_calls : invokes
+    tasks ||--o{ artifacts : owns
+    agent_runs ||--o{ artifacts : produces
+    tool_calls ||--o{ artifacts : produces
+    tasks ||--o{ pull_request_records : records
+    development_plans ||--o{ pull_request_records : gates
+    artifacts ||--o{ pull_request_records : evidences
     tasks ||--o{ approval_requests : requires
     tasks ||--o{ event_logs : emits
     environments ||--o{ remote_targets : contains

@@ -34,3 +34,13 @@ git.create_pr(title, body, base, head)
 - `git.status`、`git.diff` 为 L0；`git.create_branch`、`git.commit` 为 L2。
 - 只操作受控 `repo_root`，且要求传入路径是 Git 仓库根目录。
 - 不实现 `push`、`create_pr`、`rebase`、`tag release`、`reset --hard`、`clean -fdx`。
+
+## M6 扩展
+
+- 新增 `git.format_patch(base_ref, head_ref, max_output_chars)`，风险为 L0，用于
+  为已经创建的本地 commit 生成可审计 patch Artifact。
+- `git.diff` 新增 `from_ref`、`to_ref`、`include_untracked` 和有界输出参数。
+- `git.commit` 只接受显式非目录文件列表；拒绝仓库根、目录 pathspec 和未审查
+  文件。
+- M6 仍不实现 push、revert、远端 create PR、rebase、release tag 或 destructive
+  reset；设计书函数清单保留为目标能力，不代表当前实现。

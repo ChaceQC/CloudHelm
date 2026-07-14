@@ -22,12 +22,26 @@
 - `tool_calls.audit_json` 保存 tool、task、AgentRun、Agent 类型、风险、幂等键、参数 hash、原因 hash、终态和错误码；内部联调记录接口也由服务端生成审计字段，调用方不能覆盖。
 - 工具声明同时返回 `arguments_schema` 和统一 `result_schema`，供 Agent 与控制台按同一契约校验。
 - Git commit 只接受显式文件路径，拒绝仓库根目录和目录 pathspec，避免用 `.` 混入未审查改动。
-- M5 Sandbox Tool 暂用本地受控目录 + `subprocess` 超时，Docker sandbox、网络隔离和资源 quota 留到 M6 前置增强。
+- M6 继续使用本地受控目录 + `subprocess` 超时；Docker sandbox、网络隔离和
+  资源 quota 已评估为后续增强，M7 接入远端 staging/demo 前再次检查。
 
 限流参数通过 `CLOUDHELM_TOOL_RATE_LIMIT_CALLS` 和
 `CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS` 配置。工作区边界通过
 `CLOUDHELM_TOOL_WORKSPACE_ROOTS` JSON 数组配置。该实现满足 M5 本地单实例
 边界；多 worker、跨进程或远端阶段必须迁移到 Redis 等共享存储。
+
+## M6 扩展
+
+- 新增 `scaffold.prepare_workspace`、`test.run_pytest`、
+  `security.run_bandit`、`security.run_pip_audit` 和 `git.format_patch`。
+- Provider 工具清单按名称稳定排序；服务端绑定 workspace/source/repo 参数不进入
+  模型 schema，完整 Pydantic schema 仍用于 Tool Gateway 最终校验。
+- Role Instructions 再收窄权限：Tester 只执行 `test.run_pytest`，Security 只执行
+  `security.run_*`；通用 Sandbox 声明仍保留在稳定工具前缀中。
+- 带 `workflow_step` 的 M6 AgentRun 只接受内部 Agent executor；公开 HTTP 调用
+  返回 `m6_agent_tool_executor_required`。
+- executor 以工具名、Pydantic 默认值规范化后的模型参数和允许次数绑定当前
+  execution recipe。未批准调用写入失败 ToolCall 与审计指纹，不进入 handler。
 
 ## 设计书摘录
 

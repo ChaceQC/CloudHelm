@@ -15,7 +15,7 @@ GET    /api/agent-runs/{run_id}
 - M4 已实现 Requirement / Architect / Planner 的同步 `run-next` 编排；M4 仍不执行工具调用。
 - `messages` 和 `agent-runs/{run_id}/tool-calls` 聚合视图在后续 Agent 编排与 Tool Gateway 阶段实现。
 
-## M4/M5 字段扩展
+## M4-M6 字段扩展
 
 `agent_runs` 新增以下字段用于结构化输出和失败追踪：
 
@@ -31,6 +31,9 @@ GET    /api/agent-runs/{run_id}
 - `provider_requests`
 - `provider_response_id`
 - `prompt_cache_key`
+- `workflow_step`
+- `attempt`
+- `idempotency_key`
 
 `input_tokens`、`cached_input_tokens` 和 `output_tokens` 是一个 AgentRun 内所有
 已完成供应商请求的真实总量。`provider_requests` 保留每次请求的
@@ -64,6 +67,11 @@ GET    /api/agent-runs/{run_id}
 `prompt_cache_key`，成功 turn 依次递增。只有显式创建 subagent 时才使用新的
 conversation/cache key。
 
+M6 的 Scaffold、Coder、Tester、Reviewer、Security AgentRun 使用
+`workflow_step + attempt + idempotency_key` 形成步骤身份。数据库 partial unique
+index 保证同一 Task 同时最多一个 `pending/running` M6 AgentRun；重复
+`run-next` 只有一个请求能够抢占执行权。
+
 M4 编排产生的 AgentRun 会写入 `AgentRunStarted`、`AgentRunCompleted` 或 `AgentRunFailed`。外部 provider 的 AgentRun 会在 `prompt_hash` 和启动事件中记录 API mode、reasoning effort 与 max attempts。缺少配置时错误码为 `missing_agent_provider_config`；HTTP 请求失败为 `agent_provider_request_failed`；响应或结构化输出无效为 `agent_provider_response_invalid`。
 
 `openai_compatible` 通过 HTTP SSE Responses API 调用
@@ -81,7 +89,11 @@ Prompt Cache 只以供应商 usage 为证据。稳定 Base Instructions、扁平
 
 每个 Agent 步骤使用数据库 savepoint。若在产物、AgentRun 完成状态、
 conversation turn 或完成事件写入阶段发生错误，savepoint 会整体回滚，再单独
-提交失败 AgentRun；失败响应不能留下半成品或错误递增 turn。
+提交失败 AgentRun；失败响应不会留下成功业务半成品或错误递增成功 turn。
+
+M6 工具步骤是明确例外：如果 ToolCall 已经真实落库，后续基础设施失败会保存
+配对的 provider call/output 与 `<failed_step_context>`，并让失败 AgentRun
+引用该 conversation turn。该记录用于恢复时重放真实证据，不代表角色输出成功。
 
 ## 实现注意点
 

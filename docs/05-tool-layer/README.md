@@ -24,3 +24,4 @@ Tool Gateway、风险等级、MCP Server 和 MVP 工具组。
 - [tools/sandbox-tool.md](tools/sandbox-tool.md)
 - [tools/scaffold-tool.md](tools/scaffold-tool.md)
 - [tools/security-tool.md](tools/security-tool.md)
+- [tools/test-tool.md](tools/test-tool.md)

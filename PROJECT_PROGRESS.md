@@ -2,6 +2,157 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-14（M6 本地代码、测试与等价 PR 闭环完成，版本 0.5.0）
+
+### 已完成
+
+- 完成 M6 受控 sample repo：`examples/sample-repo-python` 提供真实 FastAPI
+  `/health`、`/metrics`、pytest、Dockerfile、Compose、稳定 demo issue 和
+  execution recipe；源 fixture 只读，Scaffold 为每个 Task 创建独立 workspace
+  和 baseline Git。
+- 实现 Scaffold、Coder、Tester、Reviewer、Security 五类普通 Agent；与
+  Requirement、Architect、Planner 一起复用同一 Task root conversation，
+  保持稳定扁平输出 schema、完整工具清单、真实 call/output 配对和供应商
+  usage / Prompt Cache 证据。
+- Coder 依据已审批 recipe 真实修改 sample repo；Tester 通过
+  `test.run_pytest` 运行真实 pytest 和 JUnit；Reviewer 逐项核对真实 diff 与
+  Acceptance Criteria；Security 通过 `security.run_bandit` 和
+  `security.run_pip_audit` 保存真实扫描结果。
+- Tool Gateway 增加 Scaffold/Test/Security/Git format-patch 生产工具、服务端
+  workspace 绑定、Pydantic 参数校验、命令 profile、超时、输出上限、限流、
+  幂等、审计和路径脱敏；M6 AgentRun 的工具名称、规范化参数和调用次数精确
+  绑定已审批 execution recipe。
+- 阻止公开 Tool Gateway HTTP 入口绕过 M6 executor；未批准调用只保存失败
+  ToolCall 和 execution-policy 指纹，不执行文件、命令或 Git 副作用。
+- 加固并发和失败恢复：PostgreSQL partial unique index 保证同一 Task 只有一个
+  active M6 AgentRun；双 `run-next` 只有一个执行者；暂停/取消后的晚到工具
+  结果不能覆盖终态；失败步骤保存真实 call/output 和
+  `<failed_step_context>`，便于后续重试。
+- 新增 `artifacts`、`pull_request_records`、AgentRun workflow identity、
+  ToolCall provider identity 和 migration `20260714_0006`。Artifact 使用受控
+  文件存储、SHA-256、大小、Task 级幂等和安全预览，不向 API 暴露 storage key
+  或本机绝对路径。
+- 完成本地 Git 收尾：创建 `codex/task-*` 分支、显式文件 commit、
+  `format-patch` Artifact，以及 `provider=local`、`url=null` 的等价 PR
+  record；diff/test/review/security 四类门禁证据必须属于同一
+  DevelopmentPlan、recipe 和 evidence set。
+- 状态聚合只读取当前 DevelopmentPlan 与当前 recipe 的 Artifact/PR；旧计划、
+  旧 recipe 或无效门禁证据即使创建时间更晚也不会串入当前 M6 状态。
+- Platform API 新增 M6 start/run-next/state、Artifact、PR record 接口和 13 类
+  M6 事件；OpenAPI、事件 schema、Agent/Artifact/Tool JSON Schema 和前端类型
+  已同步。
+- 控制台新增本地开发动作、Diff、Test、Review、Security、本地 PR record 和
+  M6 SSE 展示；真实浏览器 QA 发现并修复 1024px 下双列证据卡异常等高拉伸，
+  单列断点调整为 1100px，grid item 改为顶部对齐。
+- 同步 README、Agent/Tool/API/Data/Security/Testing/detailed-design 文档和
+  `informations/m6-code-test-pr/official-references.md`；总排期 M6 已打钩。
+- 项目版本提升到 `0.5.0`；Platform API、Tool Gateway 和控制台为 `0.5.0`，
+  Agent Runtime 与 Orchestrator 为 `0.4.0`。`PROJECT_PLAN.md` 已按下一阶段
+  重写为 M7“CI/CD 与远端部署闭环”详细执行计划，目标版本 `0.6.0`。
+
+### 进行中
+
+- M6 代码、契约、文档、测试、浏览器和本地 PR 验收均已完成。
+- 下一阶段按新的 `PROJECT_PLAN.md` 准备 Gitea Actions、不可变制品、
+  Release / Deploy Agent、Deployment Controller 和 Remote Agent 的 M7
+  真实远端 staging/demo 闭环。
+
+### 阻塞与风险
+
+- M6 Sandbox 仍是服务端绑定的受控目录 + subprocess，不具备 Docker 的
+  CPU、内存、PID、只读挂载和网络隔离；已在文档和 SecurityReport 中保留
+  边界，M7 继续收敛 Docker/远端执行隔离。
+- 当前进程未注入外部 LLM endpoint/key，因此外部 Agent 编排和真实供应商
+  Prompt Cache 条件测试未执行；本地结构化 Provider、稳定 schema/tools、
+  conversation 和失败恢复契约已完整回归。
+- Windows 当前账户缺少创建测试 symlink 的权限，Tool Gateway 对应单项测试
+  条件跳过；正常路径、越界和敏感路径拒绝均已执行。
+- pip-audit 无已知第三方依赖漏洞，但本地包
+  `cloudhelm-sample-service==0.1.0` 不在 PyPI，工具按真实行为记录跳过原因；
+  未把该项伪造成已审计的零风险。
+- M6 只产生本地 branch、commit、format patch 和等价 PR record，不 push、
+  不创建真实 GitHub/Gitea PR，也不执行 CI/CD、SSH、远端部署或监控。
+
+### 下一步
+
+- 从干净 `dev` 创建 `feature/m7-remote-deploy-closure`，按 M7 计划先完成
+  CI/远端部署细化设计与官方资料归档。
+- 建立受控 Gitea Actions + runner + registry，确保 CI 只执行
+  test/security/build/artifact，不在 CI 内部署。
+- 实现 Release / Deploy Agent、Deploy Tool、Remote Control Tool、
+  Deployment Controller 和 Remote Agent，并让 Task 在部署健康后进入
+  `Monitoring`。
+- 真实 Linux staging/demo 主机、TLS、registry 或远端 E2E 未就绪时，M7
+  保持阻塞，不把本地 fake 或固定返回写成部署完成。
+
+### 涉及文件
+
+- `examples/sample-repo-python/**`
+- `modules/agent-runtime/**`
+- `modules/orchestrator/**`
+- `modules/tool-gateway/**`
+- `modules/platform-api/**`
+- `apps/control-console/**`
+- `packages/shared-contracts/**`
+- `docs/03-modules/**`
+- `docs/04-agents/**`
+- `docs/05-tool-layer/**`
+- `docs/06-workflows/00-development-to-pr.md`
+- `docs/07-data/**`
+- `docs/08-api/**`
+- `docs/09-control-console/**`
+- `docs/10-security/**`
+- `docs/12-deployment/00-local-development.md`
+- `docs/15-detailed-design/**`
+- `informations/m6-code-test-pr/official-references.md`
+- `.env.example`
+- `.gitignore`
+- `README.md`
+- `PROJECT_PLAN.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+
+### 验证
+
+- 开发分支：`feature/m6-local-dev-closure`，基线为 `origin/dev` 的
+  `615ab2e`。
+- Platform API：`uv lock --check`；最新全量 `uv run pytest -q` ->
+  `103 passed, 1 skipped`。唯一 skip 为未注入真实外部 LLM endpoint/key。
+- 数据库：真实 PostgreSQL `127.0.0.1:15432`；执行
+  `alembic downgrade 20260711_0005`、`alembic upgrade head`、
+  `alembic check` 和 `alembic current`，结果为
+  `20260714_0006 (head)` 且 `No new upgrade operations detected`。
+- Agent Runtime：`uv lock --check`；`uv run pytest -q` ->
+  `42 passed, 1 skipped`。唯一 skip 为外部 Prompt Cache 凭据条件。
+- Tool Gateway：`uv lock --check`；`uv run pytest -q` ->
+  `43 passed, 1 skipped`。唯一 skip 为 Windows symlink 权限条件。
+- Orchestrator：`uv lock --check`；`uv run pytest -q` -> `7 passed`。
+- sample repo：`uv lock --check`；`uv run pytest -q` -> `2 passed`；
+  Bandit 对 `src` 扫描无发现；pip-audit 返回无已知漏洞并明确跳过本地包。
+- sample Docker：`docker compose config` 通过；真实 `docker build` 成功；
+  容器 `/health` 返回 `status=ok`，`/metrics` 返回 `200 text/plain`；验证后
+  已删除 smoke container 和本地 smoke image tag。
+- 控制台：`npm.cmd test` -> `13 passed`；`npm.cmd run build` 成功，
+  Vite 7.3.6 共转换 75 modules。
+- 真实 API + 浏览器 E2E：Task
+  `4b85af2d-9dd9-412e-89a5-691a52fd5d5e` 完成 M4+M6 全链路，最终
+  `PullRequestCreated`；local PR `provider=local`、`url=null`、commit
+  `2badbf270e26a60749ce0f8b06f9373f360e936b`、10 个变更文件、8 类
+  Artifact。生成代码的真实 pytest 为 `21 passed`，Review 覆盖 11 条 AC，
+  Security 为 2 个 scanner、0 finding、PR 不阻断。
+- 浏览器 1280×720、1024×768、375×812 均无 document 水平溢出；
+  移动端 diff 仅在自身容器横向滚动；Diff/Test/Review/Security/本地 PR 五类
+  证据可见，`url=null` 明确显示“本地等价 PR 记录 · 无远端链接”。稳定页面
+  CDP 未产生 Vite、React 或业务异常。
+- FastAPI OpenAPI 与共享 YAML 反序列化后精确一致：
+  `version=0.5.0`、`paths=41`、`schemas=56`。
+- 使用 Draft 2020-12 元 schema 检查共享 JSON Schema，共 `26` 份有效；
+  ToolCall provider pair、Git/Repo/Sandbox/Scaffold/Test/Security schema 与
+  Pydantic/registry 关键字段已加入精确一致性测试。
+- 静态门禁：259 个生产 Python/TS/TSX 文件均不超过 300 行；生产代码无
+  TODO/FIXME/NotImplemented/空 `pass`；558 个文本文件 UTF-8 解码通过；
+  402 个本地 Markdown 链接存在；生产代码和文档敏感模式扫描 0 命中；
+  `git diff --check` 通过；源 fixture 内没有嵌套 `.git`。
+
 ## 2026-07-11（Task 主会话、真实 Prompt Cache 与 Instructions v3 纠偏完成）
 
 ### 已完成

@@ -8,15 +8,22 @@
 
 ## 允许工具
 
-`repo read、git diff、安全扫描结果`
+- `repo.read_file`
+- `repo.search_text`
+- `repo.list_files`
+- `git.status`
+- `git.diff`
 
 ## 主要输出
 
-review_report、acceptance_result、change_request。
+`ReviewerAgentOutput`：verdict、逐 AC 结果、issues、changed files、
+ToolCall 引用和 `proceed_to_security`。
 
 ## 风险边界
 
-只读或评论，不直接部署。
+- 只读同一 evidence set 的 diff、TestReport 和已审批需求/计划。
+- 不修改源码、不运行通用命令、不创建 commit 或 PR。
+- verdict 与 `proceed_to_security` 必须一致；证据缺失时不得批准。
 
 ## 与其他 Agent 的协作
 
@@ -26,7 +33,7 @@ review_report、acceptance_result、change_request。
 
 ## 验收点
 
-1. 能生成结构化结果。
-2. 能在失败时给出可恢复原因。
-3. 工具调用符合角色权限。
-4. 关键结果能进入 EventLog / Artifact / Spec Store。
+1. 每条 AC 映射到真实 diff/test 证据。
+2. approved 且 `proceed_to_security=true` 才进入 SecurityScanning。
+3. 要求修改时保存 ReviewReport 并回到 `Implementing`。
+4. ReviewReport、ToolCall 和 EventLog 可由 API/控制台读取。

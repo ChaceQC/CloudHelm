@@ -5,7 +5,9 @@
 ## 建模原则
 
 - Task 是一次用户目标或自动触发任务的主线。
-- RequirementSpec、TechnicalDesign、AgentRun、ToolCall、ApprovalRequest、EventLog 共同描述开发闭环。
+- RequirementSpec、TechnicalDesign、DevelopmentPlan、AgentConversation、
+  AgentRun、ToolCall、Artifact、PullRequestRecord、ApprovalRequest、EventLog
+  共同描述当前 M6 开发闭环。
 - Environment、RemoteTarget、Deployment、ServiceInstance、ProjectAlert、Incident、RemoteSession 描述远端业务项目运行与运维闭环。
 
 ## 设计书摘录

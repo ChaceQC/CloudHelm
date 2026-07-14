@@ -68,6 +68,29 @@ POST   /api/tasks/{task_id}/tool-gateway/call
 
 低风险工具调用会通过 `modules/tool-gateway` 完成参数校验、工作区 allowlist、策略检查和本地执行，并写入 `tool_calls` 与 `event_logs`。L3/L4 或工具声明要求审批时，只创建 `approval_requests`，不执行 handler。ToolCall 参数和结果落库前脱敏，Gateway 审计保存在 `audit_json`。`POST /api/tasks/{task_id}/tool-calls` 仍保留为内部联调用记录接口，不建议作为真实工具执行入口；其审计字段同样只能由服务端生成。
 
+## M6 实现状态
+
+M6 新增本地开发单步编排、Artifact 和本地等价 PR record API：
+
+```text
+GET    /api/tasks/{task_id}/local-development
+POST   /api/tasks/{task_id}/local-development/start
+POST   /api/tasks/{task_id}/local-development/run-next
+GET    /api/tasks/{task_id}/artifacts
+GET    /api/artifacts/{artifact_id}
+GET    /api/tasks/{task_id}/pull-request-records
+GET    /api/pull-request-records/{record_id}
+```
+
+`run-next` 每次只推进 Scaffold、Coder、Tester、Reviewer、Security 或 Git
+收尾中的一个动作。所有文件、命令和 Git 副作用经过 Tool Gateway；工作区由
+服务端配置和 Task 派生，HTTP 请求不能传入任意本机路径。Artifact 详情先校验
+SHA-256，再返回最多 65536 bytes 的安全预览。没有远端 Git 服务时只保存
+`provider=local`、`url=null` 的等价 PR record，不构造远端链接。
+
+完整字段、门禁、错误和事件见
+[11-local-development-api.md](11-local-development-api.md)。
+
 ## API 约定
 
 - REST 用于创建和查询资源。

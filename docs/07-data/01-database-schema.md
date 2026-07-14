@@ -21,6 +21,34 @@ M2 已落地索引：
 - `ix_tool_calls_task_status`
 - `ix_approval_requests_task_status`
 
+## M4-M6 迁移同步
+
+- `20260708_0002_create_m4_agent_tables.py`：新增 `development_plans`，扩展
+  AgentRun 结构化输出、错误和事件。
+- `20260709_0003_create_m5_tool_gateway.py`：扩展 ToolCall 的幂等键、参数/结果
+  摘要、stdout/stderr、耗时、错误码和服务端审计字段。
+- `20260710_0004_harden_m1_m5_data_integrity.py`：补版本、唯一性、状态与引用约束。
+- `20260711_0005_create_agent_conversations.py`：新增 Task root/subagent
+  conversation、完整 ResponseItem、Prompt Cache 与逐请求 usage。
+- `20260714_0006_create_m6_local_development.py`：
+  - `agent_conversations.revision`
+  - `agent_runs.workflow_step/attempt/idempotency_key`
+  - `tool_calls.provider_call_id/provider_item_type`
+  - 新增 `artifacts`
+  - 新增 `pull_request_records`
+
+M6 关键数据库门禁：
+
+- partial unique index 保证每个 Task 只有一个 root conversation。
+- partial unique index 保证每个 Task 同时最多一个 active M6 AgentRun。
+- `(task_id, idempotency_key)` 分别约束 AgentRun、ToolCall、Artifact 和 PR
+  record 的任务内幂等身份。
+- `(agent_run_id, provider_call_id)` 保证一个 provider call 只映射一个 ToolCall。
+- Artifact 的 producer 类型与 AgentRun/ToolCall 引用必须互斥匹配，API 不返回
+  `storage_key`。
+- local PullRequestRecord 必须 `url IS NULL`，base/head 不同，且四类门禁
+  Artifact 引用不可为空。
+
 ## 迁移要求
 
 - 使用 Alembic / Prisma Migrate 管理 schema 变更。

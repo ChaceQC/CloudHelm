@@ -7,20 +7,29 @@
 
 核心编排器，定义需求到设计、实现、测试、PR、部署、监控的状态机和 Agent 协作流程。
 
-## M4 实现状态
+## M4-M6 实现状态
 
-`modules/orchestrator` 已实现 M4 显式状态机，当前覆盖：
+`modules/orchestrator` `0.4.0` 已实现两组显式纯状态机：
 
 ```text
 Created -> RequirementClarifying -> Designing -> WaitingDesignApproval -> Planning
 Designing -> Planning
+
+Planning -> Scaffolding -> Implementing -> Testing -> Reviewing
+  -> SecurityScanning -> ReadyForPR -> PullRequestCreated
 ```
 
-该模块保持纯状态机和边界类型，不直接写数据库；Platform API 的 `OrchestrationService` 负责事务内持久化 Task、AgentRun、业务产物和 EventLog。LangGraph / Redis worker 暂未引入，后续如需要异步图执行再按 M5+ 计划补充。
+测试、审查或安全门禁要求修改时，M6 状态机允许回到 `Implementing`。
+`PullRequestCreated` 不是终态，M7 从该阶段继续 CI 与远端部署。
 
-## 技术栈
+该模块保持纯状态机和边界类型，不直接写数据库；Platform API service 负责持久化
+Task、AgentRun、业务产物、Artifact、PullRequestRecord 和 EventLog。LangGraph /
+Redis worker 尚未进入生产路径，后续如确需异步图执行再单独设计。
 
-LangGraph + Python workers + Redis queue。
+## 当前技术栈
+
+Python + dataclass + Enum 纯状态机。数据库、事务、Provider 和 Tool Gateway
+集成均位于 Platform API。
 
 ## 上游依赖
 

@@ -8,15 +8,26 @@
 
 ## 允许工具
 
-`repo write、sandbox exec、git diff`
+- `repo.read_file`
+- `repo.search_text`
+- `repo.list_files`
+- `repo.write_file`
+- `sandbox.run_command`
+- `git.status`
+- `git.diff`
+- `git.create_branch`
+- `git.commit`
 
 ## 主要输出
 
-patch、diff、implementation summary。
+`CoderAgentOutput`：`branch_name`、`diff_paths`、changed files、verification、
+tests added、ToolCall/Artifact 引用和 implementation summary。
 
 ## 风险边界
 
-commit/PR 需要审批或经过策略允许。
+- 只能调用当前 execution recipe 按工具名、规范化参数和次数批准的动作。
+- `repo.write_file` 只允许幂等 `replace`，可使用 `expected_sha256` 乐观锁。
+- 本阶段只创建本地 branch/commit，不 push、不创建远端 PR。
 
 ## 与其他 Agent 的协作
 
@@ -26,7 +37,7 @@ commit/PR 需要审批或经过策略允许。
 
 ## 验收点
 
-1. 能生成结构化结果。
-2. 能在失败时给出可恢复原因。
-3. 工具调用符合角色权限。
-4. 关键结果能进入 EventLog / Artifact / Spec Store。
+1. 真实修改受控 workspace，生成非空 diff。
+2. 输出 changed files、branch 和 diff 路径与 Tool/Git 证据一致。
+3. 失败时保留已发生的配对 tool call/output 和可恢复原因。
+4. 关键结果进入 AgentRun、ToolCall、Artifact 和 EventLog。

@@ -33,8 +33,8 @@
   ],
   "available_tools": [
     "repo.read_file",
-    "repo.search_code",
-    "sandbox.run_tests"
+    "repo.search_text",
+    "test.run_pytest"
   ]
 }
 ```
@@ -46,7 +46,7 @@
   "agent_type": "coder",
   "status": "succeeded",
   "summary": "实现用户注册、登录和个人资料接口",
-  "structured_output_type": "implementation_result",
+  "structured_output_type": "coder_agent_output",
   "structured_output": {},
   "tool_requests": [],
   "approval_request": null,
@@ -90,33 +90,48 @@ M4 中 `tool_requests` 必须为空；任何 Repo、Sandbox、Git、Docker、SSH
 {
   "task_id": "uuid",
   "agent_run_id": "uuid",
+  "agent_type": "coder",
+  "provider_call_id": "call_001",
+  "provider_item_type": "function_call",
   "tool_name": "repo.write_file",
   "risk_level": "L1",
   "idempotency_key": "task_001:write_file:001",
   "arguments": {
+    "workspace_root": "<server-bound>",
     "path": "backend/app/api/auth.py",
-    "content_ref": "artifact://generated/auth_py"
+    "content": "UTF-8 source text",
+    "mode": "replace",
+    "expected_sha256": "missing"
   },
-  "reason": "实现登录接口",
-  "expected_result_schema": "RepoWriteFileResult"
+  "reason": "实现登录接口"
 }
 ```
+
+`agent_run_id` 与 `agent_type` 必须同时存在或同时为空；
+`provider_call_id` 与 `provider_item_type` 也必须成对出现。模型工具调用必须提供
+provider pair；Platform API 公开 Tool Gateway 请求不接受 `agent_type`，而是从
+AgentRun 解析后构造内部 ToolCallRequest。
 
 ## 4. ToolResult 契约
 
 ```json
 {
-  "tool_call_id": "uuid",
-  "status": "success",
-  "risk_level": "L1",
-  "result": {
-    "summary": "写入 backend/app/api/auth.py",
-    "artifact_refs": []
+  "status": "succeeded",
+  "summary": "已写入 backend/app/api/auth.py",
+  "result_json": {
+    "path": "backend/app/api/auth.py",
+    "sha256": "sha256:..."
   },
-  "stderr_summary": "",
+  "stdout_summary": null,
+  "stderr_summary": null,
   "duration_ms": 120,
   "started_at": "2026-07-07T10:00:00Z",
-  "finished_at": "2026-07-07T10:00:01Z"
+  "finished_at": "2026-07-07T10:00:01Z",
+  "error_code": null,
+  "requires_approval": false,
+  "approval_reason": null,
+  "arguments_summary": "{\"path\":\"backend/app/api/auth.py\"}",
+  "audit_json": {}
 }
 ```
 
@@ -124,16 +139,19 @@ M4 中 `tool_requests` 必须为空；任何 Repo、Sandbox、Git、Docker、SSH
 
 ```json
 {
-  "tool_call_id": "uuid",
   "status": "failed",
-  "error": {
-    "code": "TOOL_TIMEOUT",
-    "message": "sandbox command timed out",
-    "retryable": true,
-    "detail": {
-      "timeout_seconds": 60
-    }
-  }
+  "summary": "sandbox command timed out",
+  "result_json": null,
+  "stdout_summary": null,
+  "stderr_summary": "process exceeded timeout",
+  "duration_ms": 60000,
+  "started_at": "2026-07-07T10:00:00Z",
+  "finished_at": "2026-07-07T10:01:00Z",
+  "error_code": "command_timeout",
+  "requires_approval": false,
+  "approval_reason": null,
+  "arguments_summary": "{\"command\":[\"...\"]}",
+  "audit_json": {}
 }
 ```
 
@@ -191,9 +209,11 @@ ApprovalRequest 示例：
 |ReviewReport|Reviewer Agent|Orchestrator、Console|
 |SecurityReport|Security Agent|Reviewer、Release / Deploy Agent|
 |ReleasePlan|Release / Deploy Agent|Approval、Deployment Controller|
-
-M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。ImplementationResult 及之后的执行类 schema 留到 M5-M8。
 |IncidentAnalysis|SRE Agent|Console、Runbook|
+
+M4 已实现 RequirementSpec、TechnicalDesign、DevelopmentPlan；M6 已实现
+Scaffold、Coder/Implementation、TestReport、ReviewReport 和 SecurityReport
+角色输出及对应 Artifact。ReleasePlan 与 IncidentAnalysis 分别留给 M7、M8。
 
 ## 8. Prompt 与输出稳定性要求
 
@@ -207,10 +227,13 @@ M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。Im
 - `store=false` 只移除不可复用 item id 和内部 metadata，不删除 message phase、
   reasoning、call status 或 call_id。
 - Responses `text.format` 使用稳定扁平 `cloudhelm_agent_output_v1`，覆盖当前
-  三个角色全部字段；当前角色输出仍由专属 Pydantic model 严格校验。禁止按角色
+  八个普通角色全部字段；当前角色输出仍由专属 Pydantic model 严格校验。禁止按角色
   切换 schema，因为 Structured Output schema 位于消息前缀之前，会破坏缓存。
 - 校验失败时只在当前重试追加 `<validation_repair>`，不修改 Base Instructions，
   不提交失败尝试的 ResponseItem，也不重复调用高风险工具。
+- M6 工具步骤已经产生真实 ToolCall 后若发生基础设施失败，Platform API 会保存
+  配对的 function/custom call 与 output，并追加 `<failed_step_context>`。该
+  失败 turn 不产生成功角色输出，与结构化格式修复的未提交尝试语义不同。
 - `prompt_cache_key` 基于 conversation ID；普通角色共用，显式 child 使用新 key。
 - `cache_hit` 只能由供应商 usage 中 `cached_input_tokens > 0` 推导。AgentRun
   记录总量，同时用 `provider_requests` 保存每次格式修复请求的原始 usage。
@@ -250,6 +273,8 @@ M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。Im
 - 每个普通 Agent 成功步骤通过数据库 savepoint 原子保存业务产物、
   AgentRun、conversation turn 和完成事件；晚期失败回滚全部成功侧写入后再
   单独记录失败 AgentRun。
+- M6 失败步骤若已有真实工具调用，失败 AgentRun 会关联保存 call/output 与失败
+  上下文后的 conversation turn，便于恢复时重放真实证据。
 
 ## 9. 审计字段
 
@@ -268,9 +293,9 @@ M4 已实现前三类：RequirementSpec、TechnicalDesign、DevelopmentPlan。Im
 - `result_summary`
 - `error_code`
 - `created_at`
-## M5 实现同步：工具声明与风险等级
+## M5-M6 实现同步：工具声明与风险等级
 
-M5 默认工具声明如下：
+当前默认工具声明如下：
 
 |工具名|风险|审批|说明|
 |---|---|---|---|
@@ -280,8 +305,16 @@ M5 默认工具声明如下：
 |`repo.write_file`|L1|否|写入受控 worktree 内 UTF-8 文件。|
 |`sandbox.run_command`|L1|否|在本地受控目录执行非交互命令，支持超时和输出摘要。|
 |`sandbox.collect_artifact`|L0|否|收集本地 sandbox 产物元数据。|
-|`git.status` / `git.diff`|L0|否|读取本地 Git 状态和 diff。|
+|`scaffold.prepare_workspace`|L1|否|准备 Task 独立 Git workspace 和 baseline。|
+|`test.run_pytest`|L1|否|执行 pytest 并生成/解析 JUnit。|
+|`security.run_bandit` / `security.run_pip_audit`|L1|否|执行受控代码与依赖安全扫描。|
+|`git.status` / `git.diff` / `git.format_patch`|L0|否|读取本地 Git 状态、diff 或 commit patch。|
 |`git.create_branch` / `git.commit`|L2|否|创建本地分支和显式文件列表提交，不 push。|
 |`approval.request_remote_action`|L3|是|只创建审批请求，不执行远端动作。|
 
-ToolCallRequest 必须包含 `task_id`、`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。ToolCallResult 必须包含 `status`、`summary`、`result_json`、`stdout_summary`、`stderr_summary`、`duration_ms`、`started_at`、`finished_at`、`error_code`、`arguments_summary` 和审计摘要。
+ToolCallRequest 必须包含 `task_id`、`tool_name`、`risk_level`、
+`idempotency_key`、`arguments`、`reason`；Agent 调用还必须带成对的
+`agent_run_id/agent_type` 与 `provider_call_id/provider_item_type`。
+ToolCallResult 包含 `status`、`summary`、`result_json`、`stdout_summary`、
+`stderr_summary`、`duration_ms`、`started_at`、`finished_at`、`error_code`、
+`requires_approval`、`approval_reason`、`arguments_summary` 和 `audit_json`。

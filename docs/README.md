@@ -106,6 +106,7 @@
 - [05-tool-layer/tools/sandbox-tool.md](05-tool-layer/tools/sandbox-tool.md)
 - [05-tool-layer/tools/scaffold-tool.md](05-tool-layer/tools/scaffold-tool.md)
 - [05-tool-layer/tools/security-tool.md](05-tool-layer/tools/security-tool.md)
+- [05-tool-layer/tools/test-tool.md](05-tool-layer/tools/test-tool.md)
 
 ### 业务流程文档
 
@@ -119,13 +120,17 @@
 
 - [07-data/00-entity-model.md](07-data/00-entity-model.md)
 - [07-data/01-database-schema.md](07-data/01-database-schema.md)
+- [07-data/tables/agent_conversations.md](07-data/tables/agent_conversations.md)
 - [07-data/tables/agent_runs.md](07-data/tables/agent_runs.md)
 - [07-data/tables/approval_requests.md](07-data/tables/approval_requests.md)
+- [07-data/tables/artifacts.md](07-data/tables/artifacts.md)
+- [07-data/tables/development_plans.md](07-data/tables/development_plans.md)
 - [07-data/tables/deployments.md](07-data/tables/deployments.md)
 - [07-data/tables/environments.md](07-data/tables/environments.md)
 - [07-data/tables/event_logs.md](07-data/tables/event_logs.md)
 - [07-data/tables/project_alerts.md](07-data/tables/project_alerts.md)
 - [07-data/tables/projects.md](07-data/tables/projects.md)
+- [07-data/tables/pull_request_records.md](07-data/tables/pull_request_records.md)
 - [07-data/tables/remote_sessions.md](07-data/tables/remote_sessions.md)
 - [07-data/tables/remote_targets.md](07-data/tables/remote_targets.md)
 - [07-data/tables/requirement_specs.md](07-data/tables/requirement_specs.md)

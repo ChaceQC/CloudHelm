@@ -4,19 +4,27 @@
 
 ## 职责
 
-安装依赖、运行测试、分析失败原因。
+按照已审批 execution recipe 运行真实 pytest，解析退出码、JUnit 和 AC 映射，
+生成可审计 TestReport。
 
 ## 允许工具
 
-`sandbox exec、ci logs、test report`
+- `repo.read_file`
+- `repo.list_files`
+- `test.run_pytest`
+- `git.status`
+- `git.diff`
 
 ## 主要输出
 
-test_report、failure_analysis、artifacts。
+`TesterAgentOutput`：commands、通过/失败/跳过计数、逐 AC 结果、失败原因、
+ToolCall 和 `junit_xml` / `test_report` Artifact 引用。
 
 ## 风险边界
 
-不得修改生产环境。
+- workspace root、JUnit 路径、timeout 和输出上限由服务端绑定或校验。
+- 不使用通用 `sandbox.run_command` 代替测试 profile。
+- 不修改生产源码或测试来掩盖失败，不执行远端 CI。
 
 ## 与其他 Agent 的协作
 
@@ -26,7 +34,7 @@ test_report、failure_analysis、artifacts。
 
 ## 验收点
 
-1. 能生成结构化结果。
-2. 能在失败时给出可恢复原因。
-3. 工具调用符合角色权限。
-4. 关键结果能进入 EventLog / Artifact / Spec Store。
+1. pytest exit code、JUnit 统计、stdout/stderr 和结构化计数一致。
+2. 每条 AC 均有可追溯结果。
+3. 测试失败进入真实返工路径；命令缺失、超时或解析失败暂停 Task。
+4. TestReport、JUnit、ToolCall 和 EventLog 可由 API/控制台读取。

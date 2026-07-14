@@ -34,6 +34,19 @@
 - 切换 Project 时立即清空旧 Task Detail；异步 Project/Task 请求只接受最后一次响应。
 - 历史 Requirement/TechnicalDesign 显示“历史版本”，批准/要求修改按钮按最新版和 review 状态禁用。
 
+## M6 落地状态
+
+- Task Detail 新增“M6 Code · Test · Review · PR”本地开发控制区。只有最新一版 Development Plan 已审批、Task 状态和后端 `next_action` 允许、且没有运行中的 AgentRun 时，才启用“启动本地开发”或“推进下一步”。
+- “启动本地开发”调用 `POST /api/tasks/{task_id}/local-development/start`；后续统一调用 `POST /api/tasks/{task_id}/local-development/run-next`，按照 `run_scaffold`、`run_coder`、`run_tester`、`run_reviewer`、`run_security`、`finalize_local_pull_request` 逐次推进。页面不接受任意 workspace、文件路径或命令输入，具体工具参数、幂等和风险门禁由 Platform API 与 Tool Gateway 决定。
+- Development Evidence 读取真实 `local-development` 状态、Artifact 列表与详情以及 Pull Request Record，不在生产界面构造静态 diff、测试结果、Review 结论、安全发现项或 Git 信息。单个 Artifact 详情读取失败时保留其他已成功证据，并显示局部告警。
+- 已形成 Pull Request Record 时，Diff、TestReport、ReviewReport 和 SecurityReport 优先使用该 Record 固化的四类 Artifact ID，避免重试后把不同轮次证据错误拼接；Record 尚未形成时才回退到闭环状态引用或同类型最新 Artifact。
+- Diff Viewer 展示 changed files、diff stat 和 unified patch。源码只作为文本预览呈现，不解释为 HTML；服务端返回截断预览时明确显示 `bytes_returned`，长源码行只允许在 diff 容器内部横向滚动。
+- Test Report 展示测试命令、exit code、通过/失败/跳过计数、stdout、stderr 和失败原因；Review Report 展示 Acceptance Criteria 映射、Review issues、证据引用和是否进入安全检查；Security Report 展示扫描器命令、findings、剩余风险以及是否阻断 PR。
+- Pull Request Record 展示 provider、状态、base/head branch、commit、base commit、changed files 和 diff stat。M6 使用本地 Git 等价记录时，`provider=local` 且 `url=null` 必须显示“本地等价 PR 记录 · 无远端链接”，不得伪造远端 PR URL；未来存在远端 URL 时只允许打开通过 HTTP(S) 协议校验的链接。
+- EventSource 显式监听 `LocalDevelopmentStarted`、`ScaffoldCompleted`、`CodePatchGenerated`、`TestRunStarted`、`TestRunPassed`、`TestRunFailed`、`ReviewCompleted`、`SecurityScanCompleted`、`SecurityScanBlocked`、`ArtifactCreated`、`BranchCreated`、`CommitCreated` 和 `PullRequestRecordCreated`。收到任一事件后自动刷新 Task Detail、左侧 Task Board 和 Development Evidence。
+- M6 证据请求沿用“最后发起的请求才允许更新状态”的并发保护；SSE 高频刷新时保留当前已展示数据，避免整块内容闪烁，操作成功后也会主动刷新证据和任务状态。
+- 响应式边界保持 Gemini 式浅色阅读流：`980px` 以下证据卡片改为单列；`680px` 以下压缩卡片间距、命令输出改为单列、diff 保持局部滚动；`430px` 以下操作按钮、指标和元数据改为移动端布局。1280、1024 和 375 像素目标视口均要求 document 不产生水平溢出。
+
 ## 设计书摘录
 
 ### 13.2 关键交互

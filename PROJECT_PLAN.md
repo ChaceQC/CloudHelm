@@ -5,76 +5,104 @@
 
 ## 1. 当前阶段
 
-M6：本地代码实现、测试与 PR 闭环。
+M7：CI/CD 与远端部署闭环。
 
-前置基线：2026-07-11 已完成 M1-M5 二次审计和 Task conversation /
-Prompt Cache 纠偏，当前项目版本为 `0.4.3`，Agent Runtime 为 `0.3.2`。
-当前基线已经具备：
+前置基线：M6 已完成并验证，当前项目版本为 `0.5.0`。当前基线已经具备：
 
-- Requirement、TechnicalDesign、DevelopmentPlan 真实递增版本、最新版评审
-  约束和 stale approval 拦截。
-- 严格 cursor、最新优先列表、Timeline 最新页内正序和统一错误响应。
-- Tool Gateway 工作区 allowlist、AgentRun/Task 运行态约束、两阶段幂等事务、
-  参数/结果脱敏和 `audit_json`。
-- Task 取消对 AgentRun、ToolCall、Approval 的级联关闭。
-- 每个 Task 唯一 root `agent_conversations`；Requirement、Architect、Planner
-  跨独立 API 请求共享完整 ResponseItem 历史和同一 `prompt_cache_key`。
-- 只有显式 `spawn_subagent` 才创建 child conversation，fresh/full-history、
-  parent/depth/role/status 和最终通知边界已经完成白盒验证。
-- HTTP SSE Responses API、Codex User-Agent、thread/session headers、
-  `reasoning.encrypted_content`、`gpt-5.6-sol` / `xhigh`、逐请求 usage、有界
-  重试和可恢复暂停。
-- Agent 步骤 savepoint：业务产物、成功 AgentRun、conversation turn 和完成
-  事件原子保存，晚期失败不会留下半成品。
-- Gemini 式浅色控制台、Project/Task 请求竞态保护、历史评审按钮、SSE
-  重连/去重/列表同步，以及 AgentRun turn/cache/逐请求 usage 展示。
+- 已审批最新版 DevelopmentPlan 驱动的 Scaffold、Coder、Tester、Reviewer、
+  Security 本地开发闭环。
+- Task root conversation、多轮工具 call/output、供应商 usage、Prompt Cache
+  证据和显式 subagent 边界。
+- Tool Gateway 工作区 allowlist、参数校验、风险分级、审计、限流、幂等、
+  受控 subprocess、测试、安全扫描和 Git 工具。
+- sample repo 真实 diff、pytest、Bandit、pip-audit、branch、commit 和
+  `format_patch` Artifact。
+- `artifacts`、`pull_request_records`、AgentRun workflow identity 和工具
+  provider identity 的 PostgreSQL 持久化。
+- `provider=local`、`url=null` 的本地等价 PR record，以及 diff/test/review/
+  security 同一证据集约束。
+- M6 Platform API、SSE 事件和控制台证据展示。
 
-M6 不重复实现上述基线，也不为未上线旧代码增加兼容层。新增契约、数据库
-migration、事件和前端类型可以直接按当前设计收敛，但必须同步 OpenAPI、
-JSON Schema、文档、测试和进度记录。
+M7 不重复实现 M6 本地代码闭环，也不把本地 PR record 描述成远端 Git PR。
+M7 负责把 M6 固化的精确 commit 作为 release candidate，经真实 CI 生成不可变
+制品，再由 Release / Deploy Agent 在人工审批后完成远端 staging/demo 部署。
+
+版本影响：M7 新增模块、Agent、Tool、数据库表、状态机、API、远端协议和控制台
+能力，属于兼容新增功能。完成后项目版本提升到 `0.6.0`；所有受影响模块版本、
+migration、OpenAPI、JSON Schema、前端类型、配置和文档必须同步。
 
 ## 2. 阶段目标
 
-在 M5 Tool Gateway 与 M4 Task root conversation 基础上，让 CloudHelm 对一个
-受控 sample repo 完成最小本地开发闭环：
+完成以下真实闭环：
 
 ```text
-已审批 DevelopmentPlan
-  -> Coder 在同一 Task root conversation 中生成工具请求
-  -> Tool Gateway 修改 sample repo
-  -> Tester 在同一 root conversation 中运行真实 pytest
-  -> Reviewer 检查真实 diff、测试结果与验收标准
-  -> Security 执行真实本地安全检查
-  -> Git Tool 创建本地 branch / commit
-  -> Platform API 保存 Artifact 与本地等价 PR record
-  -> 控制台展示 diff、测试、安全、review 和 PR record
+M6 PullRequestCreated + 本地 PR record + 精确 commit
+  -> 用户审批 release candidate
+  -> Git Tool 将精确 commit 发布到受控 Gitea branch
+  -> CI 执行 test / security / build / artifact
+  -> CI 产出 commit 绑定的 image digest 和 artifact manifest
+  -> Release / Deploy Agent 生成 ReleasePlan
+  -> Tool Gateway 拦截 deploy.deploy_staging（L3）
+  -> 用户审批精确 ReleasePlan
+  -> Deploy Tool
+  -> Deployment Controller
+  -> Remote Agent
+  -> docker compose config / pull / up
+  -> /health 与容器状态检查
+  -> 服务实例、部署结果、心跳和日志回传
+  -> Task 进入 Monitoring，交给 M8
 ```
 
-关键会话不变量：
+### 2.1 固定语义
 
-1. Coder、Tester、Reviewer、Security、Scaffold 等普通角色继续复用当前 Task
-   root conversation，不能按角色隐式创建新会话。
-2. 只有模型明确请求且 Tool Gateway/Policy 允许的显式 spawn 操作才能创建
-   child conversation。
-3. 工具 call/output、测试结果、diff、审批上下文和最终结构化结果必须按顺序
-   进入 root 或对应 child 历史。
-4. Base Instructions、稳定扁平输出 schema 和发送给模型的工具定义集合不得
-   随普通角色切换而变化；角色权限由 `<role_contract>`、Tool Gateway 和 Policy
-   共同限制。
-5. Prompt Cache 只使用供应商 usage 证据，不因 M6 新角色增加而回退为本地估算。
+1. CI 只负责代码检出、依赖锁校验、测试、安全扫描、镜像构建和制品发布。
+   CI workflow 中禁止 SSH、远端 Compose、部署 API、Remote Agent 调用或服务重启。
+2. 真实远端变更只允许沿以下链路执行：
 
-M6 只做本地 sandbox / sample repo 闭环，不执行远端部署、不 push 到远端、
-不创建真实 GitHub/Gitea PR、不操作生产环境。没有真实 Git 服务时必须生成
-可审计的本地等价 PR record，不能伪造 URL。
+   ```text
+   Release / Deploy Agent
+     -> Tool Gateway
+     -> Deploy Tool
+     -> Deployment Controller
+     -> Remote Agent
+   ```
 
-版本影响：M6 新增 Agent、状态、表、API、事件和控制台能力，属于兼容新增功能。
-完成后项目版本提升到 `0.5.0`；数据库 migration、OpenAPI、共享 schema、
-前端类型和文档必须同步。
+3. Release / Deploy Agent 是普通 Agent，继续复用当前 Task root conversation；
+   角色变化只增加 turn，隐式新建 conversation 仍被禁止。
+4. 部署只接受 CI 成功制品。ReleasePlan 中的 `commit_sha` 必须等于当前
+   PullRequestRecord 的 commit，镜像必须使用 OCI digest，禁止只凭可变 tag 部署。
+5. 部署审批必须绑定：
+   - Task 与 Project。
+   - `environment_id`、`remote_target_id`。
+   - `ci_run_id`、`commit_sha`。
+   - `image_digest`。
+   - `release_plan_sha256`。
+6. 审批通过后仍由用户或 Orchestrator 显式执行下一步；Approval API 本身只记录
+   决策，不在审批 HTTP 事务中直接发起远端副作用。
+7. Remote Agent 是实际远端执行入口。Agent 离线时只允许 SSH 预定义只读诊断，
+   部署动作进入阻塞状态。
+8. M7 只部署 staging/demo。production、Kubernetes、自动回滚和交互终端不进入
+   本阶段完成范围。
+9. M7 成功后 Task 进入 `Monitoring`，保留给 M8 的监控、告警和 SRE 闭环；
+   本阶段不提前进入 `Done`。
+
+### 2.2 MVP 固定实现路径
+
+- CI Provider：Gitea Actions + `act_runner`。
+- Git/CI 演示环境：本地 Docker Compose 中的 Gitea、runner 和受控镜像 registry。
+- 远端目标：一台独立 Linux VM、局域网 Linux 主机或云服务器。
+- 远端运行方式：systemd 管理 Remote Agent，业务项目使用 Docker Compose。
+- 制品：CI test/security report、SBOM/镜像扫描结果、CI manifest、镜像引用和
+  `sha256` digest。
+- 部署配置：项目受控 Compose 模板 + 远端预配置 env profile。
+- 远端协议：认证 HTTPS；请求带目标、部署、幂等键和 request hash。
+- SSH：只用于人工安装、连通性预检和预定义只读诊断，不作为部署执行器。
 
 ## 3. 必须先阅读的本地资料
 
 - `AGENTS.md`
 - `云舵 CloudHelm 毕设设计书.md`
+- `PROJECT_PROGRESS.md`
 - `docs/14-roadmap/03-implementation-milestone-flow.md`
 - `docs/15-detailed-design/00-mvp-scope-and-cutline.md`
 - `docs/15-detailed-design/01-module-contracts.md`
@@ -82,21 +110,26 @@ M6 只做本地 sandbox / sample repo 闭环，不执行远端部署、不 push 
 - `docs/15-detailed-design/03-api-detail.md`
 - `docs/15-detailed-design/04-data-detail.md`
 - `docs/15-detailed-design/05-workflow-state-events.md`
+- `docs/15-detailed-design/06-deployment-observability-detail.md`
 - `docs/15-detailed-design/07-testing-acceptance-matrix.md`
-- `docs/04-agents/00-agent-layer.md`
-- `docs/04-agents/agents/coder-agent.md`
-- `docs/04-agents/agents/tester-agent.md`
-- `docs/04-agents/agents/reviewer-agent.md`
-- `docs/04-agents/agents/security-agent.md`
-- `docs/05-tool-layer/00-tool-gateway.md`
-- `docs/05-tool-layer/tools/repo-tool.md`
-- `docs/05-tool-layer/tools/sandbox-tool.md`
-- `docs/05-tool-layer/tools/git-tool.md`
-- `docs/06-workflows/00-development-to-pr.md`
-- `docs/08-api/03-agent-run-api.md`
-- `docs/08-api/04-tool-call-api.md`
+- `docs/15-detailed-design/08-m6-local-development-flow.md`
+- `docs/06-workflows/01-pr-to-remote-deploy.md`
+- `docs/04-agents/agents/release-agent.md`
+- `docs/05-tool-layer/tools/ci-tool.md`
+- `docs/05-tool-layer/tools/deploy-tool.md`
+- `docs/05-tool-layer/tools/remote-control-tool.md`
+- `docs/03-modules/modules/deployment-controller.md`
+- `docs/03-modules/modules/remote-agent.md`
+- `docs/03-modules/modules/remote-control-plane.md`
+- `docs/08-api/07-environment-deployment-api.md`
+- `docs/08-api/08-remote-ops-api.md`
+- `docs/12-deployment/README.md`
+- `docs/12-deployment/00-local-development.md`
+- `docs/12-deployment/01-remote-demo-deployment.md`
+- `docs/12-deployment/02-demo-environment.md`
+- `docs/12-deployment/03-production-extension.md`
 - `docs/10-security/00-security-boundary.md`
-- `informations/m4-agent-context/codex-responses-context.md`
+- `docs/10-security/01-permission-policy.md`
 - `modules/agent-runtime/README.md`
 - `modules/tool-gateway/README.md`
 - `modules/platform-api/README.md`
@@ -107,52 +140,75 @@ M6 只做本地 sandbox / sample repo 闭环，不执行远端部署、不 push 
 创建：
 
 ```text
-informations/m6-code-test-pr/official-references.md
+informations/m7-ci-remote-deploy/official-references.md
+informations/m7-ci-remote-deploy/reference-projects.md
 ```
 
-至少记录检索日期、官方链接、适用子任务、摘要和采用结论：
+`official-references.md` 至少记录检索日期、官方链接、适用子任务、摘要、采用结论
+和排除结论：
 
-1. FastAPI 当前应用结构、同步长任务边界和 TestClient/httpx 迁移建议。
-2. SQLAlchemy 2.x savepoint、事务回滚、PostgreSQL JSONB、外键和索引实践。
-3. Alembic 新增表、约束、downgrade 和 `alembic check`。
-4. pytest 临时目录、JUnit XML、结构化测试结果和失败恢复。
-5. Git 官方 `switch -c`、`diff --name-only`、显式 pathspec commit、
-   `format-patch` 和本地 PR record。
-6. Semgrep、Bandit、pip-audit 或等价本地安全检查的官方用法、输出格式和许可证。
-7. Docker 一次性容器的只读挂载、可写 worktree、CPU/内存/PID/网络限制和清理。
-8. OpenAI Responses function calling、完整 ResponseItem、streaming、reasoning
-   与 Prompt Cache；复用当前 `gpt-5.6-sol` / `xhigh` Provider，不另写 HTTP client。
-9. Codex 多 Agent 的显式 spawn、父子历史过滤、工具 call/output 回放和最终通知。
+1. Gitea Actions workflow、`act_runner` 注册、workflow dispatch、run/job/artifact
+   API、Webhook 签名和 delivery id。
+2. Git 官方远端配置、非 force push、精确 ref/commit 推送和远端 commit 校验。
+3. Docker Buildx、OCI image digest、SBOM/provenance、registry push/pull 和镜像
+   digest 校验。
+4. Docker Compose `config`、`pull`、`up -d`、healthcheck、project name、资源和
+   安全配置。
+5. FastAPI 服务部署、认证 dependency、流式响应、请求体积限制和长操作边界。
+6. HTTPX TLS、连接池、连接/读取超时和流式下载。
+7. SQLAlchemy 2.x 行锁、短事务、外部副作用前后事务拆分和并发幂等。
+8. Alembic 多表、约束、索引、downgrade 和 `alembic check`。
+9. systemd service hardening、专用用户、文件权限、环境文件和服务重启策略。
+10. Linux Docker socket 权限风险、专用 staging 用户和最小命令 allowlist。
+11. OpenAPI / JSON Schema 跨服务契约和兼容演进。
+12. SSH host key 校验、只读诊断命令和密钥文件权限。
 
-只保存链接、结论和少量必要摘录，不保存第三方全文、真实 Token、Cookie、
-服务器地址或许可证不明的大段代码。
+`reference-projects.md` 只总结架构和工程实践：
 
-## 5. 本阶段不做
+- Rundeck：审批、作业执行记录和幂等远端动作。
+- Windmill：脚本动作封装和参数化审计。
+- Kestra：事件驱动工作流和失败恢复。
+- MeshCentral：Agent 心跳、设备状态和远端操作。
+- Teleport：主机身份、会话审计和 SSH host verification。
 
-- 不 push 到 GitHub/Gitea，不创建真实远端 PR，除非用户另行明确要求并提供远端。
-- 不执行远端 SSH、Compose 上线、服务重启、回滚或监控告警。
-- 不让 Agent 绕过 Tool Gateway 直接读写文件、执行命令或调用 Git。
-- 不把业务规则堆进 API 路由、React 页面或 prompt。
-- 不用固定 diff、假测试报告、假安全报告、假 commit 或假 PR 链接冒充完成。
-- 不把 sample repo 的 `.git`、虚拟环境、依赖目录、缓存、构建产物或凭据提交
-  到 CloudHelm 主仓库。
-- 不实现 Responses WebSocket；继续使用已验证的 HTTP SSE。
-- 不使用前端设计 Skill 或 ImageGen；继续手工延续 Gemini 式浅色主题。
+禁止保存第三方全文、真实 Token、Cookie、runner registration token、服务器
+地址、SSH 私钥或 registry 凭据。
+
+## 5. 本阶段排除范围
+
+- production 部署、生产数据库迁移和生产回滚。
+- Kubernetes、Argo CD、Flux、Terraform/OpenTofu 和多云资源管理。
+- 完整 Prometheus、Loki、Alertmanager、Incident 和 SRE Agent；这些属于 M8。
+- 自动执行回滚；M7 只保存 rollback candidate 和 rollback plan。
+- 任意 SSH command、交互式远程终端和浏览器式远程桌面。
+- 远端服务重启、清缓存和 feature flag 变更。
+- CI workflow 内的 SSH、Compose 上线、Remote Agent 调用或部署 webhook。
+- 只靠可变 image tag、未验证 artifact 或用户提交的任意镜像地址部署。
+- 从 HTTP 请求接收任意主机、SSH key、token、Compose 路径或本地文件路径。
+- 在 Platform API 路由、React 页面或 Agent prompt 中堆积部署业务规则。
+- 用测试 fake、固定返回或本地静态 JSON 冒充真实远端部署。
+- 自动把健康部署后的 Task 写为 `Done`。
 
 ## 6. 预检步骤
 
-### 6.1 Git 与工作区
+### 6.1 Git 与 M6 基线
 
 ```powershell
 git branch --show-current
 git status --short
-git log --oneline --decorate --max-count=8
+git log --oneline --decorate --max-count=10
+git diff --stat
 ```
 
-确认当前分支为 `dev`，工作区干净。建议从 `dev` 创建
-`feature/m6-local-dev-closure`；如果继续在 `dev`，必须保持可验证小步提交。
+要求：
 
-### 6.2 v0.4.3 基线验证
+- M6 已完成验证、提交并推送。
+- `dev` 工作区干净。
+- 从 `dev` 创建 `feature/m7-remote-deploy-closure`。
+- `PROJECT_PROGRESS.md`、roadmap、README、OpenAPI、schema 和版本均已同步到
+  M6 `0.5.0`。
+
+### 6.2 M6 完整回归
 
 ```powershell
 cd modules/tool-gateway
@@ -169,352 +225,6 @@ uv run pytest -q
 
 cd ..\platform-api
 uv lock --check
-uv run alembic upgrade head
-uv run alembic check
-uv run pytest -q
-
-cd ..\..\apps\control-console
-npm.cmd test
-npm.cmd run build
-```
-
-必须额外确认：
-
-- Task root conversation 白盒测试仍通过。
-- 真实外部测试保持默认 skip，只有显式注入凭据时才执行。
-- `CLOUDHELM_LLM_REASONING_EFFORT=xhigh`、Codex User-Agent 和 HTTP SSE 默认
-  配置没有被 M6 新 Agent 覆盖。
-
-### 6.3 本地依赖与 sample repo
-
-```powershell
-Get-Command docker, git, uv, node, npm -ErrorAction SilentlyContinue
-Get-ChildItem examples -Force
-Get-ChildItem modules/tool-gateway -Force
-```
-
-要求：
-
-- sample repo 固定放在 `examples/sample-repo-python/`。
-- `CLOUDHELM_TOOL_WORKSPACE_ROOTS` 必须显式包含 sample repo 或其受控父目录。
-- sample repo 使用嵌套 Git 时，不允许主仓库提交其 `.git`。
-- 缺少 CLI 时优先使用项目局部依赖、`uv`、`npx` 或 Docker，不污染全局环境。
-
-## 7. 详细任务拆分
-
-### 7.1 资料归档与 Sandbox 决策
-
-创建：
-
-```text
-informations/m6-code-test-pr/official-references.md
-docs/15-detailed-design/08-m6-local-development-flow.md
-```
-
-要求：
-
-- 明确继续使用受控 `subprocess`，还是对测试/安全命令增加 Docker 一次性 sandbox。
-- 本地 subprocess 方案必须限制 sample repo allowlist、命令数组、超时、环境
-  变量白名单、输出上限和进程清理，并记录资源/网络隔离不足。
-- Docker 方案必须定义镜像、只读/可写挂载、CPU/内存/PID/网络、超时、
-  清理和 artifact 回收。
-- 先更新设计，再写实现。
-
-### 7.2 准备 `examples/sample-repo-python`
-
-建议目录：
-
-```text
-examples/sample-repo-python/
-  README.md
-  pyproject.toml
-  uv.lock
-  src/sample_service/
-    __init__.py
-    main.py
-    schemas.py
-  tests/
-    test_health.py
-    test_metrics.py
-  Dockerfile
-  docker-compose.yml
-  demo-issues/
-    001-auth-profile.md
-```
-
-实现要求：
-
-- 提供真实 FastAPI `/health` 和 `/metrics` 起点。
-- 提供真实 pytest，初始覆盖健康检查和指标。
-- demo issue 描述注册、登录、个人资料需求和可追溯 AC。
-- sample repo 可独立执行 `uv sync`、`uv run pytest` 和 `uv run uvicorn ...`。
-- 不预先实现 demo issue 目标功能，必须由 M6 Coder 流程产生真实 diff。
-- 独立 Git 由受控脚本或测试 fixture 初始化，主仓库不提交嵌套 `.git`。
-
-完成后仅在真实命令通过时勾选总排期“准备 sample repo”。
-
-### 7.3 扩展稳定 Agent、Tool 与 Artifact 契约
-
-新增或更新：
-
-```text
-modules/agent-runtime/src/cloudhelm_agent_runtime/schemas/
-  implementation.py
-  test_report.py
-  review_report.py
-  security_report.py
-modules/agent-runtime/src/cloudhelm_agent_runtime/prompts/
-  coder.md
-  tester.md
-  reviewer.md
-  security.md
-packages/shared-contracts/schemas/agents/
-  coder-agent-output.schema.json
-  tester-agent-output.schema.json
-  reviewer-agent-output.schema.json
-  security-agent-output.schema.json
-packages/shared-contracts/schemas/artifacts/
-  artifact.schema.json
-  pull-request-record.schema.json
-```
-
-最低字段：
-
-- Coder：Task/Plan 引用、修改文件、每个文件意图、工具请求、风险和摘要。
-- Tester：命令、exit code、通过/失败数、stdout/stderr 摘要、报告引用和失败原因。
-- Reviewer：AC 映射、diff 覆盖、问题清单、结论和是否允许进入安全检查。
-- Security：工具、规则、发现项、严重级别、剩余风险和阻断结论。
-- Artifact：类型、受控路径/URI、hash、大小、生产者、Task、摘要和创建时间。
-- PR record：base/head、commit、changed files、diff/test/review/security 引用和状态。
-
-缓存与工具要求：
-
-- 一次性扩展 `cloudhelm_agent_output_v1`，使所有普通角色发送完全相同的扁平
-  `text.format`；当前角色仍由专属 Pydantic model 严格校验。
-- 定义 M6 root conversation 的稳定工具集合；不能按角色改变 Responses
-  `tools` 前缀。角色能否调用由 Role allowlist、Tool Gateway 和 Policy 判断。
-- Tool declaration、function/custom call、Tool Gateway result 和
-  function/custom output 必须结构化并使用同一 `call_id`。
-- Pydantic、JSON Schema、OpenAPI/事件字段和 TypeScript type 必须一致。
-
-### 7.4 数据模型与 migration
-
-建议新增：
-
-```text
-modules/platform-api/src/cloudhelm_platform_api/models/artifact.py
-modules/platform-api/src/cloudhelm_platform_api/models/pull_request_record.py
-modules/platform-api/src/cloudhelm_platform_api/repositories/artifact_repository.py
-modules/platform-api/src/cloudhelm_platform_api/repositories/pull_request_record_repository.py
-modules/platform-api/migrations/versions/<revision>_create_m6_artifacts.py
-```
-
-要求：
-
-- `artifacts` 关联 task、agent_run、tool_call，保存 metadata JSONB、hash、摘要和
-  受控本地引用。
-- `pull_request_records` 关联 task、project、base/head、commit、diff/test/
-  review/security artifact。
-- 对 task/type/status/created_at 建索引和必要唯一约束。
-- API 不返回任意绝对路径。
-- migration 支持 downgrade，`alembic check` 无差异。
-
-### 7.5 实现 Coder / Tester / Reviewer / Security Agent
-
-新增：
-
-```text
-modules/agent-runtime/src/cloudhelm_agent_runtime/agents/
-  coder_agent.py
-  tester_agent.py
-  reviewer_agent.py
-  security_agent.py
-modules/agent-runtime/tests/
-  test_coder_agent.py
-  test_tester_agent.py
-  test_reviewer_agent.py
-  test_security_agent.py
-```
-
-要求：
-
-- 复用当前 Provider、Instructions、HTTP SSE、`xhigh`、retry、root
-  conversation 和逐请求 usage，不另写 HTTP client。
-- Coder 只提出结构化 ToolCall，不直接触碰文件系统。
-- Tester 只提出允许命令并消费真实 ToolCall 结果，不伪造通过数。
-- Reviewer 基于真实 diff、Requirement AC 和测试报告。
-- Security 基于真实扫描结果；工具不可用时返回 blocked/partial。
-- 普通角色切换只增加 root turn；需要并行工作时必须显式 spawn child。
-- 每个 Agent 成功步骤继续使用 savepoint 原子保存产物、AgentRun、conversation
-  turn 和事件。
-
-### 7.6 扩展 Orchestrator M6 状态机
-
-建议阶段：
-
-```text
-Planning
-  -> Implementing
-  -> Testing
-  -> Reviewing
-  -> SecurityScanning
-  -> ReadyForPR
-  -> Done
-```
-
-要求：
-
-- 只有当前最新版 DevelopmentPlan 为 `approved` 才能进入 Implementing。
-- 每个入口一次只推进一个可审计步骤。
-- ToolCall/AgentRun 失败记录可重试性和恢复阶段。
-- 测试失败、Review 要求修改、Security 阻断均回到明确可恢复状态。
-- ReadyForPR 前必须存在真实 diff、通过测试、review 通过和非阻断安全结论。
-- pause/cancel 沿用 `v0.4.3` 语义，不能绕过运行态继续副作用。
-
-### 7.7 Platform API 本地开发工作流
-
-建议新增：
-
-```text
-modules/platform-api/src/cloudhelm_platform_api/services/local_development_service.py
-modules/platform-api/src/cloudhelm_platform_api/services/artifact_service.py
-modules/platform-api/src/cloudhelm_platform_api/services/pull_request_record_service.py
-modules/platform-api/src/cloudhelm_platform_api/api/artifacts.py
-modules/platform-api/src/cloudhelm_platform_api/api/pull_request_records.py
-modules/platform-api/src/cloudhelm_platform_api/schemas/artifact.py
-modules/platform-api/src/cloudhelm_platform_api/schemas/pull_request_record.py
-modules/platform-api/tests/test_local_development_workflow_api.py
-```
-
-建议 API：
-
-```text
-POST /api/tasks/{task_id}/local-development/start
-POST /api/tasks/{task_id}/local-development/run-next
-GET  /api/tasks/{task_id}/artifacts
-GET  /api/artifacts/{artifact_id}
-GET  /api/tasks/{task_id}/pull-request-records
-GET  /api/pull-request-records/{record_id}
-```
-
-要求：
-
-- service 层调用应用级共享 Tool Gateway，路由不执行文件、命令或 Git。
-- 每步真实写 AgentRun、ToolCall、Artifact、EventLog 和 Task phase。
-- 工作区来自 Project/sample repo 受控配置，不能由请求任意指定本机目录。
-- 报告、diff、review 和安全结论必须来自真实工具结果。
-- 幂等键包含 task/step/attempt，重试不能重复写文件、commit 或 PR record。
-- 无兼容负担时直接采用一致清晰契约，不保留临时别名。
-
-### 7.8 Git 与本地 PR record
-
-- 从 sample repo 默认分支创建 `codex/` 或 `feature/` 前缀分支。
-- `git.commit` 只接受显式文件列表；提交前检查 status/diff。
-- commit message 使用中文类型前缀。
-- 保存 commit hash、base/head、changed files、diff stat 和 patch artifact。
-- 没有远端时创建 `provider=local` 的 PR record，不构造假链接。
-- 重复执行不得创建多个等价 commit/record。
-
-### 7.9 控制台展示
-
-建议新增：
-
-```text
-apps/control-console/src/features/diff-viewer/
-apps/control-console/src/features/test-reports/
-apps/control-console/src/features/security-reports/
-apps/control-console/src/features/pull-requests/
-apps/control-console/src/shared/types/api.ts
-apps/control-console/src/shared/api/cloudhelmApi.ts
-apps/control-console/src/features/tasks/TaskDetail.tsx
-apps/control-console/tests/
-```
-
-要求：
-
-- 展示真实 changed files、diff、测试、安全、review 和 PR record。
-- 提供加载、错误、空、重试和 SSE 刷新状态。
-- 继续使用 Gemini 浅色布局、低饱和背景、浅蓝选择态、柔和圆角和宽松阅读流。
-- 不使用前端 Skill/ImageGen，不添加静态演示数据。
-- 1280×720、1024×768、375×812 无水平溢出；窄屏 diff 可折叠/纵向滚动。
-- 复用最新请求门禁、历史评审策略和 SSE 重连，不得回退。
-
-### 7.10 契约、事件与文档同步
-
-更新：
-
-```text
-packages/shared-contracts/openapi/cloudhelm.openapi.yaml
-packages/shared-contracts/schemas/events/task-event.schema.json
-docs/04-agents/
-docs/06-workflows/00-development-to-pr.md
-docs/08-api/
-docs/09-control-console/
-docs/10-security/
-docs/15-detailed-design/
-README.md
-.env.example
-PROJECT_PROGRESS.md
-```
-
-要求：
-
-- FastAPI OpenAPI 与共享 YAML 反序列化后精确一致。
-- 事件 schema 覆盖 M6 Agent、artifact、测试、review、安全、branch、commit
-  和 PR record。
-- 配置文档加入 sample repo、artifact root、安全工具和 sandbox 变量。
-- 文档明确 M6 是本地等价 PR 闭环，不是远端 PR/部署完成。
-
-## 8. 黑盒测试
-
-至少覆盖：
-
-1. 从 demo issue 创建 Task 并完成 Requirement/Design/Plan 审批。
-2. 未批准计划不能启动 M6。
-3. Coder 经 Tool Gateway 产生真实文件变化。
-4. Tester 执行真实 pytest，成功和失败均落库。
-5. Reviewer 读取真实 diff 与 AC，缺项时阻断 Security。
-6. Security 执行真实工具或返回 partial/blocked，阻断时不能创建 PR record。
-7. Git Tool 创建真实本地 branch 和 commit。
-8. Platform API 返回真实 artifact 和本地 PR record。
-9. 重复请求不重复写文件、commit 或 record。
-10. pause/cancel 阻止后续副作用并关闭 active 记录。
-11. 控制台通过 SSE 无手工刷新展示阶段和 artifact。
-12. Agent Timeline 继续证明所有普通角色使用同一 root conversation。
-
-## 9. 白盒测试
-
-至少覆盖：
-
-- 新 Agent schema 成功、缺字段、非法 enum、断裂引用和超长输出。
-- 稳定输出 schema/工具定义跨所有普通角色完全一致。
-- root conversation 前缀、tool call/output 配对、格式修复与 subagent 隔离。
-- Orchestrator 阶段、非法迁移、失败回退、review/security 阻断和恢复。
-- Artifact/PR repository 分页、任务归属、事务回滚和唯一约束。
-- Tool Gateway allowlist、敏感路径、脱敏、超时、限流、审批和幂等。
-- Git 脏工作区、无变更、目录 pathspec、重复分支和重复 commit。
-- 测试命令失败、超时、stderr 截断、JUnit 解析失败和 artifact 缺失。
-- Security CLI 不存在、非零退出、发现项分级和报告解析失败。
-- 前端 API client、条件渲染、SSE 去重、请求竞态和报告状态策略。
-
-## 10. 验证命令
-
-```powershell
-cd modules/tool-gateway
-uv lock --check
-uv run pytest -q
-
-cd ..\agent-runtime
-uv lock --check
-uv run pytest -q
-
-cd ..\orchestrator
-uv lock --check
-uv run pytest -q
-
-cd ..\platform-api
-uv lock --check
-uv run alembic downgrade <previous_revision>
 uv run alembic upgrade head
 uv run alembic check
 uv run pytest -q
@@ -528,56 +238,1044 @@ npm.cmd test
 npm.cmd run build
 ```
 
+额外确认：
+
+- M6 sample workspace 和 Artifact root 可创建并写入。
+- 最新 PullRequestRecord 的四类质量证据、commit 和 format patch 同属一个
+  `evidence_set_id`。
+- Task 最终处于 `PullRequestCreated`，而不是终态。
+- 普通 Agent 继续使用同一 Task root conversation。
+
+### 6.3 本地 CI 工具预检
+
+```powershell
+Get-Command docker, git, uv, node, npm, ssh -ErrorAction SilentlyContinue
+docker version
+docker compose version
+git --version
+uv --version
+node --version
+npm.cmd --version
+```
+
+要求：
+
+- Docker Desktop 使用 Linux containers。
+- Gitea、runner 和 registry 端口规划无冲突。
+- Gitea token、runner registration token、registry 凭据只通过当前进程或被
+  `.gitignore` 排除的本地 env 文件注入。
+- CI runner 能访问 Gitea、registry 和外部依赖源。
+- 远端主机能访问 registry；实际演示路径优先使用 TLS registry。
+
+### 6.4 远端 Linux 主机预检
+
+远端主机信息只通过环境变量或受控配置注入：
+
+```powershell
+$env:CLOUDHELM_M7_REMOTE_SSH = "USER@HOST"
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "uname -a"
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "docker version"
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "docker compose version"
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "df -h /opt"
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "timedatectl status"
+```
+
+要求：
+
+- Linux 主机已安装 Docker Engine、Compose plugin 和 systemd。
+- 时间同步正常。
+- `/opt/cloudhelm/projects` 和 `/var/lib/cloudhelm-remote-agent` 可由专用服务用户
+  使用。
+- Remote Agent 端口只对控制平面所在私网或指定来源开放。
+- 控制平面和远端双方信任对应 TLS CA。
+- registry、控制平面和远端主机网络互通。
+- staging/demo 使用专用 Docker Compose project，不复用其他业务目录。
+
+如果真实远端主机、TLS 或 registry 尚未准备，代码和本地集成测试可以继续；
+M7 总里程碑保持阻塞，直到完成一次真实远端 E2E。
+
+## 7. 详细任务拆分
+
+### 7.1 先完成 M7 细化设计与边界决策
+
+创建：
+
+```text
+docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md
+informations/m7-ci-remote-deploy/official-references.md
+informations/m7-ci-remote-deploy/reference-projects.md
+```
+
+细化设计必须明确：
+
+- Gitea Actions、runner 和 registry 的拓扑。
+- M6 本地 PR record 到 release candidate 的衔接。
+- CI workflow 的允许动作和部署命令禁止清单。
+- CI run、artifact manifest、image digest 和 commit 的证据关系。
+- ReleasePlan、部署审批和 request hash。
+- Deployment Controller 与 Remote Agent 的 HTTP 契约。
+- Remote Agent 身份认证、TLS、心跳、幂等和命令 allowlist。
+- Compose 模板、远端 env profile、release 目录和健康检查。
+- 远端日志的分页/流式边界和脱敏规则。
+- Task、CI、Deployment、ServiceInstance 的状态机和失败恢复。
+- M7 到 M8 的 `Monitoring` 交接条件。
+
+设计冲突先同步相关 `docs/`，再开始生产代码。
+
+### 7.2 建立真实 CI 与 release candidate 来源
+
+建议创建或更新：
+
+```text
+infra/ci/
+  docker-compose.ci.yml
+  README.md
+  gitea/
+    app.ini.example
+  act-runner/
+    config.example.yaml
+  registry/
+    README.md
+examples/sample-repo-python/
+  .gitea/workflows/ci.yml
+  scripts/build_ci_manifest.py
+modules/platform-api/src/cloudhelm_platform_api/providers/ci/
+  __init__.py
+  base.py
+  gitea_actions.py
+modules/platform-api/tests/
+  test_m7_gitea_ci_provider.py
+  test_m7_ci_webhook.py
+```
+
+实现要求：
+
+1. release candidate 必须引用当前最新版 PullRequestRecord 和精确 commit。
+2. 用户通过 `approve_release_candidate` 后，Git Tool 才能把该 commit 发布到受控
+   Gitea branch；禁止 force push。
+3. Project 配置为远端 Git 模式时，M6 workspace 应从该 Project 的受控仓库
+   clone；fixture 模式继续保留给离线测试。
+4. CI workflow 至少执行：
+   - `uv lock --check`
+   - pytest + JUnit
+   - Bandit
+   - pip-audit
+   - Docker Buildx 构建
+   - Trivy 或等价镜像扫描
+   - SBOM/manifest 生成
+   - 镜像推送并记录 digest
+5. 任一测试、安全或构建步骤失败时禁止发布可部署 manifest。
+6. CI workflow 静态契约测试必须确认不存在 SSH、SCP、远端 Compose、部署 API、
+   Remote Agent 或服务重启命令。
+7. CI Provider 校验 webhook 签名、delivery id、repository、ref 和 commit。
+8. 同一 delivery id 或 run id 重放时返回已有结果，不重复创建 CIRun。
+9. Platform 下载并保存 CI 报告时校验大小、媒体类型和 SHA-256。
+10. CI manifest 至少包含：
+    - provider、repository、run id。
+    - source branch、commit SHA。
+    - test/security/build 状态。
+    - image ref 和 immutable digest。
+    - test/security/SBOM artifact 引用和 SHA-256。
+    - workflow revision、开始/结束时间。
+
+### 7.3 扩展 Agent、CI、部署和远端共享契约
+
+新增或更新：
+
+```text
+modules/agent-runtime/src/cloudhelm_agent_runtime/schemas/
+  release.py
+modules/agent-runtime/src/cloudhelm_agent_runtime/prompts/
+  release.md
+packages/shared-contracts/schemas/agents/
+  release-agent-output.schema.json
+packages/shared-contracts/schemas/ci/
+  ci-run.schema.json
+  ci-artifact-manifest.schema.json
+packages/shared-contracts/schemas/deployments/
+  release-plan.schema.json
+  deployment-result.schema.json
+  health-check-result.schema.json
+packages/shared-contracts/schemas/remote/
+  remote-agent-heartbeat.schema.json
+  remote-operation.schema.json
+  service-status.schema.json
+  remote-log-event.schema.json
+packages/shared-contracts/schemas/tools/
+  ci-tool.schema.json
+  deploy-tool.schema.json
+  remote-control-tool.schema.json
+packages/shared-contracts/openapi/
+  cloudhelm-remote-agent.openapi.yaml
+```
+
+`ReleasePlan` 最低字段：
+
+- task/project/environment/remote target。
+- PullRequestRecord、CI run 和 commit。
+- release version。
+- image ref 和 digest。
+- compose template revision。
+- env profile ref，只保存引用和版本，不保存 secret 值。
+- service、port、volume 和 health check。
+- rollback candidate。
+- risk level、approval reason。
+- `release_plan_sha256`。
+
+`DeploymentResult` 最低字段：
+
+- deployment、remote operation 和 target。
+- release version、commit、image digest。
+- Compose project。
+- 每个服务的状态、runtime ref 和 health result。
+- started/finished 时间。
+- stdout/stderr 脱敏摘要和日志 Artifact。
+- failure code、retryable 和 rollback candidate。
+
+Agent Runtime 要求：
+
+- 一次性扩展稳定输出传输 schema 和稳定工具声明集合。
+- 所有普通角色从 M7 起继续发送同一 schema/tools 前缀。
+- Release Agent 专属输出仍由严格 Pydantic model 二次校验。
+- M7 契约升级可以造成一次预期缓存冷启动，后续普通角色 turn 必须重新稳定命中。
+- Release Agent 禁止直接调用 Git、HTTP、Docker、SSH 或远端文件系统。
+
+### 7.4 数据模型与 migration
+
+建议新增：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/models/
+  environment.py
+  remote_target.py
+  ci_run.py
+  deployment.py
+  service_instance.py
+modules/platform-api/src/cloudhelm_platform_api/repositories/
+  environment_repository.py
+  remote_target_repository.py
+  ci_run_repository.py
+  deployment_repository.py
+  service_instance_repository.py
+modules/platform-api/migrations/versions/
+  202607xx_0007_create_m7_remote_deployment.py
+```
+
+新增表：
+
+#### `environments`
+
+- `project_id`
+- `name`
+- `environment_type`: staging/demo
+- `status`
+- `base_url`
+- `env_profile_ref`
+- `created_at`、`updated_at`
+- 唯一约束：`(project_id, name)`
+
+#### `remote_targets`
+
+- `environment_id`
+- `display_name`
+- `target_type`
+- `agent_id`
+- `agent_endpoint`
+- `credential_ref`
+- `tls_fingerprint`
+- `status`
+- `agent_version`
+- `capabilities_json`
+- `last_heartbeat_at`
+- `last_error_code`
+- 唯一约束：`(environment_id, agent_id)`
+
+API 响应隐藏 `credential_ref`，endpoint 只返回经过脱敏的展示值。
+
+#### `ci_runs`
+
+- `task_id`、`project_id`
+- `pull_request_record_id`
+- `provider`
+- `external_run_id`
+- `repository`
+- `source_ref`
+- `commit_sha`
+- `status`
+- `artifact_manifest_id`
+- `workflow_revision`
+- `idempotency_key`
+- `started_at`、`finished_at`
+- 唯一约束：provider/run id、Task/idempotency key
+
+#### `deployments`
+
+- `task_id`、`project_id`
+- `environment_id`、`remote_target_id`
+- `ci_run_id`
+- `release_plan_artifact_id`
+- `approval_id`
+- `release_version`
+- `commit_sha`
+- `image_ref`、`image_digest`
+- `request_hash`
+- `remote_operation_id`
+- `status`
+- `health_summary_json`
+- `failure_code`
+- `rollback_from`
+- `idempotency_key`
+- `started_at`、`finished_at`
+- 唯一约束：environment/release version、Task/idempotency key
+
+#### `service_instances`
+
+- `deployment_id`、`environment_id`、`remote_target_id`
+- `service_name`
+- `compose_project`
+- `runtime_type`、`runtime_ref`
+- `status`
+- `health_url`
+- `health_json`
+- `last_health_check_at`
+- 唯一约束：`(deployment_id, service_name)`
+
+扩展 `approval_requests`：
+
+- `resource_type`
+- `resource_id`
+- `request_hash`
+- `expires_at`
+- `consumed_at`
+
+扩展 `tool_calls`：
+
+- `resumed_by_agent_run_id`
+- 审批恢复和执行后的 audit 字段。
+
+要求：
+
+- L3/L4 Approval 必须保存 request hash。
+- 审批过期、已消费、目标变化或 hash 变化均视为 stale。
+- migration 支持 downgrade。
+- API、ORM、Pydantic、OpenAPI 和数据库约束一致。
+- `alembic check` 必须无差异。
+
+### 7.5 实现 `modules/remote-agent`
+
+建议目录：
+
+```text
+modules/remote-agent/
+  README.md
+  pyproject.toml
+  uv.lock
+  src/cloudhelm_remote_agent/
+    __init__.py
+    main.py
+    config.py
+    auth.py
+    api/
+      health.py
+      deployments.py
+      services.py
+      operations.py
+    schemas/
+      heartbeat.py
+      deployment.py
+      service.py
+      logs.py
+    services/
+      heartbeat_service.py
+      deployment_service.py
+      compose_service.py
+      health_service.py
+      log_service.py
+      operation_store.py
+    adapters/
+      docker_compose.py
+      control_plane_client.py
+  tests/
+```
+
+Remote Agent 最小生产能力：
+
+1. 启动健康检查和版本/capability 查询。
+2. 周期性向 Platform API 提交签名心跳。
+3. 接收经过认证的 staging deployment request。
+4. 根据 `deployment_id + idempotency_key + request_hash` 防止重复执行。
+5. 使用 SQLite operation store 保存 running/succeeded/failed 结果，进程重启后仍可
+   查询历史操作。
+6. 只操作 `/opt/cloudhelm/projects/<project-key>` 下的受控目录。
+7. 校验 Compose：
+   - 禁止 `privileged`。
+   - 禁止 host network、host PID/IPC。
+   - 禁止挂载 Docker socket。
+   - 禁止任意 device、危险 capability 和受控根目录外 host path。
+   - 只允许 CI manifest 中声明的 image digest。
+8. 从远端预配置 env profile 读取 secret，部署请求只携带 profile ref。
+9. 依次执行：
+   - 写入 release metadata。
+   - `docker compose config`
+   - `docker compose pull`
+   - `docker compose up -d`
+   - `docker compose ps`
+   - HTTP `/health`
+10. 所有命令使用参数数组、固定 profile、超时和输出上限。
+11. 健康成功后更新 `current` 和 `rollback.json`；失败时保留诊断证据，不自动回滚。
+12. 提供 service status、受限日志读取和 diagnostics。
+13. 日志返回限制时间范围、行数和字节数，并执行 secret 脱敏。
+14. 未提供任意 shell 或交互终端入口。
+
+### 7.6 实现 `modules/deployment-controller`
+
+建议目录：
+
+```text
+modules/deployment-controller/
+  README.md
+  pyproject.toml
+  uv.lock
+  src/cloudhelm_deployment_controller/
+    __init__.py
+    schemas.py
+    manifest_renderer.py
+    manifest_policy.py
+    remote_agent_client.py
+    deployment_service.py
+    health_policy.py
+  tests/
+```
+
+职责：
+
+- 验证 ReleasePlan。
+- 从受控模板渲染 Compose 和 release metadata。
+- 将镜像 ref 固定为 `image@sha256:...`。
+- 生成稳定 manifest hash。
+- 调用 Remote Agent。
+- 读取 remote operation 和 health result。
+- 返回结构化 DeploymentResult。
+
+要求：
+
+- 使用 Pydantic 和模板引擎 StrictUndefined。
+- 模板根目录由服务端配置，API 和 Agent 不传任意模板路径。
+- env profile 只使用引用。
+- HTTP client 使用 TLS 校验、明确 connect/read timeout、大小限制和脱敏日志。
+- endpoint 必须来自 RemoteTarget 服务端记录并经过 allowlist 校验。
+- 不写 Platform 数据库；Platform API 是部署事务和事件边界。
+- 不直接调用 SSH 部署。
+- 网络超时后通过相同 idempotency key 查询 Remote Agent operation，禁止盲目
+  重复执行 Compose。
+
+### 7.7 扩展 Tool Gateway：CI、Deploy、Remote Control 与审批恢复
+
+新增或更新：
+
+```text
+modules/tool-gateway/src/cloudhelm_tool_gateway/schemas/
+  ci.py
+  deploy.py
+  remote.py
+modules/tool-gateway/src/cloudhelm_tool_gateway/tools/
+  ci_tool.py
+  deploy_tool.py
+  remote_control_tool.py
+modules/tool-gateway/tests/
+  test_m7_ci_tool.py
+  test_m7_deploy_tool.py
+  test_m7_remote_control_tool.py
+  test_m7_approval_resume.py
+```
+
+M7 注册工具：
+
+|工具|风险|审批|
+|---|---:|---|
+|`ci.trigger_workflow`|L2|否|
+|`ci.get_workflow_status`|L0|否|
+|`ci.get_job_logs`|L0|否|
+|`ci.get_artifact_manifest`|L0|否|
+|`ci.rerun_failed_job`|L2|按策略|
+|`deploy.render_manifest`|L1|否|
+|`deploy.deploy_staging`|L3|是|
+|`deploy.get_release_status`|L0|否|
+|`deploy.health_check`|L0|否|
+|`deploy.rollback_request`|L3|是，仅生成请求|
+|`remote.list_targets`|L0|否|
+|`remote.service_status`|L0|否|
+|`remote.stream_logs`|L0|否|
+|`remote.collect_diagnostics`|L0/L1|否|
+|`remote.ssh_exec_readonly`|L1|按目标策略|
+
+`remote.ssh_exec_readonly` 只接受预定义 diagnostic profile，例如：
+
+- `docker_ps`
+- `compose_ps`
+- `disk_usage`
+- `systemd_status`
+
+禁止自由 command 字符串；必须校验 SSH host key，私钥路径来自服务端配置。
+
+审批恢复要求：
+
+1. 首次 `deploy.deploy_staging` 只创建 waiting ToolCall 和 ApprovalRequest。
+2. Approval 保存精确 request hash。
+3. 审批通过后，下一次 `run-next` 原子抢占原 waiting ToolCall。
+4. 抢占事务提交后才调用 Deployment Controller。
+5. 并发恢复只允许一个执行者。
+6. 重复请求返回已有 running/succeeded 状态。
+7. 审批目标、manifest、digest、环境或版本变化时返回 stale approval。
+8. `resumed_by_agent_run_id` 和原请求 AgentRun 均进入审计。
+9. 审批使用后写 `consumed_at`，禁止二次消费。
+
+### 7.8 实现 Release / Deploy Agent
+
+新增：
+
+```text
+modules/agent-runtime/src/cloudhelm_agent_runtime/agents/
+  release_agent.py
+modules/agent-runtime/src/cloudhelm_agent_runtime/prompts/
+  release.md
+modules/agent-runtime/src/cloudhelm_agent_runtime/schemas/
+  release.py
+modules/agent-runtime/tests/
+  test_release_agent.py
+  test_release_agent_tool_contract.py
+```
+
+要求：
+
+- 输入必须包含最新 PullRequestRecord、CI manifest、environment、target、服务模板
+  和最近健康 release。
+- 校验 PR commit、CI commit 和 image digest 一致。
+- 生成结构化 ReleasePlan、deployment risk 和 rollback candidate。
+- 不读取或输出 secret 值。
+- 通过 ToolCall 请求 CI、Deploy 和 Remote Control Tool。
+- staging 部署必须返回 `needs_approval`。
+- 只读状态和健康检查可以自动执行并审计。
+- CI 失败、制品缺失、digest 不一致、Agent 离线时返回 blocked/failed 原因。
+- 复用当前 Provider、HTTP SSE、完整 Task root conversation、稳定 schema/tools、
+  有界重试和真实 usage。
+- 成功步骤继续通过 Platform API savepoint 原子保存 AgentRun、conversation turn、
+  ReleasePlan Artifact 和事件。
+
+### 7.9 扩展 Orchestrator M7 状态机
+
+建议阶段：
+
+```text
+PullRequestCreated
+  -> WaitingMergeApproval
+  -> CIValidating
+  -> ReleasePlanning
+  -> WaitingDeployApproval
+  -> Deploying
+  -> VerifyingDeployment
+  -> Monitoring
+```
+
+建议 next actions：
+
+```text
+request_release_candidate_approval
+publish_release_candidate
+trigger_ci
+poll_ci
+run_release_agent
+request_deployment_approval
+execute_deployment
+verify_deployment
+complete_m7_handoff
+```
+
+要求：
+
+- `start` 只创建 release candidate 审批，不直接发布或部署。
+- 每次 `run-next` 只推进一个可审计步骤。
+- CI 是异步外部状态；poll/webhook 更新后再推进 Release Agent。
+- WaitingDeployApproval 期间禁止任何远端副作用。
+- Deploying 前再次读取 Task、Approval、Deployment、RemoteTarget 和 CI 状态。
+- CI 失败：Task 暂停在 CIValidating，保存失败报告和可重试动作。
+- 部署失败：Deployment 为 failed，Task 暂停在 Deploying。
+- 健康失败：Deployment 为 unhealthy，保存诊断和 rollback candidate。
+- Agent 离线：进入可恢复阻塞，不自动切换 SSH 部署。
+- pause/cancel 在远端 dispatch 前阻止副作用；dispatch 后记录 cancel requested，
+  等 Remote Agent 返回终态。
+- M7 成功只进入 Monitoring。
+
+### 7.10 Platform API 远端发布工作流
+
+建议新增：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/api/
+  environments.py
+  remote_targets.py
+  ci_runs.py
+  release_deployment.py
+  deployments.py
+  remote_services.py
+  remote_agent_ingress.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/
+  environment.py
+  remote_target.py
+  ci_run.py
+  release_deployment.py
+  deployment.py
+  remote_service.py
+modules/platform-api/src/cloudhelm_platform_api/services/
+  environment_service.py
+  remote_target_service.py
+  ci_run_service.py
+  ci_webhook_service.py
+  release_deployment_service.py
+  release_deployment_context.py
+  deployment_service.py
+  remote_agent_ingress_service.py
+  service_instance_service.py
+  deployment_approval_service.py
+modules/platform-api/src/cloudhelm_platform_api/providers/
+  ci/
+  remote/
+modules/platform-api/tests/
+  test_m7_environment_api.py
+  test_m7_remote_target_api.py
+  test_m7_ci_api.py
+  test_m7_release_deployment_api.py
+  test_m7_deployment_api.py
+  test_m7_remote_agent_ingress.py
+  test_m7_remote_services_api.py
+```
+
+建议 API：
+
+```text
+POST /api/projects/{project_id}/environments
+GET  /api/projects/{project_id}/environments
+GET  /api/environments/{environment_id}
+
+POST /api/environments/{environment_id}/remote-targets
+GET  /api/environments/{environment_id}/remote-targets
+POST /api/remote-targets/{target_id}/test-connection
+
+POST /api/remote-agents/heartbeat
+
+GET  /api/tasks/{task_id}/ci-runs
+GET  /api/ci-runs/{ci_run_id}
+POST /api/webhooks/ci/gitea
+
+GET  /api/tasks/{task_id}/remote-deployment
+POST /api/tasks/{task_id}/remote-deployment/start
+POST /api/tasks/{task_id}/remote-deployment/run-next
+
+GET  /api/projects/{project_id}/deployments
+GET  /api/deployments/{deployment_id}
+POST /api/deployments/{deployment_id}/health-check
+POST /api/deployments/{deployment_id}/rollback-request
+
+GET  /api/environments/{environment_id}/services
+GET  /api/services/{service_id}/status
+GET  /api/services/{service_id}/logs
+GET  /api/services/{service_id}/logs/stream
+POST /api/services/{service_id}/collect-diagnostics
+```
+
+关键规则：
+
+- `remote-deployment/start` 请求只接受 `environment_id`；commit、image 和 target
+  由服务端从已批准资源派生。
+- RemoteTarget endpoint 和 credential 来自服务端受控配置。
+- heartbeat 使用独立 machine authentication dependency。
+- CI webhook 校验签名、delivery id 和 repository。
+- CI、部署、健康和日志网络调用期间不持有数据库事务。
+- 每个外部步骤先短事务抢占，再执行副作用，最后独立事务写终态。
+- CIRun、Deployment、ToolCall 和 Artifact 都必须使用幂等键。
+- 服务日志只返回受限时间窗和字节数。
+- API 永远不返回 runner token、registry token、Remote Agent token、SSH key、
+  env secret 或远端真实 secret 文件路径。
+
+建议稳定错误码：
+
+- `m6_pull_request_required`
+- `release_candidate_stale`
+- `ci_run_not_ready`
+- `ci_commit_mismatch`
+- `ci_artifact_untrusted`
+- `remote_agent_offline`
+- `deployment_approval_required`
+- `deployment_approval_stale`
+- `deployment_already_running`
+- `image_digest_mismatch`
+- `remote_operation_timeout`
+- `health_check_failed`
+
+### 7.11 远端部署配置和安装文件
+
+创建：
+
+```text
+infra/remote-agent/
+  README.md
+  cloudhelm-remote-agent.service
+  remote-agent.env.example
+  install.sh
+infra/staging/
+  sample-repo-python.compose.yml.j2
+  sample-repo-python.env.schema.json
+  README.md
+tests/e2e/
+  test_m7_remote_deploy.py
+  README.md
+```
+
+要求：
+
+- systemd 使用专用用户。
+- 服务环境文件权限为 `0600`。
+- `ProtectSystem`、`PrivateTmp`、`NoNewPrivileges`、`ReadWritePaths` 等 hardening
+  选项按 Docker socket 边界配置。
+- 文档明确 Docker group/socket 具有高权限，Remote Agent 只用于 staging/demo。
+- 远端 secret profile 预先放入 `/etc/cloudhelm/projects/...`，不进入 Git。
+- Compose 模板只引用 CI image digest，不包含 `build:`。
+- sample service 数据使用命名卷，升级时不得删除。
+- release 目录保存：
+  - rendered Compose。
+  - release metadata。
+  - CI manifest 摘要。
+  - health result。
+  - `rollback.json`。
+- 安装、升级、卸载和日志查看命令写入 README。
+- E2E 使用专用 demo project，并提供部署后清理步骤。
+
+### 7.12 控制台远端环境和部署展示
+
+建议新增：
+
+```text
+apps/control-console/src/features/
+  environments/
+  remote-deployment/
+  remote-services/
+  remote-logs/
+apps/control-console/src/shared/types/
+  ci.ts
+  deployment.ts
+  remote.ts
+apps/control-console/tests/
+  m7DeploymentActionPolicy.test.ts
+  m7DeploymentEvidence.test.ts
+  m7EventTypes.test.ts
+  m7RemoteStatus.test.ts
+```
+
+展示内容：
+
+- Environment 名称、类型和 base URL。
+- Remote Target、Agent 状态、版本、capability 和 heartbeat age。
+- release candidate 审批状态。
+- CI run、job 状态、commit、报告和 image digest。
+- ReleasePlan、risk、rollback candidate 和 manifest hash。
+- Deployment 状态、Compose project、remote operation、开始/结束时间。
+- 每个服务的 runtime status、health、版本和 image digest。
+- 受限远端日志和 diagnostics。
+- 统一 Approval Panel 中的 release candidate 与 deployment 审批。
+
+交互要求：
+
+- 只有后端 `next_action` 允许时启用“启动发布”或“推进下一步”。
+- 页面不接收任意 commit、image、host、token、SSH key、Compose 路径或命令。
+- 部署审批卡片展示环境、commit、digest、manifest hash 和风险。
+- 日志按纯文本渲染，不解释 HTML。
+- offline、degraded、failed、unhealthy 和 stale approval 使用明确错误状态。
+- SSE 高频事件保留当前内容，避免整块闪烁。
+- 继续使用 Gemini 式浅色阅读流。
+- 1280×720、1024×768、375×812 无 document 水平溢出。
+
+### 7.13 事件、OpenAPI、配置、版本和文档同步
+
+更新：
+
+```text
+packages/shared-contracts/openapi/cloudhelm.openapi.yaml
+packages/shared-contracts/schemas/events/task-event.schema.json
+docs/01-architecture/
+docs/03-modules/
+docs/04-agents/
+docs/05-tool-layer/
+docs/06-workflows/01-pr-to-remote-deploy.md
+docs/07-data/
+docs/08-api/
+docs/09-control-console/
+docs/10-security/
+docs/12-deployment/
+docs/15-detailed-design/
+README.md
+.env.example
+infra/README.md
+PROJECT_PROGRESS.md
+```
+
+新增事件至少包括：
+
+- `EnvironmentCreated`
+- `RemoteTargetRegistered`
+- `RemoteTargetConnectionSucceeded`
+- `RemoteTargetConnectionFailed`
+- `RemoteAgentHeartbeat`
+- `RemoteAgentOnline`
+- `RemoteAgentOffline`
+- `ReleaseCandidateApprovalRequested`
+- `ReleaseCandidateApproved`
+- `ReleaseCandidateRejected`
+- `ReleaseCandidatePublished`
+- `CIRunTriggered`
+- `CIRunStarted`
+- `CIRunPassed`
+- `CIRunFailed`
+- `CIArtifactPublished`
+- `ReleasePlanCreated`
+- `DeploymentApprovalRequested`
+- `DeploymentRequested`
+- `DeploymentStarted`
+- `DeploymentStepUpdated`
+- `DeploymentHealthy`
+- `DeploymentUnhealthy`
+- `DeploymentFailed`
+- `ServiceInstanceRegistered`
+- `ProjectServiceStatusChanged`
+
+heartbeat 高频上报只更新 `last_heartbeat_at`；首次上线、离线、恢复或超过记录
+间隔时再写 EventLog，避免事件风暴。
+
+环境变量至少覆盖：
+
+```text
+CLOUDHELM_CI_PROVIDER
+CLOUDHELM_GITEA_BASE_URL
+CLOUDHELM_GITEA_TOKEN
+CLOUDHELM_GITEA_WEBHOOK_SECRET
+CLOUDHELM_CI_ARTIFACT_MAX_BYTES
+CLOUDHELM_CI_POLL_INTERVAL_SECONDS
+CLOUDHELM_REGISTRY_BASE_URL
+CLOUDHELM_REGISTRY_CREDENTIAL_REF
+CLOUDHELM_REMOTE_TARGET_PROFILES_FILE
+CLOUDHELM_REMOTE_AGENT_CA_BUNDLE
+CLOUDHELM_REMOTE_AGENT_CONNECT_TIMEOUT_SECONDS
+CLOUDHELM_REMOTE_AGENT_READ_TIMEOUT_SECONDS
+CLOUDHELM_M7_COMPOSE_TEMPLATE_ROOT
+CLOUDHELM_M7_STAGING_ONLY
+```
+
+Remote Agent 配置至少覆盖：
+
+```text
+CLOUDHELM_REMOTE_AGENT_ID
+CLOUDHELM_REMOTE_TARGET_ID
+CLOUDHELM_REMOTE_AGENT_TOKEN
+CLOUDHELM_CONTROL_PLANE_BASE_URL
+CLOUDHELM_REMOTE_AGENT_PROJECT_ROOT
+CLOUDHELM_REMOTE_AGENT_STATE_PATH
+CLOUDHELM_REMOTE_AGENT_ENV_PROFILE_ROOT
+CLOUDHELM_REMOTE_AGENT_HEARTBEAT_SECONDS
+CLOUDHELM_REMOTE_AGENT_MAX_OUTPUT_CHARS
+CLOUDHELM_REMOTE_AGENT_OPERATION_TIMEOUT_SECONDS
+```
+
+版本同步到 `0.6.0`，更新所有受影响模块、lock 文件、health/version 测试和文档。
+
+## 8. 黑盒测试
+
+至少覆盖：
+
+1. 创建 staging Environment，并拒绝非法 environment type。
+2. 注册受控 RemoteTarget，API 不泄露 credential。
+3. 合法 Remote Agent token 可上报心跳；错误 token、错误 target 和重放请求被拒绝。
+4. 心跳超时后 Target 变为 offline，恢复后回到 online。
+5. 缺少 M6 PullRequestRecord、质量证据或已审批计划时禁止启动 M7。
+6. release candidate 审批前不发布 branch、不触发 CI。
+7. CI 检出精确 commit，真实执行 test/security/build。
+8. CI 测试、安全或构建失败时不生成可部署 Artifact。
+9. CI manifest 的 commit 或 digest 与 PR record 不一致时 Release Agent 阻断。
+10. Release Agent 生成真实 ReleasePlan。
+11. 首次 `deploy.deploy_staging` 只产生 L3 Approval，不触发远端操作。
+12. 审批拒绝、过期或 hash 变化时远端保持不变。
+13. 审批通过并显式推进后，远端只执行一次部署。
+14. 网络超时后用相同 idempotency key 查询已有 operation，不重复 `compose up`。
+15. Remote Agent 执行真实 Compose 并返回服务状态。
+16. `/health` 2xx 后 Deployment 进入 healthy，Task 进入 Monitoring。
+17. `/health` 失败时 Deployment 为 unhealthy，保存日志与 rollback candidate。
+18. Remote Agent 离线时部署阻塞，SSH fallback 只执行预定义只读诊断。
+19. 控制台通过 SSE 展示 CI、审批、部署、心跳、服务和健康状态。
+20. 控制台可查看受限远端日志。
+21. Task 在 M7 成功后仍为 Monitoring，不提前进入 Done。
+22. 一次真实远端 Linux 主机 E2E 完成并保存证据。
+
+## 9. 白盒测试
+
+至少覆盖：
+
+- ReleasePlan、DeploymentResult、CI manifest、Heartbeat 和 RemoteOperation schema。
+- Release Agent 缺字段、非法 enum、commit/digest 断裂和 secret 泄露检测。
+- M7 所有普通 Agent 的稳定输出 schema/tools 前缀。
+- Task root conversation、approval context 和 tool call/output 配对。
+- M7 状态机正常、非法迁移、CI 失败、审批拒绝、部署失败和健康失败。
+- Environment/Target/CIRun/Deployment/Service repository 分页、归属和唯一约束。
+- migration upgrade/downgrade 和事务回滚。
+- Webhook 签名、delivery id 重放和外部 run id 幂等。
+- CI artifact 大小、SHA、媒体类型和 commit provenance。
+- Tool Gateway Agent allowlist、风险等级和 approval resume 并发。
+- Approval target/hash/expiry/single-use。
+- Deployment Controller 模板 StrictUndefined、digest 固定和危险 Compose 配置拒绝。
+- Remote Agent 路径穿越、symlink、危险 volume、docker.sock、privileged 和 host network。
+- Remote Agent operation SQLite 幂等、进程重启恢复、超时和输出截断。
+- heartbeat 时间戳、签名、离线判断和事件降频。
+- service status、日志时间窗、行数、字节数和脱敏。
+- SSH diagnostic profile 白名单和 host key 校验。
+- 前端 next_action、审批策略、SSE 去重、日志纯文本和请求竞态。
+- CI workflow AST/YAML 检查，确认无部署命令。
+
+## 10. 验证命令
+
+```powershell
+cd modules/remote-agent
+uv lock --check
+uv run pytest -q
+
+cd ..\deployment-controller
+uv lock --check
+uv run pytest -q
+
+cd ..\tool-gateway
+uv lock --check
+uv run pytest -q
+
+cd ..\agent-runtime
+uv lock --check
+uv run pytest -q
+
+cd ..\orchestrator
+uv lock --check
+uv run pytest -q
+
+cd ..\platform-api
+uv lock --check
+uv run alembic downgrade 20260714_0006
+uv run alembic upgrade head
+uv run alembic check
+uv run pytest -q
+
+cd ..\..\examples\sample-repo-python
+uv lock --check
+uv run pytest -q
+docker compose config
+docker build --tag cloudhelm/sample-repo-python:m7-smoke .
+
+cd ..\..\apps\control-console
+npm.cmd test
+npm.cmd run build
+```
+
+CI/部署配置：
+
+```powershell
+docker compose -f infra/docker-compose.ci.yml config
+docker compose -f infra/docker-compose.ci.yml up -d
+docker compose -f infra/docker-compose.ci.yml ps
+```
+
+真实远端验证：
+
+```powershell
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "systemctl is-active cloudhelm-remote-agent"
+ssh $env:CLOUDHELM_M7_REMOTE_SSH "docker compose version"
+uv run pytest -q tests/e2e/test_m7_remote_deploy.py -m remote
+```
+
 补充门禁：
 
-- 解析全部共享 JSON Schema，并校验代表性 Agent/Artifact 输出。
-- OpenAPI 与 FastAPI 精确比较。
-- 浏览器回归 1280×720、1024×768、375×812，检查 diff/report/PR、SSE 和 console。
-- `git diff --check`、secret scan、TODO/FIXME/NotImplemented/空 `pass`、
-  普通生产源码超过 300 行检查。
-- sample repo 与主仓库分别执行 `git status --short`，确认没有依赖、缓存、
-  嵌套 `.git` 或凭据。
-- 真实外部模型仅在 Agent/Tool/Conversation 契约变化时执行最小必要回归，
-  凭据只临时注入进程。
+- FastAPI OpenAPI 与共享 YAML 反序列化后精确一致。
+- Remote Agent OpenAPI 与共享契约精确一致。
+- 解析全部 JSON Schema，并校验代表性 Agent、CI、Deployment、Remote 对象。
+- CI workflow 静态检查确认没有部署或 SSH 命令。
+- image digest、CI commit、PR commit 和 ReleasePlan hash 全链一致。
+- 浏览器检查 1280×720、1024×768、375×812。
+- secret scan。
+- TODO/FIXME/NotImplemented/空 `pass` 扫描。
+- 普通生产源码 300 行、复杂文件 400 行检查。
+- `git diff --check`。
+- 本地 CI、Platform、sample workspace 和远端 demo 目录分别检查残留制品和凭据。
+- 真实 E2E 保存 CI manifest、ReleasePlan、DeploymentResult、health、日志摘要和
+  timeline。
 
 ## 11. 文档、进度与 Git
 
 每完成一个可验证小步：
 
-1. 更新 `PROJECT_PROGRESS.md`，记录命令、结果、缺陷闭环和剩余风险。
-2. 满足完成判定后，在总排期勾选对应 M6 子项。
-3. 修改 API/schema/事件/配置/状态机/安全边界时同步对应文档。
-4. 检查 `git status`、`git diff --stat` 和关键 diff。
-5. 按可验证粒度提交中文 commit，并 push 当前开发分支。
-6. M6 全部完成后把本文件重写为 M7 详细计划。
+1. 更新 `PROJECT_PROGRESS.md`，记录环境、命令、结果、缺陷闭环和剩余风险。
+2. 满足完成判定后，在总排期勾选对应 M7 子项。
+3. API、schema、状态机、Tool、Agent、远端协议、安全或配置变化同步相关文档。
+4. 检查 `git status --short`、`git diff --stat` 和关键文件 diff。
+5. 按可验证粒度提交中文 commit。
+6. push 当前 M7 功能分支。
+7. M7 全部通过后合并回 `dev` 并推送。
+8. 从 `dev` 合并到 `main` 前重新执行完整验证；如发布则使用 `v0.6.0`。
+9. M7 完成后把本文件重写为 M8 详细计划。
 
-## 12. M6 完成判定
+建议提交粒度：
 
-只有全部满足才算 M6 完成：
+- `docs: 完成 M7 CI 与远端部署细化设计`
+- `feat: 新增远端环境和部署数据模型`
+- `feat: 新增 Remote Agent`
+- `feat: 新增 Deployment Controller`
+- `feat: 新增 CI Deploy 和 Remote Control 工具`
+- `feat: 新增 Release Deploy Agent 与 M7 状态机`
+- `feat: 接入远端发布 API 和控制台`
+- `test: 补充 M7 远端部署黑盒白盒测试`
+- `docs: 同步 M7 进度版本与验收记录`
 
-- sample repo 可独立启动 `/health`、`/metrics` 并通过 pytest。
-- Coder、Tester、Reviewer、Security Agent 均有结构化生产实现和测试。
-- 普通 Agent 继续共享 Task root conversation，工具调用均经过 Tool Gateway。
-- sample repo 产生真实 diff、测试报告、review、安全结果、branch 和 commit。
-- Platform API 持久化真实 Artifact 和本地 PR record，并写完整 EventLog。
-- 控制台展示真实 diff/test/security/review/PR，三种视口和 SSE 通过。
-- migrations、全部模块测试、sample repo、OpenAPI、JSON Schema 和静态检查通过。
-- 总排期、`PROJECT_PROGRESS.md` 和下一阶段 `PROJECT_PLAN.md` 同步。
-- 已按小步提交并推送 `dev` 或 M6 功能分支。
+## 12. M7 完成判定
+
+只有全部满足才算 M7 完成：
+
+- 存在一个真实 Gitea Actions CI run。
+- CI 对 M6 精确 commit 完成 test/security/build/artifact。
+- CI workflow 不包含任何远端部署动作。
+- CI manifest、image digest、PullRequestRecord 和 ReleasePlan 证据一致。
+- Release / Deploy Agent 有生产实现、结构化输出和测试。
+- Deploy Tool、Remote Control Tool 和审批恢复语义真实落地。
+- Deployment Controller 有真实模板渲染、远端调用和健康检查。
+- Remote Agent 以 systemd 服务运行，能上报心跳、执行 Compose、返回状态和日志。
+- staging 部署在 L3 审批前没有远端副作用。
+- 审批后 sample repo 真正在远端 Linux 主机运行。
+- `/health` 成功，Deployment 为 healthy，ServiceInstance 状态正确。
+- 控制台展示 CI、release、审批、部署、远端状态、健康和日志。
+- Task 最终进入 Monitoring。
+- migration、全部模块测试、CI smoke、远端 E2E、OpenAPI、JSON Schema、前端构建
+  和静态门禁全部通过。
+- roadmap、`PROJECT_PROGRESS.md` 和下一阶段 `PROJECT_PLAN.md` 已同步。
+- 已按小步提交并推送功能分支和 `dev`。
 
 ## 13. 风险与阻塞
 
-- Docker sandbox 成本过高：可继续使用受控目录，但只允许 sample repo，并记录
-  网络/资源隔离不足。
-- 安全 CLI 不可用：局部安装或 Docker；仍不可用时标记 blocked/partial，
-  不得伪造通过。
-- Git Tool 影响主仓库：sample repo 使用独立目录和显式 root，每步前后检查
-  两个仓库状态。
-- 外部 LLM 不可用：按 `v0.4.3` 重试/暂停语义记录；本地 Provider 不能伪造
-  Coder 真实执行结果。
-- Windows symlink 权限不足：保留跳过条件，但不放宽 allowlist。
-- 真实远端 Git 不存在：生成本地 PR record 和 patch artifact，明确等价边界。
-- 上下文增长过快：M6 先测量 root conversation 体积；达到阈值前补
-  compaction/truncation 设计，不能静默丢历史。
-- 任一工具、测试、review 或安全门禁失败：写失败记录并回到可恢复状态，
-  不创建 PR record、不勾选完成。
+- 真实远端主机缺失：完成代码和本地集成测试后保持 M7 阻塞，直到真实 E2E。
+- registry 网络或 TLS 配置失败：修复可信 registry 链路；不得改用未校验可变 tag。
+- Gitea runner 不稳定：记录真实 run/job 日志，修复 runner 配置后重跑。
+- M6 commit 与远端仓库历史不一致：让 Project 的 M6 workspace 从受控 Gitea
+  baseline clone，禁止 force push 覆盖历史。
+- CI artifact 下载失败：保留 CIRun 和错误事件，不生成 ReleasePlan。
+- Remote Agent token、TLS CA 或时间偏差错误：保持 offline/degraded，部署阻塞。
+- Docker socket 权限较高：限定 staging/demo、专用用户、命令 allowlist、systemd
+  hardening 和独立主机。
+- Remote Agent 网络超时但远端操作已执行：依靠 operation store 和相同幂等键查询，
+  禁止盲目重复部署。
+- Compose 模板或 env profile 缺失：Deployment 进入 failed，不生成临时默认 secret。
+- 健康检查失败：保存诊断和 rollback candidate，不自动回滚。
+- 远端日志含敏感信息：服务端脱敏、截断并限制时间窗，控制台按纯文本展示。
+- Approval 并发或资源变化：行锁、request hash、expires/consumed 字段阻止重复执行。
+- CI/Deployment 长操作：数据库事务只负责抢占和终态写入，网络操作发生在事务外。
+- M7 schema/tools 扩展造成缓存冷启动：记录一次预期冷启动，后续 turn 验证缓存恢复。
+- 完整 Prometheus/Loki/Alertmanager 尚未接入：M7 只提供心跳、服务状态、健康和
+  受限日志，M8 再完成监控告警。

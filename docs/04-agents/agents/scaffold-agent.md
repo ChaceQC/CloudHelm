@@ -4,19 +4,26 @@
 
 ## 职责
 
-根据模板创建项目骨架、模块目录、配置文件、CI 文件和基础测试。
+在已审批 DevelopmentPlan 和服务端 execution recipe 约束下，把只读 fixture
+准备为 Task 独立 Git workspace，并返回 baseline 身份与文件证据。
 
 ## 允许工具
 
-`scaffold.generate、repo write、sandbox exec`
+- `scaffold.prepare_workspace`
+- `repo.read_file`
+- `repo.search_text`
+- `repo.list_files`
 
 ## 主要输出
 
-project skeleton、module files、CI config。
+`ScaffoldAgentOutput`：`workspace_key`、`baseline_branch`、
+`baseline_commit`、`baseline_files`、verification、ToolCall 与 Artifact 引用。
 
 ## 风险边界
 
-仅能写 sandbox worktree。
+- fixture、workspace parent 和目标目录由 Platform API 绑定，模型不可提交本机路径。
+- 相同 Task/baseline 的重放复用原 workspace，不覆盖 Coder 已修改文件。
+- 仅准备本地 workspace，不 push、不部署。
 
 ## 与其他 Agent 的协作
 
@@ -26,7 +33,7 @@ project skeleton、module files、CI config。
 
 ## 验收点
 
-1. 能生成结构化结果。
-2. 能在失败时给出可恢复原因。
-3. 工具调用符合角色权限。
-4. 关键结果能进入 EventLog / Artifact / Spec Store。
+1. `scaffold.prepare_workspace` 只调用一次并产生真实 ToolCall。
+2. 输出 workspace/baseline 字段与 Tool 结果一致。
+3. 越界路径、marker 冲突或 baseline 不一致时给出稳定失败原因。
+4. 成功后进入 `Implementing`，关键结果进入 EventLog 与 Artifact。

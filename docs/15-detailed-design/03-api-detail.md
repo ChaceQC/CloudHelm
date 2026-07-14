@@ -29,6 +29,16 @@
 - 需求/设计返工会级联失效旧设计、旧计划和待审批记录；设计/计划审批只接受当前产物 AgentRun，过期审批返回 `409 stale_approval`。
 - 边界：M4 不执行 Tool Gateway、Repo/Git/Docker/SSH、PR、部署或监控动作。
 
+## M6 落地状态
+
+- 新增 `local-development` state/start/run-next、Artifact 列表/详情和本地
+  PullRequestRecord 列表/详情 API。
+- `run-next` 每次推进 Scaffold、Coder、Tester、Reviewer、Security 或本地 PR
+  收尾中的一个动作，HTTP 请求不接收 workspace、命令、分支或 Artifact root。
+- 完整字段、门禁、错误与事件见
+  [08-m6-local-development-flow.md](08-m6-local-development-flow.md) 和
+  [../08-api/11-local-development-api.md](../08-api/11-local-development-api.md)。
+
 ### M2 内部联调创建接口
 
 以下接口用于 M4/M5 接入前写入真实数据库记录，不能表述为 Agent 或 Tool
@@ -576,10 +586,20 @@ SSE 事件类型：
 
 ### `POST /api/tasks/{task_id}/tool-gateway/call`
 
-- 调用方：后续 Agent Runtime 或开发调试脚本。
-- 请求：`agent_run_id`、`tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。
+- 调用方：Platform API 内部 Agent executor 或受控开发调试脚本。
+- 请求：`agent_run_id`、成对出现的 `provider_call_id/provider_item_type`、
+  `tool_name`、`risk_level`、`idempotency_key`、`arguments`、`reason`。
+  `agent_type` 由 Platform API 从 AgentRun 解析，不由公开请求提交。
 - 成功响应：`ToolCallRead`，包含状态、参数摘要、结果摘要、stdout/stderr 摘要、耗时、错误码和审批 ID。
-- 幂等：先写入并提交 `pending` ToolCall，依靠数据库唯一索引原子抢占同一 `task_id` 下的 `idempotency_key`；抢占失败返回 `409 duplicate_idempotency_key`，且不会执行真实副作用。
+- 幂等：先写入并提交 `pending` ToolCall，依靠数据库唯一索引原子抢占同一
+  `task_id` 下的 `idempotency_key`。完全相同且已经结束的重放返回已有
+  ToolCall；相同 `idempotency_key` 或 `provider_call_id` 对应不同调用时返回
+  `409 idempotency_conflict`，已有调用仍在执行时返回
+  `409 tool_call_in_progress`，所有冲突路径都不会重复执行真实副作用。
+- M6 execution recipe：带 `workflow_step` 的 AgentRun 只能由 Platform API
+  内部本地开发执行器提交调用；公开 Tool Gateway HTTP 入口不能绕过该边界。
+  执行器按工具名、Pydantic 默认值规范化后的参数和允许调用次数进行精确绑定，
+  未批准调用写入失败 ToolCall 和审计指纹，但不进入工具 handler。
 - 权限：副作用工具必须绑定当前任务 AgentRun，且 Agent 类型必须在工具白名单内；仅工具显式声明 `allow_system_call=true` 时允许无 AgentRun 的平台内部调用。
 - AgentRun 必须处于 `running`；Tool Gateway 内部 `agent_run_id` 和 `agent_type` 必须同时存在或同时为空。
 - 事件副作用：写入 `ToolCallStarted`，随后写入 `ToolCallSucceeded`、`ToolCallFailed` 或 `ApprovalRequested`。

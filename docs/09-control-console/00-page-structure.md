@@ -38,6 +38,20 @@
 - SSE 回放结束后自动重连并按 event id 去重；旧连接回调不能关闭新连接，组件卸载时关闭连接和重连定时器，新事件同时刷新 Task Detail 和左侧 Task Board。
 - 控制台不提供任意工具调用调试入口，避免用户从 UI 直接发起高风险动作；工具执行入口由 Platform API 和后续 Agent 流程控制。
 
+## M6 落地状态
+
+- Task Detail 新增本地开发控制区，读取后端 `current_phase/next_action` 并逐步
+  调用 `local-development/start` 与 `local-development/run-next`。
+- Development Evidence 展示 Artifact 安全预览和 PullRequestRecord 固化的
+  diff/test/review/security 证据，不跨 evidence set 拼接最新记录。
+- Diff Viewer 展示 unified patch、changed files 和 diff stat；长行只在 diff
+  容器内部滚动，不造成 document 水平溢出。
+- Test、Review、Security 面板展示真实结构化报告、ToolCall 与错误摘要。
+- 本地等价 PR 显示 base/head、commit、changed files 和门禁 Artifact；
+  `provider=local`、`url=null` 时明确显示无远端链接。
+- EventSource 新增 M6 事件监听，收到事件后刷新 Task、Task Board 和 Development
+  Evidence。
+
 ## 设计书摘录
 
 ### 13.1 页面结构

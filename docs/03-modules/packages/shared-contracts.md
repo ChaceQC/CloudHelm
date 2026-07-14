@@ -3,13 +3,20 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`packages/shared-contracts`
 
-## M2 实现状态
+## M6 实现状态
 
-共享契约已同步 M2 API：
+共享契约已同步当前 M6 API：
 
-- `openapi/cloudhelm.openapi.yaml`：由 `modules/platform-api` 当前 FastAPI 应用导出，版本 `0.4.3`，包含 Agent conversation 与逐请求 Provider usage 字段。
-- `schemas/events/task-event.schema.json`：补充 M2 真实事件类型。
-- `schemas/tools/tool-risk-level.schema.json`：明确 M2 只记录 ToolCall 与 ApprovalRequest，真实 Tool Gateway 拦截后续实现。
+- `openapi/cloudhelm.openapi.yaml`：由 `modules/platform-api` 当前 FastAPI
+  应用导出，版本 `0.5.0`，覆盖 M6 local-development、Artifact 与本地等价
+  PR record API。
+- `schemas/agents/*.schema.json`：覆盖 Requirement、Architect、Planner、
+  Scaffold、Coder、Tester、Reviewer、Security 的稳定结构化输出。
+- `schemas/artifacts/*.schema.json`：约束 Artifact 安全引用和本地 PR record。
+- `schemas/events/task-event.schema.json`：覆盖 M1-M6 当前真实事件类型。
+- `schemas/tools/*.schema.json`：描述 ToolCall、风险等级和 Requirement、Design、
+  Repo、Scaffold、Sandbox、Test、Security、Git 已实现工具契约；名称、风险和
+  参数字段与 Tool Gateway registry 执行一致性测试。
 
 ## 职责
 

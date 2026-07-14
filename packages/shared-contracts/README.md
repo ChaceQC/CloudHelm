@@ -4,9 +4,20 @@
 
 ## 当前内容
 
-- `openapi/cloudhelm.openapi.yaml`：`0.4.3` Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、逐请求 Provider usage、ToolCall、Tool Gateway、Approval、Orchestration 和 Event Timeline。
-- `schemas/events/task-event.schema.json`：M2-M5 真实 `event_logs` 字段和事件类型枚举，包括 Agent conversation/subagent、AgentRun/ToolCall 取消与 Approval 过期。
-- `schemas/tools/*.schema.json`：Tool Gateway 风险等级、ToolCallRequest/Result、Repo/Sandbox/Git/Requirement/Design Tool 契约；请求包含内部 Agent 类型，声明同时暴露参数与结果 schema。
+- `openapi/cloudhelm.openapi.yaml`：Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、逐请求 Provider usage、ToolCall、Tool Gateway、Approval、Orchestration、M6 本地开发闭环和 Event Timeline。
+- `schemas/events/task-event.schema.json`：M2-M6 真实 `event_logs` 字段和事件类型枚举，包括 Agent conversation/subagent、AgentRun/ToolCall 取消、Approval 过期和本地开发证据事件。
+- `schemas/agents/agent-common.schema.json`：八类普通 Agent 共用的稳定传输
+  前缀，约束 schema 版本、角色、状态、摘要、证据引用、风险、阻塞项和
+  ToolCall 摘要。
+- `schemas/agents/*-agent-output.schema.json`：Requirement、Architect、
+  Planner、Scaffold、Coder、Tester、Reviewer、Security 的角色专属严格输出；
+  M6 Scaffold/Coder 额外绑定 workspace、baseline、branch、diff 等真实执行
+  字段，字段集合与 Agent Runtime Pydantic model 精确一致。
+- `schemas/artifacts/*.schema.json`：Artifact 安全详情与本地等价 PullRequestRecord 响应契约；不暴露内部 storage key 或工作区绝对路径。
+- `schemas/tools/*.schema.json`：Tool Gateway 风险等级、ToolCallRequest/Result、
+  Requirement、Design、Repo、Scaffold、Sandbox、Test、Security、Git Tool 契约。
+  ToolCallRequest 覆盖成对的 Agent 与 provider call 身份；工具 schema 与当前
+  Pydantic/registry 的名称、风险和参数字段执行一致性测试。
 - `types/README.md`：后续生成类型的存放说明。
 
 ## 使用方

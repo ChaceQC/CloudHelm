@@ -94,7 +94,8 @@
 - [x] 实现 Tool Gateway 参数校验、权限判断、风险等级、限流和审计记录。
 - [x] 实现 Requirement Tool 和 Design Tool。
 - [x] 实现 Repo Tool，支持真实读取和写入 worktree。
-- [x] 实现 Sandbox Tool，支持本地受控目录命令执行、超时和 artifact 收集；Docker sandbox 留到 M6 前置增强。
+- [x] 实现 Sandbox Tool，支持本地受控目录命令执行、超时和 artifact 收集；
+  M6 已评估并保留受控 subprocess，M7 前继续评估 Docker/远端执行隔离。
 - [x] 实现 Git Tool，支持 diff、branch、commit。
 - [x] 控制台展示 tool_calls 的工具名、参数摘要、风险等级、状态和输出摘要。
 
@@ -102,14 +103,15 @@
 
 ### M6 本地代码实现、测试与 PR 闭环
 
-- [ ] 准备 `examples/sample-repo-python`，包含 FastAPI `/health`、`/metrics`、pytest 和 Dockerfile。
-- [ ] 实现 Scaffold Agent。
-- [ ] 实现 Coder Agent，真实修改 sample repo。
-- [ ] 实现 Tester Agent，真实运行 pytest 并生成测试报告。
-- [ ] 实现 Reviewer Agent，检查 diff 与验收标准。
-- [ ] 实现 Security Agent，运行 Semgrep / Trivy / dependency audit。
-- [ ] 创建 branch、commit、PR 或等价 PR record。
-- [ ] 控制台展示 diff、测试报告、安全扫描、审查结论和 PR 链接/记录。
+- [x] 准备 `examples/sample-repo-python`，包含 FastAPI `/health`、`/metrics`、pytest 和 Dockerfile。
+- [x] 实现 Scaffold Agent。
+- [x] 实现 Coder Agent，真实修改 sample repo。
+- [x] 实现 Tester Agent，真实运行 pytest 并生成测试报告。
+- [x] 实现 Reviewer Agent，检查 diff 与验收标准。
+- [x] 实现 Security Agent，默认运行 Bandit 与 pip-audit；Semgrep / Trivy
+  保留为后续可配置扫描器和镜像门禁。
+- [x] 创建 branch、commit、PR 或等价 PR record。
+- [x] 控制台展示 diff、测试报告、安全扫描、审查结论和 PR 链接/记录。
 
 完成判定：能从功能需求生成真实代码变更、测试报告、审查结论和 PR/等价记录。
 
@@ -161,4 +163,6 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1、M2、M3、M4、M5 已完成，最新验证基线为 `v0.4.3`。下一步执行 M6：本地代码实现、测试与 PR 闭环。详细执行计划见根目录 `PROJECT_PLAN.md`。
+当前 M0、M1、M2、M3、M4、M5、M6 已完成，最新验证基线为
+`v0.5.0`。下一步执行 M7：CI/CD 与远端部署闭环。详细执行计划见根目录
+`PROJECT_PLAN.md`。

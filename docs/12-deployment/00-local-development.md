@@ -10,7 +10,8 @@
 
 ## M1 本地最小工程命令
 
-M1 暂不启动完整 Docker Compose，只验证平台 API、控制台和共享契约的最小工程基线。
+M1 阶段未启动完整 Docker Compose，只验证平台 API、控制台和共享契约的最小
+工程基线；该段保留用于追溯最初启动方式。
 
 ### Platform API
 
@@ -31,7 +32,9 @@ npm.cmd run dev
 npm.cmd run build
 ```
 
-Windows PowerShell 如拦截 `npm.ps1`，使用 `npm.cmd`。Tauri 桌面壳在控制台主流程阶段接入；当前 M1 只验证 React/TypeScript 骨架。
+Windows PowerShell 如拦截 `npm.ps1`，使用 `npm.cmd`。M1 当时只验证
+React/TypeScript 骨架；当前 M6 仍以浏览器控制台完成真实闭环，完整 Tauri
+桌面壳保留给后续演示阶段。
 
 ## M2 本地数据库与 API 命令
 
@@ -55,6 +58,36 @@ docker compose -f infra/docker-compose.dev.yml --profile optional up -d redis
 ```
 
 当前生产代码路径未使用 Redis。
+
+## M6 sample repo 与本地工作区
+
+M6 继续把 PostgreSQL 作为 Platform API 持久化依赖，但代码、测试、安全扫描
+和 Git 副作用发生在 Task 独立本地 workspace。源 fixture 可先独立验证：
+
+```powershell
+cd examples/sample-repo-python
+uv lock --check
+uv run pytest -q
+```
+
+Platform API 默认从仓库根目录派生下列路径，也可通过环境变量覆盖：
+
+```powershell
+$env:CLOUDHELM_M6_SAMPLE_REPO_ROOT='D:\path\to\CloudHelm\examples\sample-repo-python'
+$env:CLOUDHELM_M6_RECIPE_ROOT='D:\path\to\CloudHelm\examples\sample-repo-python\demo-issues'
+$env:CLOUDHELM_M6_WORKSPACE_ROOT='D:\path\to\CloudHelm\output\m6-workspaces'
+$env:CLOUDHELM_ARTIFACT_ROOT='D:\path\to\CloudHelm\output\artifacts'
+$env:CLOUDHELM_ARTIFACT_PREVIEW_BYTES='65536'
+$env:CLOUDHELM_M6_BRANCH_PREFIX='codex'
+```
+
+这些根目录只由服务端读取；控制台、HTTP 请求和模型均不能指定任意路径。输出
+目录被 `.gitignore` 排除，源 fixture 不包含嵌套 `.git`。Scaffold 步骤负责复制
+fixture、初始化独立 `main` baseline 和 Task branch。
+
+M6 测试与安全命令使用 Tool Gateway 受控 subprocess：命令数组、正向 profile、
+环境变量白名单、超时、输出上限和进程清理均由工具层执行。该方案不具备 Docker
+CPU、内存、PID 和网络隔离；M7 远端部署前再评估一次性 Docker sandbox。
 
 ## 设计书摘录
 

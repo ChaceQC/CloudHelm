@@ -134,6 +134,14 @@ flowchart LR
 - Platform API 的 `OrchestrationService` 负责事务内写入 Task、AgentRun、RequirementSpec、TechnicalDesign、DevelopmentPlan、ApprovalRequest 和 EventLog。
 - `run-next` 一次只推进一个最小 Agent 步骤，便于黑盒测试和答辩演示。
 
+### M6 落地
+
+- 新增 `Planning -> Scaffolding -> Implementing -> Testing -> Reviewing ->
+  SecurityScanning -> ReadyForPR -> PullRequestCreated` 纯状态机。
+- 测试、审查或安全门禁要求修改时可回到 `Implementing`。
+- Platform API 负责 AgentRun、ToolCall、Artifact、PullRequestRecord、
+  conversation 与 EventLog 的事务和外部副作用边界；Orchestrator 不直接执行工具。
+
 ## 5. modules/agent-runtime
 
 ### 职责
@@ -160,13 +168,17 @@ flowchart LR
 - 工具失败：把结构化错误交回 Orchestrator。
 - 上下文不足：生成 clarification request，不继续实现。
 
-### M4 落地
+### M4-M6 落地
 
-- `modules/agent-runtime` 已提供 Requirement、Architect、Planner Agent。
+- `modules/agent-runtime` 已提供 Requirement、Architect、Planner、Scaffold、
+  Coder、Tester、Reviewer、Security 八类普通 Agent。
 - 默认 `local_structured` provider 读取真实输入并生成结构化草案；`openai_compatible` provider 使用 HTTP SSE Responses API、跨角色稳定扁平 schema、完整 root conversation、encrypted reasoning 和 Codex headers。当前真实流程透传兼容端点的 `gpt-5.6-sol` / `xhigh`，支持可配置 timeout/attempts/backoff，并保留 Chat Completions 兼容模式。
-- Requirement、Architect、Planner 以及后续普通角色复用一个 Task root conversation；只有显式 spawn 才创建 child conversation。
+- 八类普通角色复用一个 Task root conversation；只有显式 spawn 才创建 child conversation。
 - 每个成功 Agent 步骤使用数据库 savepoint，业务产物、conversation turn、AgentRun 完成状态和完成事件要么一起保留，要么全部回滚；失败记录在回滚后单独提交。
-- Agent Runtime 不写数据库、不调用工具；所有输出由 Platform API 入库前再次校验。
+- M6 工具步骤在基础设施失败时保存已经发生的配对 provider call/output 和
+  `<failed_step_context>`，同时保持业务产物未完成。
+- Agent Runtime 不写数据库、不直接执行工具；所有请求由 Platform API 绑定
+  execution recipe 后交给 Tool Gateway，所有输出入库前再次校验。
 
 ## 6. modules/tool-gateway
 
@@ -315,9 +327,17 @@ flowchart LR
 - `gateway.py`：统一执行查找、参数校验、风险等级比对、审批拦截、handler 调用和审计摘要。
 - `policies.py`：统一处理 workspace 路径边界、敏感文件、命令 denylist、环境变量白名单和超时上限。
 - `audit.py`：生成参数摘要、稳定 hash、参数/结果/输出脱敏，不直接持久化。
-- `tools/`：实现 Requirement、Design、Repo、Sandbox、Git 以及 L3 审批占位工具。
+- `tools/`：实现 Requirement、Design、Repo、Scaffold、Sandbox、Test、
+  Security、Git 以及 L3 审批占位工具。
 - Platform API 只能通过 `ToolGatewayService` 调用本模块。入口先用短事务原子抢占 `(task_id, idempotency_key)` 并写 `pending` ToolCall，再执行文件/Git/进程副作用，最后在后续事务写终态、Approval 和 Event；数据库事务不得跨越外部副作用。
 - Repo、Sandbox、Git 的工作区必须位于 `CLOUDHELM_TOOL_WORKSPACE_ROOTS`；空配置默认拒绝。
 - `tool_calls.arguments_json` 只保存脱敏快照，`audit_json` 保存服务端生成的主体、风险、幂等键、参数/原因 hash 和终态。
 
-M5 Sandbox Tool 的隔离边界是本地受控目录 + `subprocess` 超时；Docker sandbox 留到 M6 前置增强。
+M6 Sandbox Tool 的隔离边界仍是本地受控目录 + `subprocess` 超时，并增加
+Scaffold、pytest、Bandit、pip-audit 和 format patch 正向 profile。Docker
+sandbox、网络隔离和资源 quota 已延后到 M7 远端部署前再次评估。
+
+带 `workflow_step` 的 M6 AgentRun 只能通过内部 Agent executor 调用
+`ToolGatewayService`。executor 按工具名、Pydantic 默认值规范化后的模型参数和
+允许次数绑定 execution recipe；公开 HTTP 入口、未批准参数或超额调用都不会
+进入工具 handler。

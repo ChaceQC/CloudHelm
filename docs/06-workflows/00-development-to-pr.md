@@ -10,6 +10,48 @@
 - Tool Gateway 是否记录工具调用和审批。
 - 控制台是否能展示实时状态、产物和错误。
 
+## M6 本地等价 PR 实现
+
+当前 `0.5.0` 的可执行范围是受控 sample repo：
+
+```text
+已审批 DevelopmentPlan
+  -> start: Planning -> Scaffolding
+  -> Scaffold 建立 Task 独立 workspace 与 baseline commit
+  -> Coder 经 Tool Gateway 写文件并生成真实 diff
+  -> Tester 运行真实 pytest/JUnit
+  -> Reviewer 映射全部 Acceptance Criteria
+  -> Security 运行 Bandit/pip-audit
+  -> Git Tool 创建 branch、显式文件 commit 和 format patch
+  -> 保存 Artifact 与 provider=local、url=null 的 PR record
+  -> PullRequestCreated
+```
+
+控制台调用：
+
+```text
+GET  /api/tasks/{task_id}/local-development
+POST /api/tasks/{task_id}/local-development/start
+POST /api/tasks/{task_id}/local-development/run-next
+```
+
+每次 `run-next` 只推进一个阶段。所有步骤保存 AgentRun、ToolCall、Artifact、
+Task phase 和 EventLog；diff、测试、review、安全和 PR record 必须引用同一个
+`evidence_set_id`、已审批 DevelopmentPlan 与 execution recipe hash。
+
+当前 `PullRequestCreated` 是本地 branch、commit、format patch 与等价 PR
+record 已形成，不表示远端 push、真实 GitHub/Gitea PR、合并或部署完成。M7
+从这个可审计边界继续执行 CI/CD 与远端 staging/demo 闭环。
+
+失败恢复：
+
+- Provider、CLI、文件系统或报告解析等基础设施错误记录失败 AgentRun 并暂停
+  Task，phase 保持可重试。
+- pytest 失败、Review 要求修改或 Security 阻断保存真实报告并回到
+  `Implementing`。
+- 相同 step/attempt/call/参数、Artifact 和 commit 使用幂等记录；数据库晚期
+  失败后的重试不重复写文件、commit 或 PR record。
+
 ## 设计书摘录
 
 ### 10.1 开发者指导 Agents 完成功能开发到 PR 流程

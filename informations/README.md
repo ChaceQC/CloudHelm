@@ -10,12 +10,19 @@
 informations/
 ├── m1-foundation/
 │   └── official-references.md
+├── m2-data-api/
+├── m3-control-console/
+├── m4-agent-orchestration/
 ├── m4-agent-context/
 │   └── codex-responses-context.md
 ├── m5-tool-gateway/
 │   └── official-references.md
-└── m7-deployment/
-    └── remote-deploy-references.md
+├── m6-code-test-pr/
+│   ├── official-references.md
+│   └── reference-projects.md
+└── m7-ci-remote-deploy/
+    ├── official-references.md
+    └── reference-projects.md
 ```
 
 ## 每份资料建议包含

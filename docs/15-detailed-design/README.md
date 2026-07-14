@@ -12,6 +12,7 @@
 - [05-workflow-state-events.md](05-workflow-state-events.md)
 - [06-deployment-observability-detail.md](06-deployment-observability-detail.md)
 - [07-testing-acceptance-matrix.md](07-testing-acceptance-matrix.md)
+- [08-m6-local-development-flow.md](08-m6-local-development-flow.md)
 
 ## 使用顺序
 
@@ -22,4 +23,5 @@
 5. 实现流程编排时读 [05-workflow-state-events.md](05-workflow-state-events.md)。
 6. 部署、观测、答辩环境读 [06-deployment-observability-detail.md](06-deployment-observability-detail.md)。
 7. 收尾验收读 [07-testing-acceptance-matrix.md](07-testing-acceptance-matrix.md)。
-
+8. 实现 M6 本地代码、测试、安全与等价 PR 闭环时读
+   [08-m6-local-development-flow.md](08-m6-local-development-flow.md)。
