@@ -43,6 +43,9 @@
 - 将 Roadmap 仅有证据支撑的 M7-0 设计项标记为完成；migration、worker、API、
   CI、Remote Agent、Controller、Tool、Agent、控制台和远端 E2E 等实现项继续
   保持未完成。
+- M7-0 设计闭环提交为 `e7373b0`（`docs: 完成 M7 CI 与远端部署细化设计`），
+  已推送并建立远端跟踪分支
+  `origin/feature/m7-remote-deploy-closure`。
 
 ### 进行中
 
@@ -98,6 +101,8 @@
 - 已扫描旧 `POST /api/deployments`、可变 `image_tag`、CI 直连 Deployment
   Controller 和 M7 交互终端语义，有效冲突 0。
 - 已扫描高置信私钥、Token、密码赋值和公网 IPv4，命中 0。
+- 已执行 `git ls-remote --heads origin feature/m7-remote-deploy-closure`，
+  远端分支指向 `e7373b09eee2c692a7f1eaf5da74a688b120748f`。
 - 本次为文档、契约和资料闭环，未运行 pytest、Alembic、前端 build、真实 CI
   或远端 E2E；这些验证将在对应生产代码子任务完成后执行并记录。
 
