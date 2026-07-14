@@ -35,6 +35,8 @@ class ToolCallClaim:
         task_id: UUID,
         data: ToolGatewayCallCreate,
         agent_type: str | None,
+        execution_policy_fingerprint: str | None = None,
+        execution_policy_context: dict[str, object] | None = None,
     ) -> tuple[ToolCall, bool]:
         """抢占幂等键；相同终态调用直接返回已有记录。"""
 
@@ -43,7 +45,15 @@ class ToolCallClaim:
             data.idempotency_key,
         )
         if existing is not None:
-            return self._validate_replay(existing, data, agent_type), False
+            return (
+                self._validate_replay(
+                    existing,
+                    data,
+                    agent_type,
+                    execution_policy_fingerprint,
+                ),
+                False,
+            )
         tool_call = ToolCall(
             task_id=task_id,
             agent_run_id=data.agent_run_id,
@@ -52,7 +62,13 @@ class ToolCallClaim:
             provider_item_type=data.provider_item_type,
             risk_level=data.risk_level.value,
             arguments_json=sanitize_arguments_for_storage(data.arguments),
-            audit_json=self._initial_audit(task_id, data, agent_type),
+            audit_json=self._initial_audit(
+                task_id,
+                data,
+                agent_type,
+                execution_policy_fingerprint,
+                execution_policy_context,
+            ),
             status=ToolCallStatus.PENDING.value,
             idempotency_key=data.idempotency_key,
             arguments_summary=summarize_mapping(data.arguments),
@@ -93,7 +109,15 @@ class ToolCallClaim:
                     "工具调用幂等键或 provider call_id 已被并发占用。",
                     409,
                 ) from exc
-            return self._validate_replay(existing, data, agent_type), False
+            return (
+                self._validate_replay(
+                    existing,
+                    data,
+                    agent_type,
+                    execution_policy_fingerprint,
+                ),
+                False,
+            )
         return tool_call, True
 
     @staticmethod
@@ -101,6 +125,8 @@ class ToolCallClaim:
         task_id: UUID,
         data: ToolGatewayCallCreate,
         agent_type: str | None,
+        execution_policy_fingerprint: str | None,
+        execution_policy_context: dict[str, object] | None,
     ) -> dict:
         """生成调用方不能覆盖的初始审计主体。"""
 
@@ -118,6 +144,8 @@ class ToolCallClaim:
             "arguments_hash": stable_json_hash(data.arguments),
             "reason_hash": stable_json_hash({"reason": data.reason}),
             "status": ToolCallStatus.PENDING.value,
+            "execution_policy_fingerprint": execution_policy_fingerprint,
+            **(execution_policy_context or {}),
         }
 
     @staticmethod
@@ -125,6 +153,7 @@ class ToolCallClaim:
         existing: ToolCall,
         data: ToolGatewayCallCreate,
         agent_type: str | None,
+        execution_policy_fingerprint: str | None,
     ) -> ToolCall:
         """只允许完全相同的终态工具调用按幂等语义重放。"""
 

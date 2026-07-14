@@ -96,7 +96,15 @@ def tester_tool_calls(
 def reviewer_tool_calls(diff_paths: list[str]) -> list[ApprovedToolCall]:
     """只允许 Reviewer 读取当前 Coder evidence set 的真实 diff。"""
 
-    return [("git.diff", {"paths": list(diff_paths)})] if diff_paths else []
+    return [
+        (
+            "git.diff",
+            {
+                "paths": list(diff_paths),
+                "max_output_chars": 200000,
+            },
+        )
+    ] if diff_paths else []
 
 
 def security_tool_calls(

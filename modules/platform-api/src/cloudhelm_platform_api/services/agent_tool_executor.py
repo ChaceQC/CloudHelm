@@ -28,6 +28,8 @@ from cloudhelm_platform_api.services.tool_gateway_service import (
     ToolGatewayService,
 )
 
+_LOSSLESS_RESULT_TOOLS = frozenset({"git.diff", "git.format_patch"})
+
 
 class AgentToolExecutor:
     """绑定 Task workspace，执行工具并收集持久化 ToolCall DTO。"""
@@ -53,6 +55,7 @@ class AgentToolExecutor:
         self.workspace = LocalWorkspaceResolver(settings)
         self.service = ToolGatewayService(session, gateway)
         self.tool_calls: list[ToolCallRead] = []
+        self._raw_results: dict[UUID, dict[str, Any]] = {}
         self._approved_calls: Counter[str] = Counter()
         self._used_calls: Counter[str] = Counter()
         for tool_name, arguments in approved_calls:
@@ -82,7 +85,7 @@ class AgentToolExecutor:
             arguments,
         )
         try:
-            record = self.service.call_tool(
+            call_result = self.service.call_tool_for_agent(
                 self.task_id,
                 ToolGatewayCallCreate(
                     agent_run_id=self.agent_run_id,
@@ -97,7 +100,6 @@ class AgentToolExecutor:
                         f"执行 {call.name}。"
                     ),
                 ),
-                execution_source="agent_executor",
                 execution_policy_fingerprint=fingerprint,
                 execution_policy_error=policy_error,
             )
@@ -105,6 +107,14 @@ class AgentToolExecutor:
             raise ToolExecutorFatalError(
                 f"Platform Tool Gateway 持久化失败：{type(exc).__name__}"
             ) from exc
+        record = call_result.record
+        if (
+            call.name in _LOSSLESS_RESULT_TOOLS
+            and call_result.raw_result_json is not None
+        ):
+            self._raw_results[record.id] = deepcopy(
+                call_result.raw_result_json
+            )
         self.tool_calls.append(record)
         provider_status = record.status.value
         provider_error = record.error_code
@@ -128,6 +138,21 @@ class AgentToolExecutor:
             },
             error_code=provider_error,
         )
+
+    def result_json(self, record: ToolCallRead) -> dict[str, Any]:
+        """返回工具执行期原始结果；普通工具继续使用持久化安全投影。"""
+
+        raw = self._raw_results.get(record.id)
+        if raw is not None:
+            return deepcopy(raw)
+        if (
+            record.tool_name in _LOSSLESS_RESULT_TOOLS
+            and record.status.value == "succeeded"
+        ):
+            raise ToolExecutorFatalError(
+                f"{record.tool_name} 缺少可验证的原始工具结果。"
+            )
+        return deepcopy(record.result_json or {})
 
     def execute(
         self,

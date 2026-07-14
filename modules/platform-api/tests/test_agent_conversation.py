@@ -3,6 +3,7 @@
 import json
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ from cloudhelm_platform_api.services.agent_conversation_service import (
     AgentConversationService,
 )
 from cloudhelm_platform_api.services.event_service import EventService
+from cloudhelm_platform_api.services.exceptions import ServiceError
 from conftest import create_project, create_running_agent_run, create_task
 
 
@@ -99,10 +101,18 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
     task = create_task(client, project["id"], title="验证子 Agent 生命周期")
     assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
     assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
-    spawning_run = create_running_agent_run(task["id"], "planner")
+    root_id = _root_id(task["id"])
+    spawning_run = create_running_agent_run(
+        task["id"],
+        "planner",
+        conversation_id=root_id,
+    )
 
     with Session(get_engine()) as session:
-        service = AgentConversationService(session, get_settings())
+        settings = get_settings()
+        assert settings.agent_max_subagent_depth == 1
+        assert settings.agent_max_subagent_threads == 6
+        service = AgentConversationService(session, settings)
         root = session.scalar(
             select(AgentConversation).where(
                 AgentConversation.task_id == UUID(task["id"]),
@@ -112,6 +122,20 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
         assert root is not None
         parent_turn_count = root.turn_count
         parent_revision = root.revision
+
+        with pytest.raises(ServiceError) as role_error:
+            service.spawn_subagent(
+                parent_conversation_id=root.id,
+                agent_role="coder",
+                nickname=None,
+                objective="修改共享 workspace 中的生产代码。",
+                expected_result="完成代码修改并返回摘要。",
+                spawned_by_agent_run_id=UUID(spawning_run["id"]),
+                fork_context=False,
+            )
+        assert role_error.value.code == "subagent_role_not_allowed"
+        assert role_error.value.detail == {"agent_role": "coder"}
+
         child, provider_conversation = service.spawn_subagent(
             parent_conversation_id=root.id,
             agent_role="reviewer",
@@ -138,14 +162,86 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
             child.items_json,
             ensure_ascii=False,
         )
+        child_instruction_text = child.items_json[0]["content"][0]["text"]
         assert "CloudHelm Subagent Role Instructions" in child_context
         assert "<subagent_task>" in child_context
         assert "只审查当前 Requirement 输出" in child_context
+        assert '"parent_agent_type": "planner"' in child_instruction_text
+        assert (
+            '"effective_allowed_tools": ["repo.list_files", "repo.read_file", '
+            '"repo.search_text"]'
+            in child_instruction_text
+        )
+        assert '"git.diff"' not in child_instruction_text
+
+        mismatched_run = create_running_agent_run(
+            task["id"],
+            "reviewer",
+            conversation_id=str(child.id),
+        )
+
+        with pytest.raises(ServiceError) as nested_error:
+            service.spawn_subagent(
+                parent_conversation_id=child.id,
+                agent_role="reviewer",
+                nickname=None,
+                objective="继续递归探索。",
+                expected_result="探索摘要。",
+                spawned_by_agent_run_id=UUID(spawning_run["id"]),
+                fork_context=False,
+            )
+        assert nested_error.value.code == "subagent_depth_limit_exceeded"
+
+        with pytest.raises(ServiceError) as conversation_error:
+            service.spawn_subagent(
+                parent_conversation_id=root.id,
+                agent_role="tester",
+                nickname=None,
+                objective="核验测试证据是否覆盖当前验收标准。",
+                expected_result="测试覆盖缺口和证据引用。",
+                spawned_by_agent_run_id=UUID(mismatched_run["id"]),
+                fork_context=False,
+            )
+        assert (
+            conversation_error.value.code
+            == "spawning_agent_run_conversation_mismatch"
+        )
+
+        with pytest.raises(ServiceError) as empty_summary:
+            service.complete_subagent(
+                child.id,
+                status="completed",
+                summary=" ",
+            )
+        assert empty_summary.value.code == "invalid_subagent_summary"
+
+        with pytest.raises(ServiceError) as long_summary:
+            service.complete_subagent(
+                child.id,
+                status="completed",
+                summary="x" * 4001,
+            )
+        assert long_summary.value.code == "subagent_summary_too_long"
+
+        with pytest.raises(ServiceError) as active_run_error:
+            service.complete_subagent(
+                child.id,
+                status="completed",
+                summary="仍有 active AgentRun 时不得结束 child。",
+            )
+        assert active_run_error.value.code == "subagent_agent_run_active"
+        active_child_run = session.get(AgentRun, UUID(mismatched_run["id"]))
+        assert active_child_run is not None
+        active_child_run.status = "succeeded"
+        session.flush()
 
         service.complete_subagent(
             child.id,
             status="completed",
-            summary="审查完成，未发现阻断问题。",
+            summary=(
+                "审查完成，未发现阻断问题；"
+                "token=secret-subagent-summary-value"
+            ),
         )
         session.commit()
         session.refresh(root)
@@ -159,7 +255,9 @@ def test_only_explicit_spawn_creates_child_and_completion_notifies_parent(
         parent_text = json.dumps(root.items_json, ensure_ascii=False)
         assert "<subagent_notification>" in parent_text
         assert str(child.id) in parent_text
-        assert "审查完成，未发现阻断问题。" in parent_text
+        assert "审查完成，未发现阻断问题" in parent_text
+        assert "secret-subagent-summary-value" not in parent_text
+        assert "token=<redacted>" in parent_text
 
     event_types = [
         event["event_type"]
@@ -226,6 +324,20 @@ def test_late_step_failure_rolls_back_artifact_and_conversation_turn(
         for event in client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
     ]
     assert event_types == ["TaskCreated", "TaskPhaseChanged", "AgentRunStarted", "AgentRunFailed"]
+
+
+def _root_id(task_id: str) -> str:
+    """读取 Task root conversation ID。"""
+
+    with Session(get_engine()) as session:
+        conversation_id = session.scalar(
+            select(AgentConversation.id).where(
+                AgentConversation.task_id == UUID(task_id),
+                AgentConversation.source_type == "root",
+            )
+        )
+    assert conversation_id is not None
+    return str(conversation_id)
 
 
 def _root_revision(task_id: str) -> int:

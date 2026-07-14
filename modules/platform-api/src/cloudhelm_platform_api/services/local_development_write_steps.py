@@ -176,7 +176,7 @@ class LocalDevelopmentWriteSteps:
                 )
             evidence_set_id = f"m6:{context.plan.id}:{step.run.id}"
             if diff_call is not None:
-                details = diff_call.result_json or {}
+                details = step.executor.result_json(diff_call)
                 patch = details.get("patch")
                 if not isinstance(patch, str) or not patch.strip():
                     raise ServiceError(

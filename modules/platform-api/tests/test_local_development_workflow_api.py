@@ -1,8 +1,10 @@
 """M6 sample repo 真实本地开发闭环黑盒测试。"""
 
+import json
 from pathlib import Path
 import subprocess
 
+import pytest
 from fastapi.testclient import TestClient
 
 from cloudhelm_platform_api.core.config import get_settings
@@ -19,6 +21,7 @@ ISSUE_PATH = (
 
 def test_local_development_api_completes_real_sample_pr(
     client: TestClient,
+    tmp_path: Path,
 ) -> None:
     """从真实 issue/审批推进到 diff、pytest、安全、commit 和 local PR。"""
 
@@ -92,7 +95,11 @@ def test_local_development_api_completes_real_sample_pr(
         assert response.status_code == 200, response.text
         payload = response.json()
         assert payload["action"] == action
-        assert payload["task"]["current_phase"] == phase
+        if payload["task"]["current_phase"] != phase:
+            pytest.fail(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                pytrace=False,
+            )
         responses.append(payload)
 
     final = responses[-1]
@@ -120,6 +127,7 @@ def test_local_development_api_completes_real_sample_pr(
     }.issubset(artifact_types)
     _assert_shared_root_conversation(client, task_id)
     _assert_real_git_workspace(task_id)
+    _assert_patch_artifacts_apply(task_id, tmp_path)
 
 
 def _prepare_and_approve_m4_plan(
@@ -147,6 +155,20 @@ def _prepare_and_approve_m4_plan(
     ]
     architect = client.post(f"/api/tasks/{task_id}/run-next")
     assert architect.status_code == 200, architect.text
+    design = architect.json()["technical_design"]
+    assert set(design["openapi_json"]["paths"]) == {
+        "/auth/register",
+        "/auth/login",
+        "/profile",
+    }
+    assert design["db_schema_json"]["tables"][0]["name"] == "users"
+    assert design["db_schema_json"]["tables"][0]["columns"] == [
+        "id TEXT PRIMARY KEY",
+        "email TEXT NOT NULL UNIQUE",
+        "password_hash TEXT NOT NULL",
+        "display_name TEXT NOT NULL",
+        "created_at TEXT NOT NULL",
+    ]
     if architect.json()["task"]["current_phase"] == "WaitingDesignApproval":
         approval_id = architect.json()["approval"]["id"]
         response = client.post(
@@ -231,3 +253,51 @@ def _assert_real_git_workspace(task_id: str) -> None:
     )
     assert branch.returncode == 0, branch.stderr
     assert branch.stdout.strip().startswith("codex/task-")
+
+
+def _assert_patch_artifacts_apply(task_id: str, tmp_path: Path) -> None:
+    """从完整 M4-M6 闭环产物验证 diff 与 format-patch 均保持 Git 语义。"""
+
+    settings = get_settings()
+    workspace = Path(settings.m6_workspace_root) / task_id / "repo"
+    artifact_root = Path(settings.artifact_root) / task_id
+    patches = [
+        *artifact_root.rglob("implementation.diff"),
+        *artifact_root.rglob("*.patch"),
+    ]
+    assert len(patches) == 2
+
+    apply_repo = tmp_path / "m6-e2e-apply-check"
+    cloned = subprocess.run(
+        [
+            "git",
+            "clone",
+            "--no-hardlinks",
+            str(workspace),
+            str(apply_repo),
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert cloned.returncode == 0, cloned.stderr
+    checkout = subprocess.run(
+        ["git", "-C", str(apply_repo), "checkout", "main"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert checkout.returncode == 0, checkout.stderr
+    for patch in patches:
+        checked = subprocess.run(
+            ["git", "-C", str(apply_repo), "apply", "--check", str(patch)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        assert checked.returncode == 0, (
+            f"{patch.name}: {checked.stderr}"
+        )

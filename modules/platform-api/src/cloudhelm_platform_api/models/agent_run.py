@@ -25,8 +25,8 @@ from cloudhelm_platform_api.db.base import Base, UUIDPrimaryKeyMixin, utc_now
 class AgentRun(UUIDPrimaryKeyMixin, Base):
     """单次 Agent 运行记录。
 
-    M4 增加结构化输出摘要和错误字段。AgentRun 只记录执行结果，不保存
-    未校验自然语言作为核心业务对象。
+    保存 M4-M6 角色、工作流幂等身份、结构化输出、conversation/usage 证据和
+    失败终态；未校验自然语言不作为核心业务对象持久化。
     """
 
     __tablename__ = "agent_runs"

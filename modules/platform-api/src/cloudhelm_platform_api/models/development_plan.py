@@ -13,8 +13,8 @@ from cloudhelm_platform_api.db.base import Base, TimestampMixin, UUIDPrimaryKeyM
 class DevelopmentPlan(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """Planner Agent 输出的开发计划。
 
-    M4 只保存任务图、风险和审查状态，不执行计划中的 Repo、Sandbox、Git
-    或部署动作。后续 M5/M6 读取该表时必须重新经过 Tool Gateway 和审批。
+    只保存任务图、execution recipe 引用、风险和审查状态。M6 消费已审批计划
+    时仍须经过 Tool Gateway、精确 recipe 门禁和审计，计划记录本身不执行副作用。
     """
 
     __tablename__ = "development_plans"

@@ -71,14 +71,16 @@ class OrchestrationApprovalCoordinator:
         task: Task,
         plan: DevelopmentPlan,
         agent_run: AgentRun,
+        *,
+        risk_level: str,
     ) -> ApprovalRequest:
-        """为开发计划创建进入后续里程碑前的人工审批。"""
+        """按 Planner 最高风险创建进入后续里程碑前的人工审批。"""
 
         approval = self.approvals.create(
             ApprovalRequest(
                 task_id=task.id,
                 action=PLAN_APPROVAL_ACTION,
-                risk_level="L1",
+                risk_level=risk_level,
                 reason=f"开发计划 {plan.id} 已生成；进入 M5/M6 前需要人工确认计划边界。",
                 status=ApprovalStatus.PENDING.value,
                 requested_by_agent_run_id=agent_run.id,

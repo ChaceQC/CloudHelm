@@ -105,13 +105,34 @@ class AgentRunRepository:
         )
         return fetch_page(self.session, statement, limit, cursor)
 
-    def list_active_by_task(self, task_id: UUID) -> list[AgentRun]:
+    def list_active_by_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> list[AgentRun]:
         """读取任务中尚未结束的 AgentRun。"""
+
+        statement = select(AgentRun).where(
+            AgentRun.task_id == task_id,
+            AgentRun.status.in_(("pending", "running")),
+        )
+        if for_update:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+        return list(self.session.scalars(statement))
+
+    def list_active_by_conversation(
+        self,
+        conversation_id: UUID,
+    ) -> list[AgentRun]:
+        """读取指定 conversation 中尚未结束的 AgentRun。"""
 
         return list(
             self.session.scalars(
                 select(AgentRun).where(
-                    AgentRun.task_id == task_id,
+                    AgentRun.conversation_id == conversation_id,
                     AgentRun.status.in_(("pending", "running")),
                 )
             )

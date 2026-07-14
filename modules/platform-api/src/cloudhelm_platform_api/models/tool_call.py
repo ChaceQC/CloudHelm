@@ -22,8 +22,9 @@ from cloudhelm_platform_api.db.base import Base, UUIDPrimaryKeyMixin, utc_now
 class ToolCall(UUIDPrimaryKeyMixin, Base):
     """工具调用记录。
 
-    M2 记录工具调用元数据和参数 JSON，真实执行、审批拦截和 MCP 路由仍属于
-    后续 Tool Gateway 阶段。
+    记录 Tool Gateway 的脱敏参数/结果、安全审计、审批关联、幂等身份和终态。
+    M6 Git patch 正文只在执行进程与受控 Artifact 中保留，数据库仅保存安全投影
+    及原始内容 SHA-256。
     """
 
     __tablename__ = "tool_calls"

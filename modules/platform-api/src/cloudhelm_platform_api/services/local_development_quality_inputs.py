@@ -29,6 +29,10 @@ def build_reviewer_input(
 ) -> ReviewerAgentInput:
     """把已审批需求、真实 diff 与测试证据映射为 Reviewer 输入。"""
 
+    test_results = {
+        item.criterion_id: item
+        for item in test_output.acceptance_results
+    }
     return ReviewerAgentInput(
         task_id=context.task.id,
         project_id=context.task.project_id,
@@ -43,11 +47,21 @@ def build_reviewer_input(
                 criterion_id=item.criterion_id,
                 status=(
                     "satisfied"
-                    if test_output.status == "passed"
-                    else "missing"
+                    if test_results[item.criterion_id].status == "passed"
+                    else (
+                        "partial"
+                        if test_results[item.criterion_id].status == "failed"
+                        else "missing"
+                    )
                 ),
-                evidence_refs=evidence_refs,
-                notes=item.notes,
+                evidence_refs=(
+                    test_results[item.criterion_id].evidence_refs
+                    or evidence_refs
+                ),
+                notes=(
+                    f"{item.notes}；Tester："
+                    f"{test_results[item.criterion_id].notes}"
+                ),
             )
             for item in context.recipe.acceptance_evidence
         ],

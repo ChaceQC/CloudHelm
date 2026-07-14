@@ -12,6 +12,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from cloudhelm_tool_gateway.audit import redact_sensitive_text
+
 from cloudhelm_platform_api.models.artifact import Artifact
 
 MAX_ARTIFACT_PREVIEW_BYTES = 65536
@@ -273,9 +275,13 @@ def sanitize_artifact_metadata(value: Any) -> Any:
 
 
 def sanitize_artifact_text(value: str) -> str:
-    """遮蔽文本中可识别的 Windows、UNC 或多段 POSIX 绝对路径。"""
+    """为 API 预览遮蔽凭据及 Windows、UNC、POSIX 绝对路径。"""
 
-    redacted = _EMBEDDED_WINDOWS_PATH.sub("<redacted-local-path>", value)
+    projected = redact_sensitive_text(value) or ""
+    redacted = _EMBEDDED_WINDOWS_PATH.sub(
+        "<redacted-local-path>",
+        projected,
+    )
     return _EMBEDDED_POSIX_PATH.sub(
         "<redacted-local-path>",
         redacted,

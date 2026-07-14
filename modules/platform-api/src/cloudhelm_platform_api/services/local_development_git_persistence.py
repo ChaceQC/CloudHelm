@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from cloudhelm_tool_gateway.audit import redact_sensitive_text
-
 from cloudhelm_platform_api.core.config import Settings
 from cloudhelm_platform_api.models.artifact import Artifact
 from cloudhelm_platform_api.repositories.artifact_repository import (
@@ -71,7 +69,6 @@ class LocalDevelopmentGitPersistence:
             key,
         )
         if existing is not None:
-            expected_content = redact_sensitive_text(patch_text) or ""
             stored = read_artifact_text(
                 self.artifact_service.storage,
                 existing,
@@ -81,7 +78,7 @@ class LocalDevelopmentGitPersistence:
                 existing.artifact_type != "format_patch"
                 or existing.status != ArtifactStatus.AVAILABLE.value
                 or existing.metadata_json != metadata
-                or stored != expected_content
+                or stored != patch_text
             ):
                 raise gate_error(
                     "m6_format_patch_idempotency_conflict",

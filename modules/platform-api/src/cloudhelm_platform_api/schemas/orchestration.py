@@ -17,6 +17,15 @@ class OrchestrationActionRequest(BaseModel):
 
     actor_id: str = Field(default="control-console", min_length=1, description="操作人或调用组件。")
     reason: str | None = Field(default=None, description="用户或系统给出的推进原因。")
+    expected_phase: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        description=(
+            "调用方读取到的 Task 当前阶段。服务端在 Task 行锁内比较该值，"
+            "阶段已变化时拒绝重复推进。"
+        ),
+    )
 
 
 class OrchestrationStepRead(BaseModel):

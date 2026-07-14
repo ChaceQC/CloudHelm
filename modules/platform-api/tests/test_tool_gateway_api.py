@@ -1,12 +1,19 @@
 """M5 Tool Gateway API 黑盒与事务副作用测试。"""
 
 from pathlib import Path
+from uuid import UUID
 
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from cloudhelm_tool_gateway import create_default_gateway
+from cloudhelm_platform_api.core.config import get_settings
 from cloudhelm_platform_api.db.session import get_engine
+from cloudhelm_platform_api.models.agent_conversation import AgentConversation
+from cloudhelm_platform_api.services.agent_conversation_service import (
+    AgentConversationService,
+)
 
 from conftest import create_project, create_running_agent_run, create_task
 
@@ -95,6 +102,84 @@ def test_sandbox_tool_gateway_call_records_output_summary(client: TestClient, tm
     payload = response.json()
     assert payload["status"] == "succeeded"
     assert "api-sandbox-ok" in payload["stdout_summary"]
+
+
+def test_subagent_tool_permissions_are_parent_child_intersection(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    """child 工具必须同时被自身角色和全部父级角色允许。"""
+
+    task = _task(client)
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+    with Session(get_engine()) as session:
+        root_id = session.scalar(
+            select(AgentConversation.id).where(
+                AgentConversation.task_id == UUID(task["id"]),
+                AgentConversation.source_type == "root",
+            )
+        )
+    assert root_id is not None
+    parent_run = create_running_agent_run(
+        task["id"],
+        "planner",
+        conversation_id=str(root_id),
+    )
+    with Session(get_engine()) as session:
+        child, _ = AgentConversationService(session, get_settings()).spawn_subagent(
+            parent_conversation_id=root_id,
+            agent_role="reviewer",
+            nickname=None,
+            objective="只审查受控 workspace 的路径和 diff 证据。",
+            expected_result="返回结构化审查摘要。",
+            spawned_by_agent_run_id=UUID(parent_run["id"]),
+            fork_context=False,
+        )
+        session.commit()
+        child_id = child.id
+    child_run = create_running_agent_run(
+        task["id"],
+        "reviewer",
+        conversation_id=str(child_id),
+    )
+
+    denied = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "agent_run_id": child_run["id"],
+            "tool_name": "git.diff",
+            "risk_level": "L0",
+            "idempotency_key": "subagent-parent-intersection-denied",
+            "reason": "验证父级权限交集。",
+            "arguments": {"repo_root": str(tmp_path)},
+        },
+    )
+    assert denied.status_code == 201, denied.text
+    assert denied.json()["status"] == "failed"
+    assert denied.json()["error_code"] == "subagent_tool_not_allowed"
+    scope = denied.json()["audit_json"]["subagent_permission_scope"]
+    assert scope["child_role"] == "reviewer"
+    assert scope["ancestor_roles"] == ["planner"]
+    assert "git.diff" not in scope["effective_allowed_tools"]
+
+    allowed = client.post(
+        f"/api/tasks/{task['id']}/tool-gateway/call",
+        json={
+            "agent_run_id": child_run["id"],
+            "tool_name": "repo.list_files",
+            "risk_level": "L0",
+            "idempotency_key": "subagent-parent-intersection-allowed",
+            "reason": "验证父子角色共同允许的只读工具。",
+            "arguments": {"workspace_root": str(tmp_path), "path": "."},
+        },
+    )
+    assert allowed.status_code == 201, allowed.text
+    assert allowed.json()["status"] == "succeeded"
+    assert (
+        allowed.json()["audit_json"]["subagent_permission_scope"]
+        ["effective_allowed_tools"]
+        == ["repo.list_files", "repo.read_file", "repo.search_text"]
+    )
 
 
 def test_l3_tool_gateway_call_creates_approval_without_execution(client: TestClient) -> None:

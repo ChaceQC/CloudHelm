@@ -1,10 +1,19 @@
 """M4 Orchestration API 黑盒与事务副作用测试。"""
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event, Lock
+from time import sleep
 from urllib import error
 
 from fastapi.testclient import TestClient
 
+from cloudhelm_agent_runtime.agents import RequirementAgent
+from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel
 from cloudhelm_platform_api.core.config import get_settings
+from cloudhelm_platform_api.main import create_app
+from cloudhelm_platform_api.services.agent_run_lifecycle import (
+    AgentRunLifecycle,
+)
 from conftest import create_project, create_task
 
 
@@ -86,6 +95,164 @@ def test_run_next_requires_start_and_returns_traceable_conflict(client: TestClie
     assert body["trace_id"]
 
 
+def test_expected_phase_prevents_duplicate_m4_side_effects(
+    client: TestClient,
+) -> None:
+    """旧阶段请求只能返回冲突，不能连续推进两个 Agent 或重复写产物。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证 M4 阶段前置条件")
+
+    started = client.post(
+        f"/api/tasks/{task['id']}/start",
+        json={
+            "actor_id": "tester",
+            "expected_phase": "Created",
+        },
+    )
+    assert started.status_code == 200, started.text
+
+    duplicate_start = client.post(
+        f"/api/tasks/{task['id']}/start",
+        json={
+            "actor_id": "tester",
+            "expected_phase": "Created",
+        },
+    )
+    assert duplicate_start.status_code == 409
+    assert duplicate_start.json()["code"] == "orchestration_phase_changed"
+    assert duplicate_start.json()["detail"] == {
+        "expected_phase": "Created",
+        "actual_phase": "RequirementClarifying",
+    }
+
+    requirement = client.post(
+        f"/api/tasks/{task['id']}/run-next",
+        json={
+            "actor_id": "tester",
+            "expected_phase": "RequirementClarifying",
+        },
+    )
+    assert requirement.status_code == 200, requirement.text
+
+    duplicate_requirement = client.post(
+        f"/api/tasks/{task['id']}/run-next",
+        json={
+            "actor_id": "tester",
+            "expected_phase": "RequirementClarifying",
+        },
+    )
+    assert duplicate_requirement.status_code == 409
+    assert duplicate_requirement.json()["code"] == (
+        "orchestration_phase_changed"
+    )
+    assert duplicate_requirement.json()["detail"]["actual_phase"] == (
+        "Designing"
+    )
+
+    requirements = client.get(
+        f"/api/tasks/{task['id']}/requirements"
+    ).json()["items"]
+    agent_runs = client.get(
+        f"/api/tasks/{task['id']}/agent-runs"
+    ).json()["items"]
+    assert len(requirements) == 1
+    assert [
+        run for run in agent_runs if run["agent_type"] == "requirement"
+    ][0]["status"] == "succeeded"
+    assert sum(
+        run["agent_type"] == "requirement"
+        for run in agent_runs
+    ) == 1
+
+
+def test_concurrent_run_next_locks_task_before_starting_agent(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    """并发相同阶段请求只有一个能创建 AgentRun，另一个等待后返回 409。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"], title="验证 M4 并发步骤抢占")
+    assert client.post(
+        f"/api/tasks/{task['id']}/start",
+        json={"expected_phase": "Created"},
+    ).status_code == 200
+
+    first_started = Event()
+    release_first = Event()
+    calls_lock = Lock()
+    start_calls = 0
+    original_start = AgentRunLifecycle.start
+
+    def blocking_start(
+        lifecycle,
+        task_model,
+        agent_type,
+        *,
+        workflow_step=None,
+    ):
+        nonlocal start_calls
+        agent_run = original_start(
+            lifecycle,
+            task_model,
+            agent_type,
+            workflow_step=workflow_step,
+        )
+        if agent_type == "requirement" and workflow_step is None:
+            with calls_lock:
+                start_calls += 1
+                call_number = start_calls
+            if call_number == 1:
+                first_started.set()
+                assert release_first.wait(timeout=10)
+        return agent_run
+
+    monkeypatch.setattr(AgentRunLifecycle, "start", blocking_start)
+    payload = {
+        "actor_id": "tester",
+        "expected_phase": "RequirementClarifying",
+    }
+
+    with (
+        TestClient(create_app()) as first_client,
+        TestClient(create_app()) as second_client,
+        ThreadPoolExecutor(max_workers=2) as executor,
+    ):
+        first_future = executor.submit(
+            first_client.post,
+            f"/api/tasks/{task['id']}/run-next",
+            json=payload,
+        )
+        assert first_started.wait(timeout=10)
+        second_future = executor.submit(
+            second_client.post,
+            f"/api/tasks/{task['id']}/run-next",
+            json=payload,
+        )
+        sleep(0.2)
+        with calls_lock:
+            assert start_calls == 1
+        assert second_future.done() is False
+        release_first.set()
+        first_response = first_future.result(timeout=15)
+        second_response = second_future.result(timeout=15)
+
+    assert first_response.status_code == 200, first_response.text
+    assert second_response.status_code == 409, second_response.text
+    assert second_response.json()["code"] == "orchestration_phase_changed"
+    with calls_lock:
+        assert start_calls == 1
+
+    agent_runs = client.get(
+        f"/api/tasks/{task['id']}/agent-runs"
+    ).json()["items"]
+    assert sum(
+        run["agent_type"] == "requirement"
+        for run in agent_runs
+    ) == 1
+
+
 def test_missing_llm_config_records_failed_agent_run(client: TestClient, monkeypatch) -> None:
     """切换外部模型 provider 但缺少配置时，应写失败事件而不是固定输出。"""
 
@@ -113,6 +280,128 @@ def test_missing_llm_config_records_failed_agent_run(client: TestClient, monkeyp
 
     events = client.get(f"/api/tasks/{task['id']}/timeline").json()["items"]
     assert "AgentRunFailed" in [event["event_type"] for event in events]
+
+
+def test_local_provider_rejects_unsupported_design_without_partial_product(
+    client: TestClient,
+) -> None:
+    """无受控 recipe 的本地需求必须明确暂停，不能落入固定技术设计。"""
+
+    project = create_project(client)
+    task_response = client.post(
+        "/api/tasks",
+        json={
+            "project_id": project["id"],
+            "title": "实现天气 Platform API",
+            "description": (
+                "为外部天气应用实现 platform API，返回东京未来三天的天气"
+                "和温度范围。"
+            ),
+            "source_type": "manual",
+            "risk_level": "L1",
+            "created_by": "tester",
+        },
+    )
+    assert task_response.status_code == 201, task_response.text
+    task = task_response.json()
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+
+    architect = client.post(f"/api/tasks/{task['id']}/run-next")
+
+    assert architect.status_code == 409
+    assert architect.json()["code"] == "unsupported_local_recipe"
+    task_state = client.get(f"/api/tasks/{task['id']}").json()
+    assert task_state["status"] == "paused"
+    assert task_state["current_phase"] == "Designing"
+    designs = client.get(
+        f"/api/tasks/{task['id']}/technical-designs"
+    ).json()["items"]
+    assert designs == []
+    agent_run = client.get(
+        f"/api/tasks/{task['id']}/agent-runs"
+    ).json()["items"][0]
+    assert agent_run["agent_type"] == "architect"
+    assert agent_run["status"] == "failed"
+    assert agent_run["error_code"] == "unsupported_local_recipe"
+
+
+def test_plan_approval_preserves_l4_planner_risk(
+    client: TestClient,
+) -> None:
+    """计划审批不得把 L4 设计和 Planner 风险降级为 L1。"""
+
+    project = create_project(client)
+    task_response = client.post(
+        "/api/tasks",
+        json={
+            "project_id": project["id"],
+            "title": "验证 CloudHelm M4 高风险编排",
+            "description": (
+                "验证 CloudHelm M4 编排的高风险权限、数据库迁移和审批边界。"
+            ),
+            "source_type": "manual",
+            "risk_level": "L4",
+            "created_by": "tester",
+        },
+    )
+    assert task_response.status_code == 201, task_response.text
+    task_id = task_response.json()["id"]
+    assert client.post(f"/api/tasks/{task_id}/start").status_code == 200
+    assert client.post(f"/api/tasks/{task_id}/run-next").status_code == 200
+    design_step = client.post(f"/api/tasks/{task_id}/run-next")
+    assert design_step.status_code == 200, design_step.text
+    assert design_step.json()["approval"]["risk_level"] == "L4"
+    assert client.post(
+        f"/api/approvals/{design_step.json()['approval']['id']}/approve",
+        json={"actor_id": "tester"},
+    ).status_code == 200
+
+    plan_step = client.post(f"/api/tasks/{task_id}/run-next")
+
+    assert plan_step.status_code == 200, plan_step.text
+    assert plan_step.json()["approval"]["action"] == "approve_development_plan"
+    assert plan_step.json()["approval"]["risk_level"] == "L4"
+
+
+def test_requirement_risk_elevation_reaches_architect_approval(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    """Requirement 新识别的高风险必须写回 Task 并约束后续设计审批。"""
+
+    project = create_project(client)
+    task = create_task(
+        client,
+        project["id"],
+        title="验证 CloudHelm M4 需求风险传播",
+    )
+    original_run = RequirementAgent.run
+
+    def elevated_requirement(agent, payload, *, conversation):
+        output = original_run(
+            agent,
+            payload,
+            conversation=conversation,
+        )
+        return output.model_copy(
+            update={"risk_level": RiskLevel.L3}
+        )
+
+    monkeypatch.setattr(RequirementAgent, "run", elevated_requirement)
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+
+    requirement_step = client.post(
+        f"/api/tasks/{task['id']}/run-next"
+    )
+    assert requirement_step.status_code == 200, requirement_step.text
+    assert requirement_step.json()["task"]["risk_level"] == "L3"
+
+    design_step = client.post(f"/api/tasks/{task['id']}/run-next")
+
+    assert design_step.status_code == 200, design_step.text
+    assert design_step.json()["technical_design"]["risk_level"] == "L3"
+    assert design_step.json()["approval"]["risk_level"] == "L3"
 
 
 def test_transient_llm_request_failure_pauses_task_after_bounded_retries(

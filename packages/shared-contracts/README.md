@@ -5,7 +5,7 @@
 ## 当前内容
 
 - `openapi/cloudhelm.openapi.yaml`：Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、逐请求 Provider usage、ToolCall、Tool Gateway、Approval、Orchestration、M6 本地开发闭环和 Event Timeline。
-- `schemas/events/task-event.schema.json`：M2-M6 真实 `event_logs` 字段和事件类型枚举，包括 Agent conversation/subagent、AgentRun/ToolCall 取消、Approval 过期和本地开发证据事件。
+- `schemas/events/task-event.schema.json`：M2-M6 真实 `event_logs` 字段和事件类型枚举，包括 `AgentConversationStopped` / `SubagentStopped` 会话终止事件、`ToolCallRejected` claim 前/重放策略拒绝、AgentRun/ToolCall 取消、Approval 过期和本地开发证据事件；Task 取消时由 `TaskCancelled.payload.cancelled_agent_conversations` 记录关闭数量。
 - `schemas/agents/agent-common.schema.json`：八类普通 Agent 共用的稳定传输
   前缀，约束 schema 版本、角色、状态、摘要、证据引用、风险、阻塞项和
   ToolCall 摘要。

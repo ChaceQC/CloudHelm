@@ -61,6 +61,7 @@ class ToolCallService(BaseService):
         original_arguments = values["arguments_json"]
         values["arguments_json"] = sanitize_arguments_for_storage(original_arguments)
         values["result_json"] = sanitize_result_for_storage(values["result_json"])
+        values["result_summary"] = redact_sensitive_text(values["result_summary"])
         values["stdout_summary"] = redact_sensitive_text(values["stdout_summary"])
         values["stderr_summary"] = redact_sensitive_text(values["stderr_summary"])
         values["arguments_summary"] = summarize_arguments(values["arguments_json"])

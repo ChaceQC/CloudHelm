@@ -7,12 +7,33 @@ Artifact 与本地等价 PR record。
 ## 命令
 
 ```powershell
+$env:PYTHONIOENCODING='utf-8'
+$OutputEncoding=[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new()
 docker compose -f ../../infra/docker-compose.dev.yml up -d postgres
 $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
 uv run alembic upgrade head
 uv run pytest
 uv run uvicorn cloudhelm_platform_api.main:app --host 127.0.0.1 --port 18080
 ```
+
+### pytest 数据库保护
+
+默认 pytest 夹具不重置 `CLOUDHELM_DATABASE_URL` 指向的开发库。它以
+`cloudhelm_test` 为基名，在同一 PostgreSQL 实例创建会话级随机数据库
+`cloudhelm_test_<pid>_<uuid>`，执行 Alembic 和测试后删除；并行会话使用不同
+数据库。数据库用户必须具备创建/删除测试数据库权限。
+
+如需复用专用测试库，显式设置：
+
+```powershell
+$env:CLOUDHELM_TEST_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm_test'
+$env:CLOUDHELM_TEST_ALLOW_SCHEMA_RESET='true'
+uv run pytest -q
+```
+
+显式数据库名必须包含独立 `test` 段；该模式会重建目标测试库的 `public`
+schema。缺少 `CLOUDHELM_TEST_ALLOW_SCHEMA_RESET=true` 时测试在迁移前终止，
+防止误清开发库。
 
 启动后验证：
 
@@ -23,8 +44,10 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 ## 环境变量
 
 - `CLOUDHELM_ENV`：运行环境，默认 `development`。
-- `CLOUDHELM_VERSION`：服务版本，默认 `0.5.0`。
-- `CLOUDHELM_AGENT_PROVIDER`：M4 Agent provider，默认 `local_structured`。
+- `CLOUDHELM_VERSION`：服务版本，默认 `0.5.1`。
+- `CLOUDHELM_AGENT_PROVIDER`：M4 Agent provider，默认 `local_structured`；
+  当前仅支持受控 auth/profile demo issue 和 CloudHelm M4 核验 recipe，其他
+  领域返回 `unsupported_local_recipe`。
 - `CLOUDHELM_TOOL_RATE_LIMIT_CALLS`：单实例窗口内每个任务或 AgentRun 的最大工具调用次数，默认 60。
 - `CLOUDHELM_TOOL_RATE_LIMIT_WINDOW_SECONDS`：工具调用滑动窗口秒数，默认 60。
 - `CLOUDHELM_TOOL_WORKSPACE_ROOTS`：允许 Repo、Sandbox、Git 工具访问的根目录 JSON 数组；默认 `[]`，即拒绝工作区工具。
@@ -49,8 +72,13 @@ Invoke-RestMethod http://127.0.0.1:18080/health
   Responses `prompt_cache_options` / `prompt_cache_breakpoint` 时启用。
 - `CLOUDHELM_LLM_USER_AGENT` / `CLOUDHELM_LLM_ORIGINATOR`：Codex 兼容请求头。
 - `CLOUDHELM_AGENT_MAX_SUBAGENT_DEPTH` / `CLOUDHELM_AGENT_MAX_SUBAGENT_THREADS`：
-  显式 child conversation 的深度和并发上限。
+  显式 child conversation 的深度和并发上限；默认 `1 / 6`，参考 Codex CLI
+  只允许 root 创建直接 child。
 - `CLOUDHELM_DATABASE_URL`：SQLAlchemy 数据库连接串，本地默认指向 `infra/docker-compose.dev.yml` 的 PostgreSQL。
+- `CLOUDHELM_TEST_DATABASE_URL`：可选的专用 PostgreSQL 测试库；默认不设置，
+  由 pytest 创建会话级随机数据库。
+- `CLOUDHELM_TEST_ALLOW_SCHEMA_RESET`：显式测试库的破坏性 schema 重建确认；
+  只有专用 test 数据库可设为 `true`。
 - `CLOUDHELM_REDIS_URL`：Redis 预留配置；M2 暂不接入生产路径。
 
 ## API 分层
@@ -80,8 +108,15 @@ src/cloudhelm_platform_api/
 - `agent_runs` 同时记录总量和 `provider_requests` 逐请求 usage。`cache_hit`
   只能由供应商 `cached_input_tokens > 0` 推导，结构化修复重试不会被隐藏。
 - 只有 `AgentConversationService.spawn_subagent` 能创建 child，要求 running
-  父 AgentRun、明确 objective/expected result，并保存 parent、role、depth、
-  fork mode 和生命周期。
+  Task、running 父 AgentRun、明确 objective/expected result，并保存 parent、
+  role、depth、fork mode 和生命周期。child 有效工具为自身角色与全部父级角色
+  allowlist 的交集，Tool Gateway 每次调用重新计算并写入审计；终态
+  conversation 不得继续调用工具。child 只能在自身没有 active AgentRun 和
+  active 后代时按叶子优先顺序结束，完成通知只允许非空、脱敏且不超过 4000
+  字符的最终摘要。
+- 上述能力是内部会话、权限和生命周期原语。M1-M6 没有提供生产
+  `spawn_subagent` API/provider tool、child AgentRun 调度、wait-all、steer/queue
+  或独立 thread 管理 UI。
 
 ## M5 Tool Gateway 接口
 
@@ -95,8 +130,8 @@ POST /api/tasks/{task_id}/tool-gateway/call
 `approval_requests`，ToolCall 状态为 `waiting_approval`，不执行 handler。
 Agent 调用必须绑定属于当前任务且状态为 `running` 的 AgentRun，Task 也必须为
 `running`。工具参数落库前会递归脱敏，文件正文仅保存长度和 SHA-256；
-Tool Gateway 返回的主体、风险、幂等键、参数 hash 和终态保存在
-`tool_calls.audit_json`。
+ToolCall `result_json` 也只保存脱敏安全投影。Tool Gateway 返回的主体、风险、
+幂等键、参数 hash 和终态保存在 `tool_calls.audit_json`。
 
 带 `workflow_step` 的 M6 AgentRun 只能由内部 Agent executor 调用 Tool
 Gateway。公开 HTTP 入口不能绕过该边界；executor 按工具名、Pydantic 默认值
@@ -120,6 +155,10 @@ GET  /api/pull-request-records/{record_id}
 门禁要求 diff/test/review/security 来自同一 DevelopmentPlan、recipe hash 和
 evidence set。`provider=local` 的 PR record 强制 `url=null`。
 
+`diff_patch` / `format_patch` Artifact 保存原始 UTF-8 bytes 与 SHA 供
+`git apply --check` 和 Git 门禁；ToolCall 数据库、Reviewer 输入和 Artifact API
+preview 使用保留 Git 结构的脱敏安全投影，不暴露 raw secrets。
+
 ## 当前边界
 
 M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branch/commit 和
@@ -127,3 +166,8 @@ M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branc
 具备命令数组、环境白名单、超时、进程树清理和有界输出，但不具备 Docker 的
 CPU、内存、PID、只读挂载与网络隔离；不执行 push、远端 SSH、部署或监控操作。
 `/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件。
+
+恢复语义覆盖能够进入应用错误处理的 Provider/CLI/文件系统/数据库异常，以及
+已有 ToolCall/Artifact/PR 幂等证据的重试。进程在终态持久化前被强制终止时，
+active AgentRun/ToolCall 尚无 lease、heartbeat 或 stale reclaim，需要人工
+核验；M6 不把 hard crash 自动恢复标记为完成。

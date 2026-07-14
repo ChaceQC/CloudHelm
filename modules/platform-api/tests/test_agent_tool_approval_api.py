@@ -39,6 +39,7 @@ def test_agent_run_tool_call_and_approval_records_are_queryable(client: TestClie
             "risk_level": "L1",
             "arguments_json": {"path": "README.md", "secret": "masked-by-summary"},
             "arguments_summary": "secret=masked-by-summary",
+            "result_summary": "token=sensitive-result-token",
             "status": "succeeded",
             "approval_id": approval["id"],
         },
@@ -48,11 +49,16 @@ def test_agent_run_tool_call_and_approval_records_are_queryable(client: TestClie
     assert tool_call["tool_name"] == "repo.read_file"
     assert tool_call["arguments_summary"] == "keys=[path, secret]"
     assert "masked-by-summary" not in tool_call["arguments_summary"]
+    assert tool_call["result_summary"] == "token=<redacted>"
+    assert "sensitive-result-token" not in tool_call_response.text
     assert tool_call["audit_json"]["source"] == "internal_record_api"
     assert tool_call["audit_json"]["arguments_hash"].startswith("sha256:")
 
     assert client.get(f"/api/agent-runs/{agent_run['id']}").json()["id"] == agent_run["id"]
-    assert client.get(f"/api/tool-calls/{tool_call['id']}").json()["id"] == tool_call["id"]
+    persisted_tool_call = client.get(f"/api/tool-calls/{tool_call['id']}")
+    assert persisted_tool_call.json()["id"] == tool_call["id"]
+    assert persisted_tool_call.json()["result_summary"] == "token=<redacted>"
+    assert "sensitive-result-token" not in persisted_tool_call.text
     assert client.get("/api/approvals").json()["items"][0]["id"] == approval["id"]
 
     approve = client.post(

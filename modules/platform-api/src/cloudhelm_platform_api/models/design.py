@@ -13,8 +13,8 @@ from cloudhelm_platform_api.db.base import Base, TimestampMixin, UUIDPrimaryKeyM
 class TechnicalDesign(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """技术设计记录。
 
-    M2 只保存结构化设计内容，不自动调用 Architect Agent，也不执行 OpenAPI
-    或数据库 schema 生成工具。
+    保存手工提交或 Architect Agent 生成的 ADR、OpenAPI/数据库 schema 草案
+    与风险结论；该记录本身不执行迁移或外部工具副作用。
     """
 
     __tablename__ = "technical_designs"

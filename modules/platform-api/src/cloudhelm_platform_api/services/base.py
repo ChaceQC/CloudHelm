@@ -32,7 +32,7 @@ class BaseService:
                 code="database_error",
                 message="数据库写入失败。",
                 status_code=500,
-                detail=str(exc),
+                detail=None,
             ) from exc
         else:
             accept_pending_artifacts(self.session)

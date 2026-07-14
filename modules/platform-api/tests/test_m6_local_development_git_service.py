@@ -124,6 +124,68 @@ def test_finalize_uses_one_turn_and_exact_tool_call_records(
             seed.context.recipe_sha256
         )
         assert patch.metadata_json["evidence_set_id"].startswith("m6:")
+        diff_patch = session.scalar(
+            select(Artifact).where(
+                Artifact.task_id == seed.context.task.id,
+                Artifact.artifact_type == "diff_patch",
+            )
+        )
+        assert diff_patch is not None
+        artifact_service = ArtifactService(session, seed.settings)
+        apply_repo = tmp_path / "apply-check"
+        cloned = subprocess.run(
+            [
+                "git",
+                "clone",
+                "--no-hardlinks",
+                str(seed.repo),
+                str(apply_repo),
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+        )
+        assert cloned.returncode == 0, cloned.stderr
+        _git(
+            apply_repo,
+            "checkout",
+            patch.metadata_json["base_commit_sha"],
+        )
+        for artifact in (diff_patch, patch):
+            raw_patch = artifact_service.storage.read_verified(
+                artifact.storage_key,
+                artifact.sha256,
+                artifact.size_bytes,
+            ).decode("utf-8")
+            assert "password: str" in raw_patch
+            assert "token: str" in raw_patch
+            assert "secret: str" in raw_patch
+            assert "/var/lib/cloudhelm" in raw_patch
+            tool_call = session.get(ToolCall, artifact.tool_call_id)
+            assert tool_call is not None
+            assert tool_call.audit_json["patch_sha256"] == artifact.sha256
+            assert tool_call.result_json is not None
+            assert "password: str" not in tool_call.result_json["patch"]
+            checked = subprocess.run(
+                [
+                    "git",
+                    "apply",
+                    "--check",
+                    str(
+                        artifact_service.storage.resolve(
+                            artifact.storage_key
+                        )
+                    ),
+                ],
+                cwd=apply_repo,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+            )
+            assert checked.returncode == 0, checked.stderr
 
 
 def test_gate_failure_happens_before_git_commit(tmp_path: Path) -> None:
@@ -308,7 +370,7 @@ def _seed(
         acceptance_criteria_json=[
             {
                 "id": "AC-001",
-                "description": "VALUE 更新为 2。",
+                "description": "配置版本更新为 2。",
                 "verification": "pytest",
             }
         ],
@@ -351,7 +413,14 @@ def _seed(
     _git(repo, "init", "-b", "main")
     _git(repo, "config", "user.name", "CloudHelm Test")
     _git(repo, "config", "user.email", "cloudhelm@example.test")
-    (repo / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repo / "app.py").write_text(
+        "def build_config("
+        "password: str, token: str, secret: str"
+        ") -> dict[str, str]:\n"
+        '    data_root = "/var/lib/cloudhelm"\n'
+        '    return {"version": "1"}\n',
+        encoding="utf-8",
+    )
     _git(repo, "add", "app.py")
     _git(repo, "commit", "-m", "chore: baseline")
 
@@ -386,7 +455,14 @@ def _seed(
         )
     )
     assert branch.status == "succeeded"
-    (repo / "app.py").write_text("VALUE = 2\n", encoding="utf-8")
+    (repo / "app.py").write_text(
+        "def build_config("
+        "password: str, token: str, secret: str"
+        ") -> dict[str, str]:\n"
+        '    data_root = "/var/lib/cloudhelm"\n'
+        '    return {"version": "2"}\n',
+        encoding="utf-8",
+    )
     diff = executor(
         ProviderToolCall(
             call_id=f"call_{label}_diff",
@@ -395,7 +471,7 @@ def _seed(
         )
     )
     assert diff.status == "succeeded"
-    diff_details = diff.result["result_json"]
+    diff_details = executor.result_json(executor.tool_calls[-1])
     changed = ChangedFile(
         path="app.py",
         operation="updated",
@@ -499,7 +575,7 @@ def _seed(
 
     recipe = LocalExecutionRecipe.model_validate(
         {
-            "schema_version": "1.0",
+            "schema_version": "1.1",
             "recipe_id": "test-finalize",
             "template_id": "sample-repo-python",
             "issue_path": "demo-issues/test.md",
@@ -509,8 +585,14 @@ def _seed(
                 {
                     "path": "app.py",
                     "operation": "update",
-                    "purpose": "更新演示值。",
-                    "content": "VALUE = 2\n",
+                    "purpose": "更新演示配置版本。",
+                    "content": (
+                        "def build_config("
+                        "password: str, token: str, secret: str"
+                        ") -> dict[str, str]:\n"
+                        '    data_root = "/var/lib/cloudhelm"\n'
+                        '    return {"version": "2"}\n'
+                    ),
                 }
             ],
             "test_commands": [
@@ -530,6 +612,7 @@ def _seed(
             "acceptance_evidence": [
                 {
                     "criterion_id": "AC-001",
+                    "testcase_names": ["test_app_version"],
                     "notes": "pytest 覆盖。",
                 }
             ],
@@ -569,7 +652,7 @@ def _run(
         workflow_step=workflow_step,
         attempt=1,
         idempotency_key=f"m6:{workflow_step}:1",
-        model_name="local-rules-m6-v1",
+        model_name="local-rules-m6-v2",
         prompt_hash="m6-test",
         structured_output_type=output_type,
     )

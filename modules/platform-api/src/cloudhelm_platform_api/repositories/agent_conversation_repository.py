@@ -72,3 +72,53 @@ class AgentConversationRepository:
             )
         )
         return int(count or 0)
+
+    def list_active_by_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> list[AgentConversation]:
+        """读取 Task 下全部 active root/child conversations。"""
+
+        statement = (
+            select(AgentConversation)
+            .where(
+                AgentConversation.task_id == task_id,
+                AgentConversation.status == "active",
+            )
+            .order_by(
+                AgentConversation.depth.desc(),
+                AgentConversation.created_at.asc(),
+                AgentConversation.id.asc(),
+            )
+        )
+        if for_update:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+        return list(self.session.scalars(statement))
+
+    def list_active_descendants(
+        self,
+        task_id: UUID,
+        ancestor_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> list[AgentConversation]:
+        """读取指定 conversation 的全部 active 后代。"""
+
+        active = self.list_active_by_task(task_id, for_update=for_update)
+        descendants: list[AgentConversation] = []
+        frontier = {ancestor_id}
+        while frontier:
+            level = [
+                record
+                for record in active
+                if record.parent_conversation_id in frontier
+            ]
+            if not level:
+                break
+            descendants.extend(level)
+            frontier = {record.id for record in level}
+        return descendants

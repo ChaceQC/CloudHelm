@@ -48,7 +48,25 @@ class RecipeAcceptanceEvidence(BaseModel):
         max_length=80,
         pattern=r"^AC-(?:[A-Z0-9]+-)*[0-9]{3}$",
     )
+    testcase_names: list[str] = Field(min_length=1)
     notes: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("testcase_names")
+    @classmethod
+    def validate_testcase_names(cls, value: list[str]) -> list[str]:
+        """只接受唯一、稳定的 pytest 函数名。"""
+
+        if len(value) != len(set(value)):
+            raise ValueError("recipe testcase names must be unique")
+        if any(
+            not name.startswith("test_")
+            or any(char.isspace() for char in name)
+            for name in value
+        ):
+            raise ValueError(
+                "recipe testcase names must be stable pytest function names"
+            )
+        return value
 
 
 class LocalExecutionRecipe(BaseModel):
@@ -56,7 +74,7 @@ class LocalExecutionRecipe(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.1"]
     recipe_id: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,79}$")
     template_id: Literal["sample-repo-python"]
     issue_path: str = Field(min_length=1, max_length=300)

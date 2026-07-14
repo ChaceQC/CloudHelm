@@ -1,8 +1,18 @@
 """Task API 与任务事件测试。"""
 
-from fastapi.testclient import TestClient
+from uuid import UUID
 
-from conftest import create_project, create_task
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from cloudhelm_platform_api.core.config import get_settings
+from cloudhelm_platform_api.db.session import get_engine
+from cloudhelm_platform_api.models.agent_conversation import AgentConversation
+from cloudhelm_platform_api.services.agent_conversation_service import (
+    AgentConversationService,
+)
+from conftest import create_project, create_running_agent_run, create_task
 
 
 def test_create_task_writes_task_created_event(client: TestClient) -> None:
@@ -37,6 +47,7 @@ def test_task_pause_resume_cancel_write_events_and_validate_state(client: TestCl
     cancel = client.post(f"/api/tasks/{task['id']}/cancel", json={"actor_id": "tester"})
     assert cancel.status_code == 200
     assert cancel.json()["status"] == "cancelled"
+    assert cancel.json()["current_phase"] == "Created"
 
     second_cancel = client.post(f"/api/tasks/{task['id']}/cancel", json={"actor_id": "tester"})
     assert second_cancel.status_code == 409
@@ -110,6 +121,7 @@ def test_cancel_task_closes_active_runs_calls_and_approvals(client: TestClient) 
 
     cancelled = client.post(f"/api/tasks/{task['id']}/cancel", json={"actor_id": "tester"})
     assert cancelled.status_code == 200
+    assert cancelled.json()["current_phase"] == "RequirementClarifying"
     assert client.get(f"/api/agent-runs/{agent_run['id']}").json()["status"] == "cancelled"
     assert client.get(f"/api/tool-calls/{tool_call['id']}").json()["status"] == "cancelled"
     assert client.get(f"/api/approvals/{approval['id']}").json()["status"] == "expired"
@@ -119,3 +131,97 @@ def test_cancel_task_closes_active_runs_calls_and_approvals(client: TestClient) 
     assert "ToolCallCancelled" in event_types
     assert "ApprovalExpired" in event_types
     assert event_types[-1] == "TaskCancelled"
+    cancelled_event = client.get(
+        f"/api/tasks/{task['id']}/timeline"
+    ).json()["items"][-1]
+    assert cancelled_event["payload"]["current_phase"] == "RequirementClarifying"
+
+
+def test_cancel_task_closes_active_root_and_child_conversations(
+    client: TestClient,
+) -> None:
+    """取消 Task 时 root/child conversation 必须同步进入可审计终态。"""
+
+    project = create_project(client, "会话取消项目")
+    task = create_task(client, project["id"], "取消 Agent 会话")
+    assert client.post(f"/api/tasks/{task['id']}/start").status_code == 200
+    assert client.post(f"/api/tasks/{task['id']}/run-next").status_code == 200
+
+    with Session(get_engine()) as session:
+        root_id = session.scalar(
+            select(AgentConversation.id).where(
+                AgentConversation.task_id == UUID(task["id"]),
+                AgentConversation.source_type == "root",
+            )
+        )
+    assert root_id is not None
+
+    spawning_run = create_running_agent_run(
+        task["id"],
+        "planner",
+        conversation_id=str(root_id),
+    )
+    with Session(get_engine()) as session:
+        service = AgentConversationService(session, get_settings())
+        child, _ = service.spawn_subagent(
+            parent_conversation_id=root_id,
+            agent_role="reviewer",
+            nickname="Atlas",
+            objective="核验当前任务取消时 child conversation 的生命周期闭环。",
+            expected_result="返回取消前的会话状态证据。",
+            spawned_by_agent_run_id=UUID(spawning_run["id"]),
+            fork_context=False,
+        )
+        child_id = child.id
+        session.commit()
+
+    cancelled = client.post(
+        f"/api/tasks/{task['id']}/cancel",
+        json={"actor_id": "tester", "reason": "终止当前开发任务"},
+    )
+    assert cancelled.status_code == 200
+
+    with Session(get_engine()) as session:
+        conversations = {
+            conversation.id: conversation
+            for conversation in session.scalars(
+                select(AgentConversation).where(
+                    AgentConversation.id.in_([root_id, child_id])
+                )
+            )
+        }
+        assert set(conversations) == {root_id, child_id}
+        assert conversations[root_id].status == "cancelled"
+        assert conversations[root_id].completed_at is not None
+        assert conversations[child_id].status == "cancelled"
+        assert conversations[child_id].completed_at is not None
+
+    timeline = client.get(
+        f"/api/tasks/{task['id']}/timeline"
+    ).json()["items"]
+    stopped_events = {
+        event["event_type"]: event
+        for event in timeline
+        if event["event_type"]
+        in {"AgentConversationStopped", "SubagentStopped"}
+    }
+    assert set(stopped_events) == {
+        "AgentConversationStopped",
+        "SubagentStopped",
+    }
+    assert stopped_events["AgentConversationStopped"]["payload"] == {
+        "conversation_id": str(root_id),
+        "source_type": "root",
+        "status": "cancelled",
+        "reason": "终止当前开发任务",
+    }
+    assert stopped_events["SubagentStopped"]["payload"] == {
+        "conversation_id": str(child_id),
+        "source_type": "subagent",
+        "status": "cancelled",
+        "reason": "终止当前开发任务",
+    }
+    cancelled_event = next(
+        event for event in timeline if event["event_type"] == "TaskCancelled"
+    )
+    assert cancelled_event["payload"]["cancelled_agent_conversations"] == 2

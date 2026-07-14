@@ -9,7 +9,6 @@ from cloudhelm_agent_runtime.providers import (
     ProviderToolCall,
     ProviderToolExecutionResult,
 )
-from cloudhelm_tool_gateway.audit import redact_sensitive_text
 from sqlalchemy import select
 
 from cloudhelm_platform_api.models.tool_call import ToolCall
@@ -33,6 +32,7 @@ class ExecutedGitCall:
 
     result: ProviderToolExecutionResult
     record: ToolCallRead
+    evidence_result_json: dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +91,12 @@ class LocalDevelopmentGitExecution:
                 ),
                 409,
             )
-        return ExecutedGitCall(result=result, record=matches[0])
+        record = matches[0]
+        return ExecutedGitCall(
+            result=result,
+            record=record,
+            evidence_result_json=executor.result_json(record),
+        )
 
     def validate_status(
         self,
@@ -122,25 +127,24 @@ class LocalDevelopmentGitExecution:
         context: LocalDevelopmentContext,
         evidence: ReadyForPrEvidence,
         status_result: ProviderToolExecutionResult,
-        diff_result: ProviderToolExecutionResult,
+        diff_details: dict[str, Any],
         message: str,
     ) -> CommitPreparation:
         """验证当前 diff；clean workspace 只恢复此前真实 commit。"""
 
-        details = result_details(diff_result)
         actual = normalize_git_paths(
-            details.get("changed_files"),
+            diff_details.get("changed_files"),
             "git.diff changed_files",
             False,
         )
-        patch = details.get("patch")
+        patch = diff_details.get("patch")
         if (
             set(actual) != set(evidence.changed_files)
             or not isinstance(patch, str)
             or not patch.strip()
-            or details.get("patch_truncated") is True
-            or details.get("from_ref") != evidence.base_commit
-            or (redact_sensitive_text(patch) or "") != evidence.diff_text
+            or diff_details.get("patch_truncated") is True
+            or diff_details.get("from_ref") != evidence.base_commit
+            or patch != evidence.diff_text
         ):
             raise gate_error(
                 "m6_precommit_diff_mismatch",
@@ -204,12 +208,11 @@ class LocalDevelopmentGitExecution:
 
     @staticmethod
     def validate_patch(
-        result: ProviderToolExecutionResult,
+        details: dict[str, Any],
         evidence: ReadyForPrEvidence,
     ) -> tuple[str, dict[str, Any]]:
         """验证 format-patch 完整覆盖当前 changed files。"""
 
-        details = result_details(result)
         patch = details.get("patch")
         changed = normalize_git_paths(
             details.get("changed_files"),

@@ -48,6 +48,8 @@ from cloudhelm_platform_api.services.artifact_storage import (
     track_pending_artifact,
 )
 
+_LOSSLESS_TEXT_ARTIFACT_TYPES = frozenset({"diff_patch", "format_patch"})
+
 
 class ArtifactService(BaseService):
     """把结构化证据写入受控文件，并只向 API 暴露安全引用。"""
@@ -81,14 +83,18 @@ class ArtifactService(BaseService):
         tool_call_id: UUID | None = None,
         media_type: str = "text/plain",
     ) -> Artifact:
-        """创建 UTF-8 Artifact；相同幂等键和内容直接复用。"""
+        """创建 UTF-8 Artifact；Git patch 保留原始字节供完整性验证。"""
 
-        redacted = redact_sensitive_text(content) or ""
+        stored_text = (
+            content
+            if artifact_type in _LOSSLESS_TEXT_ARTIFACT_TYPES
+            else (redact_sensitive_text(content) or "")
+        )
         return self._create_bytes(
             task_id=task_id,
             artifact_type=artifact_type,
             display_name=display_name,
-            content=redacted.encode("utf-8"),
+            content=stored_text.encode("utf-8"),
             producer_type=producer_type,
             summary=summary,
             metadata_json=metadata_json,

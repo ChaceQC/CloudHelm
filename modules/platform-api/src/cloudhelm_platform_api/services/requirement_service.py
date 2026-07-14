@@ -30,7 +30,7 @@ class RequirementService(BaseService):
     def create_requirement(self, task_id: UUID, data: RequirementSpecCreate) -> RequirementSpecRead:
         """为任务创建需求规格并写入事件。"""
 
-        task = self.tasks.get(task_id)
+        task = self.tasks.get(task_id, for_update=True)
         if task is None:
             raise ServiceError("task_not_found", "创建需求失败：任务不存在。", 404)
         self._ensure_task_mutable(task.status)
@@ -81,7 +81,7 @@ class RequirementService(BaseService):
 
         requirement = self._require_requirement(requirement_id)
         self._ensure_current_requirement(requirement)
-        task = self.tasks.get(requirement.task_id)
+        task = self.tasks.get(requirement.task_id, for_update=True)
         if task is not None:
             self._ensure_task_mutable(task.status)
         if requirement.status != ReviewStatus.DRAFT.value:
@@ -104,7 +104,7 @@ class RequirementService(BaseService):
 
         requirement = self._require_requirement(requirement_id)
         self._ensure_current_requirement(requirement)
-        task = self.tasks.get(requirement.task_id)
+        task = self.tasks.get(requirement.task_id, for_update=True)
         if task is not None:
             self._ensure_task_mutable(task.status)
         if requirement.status not in {ReviewStatus.DRAFT.value, ReviewStatus.APPROVED.value}:

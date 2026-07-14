@@ -43,10 +43,19 @@ class ToolCallExecution:
         task_id: UUID,
         data: ToolGatewayCallCreate,
         agent_type: str | None,
+        *,
+        execution_policy_fingerprint: str | None = None,
+        execution_policy_context: dict[str, object] | None = None,
     ) -> tuple[ToolCall, bool]:
         """抢占幂等键；相同终态调用直接返回已有记录。"""
 
-        return self.claims.claim(task_id, data, agent_type)
+        return self.claims.claim(
+            task_id,
+            data,
+            agent_type,
+            execution_policy_fingerprint,
+            execution_policy_context,
+        )
 
     def guard_late_result(
         self,
@@ -120,8 +129,9 @@ class ToolCallExecution:
         code: str,
         message: str,
         fingerprint: str | None,
+        execution_source: str,
     ) -> None:
-        """持久化未匹配 execution recipe 的拒绝，不执行工具。"""
+        """持久化 execution recipe 或继承权限拒绝，不执行工具。"""
 
         tool_call.status = ToolCallStatus.FAILED.value
         tool_call.result_json = {"message": message}
@@ -132,7 +142,7 @@ class ToolCallExecution:
             **(tool_call.audit_json or {}),
             "status": ToolCallStatus.FAILED.value,
             "error_code": code,
-            "execution_source": "agent_executor",
+            "execution_source": execution_source,
             "execution_policy_fingerprint": fingerprint,
         }
 

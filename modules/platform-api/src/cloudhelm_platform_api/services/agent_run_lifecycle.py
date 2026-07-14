@@ -16,6 +16,7 @@ from cloudhelm_agent_runtime.providers import (
     MissingProviderConfigurationError,
     ProviderCallMetadata,
     ProviderConversation,
+    UnsupportedLocalRecipeError,
 )
 
 from cloudhelm_platform_api.core.config import Settings
@@ -91,19 +92,19 @@ class AgentRunLifecycle(BaseService):
             self.settings.llm_model
             if provider_name == "openai_compatible"
             else (
-                "local-rules-m6-v1"
+                "local-rules-m6-v2"
                 if workflow_step is not None
                 else "local-rules-m4-v1"
             )
         )
         prompt_hash = (
             (
-                f"{'m6-v1' if workflow_step else 'm4-v3'}:"
+                f"{'m6-v2' if workflow_step else 'm4-v3'}:"
                 f"{self.settings.llm_api_mode}:{self.settings.llm_reasoning_effort}:"
                 f"attempts={self.settings.llm_max_attempts}"
             )
             if provider_name == "openai_compatible"
-            else ("m6-v1" if workflow_step is not None else "m4-v1")
+            else ("m6-v2" if workflow_step is not None else "m4-v1")
         )
         attempt = (
             self.agent_runs.next_attempt(task.id, workflow_step)
@@ -263,7 +264,7 @@ class AgentRunLifecycle(BaseService):
         agent_run.error_message = message
         agent_run.finished_at = utc_now()
         recoverable = (
-            isinstance(exc, MissingProviderConfigurationError)
+            isinstance(exc, (MissingProviderConfigurationError, UnsupportedLocalRecipeError))
             or isinstance(exc, AgentProviderResponseError)
             or (isinstance(exc, AgentProviderRequestError) and exc.retryable)
             or (
@@ -288,7 +289,7 @@ class AgentRunLifecycle(BaseService):
         self.commit()
         if isinstance(exc, ServiceError):
             raise ServiceError(exc.code, exc.message, exc.status_code, exc.detail) from exc
-        if isinstance(exc, MissingProviderConfigurationError):
+        if isinstance(exc, (MissingProviderConfigurationError, UnsupportedLocalRecipeError)):
             raise ServiceError(code, message, 409) from exc
         if isinstance(exc, AgentProviderRequestError):
             raise ServiceError(code, message, 503 if exc.retryable else 502) from exc

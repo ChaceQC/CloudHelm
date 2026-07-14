@@ -6,7 +6,10 @@ from cloudhelm_agent_runtime.schemas.agent_io import (
     RiskLevel,
 )
 from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion
-from cloudhelm_agent_runtime.schemas.test_report import TesterAgentInput
+from cloudhelm_agent_runtime.schemas.test_report import (
+    AcceptanceTestEvidence,
+    TesterAgentInput,
+)
 from cloudhelm_tool_gateway import ToolGateway
 from sqlalchemy.orm import Session
 
@@ -90,6 +93,14 @@ class LocalDevelopmentTestStep:
                     acceptance_criteria=[
                         AcceptanceCriterion.model_validate(item)
                         for item in context.requirement.acceptance_criteria_json
+                    ],
+                    acceptance_evidence=[
+                        AcceptanceTestEvidence(
+                            criterion_id=item.criterion_id,
+                            testcase_names=item.testcase_names,
+                            notes=item.notes,
+                        )
+                        for item in context.recipe.acceptance_evidence
                     ],
                     changed_files=implementation.output.changed_files,
                     commands=[

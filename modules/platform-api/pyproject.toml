@@ -1,6 +1,6 @@
 [project]
 name = "cloudhelm-platform-api"
-version = "0.5.0"
+version = "0.5.1"
 description = "CloudHelm 平台 API 数据模型、M6 Agent 编排、Artifact 与本地等价 PR 入口。"
 readme = "README.md"
 requires-python = ">=3.12"

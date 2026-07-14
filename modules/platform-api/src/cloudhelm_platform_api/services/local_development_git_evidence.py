@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from cloudhelm_tool_gateway.audit import redact_sensitive_text
-
 from cloudhelm_platform_api.core.config import Settings
 from cloudhelm_platform_api.models.artifact import Artifact
 from cloudhelm_platform_api.models.tool_call import ToolCall
@@ -160,7 +158,6 @@ class LocalDevelopmentGitEvidenceGate:
         """验证 Coder ToolCall、Artifact 内容和 changed files 完全一致。"""
 
         details = diff_call.result_json or {}
-        patch = details.get("patch")
         actual = normalize_git_paths(
             details.get("changed_files"),
             "Coder git.diff changed_files",
@@ -177,12 +174,12 @@ class LocalDevelopmentGitEvidenceGate:
         )
         if (
             artifact.tool_call_id != diff_call.id
-            or not isinstance(patch, str)
-            or not patch.strip()
             or details.get("patch_truncated") is True
             or set(actual) != set(changed_files)
             or set(metadata_files) != set(changed_files)
-            or stored != (redact_sensitive_text(patch) or "")
+            or artifact.sha256
+            != (diff_call.audit_json or {}).get("patch_sha256")
+            or artifact.size_bytes != len(stored.encode("utf-8"))
         ):
             raise gate_error(
                 "m6_coder_diff_invalid",

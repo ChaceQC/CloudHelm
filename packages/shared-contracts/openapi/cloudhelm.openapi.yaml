@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: CloudHelm Platform API
   description: CloudHelm 平台 API。M6 提供真实数据库驱动的 Agent 编排、受控本地代码/测试/安全工具、Artifact 与本地等价 PR record。
-  version: 0.5.0
+  version: 0.5.1
 paths:
   /health:
     get:
@@ -3734,6 +3734,14 @@ components:
           - type: 'null'
           title: Reason
           description: 用户或系统给出的推进原因。
+        expected_phase:
+          anyOf:
+          - type: string
+            maxLength: 64
+            minLength: 1
+          - type: 'null'
+          title: Expected Phase
+          description: 调用方读取到的 Task 当前阶段。服务端在 Task 行锁内比较该值，阶段已变化时拒绝重复推进。
       type: object
       title: OrchestrationActionRequest
       description: 启动或推进编排的请求体。

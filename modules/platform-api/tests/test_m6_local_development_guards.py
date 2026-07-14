@@ -73,7 +73,7 @@ def test_start_rejects_paused_and_cancelled_without_side_effects(
     assert response.status_code == 409
     assert response.json()["code"] == error_code
     assert _side_effect_counts(client, task_id) == before
-    expected_phase = "Planning" if task_action == "pause" else "Cancelled"
+    expected_phase = "Planning"
     assert client.get(f"/api/tasks/{task_id}").json()["current_phase"] == (
         expected_phase
     )
@@ -106,9 +106,7 @@ def test_run_next_rejects_paused_and_cancelled_without_side_effects(
     assert response.status_code == 409
     assert response.json()["code"] == error_code
     assert _side_effect_counts(client, task_id) == before
-    expected_phase = (
-        "Scaffolding" if task_action == "pause" else "Cancelled"
-    )
+    expected_phase = "Scaffolding"
     assert client.get(f"/api/tasks/{task_id}").json()["current_phase"] == (
         expected_phase
     )

@@ -24,10 +24,22 @@ class ApprovalRepository:
         self.session.flush()
         return approval
 
-    def get(self, approval_id: UUID) -> ApprovalRequest | None:
-        """按 ID 读取 ApprovalRequest。"""
+    def get(
+        self,
+        approval_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> ApprovalRequest | None:
+        """按 ID 读取 ApprovalRequest，可选加行锁。"""
 
-        return self.session.get(ApprovalRequest, approval_id)
+        if not for_update:
+            return self.session.get(ApprovalRequest, approval_id)
+        return self.session.scalar(
+            select(ApprovalRequest)
+            .where(ApprovalRequest.id == approval_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     def list(
         self,
@@ -70,14 +82,20 @@ class ApprovalRepository:
             is not None
         )
 
-    def list_pending_by_task(self, task_id: UUID) -> list[ApprovalRequest]:
+    def list_pending_by_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> list[ApprovalRequest]:
         """读取任务全部待处理审批，供取消任务时统一过期。"""
 
-        return list(
-            self.session.scalars(
-                select(ApprovalRequest).where(
-                    ApprovalRequest.task_id == task_id,
-                    ApprovalRequest.status == "pending",
-                )
-            )
+        statement = select(ApprovalRequest).where(
+            ApprovalRequest.task_id == task_id,
+            ApprovalRequest.status == "pending",
         )
+        if for_update:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+        return list(self.session.scalars(statement))

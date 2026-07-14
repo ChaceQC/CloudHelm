@@ -72,6 +72,34 @@
     "mermaid_diagram",
     "risk_level"
   ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "risk_level": {
+            "enum": [
+              "L2",
+              "L3",
+              "L4"
+            ]
+          }
+        },
+        "required": [
+          "risk_level"
+        ]
+      },
+      "then": {
+        "properties": {
+          "approval_recommended": {
+            "const": true
+          }
+        },
+        "required": [
+          "approval_recommended"
+        ]
+      }
+    }
+  ],
   "additionalProperties": false,
   "title": "ArchitectAgentOutput",
   "type": "object",

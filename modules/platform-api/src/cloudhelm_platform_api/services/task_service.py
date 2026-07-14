@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from cloudhelm_platform_api.db.base import utc_now
 from cloudhelm_platform_api.models.task import Task
 from cloudhelm_platform_api.repositories.agent_run_repository import AgentRunRepository
+from cloudhelm_platform_api.repositories.agent_conversation_repository import (
+    AgentConversationRepository,
+)
 from cloudhelm_platform_api.repositories.approval_repository import ApprovalRepository
 from cloudhelm_platform_api.repositories.project_repository import ProjectRepository
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
@@ -32,6 +35,7 @@ class TaskService(BaseService):
         super().__init__(session)
         self.tasks = TaskRepository(session)
         self.projects = ProjectRepository(session)
+        self.conversations = AgentConversationRepository(session)
         self.agent_runs = AgentRunRepository(session)
         self.approvals = ApprovalRepository(session)
         self.tool_calls = ToolCallRepository(session)
@@ -81,7 +85,7 @@ class TaskService(BaseService):
     def pause_task(self, task_id: UUID, actor_id: str, reason: str | None = None) -> TaskRead:
         """暂停任务并写入事件，同时保留可恢复的业务阶段。"""
 
-        task = self._require_task(task_id)
+        task = self._require_task(task_id, for_update=True)
         if task.status not in {
             TaskStatus.CREATED.value,
             TaskStatus.RUNNING.value,
@@ -103,7 +107,7 @@ class TaskService(BaseService):
     def resume_task(self, task_id: UUID, actor_id: str, reason: str | None = None) -> TaskRead:
         """恢复暂停任务并从暂停前业务阶段继续调度。"""
 
-        task = self._require_task(task_id)
+        task = self._require_task(task_id, for_update=True)
         if task.status != TaskStatus.PAUSED.value:
             raise ServiceError("invalid_task_transition", "只有 paused 任务可以恢复。", 409)
         pause_event = self.events.latest(task.id, "TaskPaused")
@@ -128,16 +132,20 @@ class TaskService(BaseService):
         return TaskRead.model_validate(task)
 
     def cancel_task(self, task_id: UUID, actor_id: str, reason: str | None = None) -> TaskRead:
-        """取消任务并写入 TaskCancelled 事件。"""
+        """取消任务、关闭活动资源并保留最后业务阶段用于审计。"""
 
-        task = self._require_task(task_id)
+        task = self._require_task(task_id, for_update=True)
         if task.status in {TaskStatus.DONE.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value}:
             raise ServiceError("invalid_task_transition", "当前任务状态不允许取消。", 409)
         old_status = task.status
         task.status = TaskStatus.CANCELLED.value
-        task.current_phase = "Cancelled"
         cancelled_runs = self._cancel_agent_runs(task, actor_id, reason)
         cancelled_calls = self._cancel_tool_calls(task, actor_id, reason)
+        cancelled_conversations = self._cancel_agent_conversations(
+            task,
+            actor_id,
+            reason,
+        )
         expired_approvals = self._expire_approvals(task, actor_id, reason)
         self.events.record(
             "TaskCancelled",
@@ -146,9 +154,11 @@ class TaskService(BaseService):
             {
                 "task_id": str(task.id),
                 "from_status": old_status,
+                "current_phase": task.current_phase,
                 "reason": reason,
                 "cancelled_agent_runs": cancelled_runs,
                 "cancelled_tool_calls": cancelled_calls,
+                "cancelled_agent_conversations": cancelled_conversations,
                 "expired_approvals": expired_approvals,
             },
             task.id,
@@ -156,10 +166,15 @@ class TaskService(BaseService):
         self.commit()
         return TaskRead.model_validate(task)
 
-    def _require_task(self, task_id: UUID) -> Task:
+    def _require_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> Task:
         """读取任务或抛出稳定 404。"""
 
-        task = self.tasks.get(task_id)
+        task = self.tasks.get(task_id, for_update=for_update)
         if task is None:
             raise ServiceError("task_not_found", "任务不存在。", 404)
         return task
@@ -167,7 +182,7 @@ class TaskService(BaseService):
     def _cancel_agent_runs(self, task: Task, actor_id: str, reason: str | None) -> int:
         """取消任务中尚未结束的 AgentRun，并逐项写入事件。"""
 
-        runs = self.agent_runs.list_active_by_task(task.id)
+        runs = self.agent_runs.list_active_by_task(task.id, for_update=True)
         for agent_run in runs:
             agent_run.status = AgentRunStatus.CANCELLED.value
             agent_run.summary = "任务已取消，AgentRun 终止。"
@@ -186,7 +201,7 @@ class TaskService(BaseService):
     def _cancel_tool_calls(self, task: Task, actor_id: str, reason: str | None) -> int:
         """取消任务中尚未结束或仍等待审批的 ToolCall。"""
 
-        calls = self.tool_calls.list_active_by_task(task.id)
+        calls = self.tool_calls.list_active_by_task(task.id, for_update=True)
         for tool_call in calls:
             tool_call.status = ToolCallStatus.CANCELLED.value
             tool_call.error_code = "task_cancelled"
@@ -202,10 +217,47 @@ class TaskService(BaseService):
             )
         return len(calls)
 
+    def _cancel_agent_conversations(
+        self,
+        task: Task,
+        actor_id: str,
+        reason: str | None,
+    ) -> int:
+        """取消 Task 下 active root/child threads，并写可追溯事件。"""
+
+        conversations = self.conversations.list_active_by_task(
+            task.id,
+            for_update=True,
+        )
+        for conversation in conversations:
+            conversation.status = "cancelled"
+            conversation.completed_at = utc_now()
+            conversation.revision += 1
+            self.events.record(
+                (
+                    "SubagentStopped"
+                    if conversation.source_type == "subagent"
+                    else "AgentConversationStopped"
+                ),
+                "user",
+                actor_id,
+                {
+                    "conversation_id": str(conversation.id),
+                    "source_type": conversation.source_type,
+                    "status": "cancelled",
+                    "reason": reason or "任务已取消。",
+                },
+                task.id,
+            )
+        return len(conversations)
+
     def _expire_approvals(self, task: Task, actor_id: str, reason: str | None) -> int:
         """把任务剩余待审批记录标记为过期。"""
 
-        approvals = self.approvals.list_pending_by_task(task.id)
+        approvals = self.approvals.list_pending_by_task(
+            task.id,
+            for_update=True,
+        )
         for approval in approvals:
             approval.status = ApprovalStatus.EXPIRED.value
             approval.decided_by = actor_id

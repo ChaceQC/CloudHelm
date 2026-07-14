@@ -116,7 +116,7 @@ class LocalDevelopmentGitService:
                 context,
                 evidence,
                 status.result,
-                diff.result,
+                diff.evidence_result_json,
                 message,
             )
             commit = self.git.execute(
@@ -147,7 +147,7 @@ class LocalDevelopmentGitService:
                 "生成本地等价 PR 的完整 format-patch。",
             )
             patch_text, patch_details = self.git.validate_patch(
-                patch.result,
+                patch.evidence_result_json,
                 evidence,
             )
             turn.commit(

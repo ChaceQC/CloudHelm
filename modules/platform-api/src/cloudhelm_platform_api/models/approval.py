@@ -13,8 +13,8 @@ from cloudhelm_platform_api.db.base import Base, UUIDPrimaryKeyMixin, utc_now
 class ApprovalRequest(UUIDPrimaryKeyMixin, Base):
     """人工审批请求。
 
-    ApprovalRequest 是 L3/L4 操作和设计/需求审批的审计基础。M2 支持创建、
-    通过和拒绝，但不自动触发高风险工具执行。
+    ApprovalRequest 是需求、设计、开发计划及 L3/L4 工具动作的审计基础。
+    审批决策只改变受控状态；通用高风险工具不会在审批 HTTP 事务内自动补执行。
     """
 
     __tablename__ = "approval_requests"

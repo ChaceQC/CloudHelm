@@ -5,9 +5,15 @@ OrchestrationService 决策，事务提交仍由该入口统一完成。
 """
 
 from cloudhelm_agent_runtime.agents import ArchitectAgent, PlannerAgent, RequirementAgent
-from cloudhelm_agent_runtime.schemas.agent_io import RiskLevel as AgentRiskLevel
+from cloudhelm_agent_runtime.schemas.agent_io import (
+    RiskLevel as AgentRiskLevel,
+    max_risk_level,
+)
 from cloudhelm_agent_runtime.schemas.design import ArchitectAgentInput, ArchitectAgentOutput
-from cloudhelm_agent_runtime.schemas.development_plan import PlannerAgentInput
+from cloudhelm_agent_runtime.schemas.development_plan import (
+    PlannerAgentInput,
+    PlannerAgentOutput,
+)
 from cloudhelm_agent_runtime.schemas.requirement import AcceptanceCriterion, RequirementAgentInput, RequirementConstraint
 
 from cloudhelm_platform_api.models.agent_run import AgentRun
@@ -66,6 +72,10 @@ class OrchestrationStepExecutor:
                     ),
                     conversation=conversation,
                 )
+                task.risk_level = max_risk_level(
+                    AgentRiskLevel(task.risk_level),
+                    output.risk_level,
+                ).value
                 requirement = self.requirements.create(
                     RequirementSpec(
                         task_id=task.id,
@@ -96,7 +106,12 @@ class OrchestrationStepExecutor:
                     "RequirementSpecCreated",
                     "agent",
                     str(agent_run.id),
-                    {"requirement_id": str(requirement.id), "task_id": str(task.id), "source": "requirement_agent"},
+                    {
+                        "requirement_id": str(requirement.id),
+                        "task_id": str(task.id),
+                        "source": "requirement_agent",
+                        "risk_level": task.risk_level,
+                    },
                     task.id,
                 )
             return agent_run, requirement
@@ -144,7 +159,11 @@ class OrchestrationStepExecutor:
                         db_schema_json=output.db_schema_json,
                         mermaid_diagram=output.mermaid_diagram,
                         risk_level=output.risk_level.value,
-                        status=ReviewStatus.DRAFT.value if output.approval_recommended else ReviewStatus.APPROVED.value,
+                        status=(
+                            ReviewStatus.DRAFT.value
+                            if output.requires_approval
+                            else ReviewStatus.APPROVED.value
+                        ),
                         created_by_agent_run_id=agent_run.id,
                         version=self._next_version(self.designs.latest_by_task(task.id)),
                     )
@@ -174,8 +193,11 @@ class OrchestrationStepExecutor:
             self.lifecycle.fail(task, agent_run, exc)
             raise
 
-    def run_planner(self, task: Task) -> tuple[AgentRun, DevelopmentPlan]:
-        """运行 Planner Agent 并创建开发计划。"""
+    def run_planner(
+        self,
+        task: Task,
+    ) -> tuple[AgentRun, DevelopmentPlan, PlannerAgentOutput]:
+        """运行 Planner Agent，并返回计划及其最高风险结论。"""
 
         design = self.designs.latest_by_task(task.id)
         if design is None:
@@ -235,7 +257,7 @@ class OrchestrationStepExecutor:
                     {"development_plan_id": str(plan.id), "technical_design_id": str(design.id)},
                     task.id,
                 )
-            return agent_run, plan
+            return agent_run, plan, output
         except Exception as exc:
             self.lifecycle.fail(task, agent_run, exc)
             raise

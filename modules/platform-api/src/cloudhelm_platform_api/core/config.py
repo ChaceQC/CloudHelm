@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CLOUDHELM_", extra="ignore")
 
     env: str = Field(default="development", description="当前运行环境。")
-    version: str = Field(default="0.5.0", description="当前服务版本。")
+    version: str = Field(default="0.5.1", description="当前服务版本。")
     service_name: str = Field(
         default="cloudhelm-platform-api",
         description="健康检查和观测日志使用的服务名。",
@@ -180,16 +180,21 @@ class Settings(BaseSettings):
         description="外部模型请求 originator 审计头。",
     )
     agent_max_subagent_depth: int = Field(
-        default=2,
+        default=1,
         ge=1,
         le=8,
-        description="显式 subagent conversation 的最大树深度。",
+        description=(
+            "显式 subagent conversation 的最大树深度；默认与 Codex CLI "
+            "一致，只允许 root 创建直接 child。"
+        ),
     )
     agent_max_subagent_threads: int = Field(
-        default=4,
+        default=6,
         ge=1,
         le=32,
-        description="单个 Task 同时 active 的最大子 Agent 会话数。",
+        description=(
+            "单个 Task 同时 active 的最大子 Agent 会话数；默认参考 Codex CLI。"
+        ),
     )
     cors_origins: list[str] = Field(
         default=["http://127.0.0.1:5173", "http://localhost:5173"],

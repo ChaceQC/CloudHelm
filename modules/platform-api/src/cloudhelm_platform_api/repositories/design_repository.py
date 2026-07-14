@@ -22,10 +22,22 @@ class DesignRepository:
         self.session.flush()
         return design
 
-    def get(self, design_id: UUID) -> TechnicalDesign | None:
-        """按 ID 读取 TechnicalDesign。"""
+    def get(
+        self,
+        design_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> TechnicalDesign | None:
+        """按 ID 读取 TechnicalDesign，可选加行锁。"""
 
-        return self.session.get(TechnicalDesign, design_id)
+        if not for_update:
+            return self.session.get(TechnicalDesign, design_id)
+        return self.session.scalar(
+            select(TechnicalDesign)
+            .where(TechnicalDesign.id == design_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     def list_by_task(self, task_id: UUID, limit: int, cursor: str | None) -> tuple[list[TechnicalDesign], str | None]:
         """分页读取某个任务的技术设计。"""

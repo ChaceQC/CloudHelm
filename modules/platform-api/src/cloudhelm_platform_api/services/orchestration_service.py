@@ -19,14 +19,16 @@ from cloudhelm_platform_api.repositories.requirement_repository import Requireme
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.schemas.common import DevelopmentPlanStatus, ReviewStatus, TaskStatus
 from cloudhelm_platform_api.schemas.orchestration import OrchestrationStateRead, OrchestrationStepRead
-from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.agent_provider_factory import AgentProviderFactory
 from cloudhelm_platform_api.services.agent_run_lifecycle import AgentRunLifecycle
-from cloudhelm_platform_api.services.orchestration_approval_service import OrchestrationApprovalCoordinator
-from cloudhelm_platform_api.services.orchestration_response import build_orchestration_step
-from cloudhelm_platform_api.services.orchestration_step_executor import OrchestrationStepExecutor
+from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
+from cloudhelm_platform_api.services.orchestration_approval_service import OrchestrationApprovalCoordinator
+from cloudhelm_platform_api.services.orchestration_phase_guard import ensure_expected_phase
+from cloudhelm_platform_api.services.orchestration_response import build_orchestration_step
+from cloudhelm_platform_api.services.orchestration_step_executor import OrchestrationStepExecutor
+
 
 class OrchestrationService(BaseService):
     """M4 Requirement / Architect / Planner 编排服务。"""
@@ -45,13 +47,22 @@ class OrchestrationService(BaseService):
         self.approval_coordinator = OrchestrationApprovalCoordinator(session)
         self.step_executor = OrchestrationStepExecutor(session, self.provider_factory, self.agent_lifecycle)
 
-    def start(self, task_id: UUID, actor_id: str, reason: str | None = None) -> OrchestrationStepRead:
+    def start(
+        self,
+        task_id: UUID,
+        actor_id: str,
+        reason: str | None = None,
+        *,
+        expected_phase: str | None = None,
+    ) -> OrchestrationStepRead:
         """从 Created 启动 M4 编排。
 
-        已处于 M4 中间阶段时返回幂等结果；终态或 M4 外阶段返回冲突。
+        Task 行锁保证同一任务的启动与单步推进串行化；调用方提供
+        ``expected_phase`` 时，阶段已变化的重复请求会返回稳定冲突。
         """
 
-        task = self._require_task(task_id)
+        task = self._require_task(task_id, for_update=True)
+        ensure_expected_phase(task, expected_phase)
         self._ensure_orchestration_allowed(task)
         try:
             phase = self.machine.parse_phase(task.current_phase)
@@ -91,10 +102,18 @@ class OrchestrationService(BaseService):
             design_approved=design_approved,
         )
 
-    def run_next(self, task_id: UUID, actor_id: str, reason: str | None = None) -> OrchestrationStepRead:
-        """根据当前阶段推进一个最小 Agent 步骤。"""
+    def run_next(
+        self,
+        task_id: UUID,
+        actor_id: str,
+        reason: str | None = None,
+        *,
+        expected_phase: str | None = None,
+    ) -> OrchestrationStepRead:
+        """在 Task 行锁和阶段前置条件下推进一个最小 Agent 步骤。"""
 
-        task = self._require_task(task_id)
+        task = self._require_task(task_id, for_update=True)
+        ensure_expected_phase(task, expected_phase)
         self._ensure_orchestration_allowed(task)
         latest_design = self.designs.latest_by_task(task.id)
         latest_plan = self.plans.latest_by_task(task.id)
@@ -170,7 +189,7 @@ class OrchestrationService(BaseService):
 
         agent_run, design, output = self.step_executor.run_architect(task)
         approval = None
-        if output.approval_recommended:
+        if output.requires_approval:
             approval = self.approval_coordinator.create_design_approval(task, design, agent_run, output.risks)
             target = M4Phase.WAITING_DESIGN_APPROVAL
             message = "Architect Agent 已生成高风险设计，任务进入人工设计审批。"
@@ -201,8 +220,13 @@ class OrchestrationService(BaseService):
     def _run_planner(self, task: Task, actor_id: str, reason: str | None) -> OrchestrationStepRead:
         """执行 Planner Agent 并停在计划审查状态。"""
 
-        agent_run, plan = self.step_executor.run_planner(task)
-        approval = self.approval_coordinator.create_plan_approval(task, plan, agent_run)
+        agent_run, plan, output = self.step_executor.run_planner(task)
+        approval = self.approval_coordinator.create_plan_approval(
+            task,
+            plan,
+            agent_run,
+            risk_level=output.risk_level.value,
+        )
         task.status = TaskStatus.WAITING_APPROVAL.value
         self.events.record(
             "TaskPhaseChanged",
@@ -212,7 +236,7 @@ class OrchestrationService(BaseService):
                 "task_id": str(task.id),
                 "from": M4Phase.PLANNING.value,
                 "to": M4Phase.PLANNING.value,
-                "reason": reason or "Planner Agent 已生成开发计划，等待后续 M5 执行审批。",
+                "reason": reason or "Planner Agent 已生成开发计划，等待人工计划审批；批准后进入 M6 本地开发闭环。",
             },
             task.id,
         )
@@ -238,10 +262,15 @@ class OrchestrationService(BaseService):
             task.id,
         )
 
-    def _require_task(self, task_id: UUID) -> Task:
-        """读取任务或抛出稳定 404。"""
+    def _require_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> Task:
+        """读取任务或抛出稳定 404，可在写入入口抢占 Task 行锁。"""
 
-        task = self.tasks.get(task_id)
+        task = self.tasks.get(task_id, for_update=for_update)
         if task is None:
             raise ServiceError("task_not_found", "任务不存在。", 404)
         return task

@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import subprocess
+from pathlib import Path
+
 import pytest
 from sqlalchemy.orm import Session
 
+from cloudhelm_platform_api.core.config import Settings
 from cloudhelm_platform_api.db.session import get_engine
 from cloudhelm_platform_api.models.agent_run import AgentRun
 from cloudhelm_platform_api.models.tool_call import ToolCall
 from cloudhelm_platform_api.schemas.artifact import ArtifactProducerType
 from cloudhelm_platform_api.services.artifact_service import ArtifactService
+from cloudhelm_platform_api.services.artifact_storage import sha256
 from cloudhelm_platform_api.services.exceptions import ServiceError
 from m6_service_fixtures import project_and_task
 
@@ -184,3 +189,113 @@ def test_artifact_idempotency_compares_the_complete_contract() -> None:
             idempotency_key="identity:sanitized-metadata",
         )
         assert reused.id == original.id
+
+
+def test_git_patch_artifacts_preserve_raw_bytes_and_safe_preview(
+    tmp_path: Path,
+) -> None:
+    """diff/format-patch 原文可应用，API 预览单独遮蔽凭据与绝对路径。"""
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.name", "CloudHelm Test")
+    _git(repo, "config", "user.email", "cloudhelm@example.test")
+    source = repo / "config.py"
+    source.write_text(
+        "def build_config("
+        "password: str, token: str, secret: str"
+        ") -> dict[str, str]:\n"
+        '    data_root = "/var/lib/cloudhelm"\n'
+        '    return {"version": "1"}\n',
+        encoding="utf-8",
+    )
+    _git(repo, "add", "config.py")
+    _git(repo, "commit", "-m", "chore: baseline")
+    base_commit = _git(repo, "rev-parse", "HEAD").strip()
+
+    source.write_text(
+        "def build_config("
+        "password: str, token: str, secret: str"
+        ") -> dict[str, str]:\n"
+        '    data_root = "/var/lib/cloudhelm"\n'
+        '    return {"version": "2"}\n',
+        encoding="utf-8",
+    )
+    diff_patch = _git(repo, "diff", "--no-ext-diff", "--binary")
+    _git(repo, "add", "config.py")
+    _git(repo, "commit", "-m", "feat: update config")
+    format_patch = _git(
+        repo,
+        "format-patch",
+        "--stdout",
+        f"{base_commit}..HEAD",
+    )
+    _git(repo, "reset", "--hard", base_commit)
+
+    settings = Settings(artifact_root=str(tmp_path / "artifacts"))
+    with Session(get_engine(), expire_on_commit=False) as session:
+        _, task = project_and_task(session, "artifact-lossless-patch")
+        artifacts = ArtifactService(session, settings)
+        cases = (
+            ("diff_patch", "implementation.diff", diff_patch),
+            ("format_patch", "implementation.patch", format_patch),
+        )
+        for artifact_type, display_name, patch_text in cases:
+            artifact = artifacts.create_text(
+                task_id=task.id,
+                artifact_type=artifact_type,
+                display_name=display_name,
+                content=patch_text,
+                producer_type=ArtifactProducerType.SYSTEM,
+                summary=f"{artifact_type} 完整性回归。",
+                metadata_json={},
+                idempotency_key=f"lossless:{artifact_type}",
+                media_type="text/x-diff",
+            )
+            stored = artifacts.storage.read_verified(
+                artifact.storage_key,
+                artifact.sha256,
+                artifact.size_bytes,
+            )
+            assert stored == patch_text.encode("utf-8")
+            assert artifact.sha256 == sha256(patch_text.encode("utf-8"))
+
+            detail = artifacts.get_detail(artifact.id)
+            assert detail.preview is not None
+            assert detail.preview.text is not None
+            assert "password: str" not in detail.preview.text
+            assert "token: str" not in detail.preview.text
+            assert "secret: str" not in detail.preview.text
+            assert "<redacted>" in detail.preview.text
+            assert "<redacted-local-path>" in detail.preview.text
+
+            checked = subprocess.run(
+                [
+                    "git",
+                    "apply",
+                    "--check",
+                    str(artifacts.storage.resolve(artifact.storage_key)),
+                ],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+            )
+            assert checked.returncode == 0, checked.stderr
+
+
+def _git(repo: Path, *arguments: str) -> str:
+    """在 UTF-8 测试仓库执行 Git 并返回 stdout。"""
+
+    completed = subprocess.run(
+        ["git", *arguments],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return completed.stdout

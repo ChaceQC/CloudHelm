@@ -13,8 +13,8 @@ from cloudhelm_platform_api.db.base import Base, TimestampMixin, UUIDPrimaryKeyM
 class RequirementSpec(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """结构化需求规格。
 
-    M2 不生成需求，只保存用户或后续 Agent 提供的真实结构化内容，供控制台
-    与后续编排读取。
+    记录用户手工提交或 Requirement Agent 生成并通过校验的真实结构化内容，
+    供控制台、Architect、Planner 和后续质量门禁读取。
     """
 
     __tablename__ = "requirement_specs"

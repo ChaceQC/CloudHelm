@@ -39,7 +39,12 @@ def start_orchestration(
     """从 Created 进入 RequirementClarifying，不执行工具。"""
 
     payload = payload or OrchestrationActionRequest()
-    return OrchestrationService(db).start(task_id, payload.actor_id, payload.reason)
+    return OrchestrationService(db).start(
+        task_id,
+        payload.actor_id,
+        payload.reason,
+        expected_phase=payload.expected_phase,
+    )
 
 
 @router.post(
@@ -55,4 +60,9 @@ def run_next_orchestration_step(
     """根据当前阶段运行 Requirement / Architect / Planner 的一个最小步骤。"""
 
     payload = payload or OrchestrationActionRequest()
-    return OrchestrationService(db).run_next(task_id, payload.actor_id, payload.reason)
+    return OrchestrationService(db).run_next(
+        task_id,
+        payload.actor_id,
+        payload.reason,
+        expected_phase=payload.expected_phase,
+    )

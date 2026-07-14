@@ -28,6 +28,7 @@ def test_repository_recipe_matches_strict_m6_schema() -> None:
 
     recipe = LocalExecutionRecipe.model_validate(_recipe_payload())
 
+    assert recipe.schema_version == "1.1"
     assert recipe.recipe_id == "demo-issue-001-auth-profile-v1"
     assert recipe.issue_path == "demo-issues/001-auth-profile.md"
     assert recipe.step_ids == ["STEP-002"]
@@ -40,6 +41,10 @@ def test_repository_recipe_matches_strict_m6_schema() -> None:
         for command in recipe.security_commands
     )
     assert len(recipe.acceptance_evidence) == 11
+    assert all(
+        evidence.testcase_names
+        for evidence in recipe.acceptance_evidence
+    )
 
 
 @pytest.mark.parametrize(
@@ -57,6 +62,26 @@ def test_recipe_rejects_issue_path_escape(
 
     payload = _recipe_payload()
     payload[field_name] = invalid_value
+
+    with pytest.raises(ValidationError):
+        LocalExecutionRecipe.model_validate(payload)
+
+
+def test_recipe_rejects_legacy_schema_without_testcase_mapping() -> None:
+    """1.0 recipe 不再满足逐 AC testcase 证据契约。"""
+
+    payload = _recipe_payload()
+    payload["schema_version"] = "1.0"
+
+    with pytest.raises(ValidationError):
+        LocalExecutionRecipe.model_validate(payload)
+
+
+def test_recipe_requires_testcase_names_for_every_acceptance() -> None:
+    """1.1 recipe 的每条 AC 都必须声明稳定 testcase 名。"""
+
+    payload = _recipe_payload()
+    payload["acceptance_evidence"][0].pop("testcase_names")
 
     with pytest.raises(ValidationError):
         LocalExecutionRecipe.model_validate(payload)

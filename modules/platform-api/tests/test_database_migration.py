@@ -1,7 +1,9 @@
 """Alembic 迁移验证。"""
 
+import pytest
 from sqlalchemy import text
 
+from conftest import ALLOW_SCHEMA_RESET_ENV, _prepare_test_database
 from cloudhelm_platform_api.db.session import get_engine
 
 
@@ -209,3 +211,39 @@ def test_m6_migration_creates_constraints_indexes_and_delete_rules() -> None:
         assert predicate in index_definitions[index_name]
     for identity, delete_rule in expected_delete_rules.items():
         assert delete_rules[identity] == delete_rule
+
+
+def test_test_database_guard_rejects_development_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """测试夹具不得把开发库当成可重建的测试数据库。"""
+
+    monkeypatch.setenv(
+        "CLOUDHELM_TEST_DATABASE_URL",
+        (
+            "postgresql+psycopg://cloudhelm:cloudhelm_dev@"
+            "127.0.0.1:15432/cloudhelm"
+        ),
+    )
+    monkeypatch.setenv(ALLOW_SCHEMA_RESET_ENV, "true")
+
+    with pytest.raises(RuntimeError, match="test"):
+        _prepare_test_database()
+
+
+def test_explicit_test_database_requires_destructive_confirmation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """显式复用专用测试库时必须同时确认允许重建 schema。"""
+
+    monkeypatch.setenv(
+        "CLOUDHELM_TEST_DATABASE_URL",
+        (
+            "postgresql+psycopg://cloudhelm:cloudhelm_dev@"
+            "127.0.0.1:15432/cloudhelm_test"
+        ),
+    )
+    monkeypatch.delenv(ALLOW_SCHEMA_RESET_ENV, raising=False)
+
+    with pytest.raises(RuntimeError, match=ALLOW_SCHEMA_RESET_ENV):
+        _prepare_test_database()

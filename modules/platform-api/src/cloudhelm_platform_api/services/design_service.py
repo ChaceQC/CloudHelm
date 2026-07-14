@@ -41,7 +41,7 @@ class DesignService(BaseService):
     def create_design(self, task_id: UUID, data: TechnicalDesignCreate) -> TechnicalDesignRead:
         """为任务创建技术设计并写入事件。"""
 
-        task = self.tasks.get(task_id)
+        task = self.tasks.get(task_id, for_update=True)
         if task is None:
             raise ServiceError("task_not_found", "创建技术设计失败：任务不存在。", 404)
         self._ensure_task_mutable(task.status)
@@ -110,9 +110,10 @@ class DesignService(BaseService):
     def approve(self, design_id: UUID, actor_id: str, reason: str | None = None) -> TechnicalDesignRead:
         """通过技术设计并写入事件。"""
 
-        design = self._require_design(design_id)
+        design_hint = self._require_design(design_id)
+        task = self.tasks.get(design_hint.task_id, for_update=True)
+        design = self._require_design(design_id, for_update=True)
         self._ensure_current_design(design)
-        task = self.tasks.get(design.task_id)
         if task is not None:
             self._ensure_task_mutable(task.status)
         if design.status != ReviewStatus.DRAFT.value:
@@ -160,9 +161,10 @@ class DesignService(BaseService):
     def request_changes(self, design_id: UUID, actor_id: str, reason: str | None = None) -> TechnicalDesignRead:
         """要求修改技术设计并写入事件。"""
 
-        design = self._require_design(design_id)
+        design_hint = self._require_design(design_id)
+        task = self.tasks.get(design_hint.task_id, for_update=True)
+        design = self._require_design(design_id, for_update=True)
         self._ensure_current_design(design)
-        task = self.tasks.get(design.task_id)
         if task is not None:
             self._ensure_task_mutable(task.status)
         if design.status not in {ReviewStatus.DRAFT.value, ReviewStatus.APPROVED.value}:
@@ -202,10 +204,15 @@ class DesignService(BaseService):
         self.commit()
         return TechnicalDesignRead.model_validate(design)
 
-    def _require_design(self, design_id: UUID) -> TechnicalDesign:
+    def _require_design(
+        self,
+        design_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> TechnicalDesign:
         """读取技术设计或返回 404。"""
 
-        design = self.designs.get(design_id)
+        design = self.designs.get(design_id, for_update=for_update)
         if design is None:
             raise ServiceError("technical_design_not_found", "技术设计不存在。", 404)
         return design
