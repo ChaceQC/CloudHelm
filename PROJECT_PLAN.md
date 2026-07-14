@@ -3,16 +3,19 @@
 本文件只记录当前下一步要落实的详细执行计划，不保存总项目规划。总流程和
 打钩清单见 `docs/14-roadmap/03-implementation-milestone-flow.md`。
 
-## 1. 当前阶段
+## 1. 下一实施阶段
 
-M7：CI/CD 与远端部署闭环。
+完成当前 M1-M6 核验 Git 收口后的下一实施阶段为 M7：CI/CD 与远端部署闭环。
 
-前置基线：M6 已完成并验证，当前项目版本为 `0.5.0`。当前基线已经具备：
+前置基线：M6 已完成并通过 2026-07-14 至 2026-07-15 的 M1-M6 全量核验，
+当前项目版本为 `0.5.1`。完成本轮 Git 收口并确认 `origin/dev` 同步后，才进入
+本计划的 M7 实施。该基线已经具备：
 
 - 已审批最新版 DevelopmentPlan 驱动的 Scaffold、Coder、Tester、Reviewer、
   Security 本地开发闭环。
 - Task root conversation、多轮工具 call/output、供应商 usage、Prompt Cache
-  证据和显式 subagent 边界。
+  证据，以及显式 subagent conversation/权限/生命周期原语；不包含真实 child
+  执行调度。
 - Tool Gateway 工作区 allowlist、参数校验、风险分级、审计、限流、幂等、
   受控 subprocess、测试、安全扫描和 Git 工具。
 - sample repo 真实 diff、pytest、Bandit、pip-audit、branch、commit 和
@@ -85,6 +88,14 @@ M6 PullRequestCreated + 本地 PR record + 精确 commit
    本阶段完成范围。
 9. M7 成功后 Task 进入 `Monitoring`，保留给 M8 的监控、告警和 SRE 闭环；
    本阶段不提前进入 `Done`。
+10. CI、HTTP 和远端执行不得在持有 Task 行锁时等待。M7 必须采用短事务
+    claim + lease/heartbeat + stale reclaim，把 M1-M6 已登记的 hard-crash
+    active 记录恢复边界纳入 worker 设计。
+11. Agent 委派与沟通继续参考 Codex CLI：root thread 保留用户目标、决策和
+    最终汇总；只有显式 spawn 才创建 child，默认 `max_depth=1`、
+    `max_threads=6`；read-heavy 可并行，写共享 workspace/Git/远端状态的任务
+    必须串行或隔离；child 只回传脱敏摘要和证据引用，权限不得高于父线程。
+    M7 若增加运行中用户消息，必须明确区分 steer 当前 turn 与 queue 下一 turn。
 
 ### 2.2 MVP 固定实现路径
 
@@ -206,7 +217,7 @@ git diff --stat
 - `dev` 工作区干净。
 - 从 `dev` 创建 `feature/m7-remote-deploy-closure`。
 - `PROJECT_PROGRESS.md`、roadmap、README、OpenAPI、schema 和版本均已同步到
-  M6 `0.5.0`。
+  M1-M6 核验修复版 `0.5.1`。
 
 ### 6.2 M6 完整回归
 

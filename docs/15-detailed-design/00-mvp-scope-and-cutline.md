@@ -3,6 +3,20 @@
 > 来源：设计书 5.2、16、17、18、22 章  
 > 目的：把 CloudHelm 的毕设范围压缩到可实现、可演示、可验收的闭环。
 
+## 0. M1-M6 落地状态
+
+M1-M6 已完成本地代码闭环：Project/Task、Requirement/Design/Plan、审批、
+受控 sample workspace 修改、pytest/JUnit、Review、Bandit/pip-audit、
+branch/commit 和本地等价 PR record。
+
+当前 Orchestrator 是 Python 显式状态机；Tool Gateway 的“sandbox”是 allowlist
+本地目录与受控 `subprocess`。LangGraph、独立 Docker sandbox、真实远端
+PR/CI、Release / Deploy、Remote Agent、监控与 SRE 仍是后续 MVP 阶段目标，
+不能写成 M1-M6 已交付能力。
+
+M6 的失败恢复覆盖能够进入应用错误处理的异常和已有幂等证据；进程 hard crash
+后的 active 记录 lease/stale reclaim 尚未实现，也不属于 M1-M6 完成判定。
+
 ## 1. MVP 一句话目标
 
 MVP 只追求一个完整闭环：
@@ -10,7 +24,7 @@ MVP 只追求一个完整闭环：
 ```text
 开发者输入功能目标
   -> Requirement / Architect / Planner 生成结构化需求和方案
-  -> Coder / Tester / Reviewer 在本地 sandbox 完成代码修改和验证
+  -> Coder / Tester / Reviewer 在受控本地 workspace 完成代码修改和验证
   -> 生成 branch / commit / PR 或等价 PR 记录
   -> Release / Deploy Agent 审批后部署示例业务项目到远端 staging/demo
   -> 回传远端服务状态、日志、指标、告警
@@ -25,12 +39,12 @@ MVP 只追求一个完整闭环：
 |需求规格化|Requirement Agent 输出 `requirement_spec` 和 `acceptance_criteria`|结构化 JSON、Markdown 展示|
 |技术设计|Architect Agent 输出 ADR、OpenAPI 草案、DB schema 草案、风险说明|`technical_designs` 记录、设计审查页面|
 |任务编排|Orchestrator 按状态机推进任务，支持失败重试、暂停、审批|状态流转日志|
-|工具调用|Agent 通过 Tool Gateway 调用 repo、sandbox、git、deploy、monitor 等工具|`tool_calls` 记录|
-|本地隔离开发|在 Docker sandbox / worktree 中读写代码、运行测试|diff、测试报告、命令输出|
+|工具调用|Agent 通过 Tool Gateway 调用当前阶段已注册工具；deploy/monitor 在后续阶段接入|`tool_calls` 记录|
+|本地隔离开发|M6 在 Task 独立 workspace + 受控 subprocess 中读写代码、运行测试；最终目标为 Docker sandbox|diff、测试报告、命令输出|
 |Git/PR 闭环|能创建 branch、commit、PR；如果没有真实 Git 服务，至少生成等价 PR record|Gitea PR 或 `pull_request_record`|
 |Agent 化远端部署|Release / Deploy Agent 部署一个 sample repo 到远端 staging/demo|`deployments` 记录、远端 `/health` 成功、Release / Deploy Agent 运行记录|
 |远端状态回传|Remote Agent 回传心跳、服务状态、日志|控制台远端状态页、日志流|
-|监控告警|Prometheus/Loki 或替代 mock 能产生远端业务告警|`project_alerts` / Incident|
+|监控告警|M8 接入真实 Prometheus/Loki 或经文档确认的成熟等价方案，产生远端业务告警|`project_alerts` / Incident|
 |SRE 分析|SRE Agent 基于日志、指标、部署记录输出分析和 runbook|incident analysis、runbook proposal|
 |审计与审批|L3/L4 动作进入审批，工具调用有审计|`approval_requests`、`tool_calls`、`event_logs`|
 
@@ -77,13 +91,14 @@ examples/sample-repo-python/
 
 ### 软件交付物
 
-- Tauri 控制台原型。
+- 控制台原型（M6 为 React 浏览器控制台，完整 Tauri 壳在后续演示阶段完成）。
 - FastAPI 平台服务。
-- LangGraph 编排器。
+- 编排器（M1-M6 为显式状态机；只有后续异步图执行确有需要时再引入
+  LangGraph，不把框架名作为完成条件）。
 - 至少 5 个 Agent：Requirement、Architect、Coder、Tester、Reviewer。
 - 至少 7 个工具组：Requirement、Design、Repo、Sandbox、Git、Deploy、Monitoring。
 - PostgreSQL schema 和迁移。
-- Docker Compose 本地开发环境。
+- Docker Compose 本地依赖环境；独立 Docker sandbox 按后续隔离设计验收。
 - Remote Agent 或等价远端采集服务。
 
 ### 文档交付物

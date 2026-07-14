@@ -12,7 +12,7 @@
 
 ## M6 本地等价 PR 实现
 
-当前 `0.5.0` 的可执行范围是受控 sample repo：
+当前 `0.5.1` 的可执行范围是受控 sample repo：
 
 ```text
 已审批 DevelopmentPlan

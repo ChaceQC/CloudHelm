@@ -166,5 +166,8 @@ Provider、CLI、文件系统或报告解析等基础设施错误会记录失败
 ## 8. 版本兼容性
 
 - 首次实现版本：CloudHelm `0.5.0`。
+- 当前修订版本：CloudHelm `0.5.1`。该修订增加 lossless patch Artifact、
+  Tester 逐 AC JUnit 映射、Reviewer 完整 diff 门禁、可靠
+  `patch_truncated` 标记和 ToolCall/API 脱敏，不改变 M6 endpoint 路径。
 - M6 只生成本地等价 PR record；远端 push、真实 GitHub/Gitea PR、合并、部署
   和健康检查由 M7 另行定义。

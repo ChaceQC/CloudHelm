@@ -8,7 +8,7 @@
 共享契约已同步当前 M6 API：
 
 - `openapi/cloudhelm.openapi.yaml`：由 `modules/platform-api` 当前 FastAPI
-  应用导出，版本 `0.5.0`，覆盖 M6 local-development、Artifact 与本地等价
+  应用导出，版本 `0.5.1`，覆盖 M6 local-development、Artifact 与本地等价
   PR record API。
 - `schemas/agents/*.schema.json`：覆盖 Requirement、Architect、Planner、
   Scaffold、Coder、Tester、Reviewer、Security 的稳定结构化输出。

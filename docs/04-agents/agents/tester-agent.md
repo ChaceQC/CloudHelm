@@ -7,6 +7,10 @@
 按照已审批 execution recipe 运行真实 pytest，解析退出码、JUnit 和 AC 映射，
 生成可审计 TestReport。
 
+当前 execution recipe `schema_version=1.1`。每条
+`acceptance_evidence` 必须声明稳定 `testcase_names`，Tester 逐项读取 JUnit
+testcase，不以整批 pytest 成功替代单条 AC 证据。
+
 ## 允许工具
 
 - `repo.read_file`
@@ -35,6 +39,7 @@ ToolCall 和 `junit_xml` / `test_report` Artifact 引用。
 ## 验收点
 
 1. pytest exit code、JUnit 统计、stdout/stderr 和结构化计数一致。
-2. 每条 AC 均有可追溯结果。
+2. 每条 AC 的全部映射 testcase 均存在并通过时才标记 `passed`；缺失或跳过
+   标记 `not_covered`，失败标记 `failed`。
 3. 测试失败进入真实返工路径；命令缺失、超时或解析失败暂停 Task。
 4. TestReport、JUnit、ToolCall 和 EventLog 可由 API/控制台读取。

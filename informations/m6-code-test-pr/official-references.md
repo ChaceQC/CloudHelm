@@ -133,4 +133,9 @@
 2. 只在明确的 spawn 请求、深度和并发限制允许时创建 child conversation。
 3. read-heavy 探索适合并行子 Agent；写入同一 workspace 的工作保持串行，避免
    diff、测试和 Git 状态互相覆盖。
-4. child 只把最终通知回传父会话，不复制 child reasoning、工具调用或工具结果。
+4. 默认参考 Codex CLI 使用 `max_depth=1`、`max_threads=6`；递归委派需显式
+   调整并记录风险。
+5. child 只把不超过 4000 字符的脱敏最终通知回传父会话，不复制 child
+   reasoning、工具调用、工具结果或原始日志。
+6. child 权限不得高于父线程；每次工具调用继续由 Tool Gateway 按 role、资源
+   版本和审批状态重新判定。

@@ -177,6 +177,7 @@
 ### 测试文档
 
 - [13-testing/00-testing-strategy.md](13-testing/00-testing-strategy.md)
+- [13-testing/01-m1-m6-audit-report.md](13-testing/01-m1-m6-audit-report.md)
 
 ### 路线与验收文档
 

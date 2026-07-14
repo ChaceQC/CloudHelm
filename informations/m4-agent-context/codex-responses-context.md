@@ -1,6 +1,6 @@
 # Codex / Responses 多轮上下文与 Prompt Cache 资料归档
 
-检索与验证日期：2026-07-11
+检索与验证日期：2026-07-11；Codex CLI 协作模型复核：2026-07-14
 适用阶段：M4/M5 Agent conversation、reasoning、工具上下文与真实缓存纠偏
 
 ## 1. OpenAI 官方资料
@@ -88,7 +88,33 @@
 8. 当前不实现 Responses WebSocket、服务端 conversation store 或自动 compaction；
    上下文达到模型阈值前需要另立 compaction/truncation 设计，不能静默丢历史。
 
-## 5. 首次真实五轮缓存证据
+## 5. 2026-07-14 Codex CLI Agent 协作复核
+
+复核来源：
+
+- [Codex manual](https://developers.openai.com/codex/codex-manual.md) 的
+  Multi-agent operations、Best practices、AGENTS.md 和 App Server thread /
+  turn / item 章节。
+- [openai/codex](https://github.com/openai/codex) 的 app-server 与 subagent
+  实现入口。
+
+最新采用结论：
+
+1. root conversation 作为主 agent thread，保存用户目标、约束、决策、审批和
+   最终汇总；噪声较大的探索、测试和日志分析放入独立 child。
+2. child 必须由显式 spawn 创建，并携带 role、objective、expected result、
+   fork mode 和完成判定。默认 `max_depth=1`、`max_threads=6`。
+3. read-heavy 工作可并行；写入同一 workspace、Git index 或共享状态的工作必须
+   串行，或使用独立 worktree/workspace。
+4. child 只向父线程回传简洁结构化摘要和证据引用，不复制 reasoning、完整工具
+   历史、原始日志或堆栈；CloudHelm 将摘要限制为 4000 字符并执行脱敏。
+5. child 权限不得高于父线程；CloudHelm 不直接复用父审批，而是让 Tool Gateway
+   按 child role、资源版本和当前审批重新判定，这是比直接继承更严格的实现。
+6. Codex CLI 将运行中 follow-up 区分为 steer 当前 turn 与 queue 下一 turn。
+   M1-M6 当前只实现审批上下文、暂停/取消和 subagent notification；通用
+   steer/queue API 作为后续交互契约，不写成已交付。
+
+## 6. 首次真实五轮缓存证据
 
 ```text
 turn1 input=6511  cached=0
@@ -103,7 +129,7 @@ turn5 input=26324 cached=21248
 - 第 2-5 轮真实 cached token 均大于 0 且严格递增。
 - 以上数字来自供应商 usage，不由 CloudHelm 根据文本长度估算。
 
-## 6. 最终三角色完整流程证据
+## 7. 最终三角色完整流程证据
 
 ```text
 Requirement turn=1 requests=1 input=5363  cached=0     output=3254

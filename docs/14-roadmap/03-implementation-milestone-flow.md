@@ -84,7 +84,7 @@
 - [x] 定义并验证结构化输出 schema。
 - [x] 控制台支持审批或要求修改需求/方案。
 - [x] 实现每个 Task 唯一 root conversation，普通 Agent 跨 API 请求共享完整 ResponseItem 历史和同一 cache key。
-- [x] 完成 Instructions v3、encrypted reasoning、工具 call/output、审批上下文和显式 subagent 父子隔离。
+- [x] 完成 Instructions v3、encrypted reasoning、工具 call/output、审批上下文和显式 subagent conversation 持久化/父子隔离原语（不含真实 child 执行调度）。
 - [x] 使用 `gpt-5.6-sol` / `xhigh`、Codex User-Agent 和 HTTP SSE 通过真实五轮缓存与三角色审批完整流程。
 
 完成判定：输入真实需求后，系统能在同一 Task 主会话中生成结构化需求、技术方案和开发计划，进入并完成审批；真实供应商 usage 能证明后续 turn 命中 Prompt Cache。
@@ -163,6 +163,7 @@
 
 ## 4. 当前下一步
 
-当前 M0、M1、M2、M3、M4、M5、M6 已完成，最新验证基线为
-`v0.5.0`。下一步执行 M7：CI/CD 与远端部署闭环。详细执行计划见根目录
-`PROJECT_PLAN.md`。
+当前 M0、M1、M2、M3、M4、M5、M6 已完成，M1-M6 核验修复候选版本为
+`0.5.1`。完成本轮 Git 提交与 `origin/dev` 同步后，将以对应 commit 作为 M7
+前置基线；本轮不创建 `v0.5.1` tag。下一步执行 M7：CI/CD 与远端部署闭环，
+详细执行计划见根目录 `PROJECT_PLAN.md`。

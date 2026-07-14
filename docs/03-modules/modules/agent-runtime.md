@@ -9,7 +9,7 @@
 
 ## M4-M6 实现状态
 
-`modules/agent-runtime` `0.4.0` 已实现八类普通 Agent：
+`modules/agent-runtime` `0.4.1` 已实现八类普通 Agent：
 
 - Requirement Agent：生成需求规格、约束和验收标准。
 - Architect Agent：生成技术设计、OpenAPI 草案、DB schema 草案、Mermaid 和风险点。
@@ -23,11 +23,22 @@
   `security.run_pip_audit` 消费真实扫描结果。
 
 默认 provider 为 `local_structured`，基于真实任务、已审批产物、execution
-recipe 和工具结果生成结构化对象；`openai_compatible` provider 通过 HTTP SSE
-Responses API 请求稳定扁平 JSON Schema 输出。八类普通角色共享完整 Task root
-conversation，只有显式 spawn 才创建 child；瞬时请求和无效结构化响应执行可配置
-有界重试。Agent Runtime 不写数据库、不直接执行工具，副作用统一由 Platform API
-和 Tool Gateway 完成。
+recipe 和工具结果生成结构化对象；当前只支持受控 auth/profile demo issue 与
+CloudHelm 自身 M4 核验任务，其他领域返回 `unsupported_local_recipe`。
+`openai_compatible` provider 通过 HTTP SSE Responses API 请求稳定扁平 JSON
+Schema 输出。八类普通角色共享完整 Task root conversation，只有显式 spawn 才
+创建 child；瞬时请求和无效结构化响应执行可配置有界重试。Agent Runtime 不写
+数据库、不直接执行工具，副作用统一由 Platform API 和 Tool Gateway 完成。
+
+Agent Runtime 提供参考 Codex CLI 的 subagent prompt、过滤 fork context、
+父子 metadata 和不超过 4000 字符的脱敏通知契约。默认只允许 root 创建直接
+child、单 Task active 上限 6、父运行绑定和父子角色工具交集由 Platform API /
+Tool Gateway 实现。read-heavy 并行和共享写状态串行/隔离是仓库开发协作规则；
+M1-M6 尚未交付真实 child 调度、wait-all、steer/queue 或 thread 管理 UI。
+
+Tester 按 execution recipe `1.1` 的稳定 `testcase_names` 读取真实 JUnit 并逐
+AC 判定；Reviewer 要求完整、未截断且路径集合一致的安全投影 diff，并对受控
+auth/profile recipe 检查必需模块、测试文件和领域 marker。
 
 M6 工具步骤失败时，已真实发生的 function/custom call 与匹配 output 会和
 `<failed_step_context>` 一并保存，供恢复后审计重试；失败步骤不会生成成功

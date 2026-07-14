@@ -22,6 +22,12 @@ ToolCall 引用和 `proceed_to_security`。
 ## 风险边界
 
 - 只读同一 evidence set 的 diff、TestReport 和已审批需求/计划。
+- `changed_files` 与 `diff_paths` 必须非空、无重复并精确一致；git.diff 返回
+  的路径集合也必须一致。
+- Reviewer 使用持久化安全投影 diff；patch 必须非空、未截断，并包含与
+  created/updated/deleted 对应的文件头。原始 bytes/SHA 只供 Artifact 和
+  Git 最终门禁使用。
+- 受控 auth/profile recipe 还必须覆盖约定实现/测试路径及领域 marker。
 - 不修改源码、不运行通用命令、不创建 commit 或 PR。
 - verdict 与 `proceed_to_security` 必须一致；证据缺失时不得批准。
 
@@ -33,7 +39,7 @@ ToolCall 引用和 `proceed_to_security`。
 
 ## 验收点
 
-1. 每条 AC 映射到真实 diff/test 证据。
+1. 每条 AC 映射到真实 diff/test 证据，完整 patch 和领域门禁均通过。
 2. approved 且 `proceed_to_security=true` 才进入 SecurityScanning。
 3. 要求修改时保存 ReviewReport 并回到 `Implementing`。
 4. ReviewReport、ToolCall 和 EventLog 可由 API/控制台读取。

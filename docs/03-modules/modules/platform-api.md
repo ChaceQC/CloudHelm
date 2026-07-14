@@ -5,7 +5,7 @@
 
 ## M2-M6 实现状态
 
-`modules/platform-api` `0.5.0` 已从 M1 `/health` 扩展为真实数据库 API 和
+`modules/platform-api` `0.5.1` 已从 M1 `/health` 扩展为真实数据库 API 和
 本地开发工作流：
 
 - 技术组合：FastAPI、Pydantic v2、SQLAlchemy 2.x、Alembic、PostgreSQL。
@@ -26,6 +26,8 @@
 `modules/platform-api` 已保留 M4 需求设计入口：
 
 - 新增 Orchestration API：`start`、`run-next`、`orchestration state`。
+- `start/run-next` 在 Task 行锁内推进；调用方可发送 `expected_phase`，阶段漂移
+  返回 `409 orchestration_phase_changed`。
 - 新增 DevelopmentPlan API 和 `development_plans` 表。
 - 扩展 `agent_runs`，记录结构化输出、摘要和失败错误。
 - 每个 M4 Agent 步骤在同一事务中写入 AgentRun、业务产物、Task 状态和 EventLog。
@@ -40,6 +42,8 @@
 - 带 `workflow_step` 的 AgentRun 工具调用只接受内部 Agent executor；公开 Tool
   Gateway HTTP 入口返回稳定边界错误。
 - execution recipe 按工具名、规范化模型参数和允许调用次数精确绑定。
+- `diff_patch` / `format_patch` Artifact 保存原始 UTF-8 bytes 与 SHA，ToolCall
+  和 API preview 只返回脱敏安全投影。
 - M6 基础设施失败会保存已发生的配对 provider call/output 与失败上下文，
   Task 按可恢复性暂停或失败。
 

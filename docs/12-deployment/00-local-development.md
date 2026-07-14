@@ -8,6 +8,13 @@
 - 远端 demo 主机能运行 Remote Agent、Docker Compose 和监控采集组件。
 - 控制台能展示远端服务状态、日志、指标和部署版本。
 
+Windows PowerShell 运行本仓库命令前统一设置 UTF-8：
+
+```powershell
+$env:PYTHONIOENCODING='utf-8'
+$OutputEncoding=[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new()
+```
+
 ## M1 本地最小工程命令
 
 M1 阶段未启动完整 Docker Compose，只验证平台 API、控制台和共享契约的最小
@@ -51,6 +58,32 @@ uv run pytest
 uv run uvicorn cloudhelm_platform_api.main:app --host 127.0.0.1 --port 18080
 ```
 
+### Platform API 测试数据库隔离
+
+`uv run pytest` 不会重建上面 `CLOUDHELM_DATABASE_URL` 指向的 `cloudhelm`
+开发库。默认夹具只借用同一 PostgreSQL 实例，以 `cloudhelm_test` 为基名创建
+会话级随机数据库：
+
+```text
+cloudhelm_test_<pid>_<uuid>
+```
+
+测试会在该临时库执行 Alembic，并在 pytest 会话结束后删除。并行测试会话使用
+不同数据库；运行测试的 PostgreSQL 用户需要具备创建/删除测试数据库的权限。
+
+如需复用明确的专用测试库，必须同时提供独立 test 数据库名和破坏性重建确认：
+
+```powershell
+$env:CLOUDHELM_TEST_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm_test'
+$env:CLOUDHELM_TEST_ALLOW_SCHEMA_RESET='true'
+uv run pytest -q
+Remove-Item Env:CLOUDHELM_TEST_DATABASE_URL
+Remove-Item Env:CLOUDHELM_TEST_ALLOW_SCHEMA_RESET
+```
+
+显式模式会重建目标测试库的 `public` schema；数据库名必须包含独立 `test`
+段，不得指向 `cloudhelm` 开发库。缺少确认时测试在迁移前终止。
+
 M2 的 Redis 服务仅通过 Compose profile 预留：
 
 ```powershell
@@ -88,6 +121,11 @@ fixture、初始化独立 `main` baseline 和 Task branch。
 M6 测试与安全命令使用 Tool Gateway 受控 subprocess：命令数组、正向 profile、
 环境变量白名单、超时、输出上限和进程清理均由工具层执行。该方案不具备 Docker
 CPU、内存、PID 和网络隔离；M7 远端部署前再评估一次性 Docker sandbox。
+
+当前幂等与恢复覆盖能够进入应用错误处理的 Provider、CLI、文件系统和数据库
+异常。Platform API 进程在终态写入前被强制终止时，active AgentRun/ToolCall
+尚无 lease/heartbeat/stale reclaim；M6 不把 hard crash 自动恢复列为已交付
+能力，现阶段需依据数据库和工作区证据人工核验。
 
 ## 设计书摘录
 

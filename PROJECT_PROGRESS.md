@@ -2,6 +2,175 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-14 至 2026-07-15（M1-M6 成果核验与缺陷修复，0.5.1 核验候选版）
+
+### 已完成
+
+- 按 `AGENTS.md`、总体设计书、MVP 裁剪线、模块/API/Agent/Tool 契约和测试验收
+  矩阵重新核验 M1-M6；新增
+  `docs/13-testing/01-m1-m6-audit-report.md` 记录发现、处理和准确交付边界。
+- 修复 Platform API 测试会重建开发库的问题：默认创建并删除会话级随机
+  `cloudhelm_test_<pid>_<uuid>` 数据库；显式测试库必须包含独立 `test` 段并
+  设置 `CLOUDHELM_TEST_ALLOW_SCHEMA_RESET=true`。
+- 修正 Task 取消语义，只更新 `status=cancelled` 并保留最后
+  `current_phase`；数据库异常响应不再回显 SQLAlchemy/SQL 细节，ToolCall
+  `result_summary`、结果 JSON 和 Artifact API preview 均执行脱敏。
+- 修复控制台 Task A→B 切换竞争：切换后立即隐藏旧详情，旧 HTTP、SSE 和
+  timer 不能覆盖新 Task；失败/取消 AgentRun 按真实 `started_at` 排入
+  Timeline。
+- 使用真实 Platform API、隔离 PostgreSQL 数据库和 Playwright Edge 复核控制台：
+  Project/Task 列表、Task B→A 切换、Requirement、Agent Timeline 与 Event Log
+  均保持同一 Task 数据，桌面与 `390x844` 移动视口无框架错误。首次检查发现
+  favicon 404，已补充 `public/favicon.svg`，复测控制台为 0 error / 0 warning。
+- 为 M4 `start/run-next` 增加可选 `expected_phase` 前置条件和 Task 行锁；
+  控制台始终发送当前阶段，阶段已变化时返回稳定
+  `409 orchestration_phase_changed`，避免重复点击跨两个 Agent 步骤推进。
+- 收紧 `local_structured`：只覆盖受控 auth/profile demo issue 与 CloudHelm
+  自身 M4 核验任务；其他领域返回 `unsupported_local_recipe` 并暂停，不再
+  保存固定伪设计。auth/profile 的 OpenAPI、SQLite `users` schema、安全设计
+  和五步开发计划均与 sample recipe 对齐。
+- Requirement、Architect、Planner 按输入、输出和风险项最高值传播风险；
+  Requirement 新识别的更高风险写回 Task，L2-L4 设计强制人工审批，计划审批
+  保留 Planner 最高风险，后续角色不能把已识别风险降级。
+- execution recipe 升级为 `schema_version=1.1`，每条 AC 必须声明稳定
+  `testcase_names`；Tester 读取真实 JUnit 逐 AC 映射，缺失/跳过为
+  `not_covered`、failure/error 为 `failed`，XML 错误或截断不会宣称通过。
+- Reviewer 增加完整证据门禁：`changed_files`、`diff_paths` 与 Git 工具结果
+  必须非空、唯一且精确一致；patch 必须完整未截断，新增/修改/删除文件头必须
+  正确；受控 auth/profile 还必须包含约定模块、测试文件和领域 marker。
+- 修复 patch 证据链：ToolCall 只持久化脱敏安全投影和原始 patch SHA；
+  `diff_patch`、`format_patch` Artifact 保存原始 UTF-8 bytes、大小和 SHA，
+  原始结果只在执行进程和受控 Artifact 中使用。未跟踪文件 diff 补齐标准
+  `diff --git` 文件头；Git Tool 先读取完整输出再按调用上限截断，确保
+  `patch_truncated` 不会误报 `false`。`implementation.diff` 与 format patch
+  均通过真实 `git apply --check`。
+- 纠正文档漂移：当前 Orchestrator 是显式 Python 状态机，M6 Sandbox 是
+  allowlist Task workspace + 受控 `subprocess`；LangGraph、独立 Docker
+  sandbox、远端 PR/CI/部署、监控和 SRE 均未写成 M1-M6 已交付能力。
+- 按用户新增要求复核 2026-07-14 最新 Codex manual，并把 Agent 使用与沟通
+  规则固化到 `AGENTS.md`：root thread 保留目标/决策/汇总，显式 child 承担
+  有界独立任务，read-heavy 可并行，写共享 workspace/Git 状态的任务串行或
+  隔离，父线程只接收最终摘要和证据引用。
+- 将 subagent 默认配置对齐 Codex CLI 为 `max_depth=1`、
+  `max_threads=6`；child 权限按父级或更严格边界重新经 Tool Gateway 判定，
+  最终摘要必须非空、脱敏且不超过 4000 字符。新增递归 spawn 拒绝、空/超长
+  摘要拒绝和敏感摘要脱敏回归。
+- 补齐 subagent 叶子优先生命周期与执行期门禁：`coder/scaffold` child、跨
+  Task root、legacy role、终态 child 工具调用、存在 active AgentRun 或 active
+  后代时提前完成、Task paused/terminal 时创建或完成 child 均会被拒绝；每次
+  Tool Gateway 调用重新校验 active lineage 和父子工具交集。
+- 幂等 replay 现在比较 execution-policy fingerprint；claim 前上下文拒绝和策略
+  漂移会写入不含原始参数的 `ToolCallRejected` 事件，晚到结果继续保留
+  subagent scope 与策略 fingerprint，不改写原 ToolCall 审计事实。
+- 统一事务锁顺序为
+  `Task -> AgentRun -> ToolCall -> Conversation -> Approval`；pause/resume/
+  cancel、Requirement、Design、Approval 与 subagent conversation 写操作均先
+  锁 Task。并发 pause/cancel、cancel/spawn、design review/spawn 回归未出现
+  死锁、终态复活或 active child 残留。
+- 明确恢复边界：当前只承诺能够进入应用错误处理或留下幂等证据的失败恢复；
+  进程 hard crash 后尚无 lease、heartbeat 或 stale reclaim。
+- 形成 M1-M6 核验候选版 `0.5.1`：项目、Platform API、Tool Gateway、控制台
+  和 OpenAPI 为 `0.5.1`，Agent Runtime 为 `0.4.1`，未改动的 Orchestrator
+  保持 `0.4.0`；本轮不创建 `v0.5.1` tag，M7 目标版本仍为 `0.6.0`。
+
+### 进行中
+
+- M1-M6 核验、修复、全量回归和文档同步已完成；当前收口 Git diff、提交与
+  远端同步。
+
+### 阻塞与风险
+
+- Platform API 进程在终态持久化前被强制终止时，active AgentRun/ToolCall
+  仍需依据数据库和 workspace 证据人工核验；该边界不应在答辩中描述为自动
+  恢复。
+- M4 当前为保证单步正确性，会在一次 Provider 调用期间持有 Task 行锁；
+  单用户 MVP 可接受，但并发 worker 阶段应改为短事务 claim + lease，避免
+  pause/cancel 长时间等待。
+- M6 仍为受控本地 `subprocess`，没有 Docker CPU、内存、PID、只读挂载和
+  网络隔离；M7 接入 staging/demo 前必须再次评估隔离方案。
+- Codex CLI 的 steer 当前 turn / queue 下一 turn 尚未形成 CloudHelm 通用用户
+  消息 API；M1-M6 当前只有审批上下文、暂停/取消与 subagent notification，
+  已在契约中标明为后续交互能力。
+- 同一恶意 replay 请求当前会逐次写入 `ToolCallRejected`，保证每次拒绝可审计；
+  后续开放公网入口时可再增加请求级限流或事件去重，避免拒绝事件风暴。
+- 外部 LLM/Prompt Cache 条件测试因未注入 endpoint/key 而显式跳过；Windows
+  symlink 测试因当前账户权限显式跳过。其余本地 Provider、路径拒绝、契约、
+  状态机和证据门禁均已执行。
+- `informations/m7-ci-remote-deploy/` 是本轮开始后出现的 M7 资料目录，不属于
+  M1-M6 核验修改，未纳入本轮 diff、测试结论或提交范围。
+
+### 下一步
+
+- 按 `PROJECT_PLAN.md` 从 `0.5.1` 干净基线进入 M7，先核验并归档
+  Gitea Actions、OCI digest、Remote Agent、Deployment Controller、TLS 和
+  systemd 官方实践。
+- 在 M7 worker/remote execution 设计中明确 lease、heartbeat、stale reclaim
+  与人工恢复流程，不把 hard crash 残留记录留作隐含行为。
+- 继续保持 CI 只生成不可变制品，真实部署只允许经 Release / Deploy Agent、
+  Tool Gateway、Deployment Controller 和 Remote Agent 链路执行。
+
+### 涉及文件
+
+- `apps/control-console/**`
+- `AGENTS.md`
+- `modules/platform-api/**`
+- `modules/agent-runtime/**`
+- `modules/tool-gateway/**`
+- `packages/shared-contracts/**`
+- `examples/sample-repo-python/demo-issues/**`
+- `.env.example`
+- `README.md`
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `docs/01-architecture/**`
+- `docs/03-modules/**`
+- `docs/04-agents/**`
+- `docs/06-workflows/00-development-to-pr.md`
+- `docs/08-api/11-local-development-api.md`
+- `docs/12-deployment/00-local-development.md`
+- `docs/13-testing/**`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/**`
+- `informations/m4-agent-context/codex-responses-context.md`
+- `informations/m6-code-test-pr/official-references.md`
+
+### 验证
+
+- Tool Gateway：`uv lock --check`；`uv run pytest -q` ->
+  `45 passed, 1 skipped`。skip 为 Windows symlink 权限条件。
+- Agent Runtime：`uv lock --check`；`uv run pytest -q` ->
+  `61 passed, 1 skipped`。skip 为外部 LLM/Prompt Cache 凭据条件。
+- Orchestrator：`uv lock --check`；`uv run pytest -q` -> `7 passed`。
+- Platform API：`uv lock --check`；`uv run pytest -q` ->
+  `130 passed, 1 skipped`。skip 为外部模型配置条件；其中锁顺序与 subagent
+  权限/生命周期定向回归 `16 passed`。
+- 控制台：`npm.cmd test` -> `17 passed`；`npm.cmd run build` 成功，
+  Vite 共转换 `77 modules`。
+- 控制台浏览器黑盒：Browser 插件运行时未注入，记录 `agent=undefined` 后使用
+  Playwright Edge；真实 API 页面加载、Task B→A 切换、详情/Requirement/
+  Timeline/Event Log 一致性、桌面和 `390x844` 视口均通过，favicon 修复后
+  console 为 0 error / 0 warning。
+- sample repo：`uv lock --check`；`uv run pytest -q` -> `2 passed`；
+  Bandit 为 0 finding；pip-audit 无已知漏洞，并按工具真实行为记录本地包
+  `cloudhelm-sample-service==0.1.0` 不在 PyPI 而跳过。
+- 数据库迁移：在隔离 PostgreSQL 临时库执行 `upgrade head -> alembic check
+  -> downgrade base -> upgrade head`；结果为 `20260714_0006 (head)`、13 张
+  业务/版本表且无 schema 漂移，临时库已删除。
+- 真实 M4→M6 E2E 完成；`implementation.diff` 与 format patch 均通过
+  `git apply --check`。
+- sample Docker：`docker compose config`、真实 image build、容器
+  `/health` 和 `/metrics` smoke 均通过；验证后已删除临时容器和镜像。
+- FastAPI OpenAPI 与共享 YAML 反序列化后精确一致：
+  `version=0.5.1`、`paths=41`、`schemas=56`、`operations=47`；全部 `26`
+  份共享 JSON Schema 通过 Draft 2020-12 元 schema 校验。
+- 开发库数据计数保持
+  `projects=1 / tasks=1 / agent_runs=3 / tool_calls=0 / artifacts=0 /`
+  `pull_request_records=0 / event_logs=23`，无残留 `cloudhelm_test_*` 数据库。
+- 静态门禁：`git diff --check` 通过；本轮 84 个新增/修改生产源码均不超过
+  300 行；588 个文本文件 UTF-8 解码错误 0、BOM 0；405 个 Markdown 相对链接
+  失效 0；生产源码、配置和文档高置信凭据命中 0。测试目录中的 4 个模拟凭据
+  均为脱敏功能 fixture，不进入生产路径。
+
 ## 2026-07-14（M6 本地代码、测试与等价 PR 闭环完成，版本 0.5.0）
 
 ### 已完成

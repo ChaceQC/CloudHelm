@@ -9,7 +9,7 @@
 
 ## M5-M6 实现状态
 
-`modules/tool-gateway` `0.5.0` 当前注册：
+`modules/tool-gateway` `0.5.1` 当前注册：
 
 - `requirement.normalize`、`design.render_markdown`
 - `repo.read_file`、`repo.search_text`、`repo.list_files`、`repo.write_file`
@@ -24,6 +24,11 @@
 Gateway 负责 Pydantic 参数校验、角色 allowlist、风险比对、审批拦截、workspace
 边界、进程超时、输出脱敏和统一结果。数据库 ToolCall、Approval 与 EventLog 由
 Platform API service 持久化；本模块本身不依赖 FastAPI 或数据库。
+
+`git.diff` / `git.format_patch` 会计算原始 patch SHA；数据库结果继续保存脱敏
+安全投影，原始结果只在同一执行进程交给受控 Artifact/Git 完整性门禁，不进入
+ToolCall API。工具先基于完整 Git 输出判断 `patch_truncated`，再按调用上限
+生成有界结果；截断 patch 不能进入 Reviewer 或 PR 收尾。
 
 M6 仍使用受控目录与 `subprocess`，未启用独立 MCP Tool Server、Docker
 sandbox 或分布式限流。
