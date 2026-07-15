@@ -1247,10 +1247,14 @@ sequenceDiagram
     participant D as Deployment Controller
     participant R as Remote Agent
 
-    U->>C: 审批 release candidate
-    C->>API: POST /api/tasks/{task_id}/remote-deployment/start
-    API->>O: 创建 candidate approval
+    U->>C: 发起 release candidate 审批
+    C->>API: POST /api/tasks/{task_id}/release-candidate {}
+    API->>O: 原子创建 candidate + L2 approval
     U->>C: 批准精确 commit / target ref
+    C->>API: POST /api/approvals/{approval_id}/approve
+    U->>C: 选择 Environment / RemoteTarget
+    C->>API: POST /api/tasks/{task_id}/remote-deployment/start
+    API->>O: 校验 approved candidate 并绑定环境/目标
     O->>T: 发布受控 ref
     T->>G: push 精确 commit
     O->>T: workflow_dispatch
@@ -1751,11 +1755,15 @@ POST   /api/projects/{project_id}/environments
 GET    /api/projects/{project_id}/environments
 GET    /api/environments/{environment_id}
 
+PUT    /api/projects/{project_id}/repository-binding
+GET    /api/projects/{project_id}/repository-binding
+
 POST   /api/environments/{environment_id}/remote-targets
 GET    /api/environments/{environment_id}/remote-targets
 POST   /api/remote-targets/{target_id}/test-connection
 
 POST   /api/remote-agents/heartbeat
+POST   /api/tasks/{task_id}/release-candidate
 GET    /api/tasks/{task_id}/release-candidate
 GET    /api/tasks/{task_id}/ci-runs
 POST   /api/webhooks/ci/gitea

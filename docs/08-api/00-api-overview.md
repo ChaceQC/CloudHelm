@@ -189,6 +189,7 @@ GET    /api/environments/{environment_id}/remote-targets
 POST   /api/remote-targets/{target_id}/test-connection
 
 POST   /api/remote-agents/heartbeat
+POST   /api/tasks/{task_id}/release-candidate
 GET    /api/tasks/{task_id}/release-candidate
 GET    /api/tasks/{task_id}/ci-runs
 POST   /api/webhooks/ci/gitea
@@ -201,11 +202,13 @@ POST   /api/deployments/{deployment_id}/health-check
 POST   /api/deployments/{deployment_id}/rollback-request
 ```
 
-M7 的 `remote-deployment/start` 只接受 `environment_id`；精确 commit、
-repository binding、RemoteTarget 和不可变 OCI digest 均由服务端从已批准资源
-派生。`start` 只创建绑定最新版 PullRequestRecord、完整 commit、candidate ref
-和 request hash 的 release candidate approval；审批通过后才发布受控 ref，并
-对固定 workflow 执行唯一一次 `workflow_dispatch`。CI 只生成测试、安全、构建、
+M7 的 `POST /api/tasks/{task_id}/release-candidate` 是第一道审批的唯一创建入口，
+请求体固定为 `{}`；最新版 PullRequestRecord、完整 commit、repository binding
+snapshot/hash、candidate ref、幂等键和 request hash 均由服务端派生，并在同一
+事务创建 Candidate 与 L2 Approval。`remote-deployment/start` 只接受
+`environment_id`，要求已有 approved candidate，并由服务端选择 active
+RemoteTarget，不重复创建第一道审批。审批通过后才发布受控 ref，并对固定
+workflow 执行唯一一次 `workflow_dispatch`。CI 只生成测试、安全、构建、
 manifest 和不可变 OCI digest；Release / Deploy Agent 随后生成 ReleasePlan，
 第二道 deployment approval 通过后才允许 Deployment Controller 调用 Remote
 Agent。`rollback-request` 只生成候选与审批请求，不自动执行回滚。

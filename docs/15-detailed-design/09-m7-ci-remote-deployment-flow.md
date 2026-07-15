@@ -231,14 +231,79 @@ flowchart LR
 API 只接受 profile key。credential ref 不进入读取响应，clone URL 和 workflow
 配置不能由普通调用方自由提交。
 
+Binding 更新后，ReleaseCandidate 不能只引用可变 binding 行：candidate 必须保存
+不含 secret 的 snapshot JSON，以及覆盖内部 clone URL/credential ref 的 snapshot
+hash。旧 pending/approved candidate 和 pending Approval 在 binding 漂移时同步
+转为 stale/expired。
+
+Binding PUT 必须比较 old/new internal snapshot hash。完全相同的 profile key、
+物化字段和 active 状态是无副作用幂等命中，不更新 `updated_at`、不写事件；
+只有 internal snapshot hash 变化或 binding 变为 disabled 才视为漂移。
+
+Candidate POST 按 `Task -> Binding -> PullRequestRecord -> existing Candidate`
+加锁，并在生成 snapshot 到插入提交期间持有 Binding `FOR UPDATE`。Binding PUT
+先锁 Binding，再按 Candidate/Approval UUID 升序失效旧资源且不反向锁 Task。
+
+安全 snapshot JSON 精确包含：
+
+```json
+{
+  "schema_version": "m7.repository-binding.snapshot.v1",
+  "provider": "gitea",
+  "repository_external_id": "123",
+  "repository_owner": "cloudhelm",
+  "repository_name": "demo",
+  "default_branch": "dev",
+  "workflow_id": ".gitea/workflows/ci.yml",
+  "release_ref_prefix": "refs/heads/cloudhelm/candidates"
+}
+```
+
+内部 hash 对象另含
+`schema_version=m7.repository-binding.internal-snapshot.v1`、上述
+`public_snapshot`、`profile_key`、`clone_url` 和 `credential_ref`。所有 M7-2
+hash 复用 `stable_json_hash`：
+
+```python
+json.dumps(
+    value,
+    ensure_ascii=False,
+    sort_keys=True,
+    default=str,
+).encode("utf-8")
+```
+
+返回格式固定为 `sha256:<64 lowercase hex>`；不得改用数据库 JSONB 文本表现或
+另一套紧凑 JSON 序列化。
+
 ### 5.2 ReleaseCandidate
 
 ReleaseCandidate 是 M6 PR 与真实远端 CI 之间的持久化身份：
 
 - Task、Project、PullRequestRecord、repository binding。
+- 不含 secret 的 binding snapshot JSON 与覆盖内部配置的 snapshot hash。
 - commit SHA、target ref、request hash。
-- pending_approval/approved/published/stale/cancelled。
+- pending_approval/approved/rejected/published/stale/cancelled。
 - approval、remote verified SHA、idempotency key。
+
+`release_ref_prefix` 是无尾斜杠的完整 `refs/heads/...`。target ref 唯一生成规则：
+
+```text
+{release_ref_prefix}/{task_id}/{full_commit_sha}/{snapshot_hash_hex}
+```
+
+Candidate request canonical 固定包含 Task、Project、PR record、binding、snapshot
+hash、commit 和 target ref，以及
+`schema_version=m7.release-candidate.request.v1` 和
+`action=approve_release_candidate`。其稳定 hash 写
+`request_hash`，幂等键为
+`release_candidate:v1:<request_hash hex>`。
+
+Candidate 业务唯一键为
+`(pull_request_record_id, binding_snapshot_sha256)`。顺序/并发重复 POST 返回同一
+Candidate、Approval 和 reconcile job；rejected 后仍返回原记录，重新申请必须有
+新 PR 或新 snapshot。每 Task 同时只允许一个 `pending_approval|approved`
+Candidate；published 是不可改写的历史终态。
 
 published 只有在 `git ls-remote --refs` 返回的完整 SHA 与本地 commit 完全一致
 后成立。
@@ -257,15 +322,76 @@ published 只有在 `git ls-remote --refs` 返回的完整 SHA 与本地 commit 
 字段至少包含：
 
 - job type、resource type/id。
+- side-effect class：none/external_idempotent/external_uncertain。
 - request hash、idempotency key。
 - pending/claimed/running/succeeded/failed/cancel_requested/
-  recovery_required。
+  cancelled/recovery_required。
 - attempt、max attempts。
 - lease owner、lease expiry、heartbeat。
 - next retry、cancel requested。
+- dispatch lease、next enqueue、last enqueue、enqueue attempt/error。
 - safe payload/result JSON、error code、started/finished time。
 
-Celery task id 不是业务身份。
+Celery task id 不是业务身份。周期 dispatcher 必须扫描 due pending job 并补投；
+broker message 丢失或 Redis 重启不能让 PostgreSQL job 永久停留。
+
+状态分类固定为：
+
+```text
+claimable         = pending
+lease-active      = claimed | running | cancel_requested
+resource-blocking = pending | claimed | running | cancel_requested | recovery_required
+terminal          = succeeded | failed | cancelled
+manual-blocking   = recovery_required
+```
+
+M7-2 handler registry 只允许：
+
+```text
+release_candidate_reconcile -> release_candidate -> none
+```
+
+Candidate POST 同一事务创建该 job，`max_attempts=3`。job request canonical 包含
+schema version、job/resource identity、candidate request hash 与 approval id。
+
+payload 精确为：
+
+```json
+{
+  "schema_version": "m7.release-candidate-reconcile.payload.v1",
+  "candidate_id": "UUID",
+  "approval_id": "UUID",
+  "expected_candidate_request_hash": "sha256:<64 lowercase hex>",
+  "expected_binding_snapshot_sha256": "sha256:<64 lowercase hex>",
+  "expected_pull_request_record_id": "UUID"
+}
+```
+
+result 精确为：
+
+```json
+{
+  "schema_version": "m7.release-candidate-reconcile.result.v1",
+  "outcome": "valid | stale | terminal_noop",
+  "candidate_status": "pending_approval | approved | rejected | published | stale | cancelled",
+  "approval_status": "pending | approved | rejected | expired | cancelled",
+  "pull_request_record_id": "UUID",
+  "binding_snapshot_sha256": "sha256:<64 lowercase hex>",
+  "checked_at": "RFC3339 UTC date-time"
+}
+```
+
+两者所有字段 required 且 `additionalProperties=false`。`valid` 只对应
+pending/pending 或 approved/approved；本次漂移为 stale，pending Approval 转
+expired，已 approved 的 Approval 保留 approved；terminal_noop 只对应
+rejected/published/stale/cancelled Candidate。payload/result 不保存 profile、
+clone URL 或 credential ref。
+
+对 pending/approved Candidate，Approval `expires_at<=now()`、已消费、状态为
+expired/cancelled，或 action/resource/hash 不匹配时，Candidate stale、job
+succeeded + stale；仅 pending Approval 转 expired，其他审批历史不改写。Approval
+缺失或 pending/approved/rejected 决策状态组合违反原子事务时，job failed +
+`release_candidate_approval_state_invalid`。
 
 ### 5.5 Environment
 
@@ -329,7 +455,12 @@ complete_m7_handoff
 规则：
 
 - 每次 start/run-next 只推进一个可审计动作。
-- `start` 只创建 release candidate approval。
+- `POST /api/tasks/{task_id}/release-candidate` 是第一道审批的唯一创建入口，只接受
+  `{}`，原子创建 candidate、Approval 与无外部副作用的
+  `release_candidate_reconcile` WorkflowJob；提交后复用 durable dispatcher
+  best-effort 投递。
+- `remote-deployment/start` 只接受 `environment_id`，要求已有 approved candidate，
+  不重复创建 candidate。
 - CI 由 webhook/poll 更新，不在 HTTP 请求内长时间等待。
 - deploy approval 前没有远端副作用。
 - deploy dispatch 前再次读取 Task、Approval、CI、Deployment 和 Target。
@@ -341,12 +472,18 @@ complete_m7_handoff
 
 ### 7.1 Claim
 
-1. API 在短事务创建 WorkflowJob 并投递 Celery。
-2. worker 按 job id `FOR UPDATE`。
-3. 校验 status、request hash、Task 和资源状态。
-4. 写 claimed/running、lease owner/expiry、attempt。
-5. 提交事务。
-6. 执行外部调用。
+1. API/service 在短事务创建 PostgreSQL WorkflowJob。
+2. 提交后尽力投递；durable dispatcher 对
+   同时满足 business retry 与 next enqueue 到期的 pending job 使用 dispatch
+   lease 补投。
+3. Celery business message 只携带 job UUID；重复 delivery 由数据库 claim 去重。
+4. worker 无锁读取 immutable task id hint，再固定按
+   `Task FOR UPDATE -> WorkflowJob FOR UPDATE -> ProjectRepositoryBinding
+   FOR UPDATE -> ReleaseCandidate FOR UPDATE -> Approval`
+   锁序校验 status、request hash、Task 和资源状态。
+5. 写 claimed、lease owner/expiry/heartbeat、递增 attempt 并提交；
+   mark-running 再使用独立短事务。
+6. 提交 running 后才执行 handler；外部调用期间不持有 Task/job 行锁。
 7. 新事务写结果、事件、Artifact 和业务资源终态。
 
 ### 7.2 Heartbeat
@@ -358,18 +495,109 @@ complete_m7_handoff
 ### 7.3 Stale reclaim
 
 - 只处理 lease 已过期且状态 active 的 job。
-- 查询 Gitea run 或 Remote Agent operation。
-- 已有远端结果则收敛本地状态。
-- 明确未执行且满足幂等条件才重新投递。
-- 状态未知则 `recovery_required`，需要人工核验。
+- `none`：未取消的 stale claimed/running 可安全回 pending；stale
+  cancel_requested 进入 cancelled。
+- `external_idempotent`：查询相同 Gitea run 或 Remote Agent operation；明确
+  succeeded/failed 时收敛，明确未执行或可附着同一幂等 operation 时才回
+  pending，unknown 进入 recovery_required。
+- `external_uncertain`：running 后只接受明确 succeeded/failed，其余进入
+  recovery_required。
+- safe retry/stale reclaim 只在 `attempt < max_attempts` 时回 pending；耗尽时
+  failed + `workflow_job_attempts_exhausted`，写数据库完成时间并清 lease/retry/
+  enqueue。已请求取消且确认无副作用时优先 cancelled。
+- `recovery_required` 清空 worker/dispatch lease，
+  `next_retry_at/next_enqueue_at/finished_at` 为空，并阻止同资源新 job；M7-2
+  不提供自动退出路径。
 
-### 7.4 Celery 配置
+### 7.4 取消
+
+- pending 取消直接 cancelled。
+- claimed 且 handler 尚未开始时直接 cancelled。
+- running 取消进入 cancel_requested，保留 lease 并由 handler/远端状态收敛。
+- cancel_requested 只能进入 cancelled、实际 succeeded/failed 或
+  recovery_required。
+- 对 external job，cancel_requested 不得重新调用原副作用：remote
+  cancelled/not_started -> cancelled，succeeded -> succeeded，failed -> failed，
+  running/unknown -> recovery_required。
+- `release_candidate_reconcile` 只允许 Task `running|waiting_approval`。Task pause
+  不产生新 claim；mark-running 遇到 paused 时回 pending 并清 lease，resume 把
+  pending job 的 next enqueue 推进到数据库当前时间。Task cancel 先锁 Task，再按
+  WorkflowJob ID 升序执行取消转移。
+
+### 7.5 Durable dispatcher
+
+due 条件：
+
+```sql
+tasks.status IN ('running', 'waiting_approval')
+AND workflow_jobs.status = 'pending'
+AND workflow_jobs.attempt < workflow_jobs.max_attempts
+AND (
+  workflow_jobs.next_retry_at IS NULL
+  OR workflow_jobs.next_retry_at <= now()
+)
+AND workflow_jobs.next_enqueue_at <= now()
+AND (
+  workflow_jobs.dispatch_lease_expires_at IS NULL
+  OR workflow_jobs.dispatch_lease_expires_at <= now()
+)
+```
+
+1. `FOR UPDATE SKIP LOCKED ORDER BY next_enqueue_at,id` reserve，写 dispatch
+   owner/expiry 并先增加 enqueue attempt。
+2. 提交后 publish 只含 job UUID 的 JSON message。
+3. success/failure finalize 必须按
+   `id + status=pending + dispatch owner` 条件更新；worker 已先 claim 时 no-op。
+4. success 把 next enqueue 推进到 redispatch 时间并清
+   `last_enqueue_error_code`；failure 使用
+   `min(max_enqueue_backoff, enqueue_backoff * 2 ** (enqueue_attempt - 1))`。
+5. safe business retry 使用
+   `min(max_retry_backoff, retry_backoff * 2 ** max(attempt - 1, 0))`。
+6. claim 清空 dispatch lease、next enqueue 和 next retry。M7-2 不加 jitter。
+
+reserve 后/publish 前崩溃由 dispatch lease 补偿；publish 后/finalize 前崩溃产生的
+重复 delivery 由 PostgreSQL claim 去重；成功 publish 但消息丢失时由 redispatch
+时间再次投递。
+
+### 7.6 Celery 配置
 
 - `acks_late=true`。
-- 有界 worker prefetch。
+- `task_reject_on_worker_lost=true`。
+- `worker_prefetch_multiplier=1`。
+- JSON serializer、`accept_content=["json"]`、UTC、ignore result、无 result backend。
 - 显式 soft/hard time limit。
 - broker payload 不含 secret 或大对象。
-- retry 只用于纯查询或已完成远端状态查询后的安全恢复。
+- 无通用 autoretry；retry 只用于纯查询或已完成远端状态查询后的安全恢复。
+
+默认配置：
+
+```text
+queue=cloudhelm.workflow
+maintenance queue=cloudhelm.workflow.maintenance
+job lease=90s
+heartbeat=20s
+dispatch interval=5s
+dispatch lease=15s
+broker publish timeout=5s
+redispatch after=60s
+enqueue backoff=1s, max=60s
+business retry backoff=5s, max=300s
+reclaim interval=30s
+batch size=50
+soft/hard/visibility timeout=840s/900s/1800s
+```
+
+必须满足：
+
+```text
+2 * heartbeat < job lease
+reclaim interval < job lease
+2 * publish timeout < dispatch lease
+dispatch interval < dispatch lease
+redispatch after > dispatch lease
+soft < hard < visibility
+visibility >= hard + job lease
+```
 
 ## 8. CI 与制品
 
@@ -547,12 +775,14 @@ GET  /api/environments/{environment_id}/remote-targets
 POST /api/remote-targets/{target_id}/test-connection
 
 POST /api/remote-agents/heartbeat
+
+POST /api/tasks/{task_id}/release-candidate
+GET  /api/tasks/{task_id}/release-candidate
 ```
 
 发布 API：
 
 ```text
-GET  /api/tasks/{task_id}/release-candidate
 GET  /api/tasks/{task_id}/ci-runs
 GET  /api/ci-runs/{ci_run_id}
 POST /api/webhooks/ci/gitea
@@ -654,6 +884,11 @@ SSE 使用数据库 EventLog tailing：
 - RemoteTarget 响应隐藏 credential 和完整 endpoint。
 - machine heartbeat 正常、跨 target、过期、撤销、重放。
 - online/offline/recovery 事件正确。
+- repository binding 只接受服务端 profile key，读取不返回 credential ref。
+- 完全相同的 binding PUT 不更新、不写事件、不失效 Candidate；PUT 与 Candidate
+  POST 并发后不存在旧 snapshot active Candidate。
+- candidate POST 只接受空对象，服务端派生 snapshot/hash/ref，并与 Approval 原子
+  创建。
 - release candidate approval 前无 push/CI。
 - 同一 candidate 只触发一个有效 CI run。
 - CI workflow 无部署命令。
@@ -668,7 +903,12 @@ SSE 使用数据库 EventLog tailing：
 
 - migration upgrade/downgrade/check。
 - repository 归属、唯一约束、分页。
-- WorkflowJob claim、lease、heartbeat、stale reclaim。
+- Binding PUT/Candidate POST 行锁顺序、幂等 no-op 与并发 snapshot 漂移。
+- WorkflowJob claim、lease、heartbeat、durable dispatch、side-effect-aware stale
+  reclaim。
+- PostgreSQL/migration/worker 集成只创建 M7-2 CHECK 允许的真实 `none` job；
+  external_idempotent/external_uncertain 只测纯 stale policy/registry，后续真实
+  handler 用新 migration 扩展映射后再补数据库集成。
 - Approval request hash、expires、consumed、实现者自批拒绝。
 - webhook 签名、空签名、delivery 和 run/job 幂等。
 - ReleasePlan 严格 schema 和 secret 检测。

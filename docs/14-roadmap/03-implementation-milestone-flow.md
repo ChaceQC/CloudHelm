@@ -118,16 +118,20 @@
 ### M7 CI/CD 与远端部署闭环
 
 - [x] 完成 M7-0 细化设计、总体设计书/API/Data/Workflow/Testing 同步和官方资料归档。
-- [ ] 实现 ProjectRepositoryBinding、ReleaseCandidate、WorkflowJob、Environment、
-  RemoteTarget、CIRun、Deployment、ServiceInstance 数据与 migration。
-- [ ] 接入 Redis + Celery workflow worker，实现 claim、lease、heartbeat、
-  stale reclaim 和 recovery_required。
+- [ ] 实现 ProjectRepositoryBinding、ReleaseCandidate、WorkflowJob 与资源绑定
+  Approval 数据、migration 和服务端 profile/snapshot 门禁。
+- [ ] 实现 CIRun、Deployment、ServiceInstance 数据与 migration。
+- [ ] 接入 Redis + Celery workflow worker，实现 durable dispatch、claim、lease、
+  heartbeat 和 side-effect-aware stale reclaim 基础。
+- [ ] 接入真实 Gitea/Remote operation resolver，使外部状态可收敛为 succeeded、
+  failed、安全重排或 recovery_required。
 - [x] 实现 Environment / RemoteTarget API、machine authentication 和
   Remote Agent online/offline/recovery 心跳。
 - [ ] 建立固定版本的 Gitea Actions、act_runner 和 registry；CI 只执行
   test/security/build/artifact，workflow 不监听 push，输出不可变 OCI digest。
-- [ ] 实现绑定最新版 PullRequestRecord、完整 commit、candidate ref 和 request
-  hash 的 release candidate 审批；审批前禁止 push 和 CI。
+- [ ] 实现严格空对象的 candidate POST，绑定最新版 PullRequestRecord、完整
+  commit、binding snapshot/hash、candidate ref 和 request hash，并原子创建第一道
+  L2 Approval；`remote-deployment/start` 不重复创建审批，审批前禁止 push 和 CI。
 - [ ] 审批通过后发布受控 ref，复核 ref 指向精确 commit，并执行唯一
   `workflow_dispatch`。
 - [ ] 准备远端 Linux staging/demo 主机和 Docker Compose 环境。

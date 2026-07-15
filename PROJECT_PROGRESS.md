@@ -2,6 +2,134 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2 契约冻结与实施预检）
+
+### 已完成
+
+- 在 M7-1 Git 收口 `0d315da` 后保持
+  `feature/m7-remote-deploy-closure` 与远端一致、工作区干净，直接进入
+  `PROJECT_PLAN.md` 的 M7-2。
+- 完成 Git、依赖、PostgreSQL 和 Redis 预检：
+  - `git branch --show-current` 为当前功能分支。
+  - `git status --short` 无输出。
+  - `uv lock --check` 通过。
+  - Alembic current 为 `20260715_0007`，`alembic check` 无待生成迁移。
+  - 启动 Compose optional Redis，`redis-cli ping` 返回 `PONG`。
+  - Platform API 基线回归 `153 passed, 1 skipped`。
+- 并行完成 M7-2 数据/API、Approval、共享契约和 Redis/Celery 设计核验，修正原
+  计划中的字段、状态和入口冲突：
+  - repository identity 统一为 `repository_external_id`。
+  - 远端校验 SHA 统一为 `remote_verified_sha`。
+  - WorkflowJob 唯一身份统一为
+    `(task_id, job_type, idempotency_key)`。
+  - Candidate 状态补 `rejected`，WorkflowJob 状态补 `cancelled`。
+- 正式拆分第一道审批入口：
+  `POST /api/tasks/{task_id}/release-candidate` 只接受严格空对象并原子创建
+  Candidate + Approval；后续 `remote-deployment/start` 只选择 Environment/
+  Target 并要求已有 approved candidate，不再重复创建第一道审批。
+- 固定 binding 漂移门禁：Candidate 持久化安全 snapshot JSON，并以独立 snapshot
+  hash 覆盖内部 clone URL 与 credential ref；binding 更新后旧 pending/approved
+  candidate 与 pending approval 同步 stale/expired。
+- 固定 PostgreSQL/Redis 双写补偿：WorkflowJob 保存 side-effect class、dispatch
+  lease、next/last enqueue、attempt/error；周期 dispatcher 补投，重复消息由
+  PostgreSQL claim 裁决。
+- 新增三张权威单表文档：
+  - `docs/07-data/tables/project_repository_bindings.md`
+  - `docs/07-data/tables/release_candidates.md`
+  - `docs/07-data/tables/workflow_jobs.md`
+  并把字段、索引、状态分类、时间不变量和 API 可见边界同步到总 schema。
+- 固定 canonical/hash/ref 算法：
+  - snapshot、Candidate request 和 WorkflowJob request 统一复用
+    `json.dumps(..., ensure_ascii=False, sort_keys=True, default=str)` 的 UTF-8
+    canonical bytes。
+  - 对外 hash 统一为 `sha256:<64 lowercase hex>`。
+  - Candidate 安全 snapshot 固定八字段，内部 freshness hash 额外覆盖
+    `profile_key/clone_url/credential_ref`。
+  - target ref 固定为
+    `{release_ref_prefix}/{task_id}/{full_commit_sha}/{snapshot_hash_hex}`。
+- 固定并发与事务锁序：
+  - Candidate POST：
+    `Task -> Binding -> PullRequestRecord -> existing Candidate`。
+  - Binding PUT：
+    `Binding -> Candidate(UUID 顺序) -> Approval(UUID 顺序)`。
+  - 第一道审批决策：
+    `Task -> Binding -> Candidate -> Approval`。
+  - Worker：
+    `Task -> WorkflowJob -> Binding -> Candidate -> Approval`。
+- 固定第一道审批为内部保留 action：通用 Approval POST 返回
+  `422 approval_action_reserved`；数据库双向约束
+  `approve_release_candidate <=> release_candidate + L2`，并要求
+  `requested_by_agent_run_id` 非空。plain UUID 或 `agent-run:<UUID>` actor 与 PR
+  creator 相同返回 `403 approval_self_decision_forbidden`。
+- 固定 M7-2 唯一生产 handler 为无外部副作用的
+  `release_candidate_reconcile`；publish、CI、deploy handler 不写占位实现，留到
+  对应后续纵切。
+- 固定 WorkflowJob attempt 耗尽、Task pause、external cancel override、
+  reconcile payload/result 精确 JSON 契约、dispatcher reserve/publish/finalize
+  崩溃窗口和成功后错误字段清理；M7-2 数据库只允许真实映射
+  `release_candidate_reconcile -> release_candidate -> none`。
+- 将四张权威表 DDL 在 PostgreSQL 16 临时 schema 中真实建表验证并事务回滚，
+  `jsonb ?&` 与 `jsonb - text[]` 运算符也已在当前数据库验证。
+- 已同步 `PROJECT_PLAN.md`、数据/API/Workflow 细化设计、Approval 文档和 Roadmap
+  拆分；当前仅冻结实施契约，尚未把 M7-2 代码项标记完成。
+
+### 进行中
+
+- 准备创建 `20260716_0008_create_m7_release_jobs.py`，并按
+  migration -> ORM/repository -> service/API -> workflow-engine -> tests 的顺序
+  实施。
+
+### 阻塞与风险
+
+- `DecisionRequest.actor_id` 仍是受控入口传入的审计字符串；M7-2 可按 AgentRun ID
+  实施领域自批门禁，但不描述为不可伪造的身份认证边界。
+- M7-2 不接真实 Gitea push、workflow dispatch、CIRun、registry、部署或 Remote
+  operation resolver；外部 side-effect job 的 stale running 只能进入
+  `recovery_required`，不能宣称已自动恢复。
+- Redis 当前是本地 Docker 开发实例；生产 ACL、TLS、私网和持久化配置留到安装/
+  E2E 纵切。
+
+### 下一步
+
+- 先提交本次 M7-2 契约冻结，再创建 0008 migration 和三个 ORM。
+- 扩展 ApprovalRequest resource/hash/expiry/consumed 字段与 candidate 决策。
+- 实现 profile-only RepositoryBinding PUT/GET、Candidate POST/GET 与全套负测。
+- 建立 `modules/workflow-engine`、durable dispatcher、Celery worker 和真实 Redis
+  集成测试。
+
+### 涉及文件
+
+- `PROJECT_PLAN.md`
+- `docs/03-modules/modules/workflow-engine.md`
+- `docs/07-data/01-database-schema.md`
+- `docs/07-data/tables/project_repository_bindings.md`
+- `docs/07-data/tables/release_candidates.md`
+- `docs/07-data/tables/workflow_jobs.md`
+- `docs/07-data/tables/approval_requests.md`
+- `docs/08-api/05-approval-api.md`
+- `docs/08-api/07-environment-deployment-api.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/03-api-detail.md`
+- `docs/15-detailed-design/04-data-detail.md`
+- `docs/15-detailed-design/05-workflow-state-events.md`
+- `docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md`
+
+### 验证
+
+- `docker compose -f infra/docker-compose.dev.yml --profile optional up -d redis`
+- `docker exec cloudhelm-redis-dev redis-cli ping`：`PONG`
+- `uv lock --check`
+- `uv run alembic current`：`20260715_0007 (head)`
+- `uv run alembic check`：`No new upgrade operations detected`
+- `uv run pytest -q`：`153 passed, 1 skipped`
+- PostgreSQL 16 临时 schema 建表：`ddl_contract_tables=8`、
+  `ddl_contract_check=passed_rolled_back`
+- PostgreSQL 16 JSONB 运算符：`jsonb ?&` 与 `jsonb - text[]` 均通过
+- 最终独立只读契约复核：P0 `0`、P1 `0`
+- 最新 21 个变更/新增 Markdown 文件：严格 UTF-8 解码错误 `0`、BOM `0`、
+  相对链接缺失 `0`、敏感信息模式命中 `0`、旧字段/旧入口/占位语义命中 `0`
+- `git diff --check` 通过
+
 ## 2026-07-16（M7-1 完成与 M7-2 执行指针）
 
 ### 已完成

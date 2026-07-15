@@ -51,18 +51,21 @@
 
 M7 控制台尚未实现；落地时必须严格展示服务端真实证据，并按以下顺序推进：
 
-1. 展示最新版 PullRequestRecord、完整 commit、RepositoryBinding、Environment
-   和 active RemoteTarget，用户发起 release candidate approval。
+1. 展示最新版 PullRequestRecord、完整 commit 和 RepositoryBinding；用户通过
+   严格空对象的 candidate POST 发起 release candidate approval，不在该步骤选择
+   Environment 或 RemoteTarget。
 2. 第一道审批卡片必须展示 PR record、commit、candidate ref 与 request hash；
    审批前 UI 不得显示已 push 或已触发 CI。
-3. 审批通过后展示受控 ref 校验和唯一 `workflow_dispatch` 对应的 CIRun、job、
+3. 第一道审批通过后再选择 Environment 与 active RemoteTarget，并调用
+   `remote-deployment/start`；该入口不得重复创建 candidate 或第一道审批。
+4. 随后展示受控 ref 校验和唯一 `workflow_dispatch` 对应的 CIRun、job、
    manifest、测试/安全结果与不可变 OCI digest。
-4. Release / Deploy Agent 生成 ReleasePlan 后，第二道 deployment approval
+5. Release / Deploy Agent 生成 ReleasePlan 后，第二道 deployment approval
    必须展示精确 digest、Environment、RemoteTarget、计划摘要和
    `release_plan_sha256`。
-5. 第二道审批通过并显式推进后，展示 Deployment Controller 与 Remote Agent
+6. 第二道审批通过并显式推进后，展示 Deployment Controller 与 Remote Agent
    operation、Compose 步骤、digest 复核、健康检查和最终 DeploymentResult。
-6. M7 Remote Ops 只展示服务 status、受时间/行数/字节限制且脱敏的直读 logs，
+7. M7 Remote Ops 只展示服务 status、受时间/行数/字节限制且脱敏的直读 logs，
    以及固定只读 diagnostics；页面不提供 remote session、WebSocket terminal、
    restart、metrics 或集中日志检索入口。
 

@@ -16,11 +16,23 @@ GET  /api/environments/{environment_id}/remote-targets
 POST /api/remote-agents/heartbeat
 ```
 
-以下端点仍是后续 M7 契约，不属于 M7-1：
+M7-2 已冻结、尚待本轮代码实现的契约：
+
+```text
+PUT  /api/projects/{project_id}/repository-binding
+GET  /api/projects/{project_id}/repository-binding
+POST /api/tasks/{task_id}/release-candidate
+GET  /api/tasks/{task_id}/release-candidate
+```
+
+Candidate POST 请求体固定为严格空对象 `{}`，是第一道 approval 的唯一创建入口。
+后续 `remote-deployment/start` 只选择 Environment/RemoteTarget 并要求已有 approved
+candidate，不再重复创建第一道审批。
+
+以下端点仍是后续 M7 契约：
 
 ```text
 POST /api/remote-targets/{target_id}/test-connection
-GET  /api/tasks/{task_id}/release-candidate
 GET  /api/tasks/{task_id}/ci-runs
 POST /api/webhooks/ci/gitea
 GET  /api/tasks/{task_id}/remote-deployment
@@ -237,7 +249,161 @@ Content-Type: application/json
 HMAC 后，后续 DTO、reported_at 或 body/header identity 校验失败仍会消费 nonce，
 防止同一已认证请求重放。
 
-## 6. 事件与查询边界
+## 6. M7-2 RepositoryBinding / ReleaseCandidate 契约
+
+### 6.1 RepositoryBinding PUT / GET
+
+```http
+PUT /api/projects/{project_id}/repository-binding
+Content-Type: application/json
+```
+
+请求只允许：
+
+```json
+{
+  "profile_key": "demo-gitea-repository"
+}
+```
+
+成功响应：
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000301",
+  "project_id": "00000000-0000-0000-0000-000000000001",
+  "provider": "gitea",
+  "profile_key": "demo-gitea-repository",
+  "repository_external_id": "42",
+  "repository_owner": "cloudhelm",
+  "repository_name": "sample-api",
+  "default_branch": "dev",
+  "workflow_id": ".gitea/workflows/ci.yml",
+  "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+  "status": "active",
+  "created_at": "2026-07-16T00:00:00Z",
+  "updated_at": "2026-07-16T00:00:00Z"
+}
+```
+
+- profile 由 `CLOUDHELM_REPOSITORY_PROFILES` 或权限受控 UTF-8 文件提供。
+- clone URL、credential ref、credential map 和 profile 文件路径不进入响应。
+- `release_ref_prefix` 必须是无尾斜杠的完整 `refs/heads/...`，并通过等价
+  `git check-ref-format` 校验。
+- PUT 重算 old/new internal snapshot hash；完全相同的 profile key、物化字段和
+  active 状态返回原 binding，不改 `updated_at`、不写事件、不失效 Candidate。
+- 只有 internal snapshot hash 变化或 binding 变为 disabled 时，旧
+  `pending_approval|approved` Candidate 与 pending Approval 才同事务
+  stale/expired。
+- PUT 先锁 Binding，再按 UUID 顺序锁 Candidate/Approval；Candidate POST 按
+  `Task -> Binding -> PullRequestRecord -> existing Candidate` 加锁并在插入提交前
+  持有 Binding `FOR UPDATE`，从数据库层串行化 PUT/POST。
+
+GET 使用同一 public response：
+
+```http
+GET /api/projects/{project_id}/repository-binding
+```
+
+### 6.2 Candidate POST / GET
+
+```http
+POST /api/tasks/{task_id}/release-candidate
+Content-Type: application/json
+```
+
+请求体固定为严格空对象：
+
+```json
+{}
+```
+
+首次创建返回 201，幂等命中返回 200：
+
+```json
+{
+  "candidate": {
+    "id": "00000000-0000-0000-0000-000000000401",
+    "task_id": "00000000-0000-0000-0000-000000000011",
+    "project_id": "00000000-0000-0000-0000-000000000001",
+    "pull_request_record_id": "00000000-0000-0000-0000-000000000021",
+    "repository_binding_id": "00000000-0000-0000-0000-000000000301",
+    "binding_snapshot": {
+      "schema_version": "m7.repository-binding.snapshot.v1",
+      "provider": "gitea",
+      "repository_external_id": "42",
+      "repository_owner": "cloudhelm",
+      "repository_name": "sample-api",
+      "default_branch": "dev",
+      "workflow_id": ".gitea/workflows/ci.yml",
+      "release_ref_prefix": "refs/heads/cloudhelm/candidates"
+    },
+    "binding_snapshot_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "target_ref": "refs/heads/cloudhelm/candidates/00000000-0000-0000-0000-000000000011/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "request_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "status": "pending_approval",
+    "approval_id": "00000000-0000-0000-0000-000000000501",
+    "remote_verified_sha": null,
+    "idempotency_key": "release_candidate:v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "approved_at": null,
+    "published_at": null,
+    "created_at": "2026-07-16T00:00:00Z",
+    "updated_at": "2026-07-16T00:00:00Z"
+  },
+  "approval": {
+    "id": "00000000-0000-0000-0000-000000000501",
+    "action": "approve_release_candidate",
+    "risk_level": "L2",
+    "resource_type": "release_candidate",
+    "resource_id": "00000000-0000-0000-0000-000000000401",
+    "status": "pending",
+    "requested_by_agent_run_id": "00000000-0000-0000-0000-000000000031",
+    "request_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "expires_at": "2026-07-17T00:00:00Z",
+    "consumed_at": null
+  }
+}
+```
+
+服务端固定：
+
+- 读取最新版 open M6 PullRequestRecord 与 active binding。
+- 按 `m7.repository-binding.snapshot.v1` 构造八字段安全 snapshot。
+- 内部 snapshot hash 额外覆盖 profile key、clone URL 和 credential ref。
+- hash 复用 `stable_json_hash`，使用
+  `ensure_ascii=False + sort_keys=True + default=str`，返回
+  `sha256:<64 lowercase hex>`。
+- target ref 为
+  `{release_ref_prefix}/{task_id}/{full_commit_sha}/{snapshot_hash_hex}`。
+- Candidate request schema 为 `m7.release-candidate.request.v1`，action 固定为
+  `approve_release_candidate`，
+  idempotency key 为 `release_candidate:v1:<request_hash hex>`。
+- Candidate、Approval 和 `release_candidate_reconcile` job 同事务创建；job id
+  不进入 public response，也没有调用方 CRUD API。
+- Approval 的 `requested_by_agent_run_id` 固定为
+  PullRequestRecord 的 `created_by_agent_run_id`；缺失时 Candidate 创建失败。
+- approve/reject 把 plain UUID 或 `agent-run:<UUID>` actor id 规范化后与上述实现
+  AgentRun 比较，相同则拒绝自批。
+- `approve_release_candidate` 是保留 action；通用 Approval create endpoint 返回
+  `422 approval_action_reserved`，只能由 CandidateService 内部事务创建。
+- broker 暂时不可用不回滚已提交 Candidate；durable dispatcher 后续补投。
+- reconcile job 无外部副作用，且不替代 ApprovalService 的同步 freshness 校验。
+- M7-2 Candidate create/approve/reject 不改 Task status/current phase；后续
+  Orchestrator 纵切再接入 WaitingMergeApproval/CIValidating。
+
+顺序/并发重复请求按
+`(pull_request_record_id, binding_snapshot_sha256)` 返回同一资源。rejected 后仍返回
+原记录，不创建新审批；新申请需要新 PR 或新 snapshot。
+
+GET 返回同一 envelope；优先当前 `pending_approval|approved` Candidate，否则返回
+`created_at,id` 最新历史记录：
+
+```http
+GET /api/tasks/{task_id}/release-candidate
+```
+
+## 7. 事件与查询边界
 
 M7-1 会写：
 
@@ -253,16 +419,32 @@ M7-1 会写：
 身份位于 payload；现有 Task Timeline/SSE 不查询它们。项目/环境事件 API 和实时
 SSE 留在后续 M7，不能描述为 M7-1 已交付。
 
-## 7. 稳定错误码
+## 8. 稳定错误码
 
 |HTTP|错误码|含义|
 |---:|---|---|
 |404|`project_not_found`|Project 不存在。|
+|404|`repository_binding_not_found`|Project 尚未配置 repository binding。|
+|404|`release_candidate_not_found`|Task 尚无 Candidate。|
 |404|`environment_not_found`|Environment 不存在。|
+|409|`repository_binding_conflict`|Repository identity 已绑定到其他 Project。|
+|409|`repository_binding_inactive`|Binding 已禁用。|
+|409|`m6_pull_request_required`|缺少符合门禁的最新 open PullRequestRecord。|
+|409|`m6_pull_request_creator_required`|PR record 缺少可审计的实现 AgentRun。|
+|409|`release_candidate_conflict`|同一 Task 存在不同业务身份的审批/发布前 Candidate。|
+|409|`release_candidate_stale`|Candidate 的 PR、binding snapshot 或 request hash 已漂移。|
+|409|`approval_expired`|资源审批已超过有效期。|
+|409|`approval_consumed`|资源审批已被单次消费。|
+|409|`approval_request_hash_mismatch`|Approval 与当前资源 hash 不一致。|
+|403|`approval_self_decision_forbidden`|实现 AgentRun 尝试自批。|
+|422|`approval_action_reserved`|通用 Approval create endpoint 提交 M7 保留 action。|
 |409|`environment_name_conflict`|项目内 Environment 名称重复。|
 |409|`environment_not_active`|Environment 不允许注册目标。|
 |409|`remote_target_conflict`|同一 Environment 已登记该 Agent。|
 |422|`remote_target_profile_not_found`|profile key 不存在。|
+|422|`repository_profile_not_found`|repository profile key 不存在。|
+|503|`repository_profile_configuration_invalid`|repository profile 文件不可读或非法。|
+|503|`repository_profile_unusable`|repository credential/ref 配置不可用。|
 |503|`remote_target_profile_configuration_invalid`|profile 文件不可读或非法。|
 |503|`remote_target_profile_unusable`|没有可用 heartbeat credential。|
 |503|`remote_agent_credential_not_configured`|注册阶段 secret 引用缺失。|

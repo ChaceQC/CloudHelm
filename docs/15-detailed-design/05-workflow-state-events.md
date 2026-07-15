@@ -98,7 +98,7 @@ WebSocket 流程。
 |Testing|实现完成|Tester Agent|运行单元/集成/E2E 测试|测试通过或失败|
 |Reviewing|测试通过|Reviewer Agent|需求符合度和代码审查|通过或要求修改|
 |SecurityScanning|评审通过|Security Agent|Semgrep/Trivy/依赖扫描|通过或失败|
-|PullRequestCreated|M6 质量门禁通过|Git Tool|保存 branch、commit 和本地等价 PR record|请求 release candidate approval|
+|PullRequestCreated|M6 质量门禁通过|Git Tool / Platform API|保存 branch、commit 和本地等价 PR record；由严格空对象的 candidate POST 原子创建第一道审批|请求 release candidate approval|
 |WaitingMergeApproval|release candidate approval 已创建|Human|审批 M6 精确 commit、受控 candidate ref 和 request hash|approved / rejected；此名称不表示 push 自动触发 CI|
 |CIValidating|第一道审批通过并发布 candidate ref|Workflow Worker + Gitea Actions|对固定 workflow 发起唯一 `workflow_dispatch`，执行 test/security/build/artifact|CI passed / failed|
 |ReleasePlanning|CI manifest、commit 和不可变 digest 已验证|Release / Deploy Agent|生成 ReleasePlan 和 SHA-256|请求 deployment approval|
@@ -169,6 +169,8 @@ TaskCreated
 
 ```text
 PullRequestCreated
+  -> POST /api/tasks/{task_id}/release-candidate
+  -> WorkflowJobQueued(release_candidate_reconcile)
   -> ReleaseCandidateApprovalRequested
   -> ReleaseCandidateApproved
   -> ReleaseCandidatePublished
@@ -189,6 +191,26 @@ PullRequestCreated
   -> DeploymentHealthy
   -> MonitoringRegistered
 ```
+
+Candidate POST 在同一事务创建 Candidate、L2 Approval 与无外部副作用的
+`release_candidate_reconcile` WorkflowJob。
+`ReleaseCandidateApprovalRequested`/`WorkflowJobQueued` payload 至少保存
+candidate id、approval id、reconcile job id、PR record id、binding snapshot hash
+和 candidate request hash，但不得保存 clone URL、profile 内容或 credential ref。
+
+WorkflowJob 运行事件固定为：
+
+```text
+WorkflowJobQueued
+  -> WorkflowJobStarted
+  -> WorkflowJobSucceeded
+     | WorkflowJobRetryScheduled
+     | WorkflowJobCancelled
+     | WorkflowJobRecoveryRequired
+```
+
+broker publish 暂时失败只写脱敏的 `WorkflowJobDispatchDeferred`，Candidate 创建
+事务仍成功；durable dispatcher 后续补投。
 
 两道审批彼此独立：第一道审批前不发布 candidate ref、不触发 CI；第二道审批前
 不产生 Remote Agent 副作用。Gitea workflow 不监听 push，`CIRunTriggered`

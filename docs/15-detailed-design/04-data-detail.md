@@ -177,10 +177,10 @@ erDiagram
     tasks ||--o{ pull_request_records : records
     development_plans ||--o{ pull_request_records : gates
     artifacts ||--o{ pull_request_records : evidences
-    projects ||--|| project_repository_bindings : binds
-    pull_request_records ||--o| release_candidates : promotes
+    projects ||--o| project_repository_bindings : binds
+    pull_request_records ||--o{ release_candidates : promotes
     project_repository_bindings ||--o{ release_candidates : publishes
-    release_candidates ||--|| ci_runs : dispatches
+    release_candidates ||--o| ci_runs : dispatches
     tasks ||--o{ workflow_jobs : schedules
     tasks ||--o{ approval_requests : requires
     tasks ||--o{ event_logs : emits
@@ -251,9 +251,52 @@ expired
 cancelled
 ```
 
-M7 L3/L4 审批还必须保存 `resource_type`、`resource_id`、`request_hash`、
+M7 的 L2 release candidate 与 L3/L4 远端审批还必须保存
+`resource_type`、`resource_id`、`request_hash`、
 `expires_at` 和 `consumed_at`。审批目标变化、hash 漂移、过期、已消费或实现者
 自批均不得恢复副作用。
+
+资源字段、request hash 与 expiry 必须成组存在；同一
+`resource_type/resource_id/action` 只允许一条审批。`consumed_at` 仅允许
+`status=approved`，且必须满足
+`decided_at <= consumed_at < expires_at`。approve/reject 不消费审批。
+
+### project_repository_bindings.status
+
+```text
+active
+disabled
+```
+
+### release_candidates.status
+
+```text
+pending_approval
+approved
+rejected
+published
+stale
+cancelled
+```
+
+Candidate 必须保存不含 secret 的 `binding_snapshot_json` 和覆盖内部 clone URL、
+credential ref 的 `binding_snapshot_sha256`。binding 或最新版 PR 漂移时，旧
+pending/approved candidate 转为 stale，pending Approval 同步 expired。
+系统 freshness 失效固定写
+`decided_by=system:release_candidate_freshness` 和数据库决策时间。
+
+安全 snapshot 精确包含八个字段：schema version、provider、repository external
+id/owner/name、default branch、workflow id、release ref prefix。内部 snapshot
+hash 还覆盖 profile key、clone URL 与 credential ref。hash 统一复用
+`stable_json_hash`，格式为 `sha256:<64 lowercase hex>`。
+
+Candidate request hash 绑定 `action=approve_release_candidate`、Task、Project、
+PR record、binding、snapshot hash、commit 和 target ref；target ref 固定为
+`{release_ref_prefix}/{task_id}/{full_commit_sha}/{snapshot_hash_hex}`。
+`(pull_request_record_id, binding_snapshot_sha256)` 是 Candidate 唯一身份。
+rejected 后重复 POST 返回原记录；重新申请必须产生新 PR 或新 snapshot。
+每 Task 的部分唯一索引只包含 `pending_approval|approved`，published 保留为历史
+发布终态。
 
 ### deployments.status
 
@@ -282,20 +325,82 @@ running
 succeeded
 failed
 cancel_requested
+cancelled
 recovery_required
 ```
 
-`workflow_jobs` 是 PostgreSQL 业务权威，Redis/Celery 只投递 job id。
-`recovery_required` 表示远端状态不明，禁止盲目重放 candidate push、CI 或部署。
+`workflow_jobs` 是 PostgreSQL 业务权威，Redis/Celery 只投递 job id。每个 job
+保存 `side_effect_class=none|external_idempotent|external_uncertain`，且只能由
+服务端 handler registry 按 job type 派生。
+
+状态分类固定为：
+
+```text
+claimable         = pending
+lease-active      = claimed | running | cancel_requested
+resource-blocking = pending | claimed | running | cancel_requested | recovery_required
+terminal          = succeeded | failed | cancelled
+manual-blocking   = recovery_required
+```
+
+pending 取消直接进入 cancelled；claimed 且 handler 尚未开始时直接 cancelled；
+running 取消进入 cancel_requested 并保留 lease。`recovery_required` 清空
+worker/dispatch lease，`next_retry_at/next_enqueue_at/finished_at` 为空，并阻止同
+资源创建新 job。
+
+safe retry 或 stale reclaim 只有在 `attempt < max_attempts` 时回 pending；耗尽时
+进入 failed，写 `workflow_job_attempts_exhausted`、数据库完成时间并清 lease/
+retry/enqueue。已请求取消且确认无副作用时优先 cancelled。
+
+`release_candidate_reconcile` 只允许 Task `running|waiting_approval`。dispatcher
+排除 paused/cancelled/failed/done；mark-running 遇到 paused 时回 pending 并清
+lease，Task resume 将 pending job 的 next enqueue 推进到数据库当前时间。
+
+stale 处理固定为：
+
+- `none`：未取消的 stale claimed/running 安全回 pending；stale
+  cancel_requested 进入 cancelled。
+- `external_idempotent`：查询相同远端 operation 后，只有明确终态、明确未执行或
+  可附着到同一幂等 operation 时收敛/重排；unknown 进入 recovery_required。
+- `external_uncertain`：running 后只接受明确 succeeded/failed；其余结果进入
+  recovery_required。
+
+cancel_requested 覆盖 external stale 规则：不重新调用原副作用；remote
+cancelled/not_started -> cancelled，succeeded -> succeeded，failed -> failed，
+running/unknown -> recovery_required。
+
+为关闭 PostgreSQL commit 与 Redis publish 的永久空窗，表内还保存 dispatch
+lease、`next_enqueue_at`、`last_enqueued_at`、enqueue attempt/error；周期
+dispatcher 使用 `FOR UPDATE SKIP LOCKED` 抢占并补投，重复消息由 PostgreSQL
+claim 去重。
+
+dispatcher due 条件必须同时服从 business retry 与 enqueue 时间：
+
+```text
+status=pending
+attempt<max_attempts
+next_retry_at IS NULL OR next_retry_at<=now()
+next_enqueue_at<=now()
+dispatch lease 为空或过期
+```
+
+reserve 先提交 dispatch lease 和递增后的 enqueue attempt，再 publish；success/
+failure finalize 必须以 `status=pending + owner` 条件更新，避免覆盖已经 claim 的
+job。success finalize 必须清 `last_enqueue_error_code`。worker 同时访问
+Task/job/resource 时固定按
+`Task -> WorkflowJob -> ProjectRepositoryBinding -> ReleaseCandidate -> Approval`
+加锁；Binding PUT 只按
+`Binding -> Candidate(UUID 顺序) -> Approval(UUID 顺序)` 加锁且不反向获取
+Task。
 
 ### M7 新增权威表
 
 - `project_repository_bindings`：服务端 Gitea profile、repository identity、
   workflow id 和 credential ref。
 - `release_candidates`：PullRequestRecord、完整 commit、target ref、审批、
-  request hash 和远端 SHA 校验。
+  binding snapshot/hash、request hash 和远端 SHA 校验。
 - `workflow_jobs`：PostgreSQL 业务 job、attempt、lease、heartbeat、retry 和
-  recovery 状态；Celery task 只携带 job id。
+  enqueue/recovery 状态；Celery business task 只携带 job id。
 - `environments`：M7-1 已实现。只允许 `staging`、`demo`，保存 base URL；
   `env_profile_ref` 为内部可空字段，`production` 属于增强版。
 - `remote_targets`：Linux Remote Agent 的 `display_name`、`target_type`、
@@ -365,8 +470,13 @@ suppressed
 |remote_agent_credentials|`ix_remote_agent_credentials_target_agent(target_id, agent_id)`|machine identity 查询|
 |remote_agent_replay_nonces|`ix_remote_agent_replay_nonces_expires(expires_at)`|过期 nonce 清理|
 |release_candidates|`ux_release_candidates_binding_ref(repository_binding_id, target_ref)`|受控 candidate ref 唯一|
+|release_candidates|`ux_release_candidates_pr_snapshot(pull_request_record_id, binding_snapshot_sha256)`|Candidate 业务身份唯一|
+|release_candidates|`ux_release_candidates_task_active(task_id) WHERE status IN ('pending_approval','approved')`|每 Task 唯一审批/发布前 Candidate|
 |ci_runs|`ux_ci_runs_release_candidate(release_candidate_id)`|同一 candidate 唯一有效 dispatch/run|
-|workflow_jobs|`idx_workflow_jobs_status_lease(status, lease_expires_at)`|worker claim 与 stale reclaim|
+|workflow_jobs|`ix_workflow_jobs_status_lease(status, lease_expires_at) WHERE status IN ('claimed','running','cancel_requested')`|worker lease 与 stale reclaim|
+|workflow_jobs|`ix_workflow_jobs_due_enqueue(next_enqueue_at,id) WHERE status='pending'`|broker 失败补投|
+|workflow_jobs|`ix_workflow_jobs_due_retry(next_retry_at,id) WHERE status='pending' AND next_retry_at IS NOT NULL`|business retry 到期扫描|
+|workflow_jobs|`ux_workflow_jobs_blocking_resource(job_type, resource_type, resource_id) WHERE status IN ('pending','claimed','running','cancel_requested','recovery_required')`|同一资源唯一 resource-blocking job|
 |deployments|`idx_deployments_env_started(environment_id, started_at DESC)`|部署历史|
 |service_instances|`idx_service_instances_env_status(environment_id, status)`|远端服务面板|
 |project_alerts|`idx_alerts_project_status(project_id, status, fired_at DESC)`|M8 告警列表|
