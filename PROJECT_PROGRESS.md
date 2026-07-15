@@ -2,6 +2,90 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2 数据底座实施暂停点）
+
+### 已完成
+
+- M7-2 契约冻结已完成最终 P0/P1 复核、Markdown/UTF-8/链接/敏感信息门禁，
+  提交 `47bdaf4`（`docs: 冻结 M7-2 候选发布与工作任务契约`）已推送
+  `origin/feature/m7-remote-deploy-closure`。
+- 从干净工作区开始 M7-2 第一个代码小步，当前未提交草稿已创建：
+  - migration：
+    `modules/platform-api/migrations/versions/20260716_0008_create_m7_release_jobs.py`
+  - ORM：
+    `ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob`
+  - ApprovalRequest 五个资源审批字段、9 个 CHECK、3 个索引和
+    `ApprovalStatus.CANCELLED`
+  - `models/__init__.py` 注册新表
+  - 测试数据库 TRUNCATE 清单与 M7-2 migration 契约测试
+- 0008 migration 已在本地开发 PostgreSQL 真实执行成功，当前开发库 Alembic head
+  为 `20260716_0008`；ORM metadata 与数据库执行
+  `uv run alembic check` 返回 `No new upgrade operations detected`。
+- `test_database_migration.py` 已扩展为检查新表、列、约束、函数式/部分索引和
+  `CASCADE/NO ACTION` 删除规则，当前独立回归 `9 passed`。
+- 只读实施复核已返回 Platform API 精确文件/符号映射；仍在运行的 Workflow
+  实施映射 Agent 已在暂停时中止，没有 Agent 继续写入或分析工作区。
+
+### 进行中
+
+- 已按用户要求暂停。migration、ORM 与 migration 测试共 10 个修改/新增文件保留
+  在工作区，尚未 stage、commit 或 push；未继续实现 repository、service、API、
+  Workflow Engine 或共享契约。
+
+### 阻塞与风险
+
+- 当前开发数据库 schema 已在未提交代码之前推进到 `20260716_0008`。恢复时必须
+  先核对 `git status`、`alembic current`，并完成真实
+  `downgrade 20260715_0007 -> upgrade 20260716_0008` 往返验证。
+- 现有 ApprovalService 是 `Task -> Approval` 锁序。release candidate 决策必须在
+  锁 Approval 前分派专用路径，并按
+  `Task -> Binding -> Candidate -> Approval` 锁序重验。
+- `PullRequestRecordService.create` 当前未参与 Task 行锁；恢复时必须在 PR 查重、
+  supersede 和 insert 前锁 Task，避免 Candidate 对“最新 PR”的判断被并发穿透。
+- `main.py` CORS 当前只允许 GET/POST；RepositoryBinding PUT 上线前必须加入 PUT。
+- Candidate POST 首次创建要返回 201、幂等命中要返回 200，路由必须动态设置响应
+  状态并在 OpenAPI 同时声明两种成功响应。
+- migration 目前只完成 upgrade、`alembic check` 和 migration 测试；尚未执行
+  downgrade/upgrade 往返、Platform API 全量 pytest、数据库负约束测试或并发测试，
+  当前代码不能标记为完成。
+
+### 下一步
+
+1. 恢复后先执行：
+   `git branch --show-current`、`git status --short`、
+   `uv run alembic current`，确认分支、草稿和开发库 head 与本记录一致。
+2. 复查 0008 migration 与三个 ORM 的关键 diff，执行真实 downgrade/upgrade、
+   `alembic check` 和 migration test；闭环后更新本节并作为数据库小步提交/push。
+3. 实现 server-controlled RepositoryProfile、Binding repository/service/PUT/GET，
+   同时补 CORS PUT、幂等 PUT 与漂移失效测试。
+4. 补 Task/PR 并发锁，再实现 Candidate/Approval/WorkflowJob 原子创建和专用审批
+   锁序；首次 201、幂等 200。
+5. 最后建立 `modules/workflow-engine` durable dispatcher/worker/heartbeat/
+   reclaimer、共享 JSON Schema/OpenAPI、Redis/崩溃恢复和完整回归。
+
+### 涉及文件
+
+- `modules/platform-api/migrations/versions/20260716_0008_create_m7_release_jobs.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/__init__.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/approval.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/project_repository_binding.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/release_candidate.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/workflow_job.py`
+- `modules/platform-api/src/cloudhelm_platform_api/schemas/approval.py`
+- `modules/platform-api/src/cloudhelm_platform_api/schemas/common.py`
+- `modules/platform-api/tests/conftest.py`
+- `modules/platform-api/tests/test_database_migration.py`
+
+### 验证
+
+- `uv run python -m compileall -q src migrations`：通过
+- `uv run alembic upgrade head`：`20260715_0007 -> 20260716_0008` 成功
+- `uv run alembic current`：`20260716_0008 (head)`
+- `uv run alembic check`：`No new upgrade operations detected`
+- `uv run pytest -q tests/test_database_migration.py`：`9 passed in 8.92s`
+- `git diff --check`：在 migration/ORM 初稿阶段通过；暂停前尚未对全部未跟踪文件
+  执行 staged diff 门禁
+
 ## 2026-07-16（M7-2 契约冻结与实施预检）
 
 ### 已完成
