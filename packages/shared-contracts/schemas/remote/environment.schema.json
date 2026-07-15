@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/remote/environment.schema.json",
+  "title": "CloudHelm Environment API Contract",
+  "description": "M7-1 Environment 创建请求与脱敏读取响应。",
+  "$defs": {
+    "EnvironmentCreate": {
+      "additionalProperties": false,
+      "description": "创建 staging/demo Environment 的请求体。",
+      "properties": {
+        "name": {
+          "description": "项目内唯一环境名称。",
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "environment_type": {
+          "description": "M7 只允许 staging 或 demo。",
+          "enum": [
+            "staging",
+            "demo"
+          ],
+          "title": "Environment Type",
+          "type": "string"
+        },
+        "base_url": {
+          "description": "环境基础 URL。",
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Base Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "environment_type",
+        "base_url"
+      ],
+      "title": "EnvironmentCreate",
+      "type": "object"
+    },
+    "EnvironmentRead": {
+      "description": "不暴露内部 env profile 引用的 Environment 响应。",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "format": "uuid",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "environment_type": {
+          "enum": [
+            "staging",
+            "demo"
+          ],
+          "title": "Environment Type",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "disabled",
+            "degraded"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "name",
+        "environment_type",
+        "status",
+        "base_url",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "EnvironmentRead",
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/EnvironmentCreate"
+    },
+    {
+      "$ref": "#/$defs/EnvironmentRead"
+    }
+  ]
+}

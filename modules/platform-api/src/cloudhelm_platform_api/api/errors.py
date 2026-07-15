@@ -53,9 +53,25 @@ async def http_error_handler(request: Request, exc: HTTPException) -> JSONRespon
 
 
 async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-    """将请求校验错误转换为统一 JSON 错误。"""
+    """将请求校验错误转换为不回显原始输入的统一 JSON 错误。"""
 
-    return error_response(request, 422, "validation_error", "请求参数校验失败。", exc.errors())
+    return error_response(
+        request,
+        422,
+        "validation_error",
+        "请求参数校验失败。",
+        [
+            {
+                "type": str(item.get("type", "validation_error")),
+                "loc": [
+                    value if isinstance(value, (str, int)) else str(value)
+                    for value in item.get("loc", ())
+                ],
+                "message": str(item.get("msg", "请求参数无效。")),
+            }
+            for item in exc.errors()
+        ],
+    )
 
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:

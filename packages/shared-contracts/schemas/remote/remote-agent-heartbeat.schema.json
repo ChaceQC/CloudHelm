@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/remote/remote-agent-heartbeat.schema.json",
+  "title": "CloudHelm Remote Agent Heartbeat Contract",
+  "description": "M7-1 machine-auth heartbeat 请求与确认响应；HMAC 请求头由 OpenAPI 描述。",
+  "$defs": {
+    "RemoteAgentHeartbeat": {
+      "additionalProperties": false,
+      "description": "Remote Agent 已签名心跳请求体。",
+      "properties": {
+        "target_id": {
+          "format": "uuid",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "agent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "agent_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Agent Version",
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "reported_at": {
+          "format": "date-time",
+          "title": "Reported At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id",
+        "agent_id",
+        "agent_version",
+        "capabilities",
+        "reported_at"
+      ],
+      "title": "RemoteAgentHeartbeat",
+      "type": "object"
+    },
+    "RemoteAgentHeartbeatRead": {
+      "description": "心跳接收结果。",
+      "properties": {
+        "target_id": {
+          "format": "uuid",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "agent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "online",
+            "degraded"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "accepted_at": {
+          "format": "date-time",
+          "title": "Accepted At",
+          "type": "string"
+        },
+        "next_heartbeat_after_seconds": {
+          "maximum": 3600,
+          "minimum": 1,
+          "title": "Next Heartbeat After Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target_id",
+        "agent_id",
+        "status",
+        "accepted_at",
+        "next_heartbeat_after_seconds"
+      ],
+      "title": "RemoteAgentHeartbeatRead",
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RemoteAgentHeartbeat"
+    },
+    {
+      "$ref": "#/$defs/RemoteAgentHeartbeatRead"
+    }
+  ]
+}

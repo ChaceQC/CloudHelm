@@ -23,6 +23,10 @@ def test_alembic_migration_creates_core_tables() -> None:
         "development_plans",
         "artifacts",
         "pull_request_records",
+        "environments",
+        "remote_targets",
+        "remote_agent_credentials",
+        "remote_agent_replay_nonces",
     }
     with get_engine().connect() as connection:
         rows = connection.execute(
@@ -209,6 +213,158 @@ def test_m6_migration_creates_constraints_indexes_and_delete_rules() -> None:
     assert expected_constraints.issubset(constraints)
     for index_name, predicate in expected_partial_indexes.items():
         assert predicate in index_definitions[index_name]
+    for identity, delete_rule in expected_delete_rules.items():
+        assert delete_rules[identity] == delete_rule
+
+
+def test_m7_environment_remote_target_migration_contract() -> None:
+    """M7-1 表、约束、索引和级联删除规则必须由 migration 创建。"""
+
+    expected_columns = {
+        "environments": {
+            "project_id",
+            "name",
+            "environment_type",
+            "status",
+            "base_url",
+            "env_profile_ref",
+        },
+        "remote_targets": {
+            "environment_id",
+            "display_name",
+            "target_type",
+            "agent_id",
+            "agent_endpoint",
+            "credential_ref",
+            "tls_fingerprint",
+            "status",
+            "agent_version",
+            "capabilities_json",
+            "last_heartbeat_at",
+            "last_error_code",
+            "last_event_at",
+            "last_status_changed_at",
+        },
+        "remote_agent_credentials": {
+            "target_id",
+            "agent_id",
+            "key_id",
+            "credential_ref",
+            "scopes_json",
+            "secret_fingerprint",
+            "active_from",
+            "expires_at",
+            "revoked_at",
+        },
+        "remote_agent_replay_nonces": {
+            "credential_id",
+            "nonce_hash",
+            "request_timestamp",
+            "expires_at",
+            "created_at",
+        },
+    }
+    expected_constraints = {
+        "ck_environments_type",
+        "ck_environments_status",
+        "uq_environments_project_name",
+        "ck_remote_targets_type",
+        "ck_remote_targets_status",
+        "ck_remote_targets_capabilities_array",
+        "ck_remote_targets_tls_fingerprint",
+        "uq_remote_targets_environment_agent",
+        "ck_remote_agent_credentials_scopes_array",
+        "ck_remote_agent_credentials_secret_fingerprint",
+        "ck_remote_agent_credentials_expiry",
+        "uq_remote_agent_credentials_target_key",
+        "ck_remote_agent_replay_nonces_hash",
+        "ck_remote_agent_replay_nonces_expiry",
+        "uq_remote_agent_replay_nonces_credential_hash",
+    }
+    expected_indexes = {
+        "ix_environments_project_status_created",
+        "ix_remote_targets_environment_status_created",
+        "ix_remote_targets_last_heartbeat",
+        "ix_remote_agent_credentials_target_agent",
+        "ix_remote_agent_credentials_expiry",
+        "ix_remote_agent_replay_nonces_expires",
+    }
+    expected_delete_rules = {
+        ("environments", "environments_project_id_fkey"): "c",
+        ("remote_targets", "remote_targets_environment_id_fkey"): "c",
+        (
+            "remote_agent_credentials",
+            "remote_agent_credentials_target_id_fkey",
+        ): "c",
+        (
+            "remote_agent_replay_nonces",
+            "remote_agent_replay_nonces_credential_id_fkey",
+        ): "c",
+    }
+
+    with get_engine().connect() as connection:
+        for table_name, expected in expected_columns.items():
+            columns = {
+                row.column_name
+                for row in connection.execute(
+                    text(
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = :table_name
+                        """
+                    ),
+                    {"table_name": table_name},
+                )
+            }
+            assert expected.issubset(columns)
+
+        constraints = {
+            row.conname
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE connamespace = 'public'::regnamespace
+                    """
+                )
+            )
+        }
+        indexes = {
+            row.indexname
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT indexname
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                    """
+                )
+            )
+        }
+        delete_rules = {
+            (row.table_name, row.constraint_name): row.confdeltype
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT
+                        relation.relname AS table_name,
+                        constraint_record.conname AS constraint_name,
+                        constraint_record.confdeltype
+                    FROM pg_constraint AS constraint_record
+                    JOIN pg_class AS relation
+                      ON relation.oid = constraint_record.conrelid
+                    WHERE constraint_record.contype = 'f'
+                      AND constraint_record.connamespace = 'public'::regnamespace
+                    """
+                )
+            )
+        }
+
+    assert expected_constraints.issubset(constraints)
+    assert expected_indexes.issubset(indexes)
     for identity, delete_rule in expected_delete_rules.items():
         assert delete_rules[identity] == delete_rule
 

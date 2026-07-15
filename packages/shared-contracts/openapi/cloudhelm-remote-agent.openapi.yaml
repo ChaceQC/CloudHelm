@@ -1,0 +1,172 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CloudHelm Remote Agent",
+    "description": "CloudHelm M7-1 Linux staging/demo Remote Agent 基础接口；当前不提供部署、自由命令、文件传输或交互终端。",
+    "version": "0.5.1"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "读取 Remote Agent 进程健康状态",
+        "description": "返回无 secret、路径和控制面地址的运行元数据。",
+        "operationId": "read_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/version": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "读取 Remote Agent 版本",
+        "description": "返回模块版本和稳定 Agent 身份。",
+        "operationId": "read_version_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/capabilities": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "读取 Remote Agent capabilities",
+        "description": "返回当前切片真实实现的 capability。",
+        "operationId": "read_capabilities_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CapabilitiesResponse": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "cloudhelm-remote-agent",
+            "title": "Service"
+          },
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service",
+          "agent_id",
+          "capabilities"
+        ],
+        "title": "CapabilitiesResponse",
+        "description": "Remote Agent 当前真实支持的 capability。"
+      },
+      "HealthResponse": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "cloudhelm-remote-agent",
+            "title": "Service"
+          },
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service",
+          "status",
+          "version",
+          "agent_id",
+          "capabilities"
+        ],
+        "title": "HealthResponse",
+        "description": "进程健康状态；不包含凭据、路径或 Platform API 地址。"
+      },
+      "VersionResponse": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "const": "cloudhelm-remote-agent",
+            "title": "Service"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service",
+          "version",
+          "agent_id"
+        ],
+        "title": "VersionResponse",
+        "description": "Remote Agent 版本元数据。"
+      }
+    }
+  }
+}

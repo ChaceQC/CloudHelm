@@ -13,9 +13,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from cloudhelm_platform_api.core.remote_target_config import (
+    RemoteTargetProfileConfig,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
 
@@ -196,10 +199,75 @@ class Settings(BaseSettings):
             "单个 Task 同时 active 的最大子 Agent 会话数；默认参考 Codex CLI。"
         ),
     )
+    remote_target_profiles_file: str | None = Field(
+        default=None,
+        description=(
+            "M7 RemoteTarget profile JSON 文件；普通 API 只提交 profile_key。"
+        ),
+    )
+    remote_target_profiles: dict[str, RemoteTargetProfileConfig] = Field(
+        default_factory=dict,
+        description="直接由环境变量注入的服务端 RemoteTarget profile 映射。",
+    )
+    remote_agent_credentials: dict[str, SecretStr] = Field(
+        default_factory=dict,
+        description=(
+            "credential_ref 到 machine secret 的服务端映射；永不写入响应或事件。"
+        ),
+    )
+    remote_agent_timestamp_tolerance_seconds: int = Field(
+        default=300,
+        ge=1,
+        le=3600,
+        description="Machine HMAC 请求允许的时间偏差秒数。",
+    )
+    remote_agent_nonce_ttl_seconds: int = Field(
+        default=900,
+        ge=60,
+        le=86400,
+        description="已认证 nonce 在 PostgreSQL 中保留的最短秒数。",
+    )
+    remote_agent_offline_timeout_seconds: int = Field(
+        default=60,
+        ge=5,
+        le=86400,
+        description="最后心跳超过该秒数后把 online/degraded target 收敛为 offline。",
+    )
+    remote_agent_heartbeat_event_interval_seconds: int = Field(
+        default=300,
+        ge=1,
+        le=86400,
+        description="普通高频 heartbeat 写 EventLog 的最小间隔。",
+    )
+    remote_agent_next_heartbeat_seconds: int = Field(
+        default=20,
+        ge=1,
+        le=3600,
+        description="heartbeat 响应建议 Remote Agent 下次上报的间隔。",
+    )
+    remote_agent_heartbeat_max_body_bytes: int = Field(
+        default=16384,
+        ge=1024,
+        le=1048576,
+        description="machine-auth heartbeat 原始请求体最大字节数。",
+    )
     cors_origins: list[str] = Field(
         default=["http://127.0.0.1:5173", "http://localhost:5173"],
         description="本地控制台允许访问平台 API 的来源。",
     )
+
+    @model_validator(mode="after")
+    def validate_remote_agent_heartbeat_timing(self) -> "Settings":
+        """离线阈值至少容纳两次建议心跳，避免正常 Agent 反复离线。"""
+
+        if (
+            self.remote_agent_next_heartbeat_seconds * 2
+            >= self.remote_agent_offline_timeout_seconds
+        ):
+            raise ValueError(
+                "Remote Agent offline timeout 必须大于两倍建议心跳间隔。"
+            )
+        return self
 
     @property
     def effective_tool_workspace_roots(self) -> list[str]:

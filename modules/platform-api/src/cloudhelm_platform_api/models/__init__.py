@@ -11,9 +11,15 @@ from cloudhelm_platform_api.models.approval import ApprovalRequest
 from cloudhelm_platform_api.models.artifact import Artifact
 from cloudhelm_platform_api.models.design import TechnicalDesign
 from cloudhelm_platform_api.models.development_plan import DevelopmentPlan
+from cloudhelm_platform_api.models.environment import Environment
 from cloudhelm_platform_api.models.event_log import EventLog
 from cloudhelm_platform_api.models.project import Project
 from cloudhelm_platform_api.models.pull_request_record import PullRequestRecord
+from cloudhelm_platform_api.models.remote_target import (
+    RemoteAgentCredential,
+    RemoteAgentReplayNonce,
+    RemoteTarget,
+)
 from cloudhelm_platform_api.models.requirement import RequirementSpec
 from cloudhelm_platform_api.models.task import Task
 from cloudhelm_platform_api.models.tool_call import ToolCall
@@ -25,9 +31,13 @@ __all__ = [
     "Artifact",
     "Base",
     "DevelopmentPlan",
+    "Environment",
     "EventLog",
     "Project",
     "PullRequestRecord",
+    "RemoteAgentCredential",
+    "RemoteAgentReplayNonce",
+    "RemoteTarget",
     "RequirementSpec",
     "Task",
     "TechnicalDesign",

@@ -16,6 +16,7 @@ from cloudhelm_platform_api.api.approvals import router as approval_router
 from cloudhelm_platform_api.api.artifacts import router as artifact_router
 from cloudhelm_platform_api.api.designs import router as design_router
 from cloudhelm_platform_api.api.development_plans import router as development_plan_router
+from cloudhelm_platform_api.api.environments import router as environment_router
 from cloudhelm_platform_api.api.errors import register_exception_handlers
 from cloudhelm_platform_api.api.events import router as event_router
 from cloudhelm_platform_api.api.health import router as health_router
@@ -28,10 +29,15 @@ from cloudhelm_platform_api.api.pull_request_records import (
     router as pull_request_record_router,
 )
 from cloudhelm_platform_api.api.requirements import router as requirement_router
+from cloudhelm_platform_api.api.remote_agents import router as remote_agent_router
+from cloudhelm_platform_api.api.remote_targets import router as remote_target_router
 from cloudhelm_platform_api.api.tasks import router as task_router
 from cloudhelm_platform_api.api.tool_calls import router as tool_call_router
 from cloudhelm_platform_api.api.tool_gateway import router as tool_gateway_router
 from cloudhelm_platform_api.core.config import get_settings
+from cloudhelm_platform_api.middleware.heartbeat_body_limit import (
+    HeartbeatBodyLimitMiddleware,
+)
 from cloudhelm_platform_api.schemas.common import ErrorResponse
 from cloudhelm_tool_gateway import create_default_gateway
 
@@ -47,8 +53,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="CloudHelm Platform API",
         description=(
-            "CloudHelm 平台 API。M6 提供真实数据库驱动的 Agent 编排、"
-            "受控本地代码/测试/安全工具、Artifact 与本地等价 PR record。"
+            "CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、"
+            "受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增"
+            " Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环。"
         ),
         version=settings.version,
         responses={
@@ -84,9 +91,16 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
+    app.add_middleware(
+        HeartbeatBodyLimitMiddleware,
+        max_body_bytes=settings.remote_agent_heartbeat_max_body_bytes,
+    )
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(project_router)
+    app.include_router(environment_router)
+    app.include_router(remote_target_router)
+    app.include_router(remote_agent_router)
     app.include_router(task_router)
     app.include_router(requirement_router)
     app.include_router(design_router)

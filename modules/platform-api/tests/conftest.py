@@ -34,6 +34,81 @@ DEFAULT_TEST_DATABASE_URL = (
 ALLOW_SCHEMA_RESET_ENV = "CLOUDHELM_TEST_ALLOW_SCHEMA_RESET"
 _DATABASE_NAME = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 ROOT = Path(__file__).resolve().parents[1]
+M7_REMOTE_AGENT_SECRETS = {
+    "test/agent-a/current": (
+        "test-agent-a-current-secret-000000000000000000000000"
+    ),
+    "test/agent-a/previous": (
+        "test-agent-a-previous-secret-0000000000000000000000"
+    ),
+    "test/agent-a/revoked": (
+        "test-agent-a-revoked-secret-00000000000000000000000"
+    ),
+    "test/agent-a/expired": (
+        "test-agent-a-expired-secret-00000000000000000000000"
+    ),
+    "test/agent-a/deployment": (
+        "test-agent-a-deployment-secret-000000000000000000000"
+    ),
+    "test/agent-b/current": (
+        "test-agent-b-current-secret-000000000000000000000000"
+    ),
+}
+M7_REMOTE_TARGET_PROFILES = {
+    "test-primary": {
+        "agent_id": "remote-agent-a",
+        "agent_endpoint": "https://agent-a.example.test:9443",
+        "tls_fingerprint": f"sha256:{'a' * 64}",
+        "credentials": [
+            {
+                "key_id": "key-current",
+                "credential_ref": "test/agent-a/current",
+                "scopes": ["heartbeat"],
+                "active_from": "2020-01-01T00:00:00Z",
+            },
+            {
+                "key_id": "key-previous",
+                "credential_ref": "test/agent-a/previous",
+                "scopes": ["heartbeat"],
+                "active_from": "2020-01-01T00:00:00Z",
+                "expires_at": "2099-01-01T00:00:00Z",
+            },
+            {
+                "key_id": "key-revoked",
+                "credential_ref": "test/agent-a/revoked",
+                "scopes": ["heartbeat"],
+                "active_from": "2020-01-01T00:00:00Z",
+                "revoked_at": "2026-07-01T00:00:00Z",
+            },
+            {
+                "key_id": "key-expired",
+                "credential_ref": "test/agent-a/expired",
+                "scopes": ["heartbeat"],
+                "active_from": "2020-01-01T00:00:00Z",
+                "expires_at": "2021-01-01T00:00:00Z",
+            },
+            {
+                "key_id": "key-deployment",
+                "credential_ref": "test/agent-a/deployment",
+                "scopes": ["deployment"],
+                "active_from": "2020-01-01T00:00:00Z",
+            },
+        ],
+    },
+    "test-secondary": {
+        "agent_id": "remote-agent-b",
+        "agent_endpoint": "https://agent-b.example.test:9444",
+        "tls_fingerprint": f"sha256:{'b' * 64}",
+        "credentials": [
+            {
+                "key_id": "key-current",
+                "credential_ref": "test/agent-b/current",
+                "scopes": ["heartbeat"],
+                "active_from": "2020-01-01T00:00:00Z",
+            }
+        ],
+    },
+}
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -61,6 +136,20 @@ def migrated_database() -> Generator[None, None, None]:
         / "sample-repo-python"
         / "demo-issues"
     )
+    os.environ["CLOUDHELM_REMOTE_TARGET_PROFILES"] = json.dumps(
+        M7_REMOTE_TARGET_PROFILES
+    )
+    os.environ["CLOUDHELM_REMOTE_AGENT_CREDENTIALS"] = json.dumps(
+        M7_REMOTE_AGENT_SECRETS
+    )
+    os.environ["CLOUDHELM_REMOTE_AGENT_TIMESTAMP_TOLERANCE_SECONDS"] = "300"
+    os.environ["CLOUDHELM_REMOTE_AGENT_NONCE_TTL_SECONDS"] = "900"
+    os.environ["CLOUDHELM_REMOTE_AGENT_OFFLINE_TIMEOUT_SECONDS"] = "60"
+    os.environ[
+        "CLOUDHELM_REMOTE_AGENT_HEARTBEAT_EVENT_INTERVAL_SECONDS"
+    ] = "300"
+    os.environ["CLOUDHELM_REMOTE_AGENT_NEXT_HEARTBEAT_SECONDS"] = "20"
+    os.environ["CLOUDHELM_REMOTE_AGENT_HEARTBEAT_MAX_BODY_BYTES"] = "16384"
     get_settings.cache_clear()
     reset_engine_cache()
 
@@ -86,6 +175,10 @@ def clean_business_tables(migrated_database: None) -> Generator[None, None, None
             text(
                 """
                 TRUNCATE TABLE
+                  remote_agent_replay_nonces,
+                  remote_agent_credentials,
+                  remote_targets,
+                  environments,
                   pull_request_records,
                   artifacts,
                   event_logs,

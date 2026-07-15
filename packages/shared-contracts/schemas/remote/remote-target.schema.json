@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/remote/remote-target.schema.json",
+  "title": "CloudHelm RemoteTarget API Contract",
+  "description": "M7-1 server-controlled RemoteTarget 注册请求与脱敏读取响应。",
+  "$defs": {
+    "RemoteTargetCreate": {
+      "additionalProperties": false,
+      "description": "通过服务端 profile 注册 RemoteTarget。\n\nendpoint、agent、TLS 和 credential 均由 profile 派生，调用方只能提交\n`profile_key` 与展示名称。",
+      "properties": {
+        "profile_key": {
+          "description": "服务端受控 RemoteTarget profile key。",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "title": "Profile Key",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "控制台展示名称。",
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_key",
+        "display_name"
+      ],
+      "title": "RemoteTargetCreate",
+      "type": "object"
+    },
+    "RemoteTargetRead": {
+      "description": "脱敏后的 RemoteTarget 响应。",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "environment_id": {
+          "format": "uuid",
+          "title": "Environment Id",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "target_type": {
+          "const": "linux_remote_agent",
+          "title": "Target Type",
+          "type": "string"
+        },
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "endpoint_display": {
+          "title": "Endpoint Display",
+          "type": "string"
+        },
+        "tls_fingerprint": {
+          "title": "Tls Fingerprint",
+          "type": "string"
+        },
+        "credential_fingerprints": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Credential Fingerprints",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "offline",
+            "online",
+            "degraded",
+            "disabled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "agent_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Agent Version"
+        },
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "last_heartbeat_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Heartbeat At"
+        },
+        "last_error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Error Code"
+        },
+        "last_event_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Event At"
+        },
+        "last_status_changed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Status Changed At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "environment_id",
+        "display_name",
+        "target_type",
+        "agent_id",
+        "endpoint_display",
+        "tls_fingerprint",
+        "credential_fingerprints",
+        "status",
+        "agent_version",
+        "capabilities",
+        "last_heartbeat_at",
+        "last_error_code",
+        "last_event_at",
+        "last_status_changed_at",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "RemoteTargetRead",
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RemoteTargetCreate"
+    },
+    {
+      "$ref": "#/$defs/RemoteTargetRead"
+    }
+  ]
+}

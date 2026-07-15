@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M6 提供真实数据库驱动的 Agent 编排、受控本地代码/测试/安全工具、Artifact 与本地等价 PR record。
+  description: CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增 Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环。
   version: 0.5.1
 paths:
   /health:
@@ -218,6 +218,447 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{project_id}/environments:
+    post:
+      tags:
+      - environments
+      summary: 创建 staging/demo Environment
+      description: 创建项目环境；内部 env profile 不接受调用方覆盖。
+      operationId: create_environment_api_projects__project_id__environments_post
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - environments
+      summary: 分页读取项目 Environment
+      description: 分页读取项目下的真实 Environment。
+      operationId: list_environments_api_projects__project_id__environments_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
+          - type: 'null'
+          description: 非负十进制 offset cursor。
+          title: Cursor
+        description: 非负十进制 offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_EnvironmentRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/environments/{environment_id}:
+    get:
+      tags:
+      - environments
+      summary: 读取 Environment 详情
+      description: 读取单个 Environment。
+      operationId: get_environment_api_environments__environment_id__get
+      parameters:
+      - name: environment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Environment Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/environments/{environment_id}/remote-targets:
+    post:
+      tags:
+      - remote-targets
+      summary: 注册受控 RemoteTarget
+      description: 通过服务端 profile 注册目标，不接受任意 endpoint 或 credential。
+      operationId: create_remote_target_api_environments__environment_id__remote_targets_post
+      parameters:
+      - name: environment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Environment Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoteTargetCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoteTargetRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务端 profile 或 machine credential 配置不可用。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - remote-targets
+      summary: 分页读取 RemoteTarget
+      description: 读取目标并收敛访问时发现的 heartbeat timeout。
+      operationId: list_remote_targets_api_environments__environment_id__remote_targets_get
+      parameters:
+      - name: environment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Environment Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 分页大小。
+          default: 50
+          title: Limit
+        description: 分页大小。
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            minLength: 1
+            maxLength: 18
+            pattern: ^\d+$
+          - type: 'null'
+          description: 非负十进制 offset cursor。
+          title: Cursor
+        description: 非负十进制 offset cursor。
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageResponse_RemoteTargetRead_'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/remote-agents/heartbeat:
+    post:
+      tags:
+      - remote-agents
+      summary: 接收已签名 Remote Agent heartbeat
+      description: 验证 machine identity 后更新在线状态与安全事件。
+      operationId: record_remote_agent_heartbeat_api_remote_agents_heartbeat_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoteAgentHeartbeat'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoteAgentHeartbeatRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: machine authentication 无效、失效或重放。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: RemoteTarget 已禁用或 credential scope 不允许。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: heartbeat 原始请求体超过配置上限。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: machine credential 服务端配置不可用或发生漂移。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      parameters:
+      - name: X-CloudHelm-Target-Id
+        in: header
+        required: true
+        description: 已登记 RemoteTarget UUID。
+        schema:
+          type: string
+          format: uuid
+      - name: X-CloudHelm-Agent-Id
+        in: header
+        required: true
+        description: Remote Agent 稳定身份。
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+      - name: X-CloudHelm-Key-Id
+        in: header
+        required: true
+        description: machine credential 轮换标识。
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+      - name: X-CloudHelm-Timestamp
+        in: header
+        required: true
+        description: Unix 秒时间戳。
+        schema:
+          type: string
+          pattern: ^\d+$
+      - name: X-CloudHelm-Nonce
+        in: header
+        required: true
+        description: 16 至 128 字符的一次性随机值。
+        schema:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$
+      - name: X-CloudHelm-Signature
+        in: header
+        required: true
+        description: lowercase hex HMAC-SHA256。
+        schema:
+          type: string
+          pattern: ^[0-9a-f]{64}$
   /api/tasks:
     post:
       tags:
@@ -3513,6 +3954,86 @@ components:
       - changes_requested
       title: DevelopmentPlanStatus
       description: DevelopmentPlan 审查状态。
+    EnvironmentCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 63
+          minLength: 1
+          pattern: ^[a-z0-9][a-z0-9-]{0,62}$
+          title: Name
+          description: 项目内唯一环境名称。
+        environment_type:
+          type: string
+          enum:
+          - staging
+          - demo
+          title: Environment Type
+          description: M7 只允许 staging 或 demo。
+        base_url:
+          type: string
+          maxLength: 2083
+          minLength: 1
+          format: uri
+          title: Base Url
+          description: 环境基础 URL。
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - environment_type
+      - base_url
+      title: EnvironmentCreate
+      description: 创建 staging/demo Environment 的请求体。
+    EnvironmentRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        name:
+          type: string
+          title: Name
+        environment_type:
+          type: string
+          enum:
+          - staging
+          - demo
+          title: Environment Type
+        status:
+          type: string
+          enum:
+          - active
+          - disabled
+          - degraded
+          title: Status
+        base_url:
+          type: string
+          title: Base Url
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - project_id
+      - name
+      - environment_type
+      - status
+      - base_url
+      - created_at
+      - updated_at
+      title: EnvironmentRead
+      description: 不暴露内部 env profile 引用的 Environment 响应。
     ErrorResponse:
       properties:
         code:
@@ -3910,6 +4431,22 @@ components:
       - items
       - page
       title: PageResponse[DevelopmentPlanRead]
+    PageResponse_EnvironmentRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/EnvironmentRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[EnvironmentRead]
     PageResponse_EventLogRead_:
       properties:
         items:
@@ -3958,6 +4495,22 @@ components:
       - items
       - page
       title: PageResponse[PullRequestRecordRead]
+    PageResponse_RemoteTargetRead_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RemoteTargetRead'
+          type: array
+          title: Items
+          description: 当前页数据。
+        page:
+          $ref: '#/components/schemas/PageInfo'
+          description: 分页信息。
+      type: object
+      required:
+      - items
+      - page
+      title: PageResponse[RemoteTargetRead]
     PageResponse_RequirementSpecRead_:
       properties:
         items:
@@ -4290,6 +4843,208 @@ components:
       - closed
       title: PullRequestRecordStatus
       description: PR record 生命周期状态。
+    RemoteAgentHeartbeat:
+      properties:
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        agent_id:
+          type: string
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]*$
+          title: Agent Id
+        agent_version:
+          type: string
+          maxLength: 64
+          minLength: 1
+          title: Agent Version
+        capabilities:
+          items:
+            type: string
+          type: array
+          maxItems: 32
+          minItems: 1
+          title: Capabilities
+        reported_at:
+          type: string
+          format: date-time
+          title: Reported At
+      additionalProperties: false
+      type: object
+      required:
+      - target_id
+      - agent_id
+      - agent_version
+      - capabilities
+      - reported_at
+      title: RemoteAgentHeartbeat
+      description: Remote Agent 已签名心跳请求体。
+    RemoteAgentHeartbeatRead:
+      properties:
+        target_id:
+          type: string
+          format: uuid
+          title: Target Id
+        agent_id:
+          type: string
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]*$
+          title: Agent Id
+        status:
+          type: string
+          enum:
+          - online
+          - degraded
+          title: Status
+        accepted_at:
+          type: string
+          format: date-time
+          title: Accepted At
+        next_heartbeat_after_seconds:
+          type: integer
+          maximum: 3600.0
+          minimum: 1.0
+          title: Next Heartbeat After Seconds
+      type: object
+      required:
+      - target_id
+      - agent_id
+      - status
+      - accepted_at
+      - next_heartbeat_after_seconds
+      title: RemoteAgentHeartbeatRead
+      description: 心跳接收结果。
+    RemoteTargetCreate:
+      properties:
+        profile_key:
+          type: string
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*$
+          title: Profile Key
+          description: 服务端受控 RemoteTarget profile key。
+        display_name:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Display Name
+          description: 控制台展示名称。
+      additionalProperties: false
+      type: object
+      required:
+      - profile_key
+      - display_name
+      title: RemoteTargetCreate
+      description: '通过服务端 profile 注册 RemoteTarget。
+
+
+        endpoint、agent、TLS 和 credential 均由 profile 派生，调用方只能提交
+
+        `profile_key` 与展示名称。'
+    RemoteTargetRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        environment_id:
+          type: string
+          format: uuid
+          title: Environment Id
+        display_name:
+          type: string
+          title: Display Name
+        target_type:
+          type: string
+          const: linux_remote_agent
+          title: Target Type
+        agent_id:
+          type: string
+          title: Agent Id
+        endpoint_display:
+          type: string
+          title: Endpoint Display
+        tls_fingerprint:
+          type: string
+          title: Tls Fingerprint
+        credential_fingerprints:
+          items:
+            type: string
+          type: array
+          title: Credential Fingerprints
+        status:
+          type: string
+          enum:
+          - offline
+          - online
+          - degraded
+          - disabled
+          title: Status
+        agent_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Version
+        capabilities:
+          items:
+            type: string
+          type: array
+          title: Capabilities
+        last_heartbeat_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Heartbeat At
+        last_error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Error Code
+        last_event_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Event At
+        last_status_changed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Status Changed At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - environment_id
+      - display_name
+      - target_type
+      - agent_id
+      - endpoint_display
+      - tls_fingerprint
+      - credential_fingerprints
+      - status
+      - agent_version
+      - capabilities
+      - last_heartbeat_at
+      - last_error_code
+      - last_event_at
+      - last_status_changed_at
+      - created_at
+      - updated_at
+      title: RemoteTargetRead
+      description: 脱敏后的 RemoteTarget 响应。
     RequirementSpecCreate:
       properties:
         source_type:
