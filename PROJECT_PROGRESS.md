@@ -48,6 +48,8 @@
 - 同步根 README、模块文档、数据/API/安全/细化设计、`.env.example` 和两张
   machine-auth 子表文档；Roadmap 只勾选已有证据的
   Environment/RemoteTarget/machine-auth heartbeat 子项。
+- M7-1 文档、Roadmap、进度和 M7-2 计划提交为 `306ae6b`
+  （`docs: 收口 M7-1 并推进 M7-2 计划`），已推送当前功能分支。
 - `PROJECT_PLAN.md` 当前执行指针已推进到 M7-2：
   `ProjectRepositoryBinding + ReleaseCandidate + WorkflowJob +
   Redis/Celery claim/lease/heartbeat/stale reclaim`。
@@ -119,6 +121,8 @@
 - `git diff --cached --check` 在代码提交前通过；当前文档 diff 的严格 UTF-8
   解码错误 0、BOM 0、Markdown 本地链接缺失 0、敏感模式命中 0，
   `git diff --check` 通过。
+- `306ae6b` 推送后执行 `git status --short` 无输出；
+  `origin/feature/m7-remote-deploy-closure` 与本地 HEAD 一致。
 
 ## 2026-07-15（M7-1 首个代码纵切暂停点）
 
