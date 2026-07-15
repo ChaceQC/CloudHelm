@@ -3,7 +3,7 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`modules/platform-api`
 
-## M2-M6 实现状态
+## M2-M7-1 实现状态
 
 `modules/platform-api` `0.5.1` 已从 M1 `/health` 扩展为真实数据库 API 和
 本地开发工作流：
@@ -16,7 +16,10 @@
 - 已实现 M4 `start/run-next` 与 M6 `local-development/start/run-next`。
 - 已接入 Agent Runtime 与 Tool Gateway，执行真实受控文件、pytest、Bandit、
   pip-audit、branch、commit 和 format patch。
-- 远端 push、真实 GitHub/Gitea PR、CI/CD、SSH、部署和监控仍在 M7-M8。
+- M7-1 已新增 Environment、受控 profile RemoteTarget、machine credential
+  metadata/replay nonce、HMAC heartbeat 和 online/offline/recovery EventLog。
+- 远端 push、真实 Gitea CI、ReleasePlan、Deployment Controller、实际 Compose
+  部署和监控仍在后续 M7-M8。
 
 普通写操作通过 service 层在同一事务内写业务表和 `event_logs`。文件、Git 和
 进程副作用使用短事务先抢占 ToolCall，再执行 handler，最后在后续事务写终态。
@@ -46,6 +49,21 @@
   和 API preview 只返回脱敏安全投影。
 - M6 基础设施失败会保存已发生的配对 provider call/output 与失败上下文，
   Task 按可恢复性暂停或失败。
+
+## M7-1 实现状态
+
+- `POST/GET /api/projects/{project_id}/environments` 与 Environment 详情。
+- `POST/GET /api/environments/{environment_id}/remote-targets`；调用方只提交
+  profile key，响应隐藏 credential ref 和完整 endpoint。
+- `POST /api/remote-agents/heartbeat` 使用六个必填 HMAC headers、原始 body
+  hash、timestamp tolerance 和 PostgreSQL nonce 唯一约束。
+- machine-auth 使用独立短 Session 在线程池提交 nonce；heartbeat 状态事务使用
+  Target 行锁。
+- heartbeat 请求体默认限制 16 KiB；validation detail 不回显原始输入。
+- secret fingerprint、credential lifecycle/scope、新旧 key 重叠和并发 replay
+  均有真实 PostgreSQL 测试。
+- 离线状态暂由目标列表或下一次 heartbeat reconciliation 触发；周期 worker、
+  项目/环境 EventLog API 与实时 SSE 尚未实现。
 
 ## 职责
 

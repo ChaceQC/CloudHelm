@@ -36,6 +36,111 @@ ref 并由真实 CI 生成不可变制品，再由 Release / Deploy Agent 生成
 能力，属于兼容新增功能。完成后项目版本提升到 `0.6.0`；所有受影响模块版本、
 migration、OpenAPI、JSON Schema、前端类型、配置和文档必须同步。
 
+### 1.1 当前执行指针：M7-2
+
+截至 2026-07-16：
+
+- M7-0 细化设计与资料闭环已完成。
+- M7-1 `Environment + RemoteTarget + machine-auth heartbeat` 已完成，包含
+  migration、真实 PostgreSQL、Platform API、Remote Agent、共享 OpenAPI/JSON
+  Schema、online/offline/recovery 事件与 Windows/Linux 测试。
+- Roadmap 只勾选 Environment/RemoteTarget/machine-auth heartbeat；完整 M7 数据、
+  CI、部署、Orchestrator/SSE、控制台和 E2E 继续保持未完成。
+
+下一步固定为 M7-2：
+
+```text
+ProjectRepositoryBinding
+  + ReleaseCandidate
+  + WorkflowJob
+  + Redis/Celery claim/lease/heartbeat/stale reclaim 基础
+```
+
+M7-2 创建或修改：
+
+```text
+modules/platform-api/migrations/versions/20260716_0008_create_m7_release_jobs.py
+modules/platform-api/src/cloudhelm_platform_api/core/config.py
+modules/platform-api/src/cloudhelm_platform_api/models/
+  project_repository_binding.py
+  release_candidate.py
+  workflow_job.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/
+  project_repository_binding.py
+  release_candidate.py
+  workflow_job.py
+modules/platform-api/src/cloudhelm_platform_api/repositories/
+  project_repository_binding_repository.py
+  release_candidate_repository.py
+  workflow_job_repository.py
+modules/platform-api/src/cloudhelm_platform_api/services/
+  project_repository_binding_service.py
+  release_candidate_service.py
+  workflow_job_service.py
+modules/platform-api/src/cloudhelm_platform_api/providers/
+  repository_profile_provider.py
+modules/platform-api/src/cloudhelm_platform_api/api/
+  repository_bindings.py
+  release_candidates.py
+modules/platform-api/tests/
+  test_m7_project_repository_binding_api.py
+  test_m7_release_candidate_api.py
+  test_m7_workflow_jobs.py
+  test_database_migration.py
+  test_m7_shared_contracts.py
+modules/workflow-engine/
+  pyproject.toml
+  README.md
+  src/cloudhelm_workflow_engine/
+    celery_app.py
+    tasks.py
+    worker_service.py
+    stale_reclaimer.py
+  tests/
+packages/shared-contracts/schemas/ci/
+packages/shared-contracts/schemas/events/task-event.schema.json
+packages/shared-contracts/openapi/cloudhelm.openapi.yaml
+docs/07-data/01-database-schema.md
+docs/07-data/tables/
+docs/08-api/07-environment-deployment-api.md
+docs/14-roadmap/03-implementation-milestone-flow.md
+docs/15-detailed-design/03-api-detail.md
+docs/15-detailed-design/04-data-detail.md
+.env.example
+PROJECT_PROGRESS.md
+```
+
+M7-2 写代码前必须：
+
+1. 复查本计划 7.0、7.3、7.4、7.9、7.10 和 7.14。
+2. 复查 `informations/m7-ci-remote-deploy/official-references.md` 中 Celery、
+   SQLAlchemy 行锁、Gitea profile、Git ref 和 Alembic 结论。
+3. 执行：
+
+   ```powershell
+   git branch --show-current
+   git status --short
+   cd modules/platform-api
+   uv lock --check
+   uv run alembic current
+   uv run alembic check
+   uv run pytest -q
+   ```
+
+4. 先更新共享状态/错误码/事件契约，再写 migration 和生产代码。
+
+M7-2 完成判定：
+
+- repository binding 请求只接受服务端 profile key，不接受任意 URL、token、
+  workflow path、remote 或 refspec。
+- release candidate 绑定最新 M6 PullRequestRecord、完整 commit、受控 target ref、
+  request hash 和第一道审批；审批前没有 push/CI。
+- `workflow_jobs` 成为 PostgreSQL 业务权威；Celery message 只携带 job id。
+- claim/lease/heartbeat/stale reclaim 使用短事务；外部副作用期间不持有 Task/job
+  行锁，状态未知进入 `recovery_required`。
+- upgrade/downgrade/check、顺序/并发幂等、hard-crash/stale reclaim、OpenAPI/
+  schema、文档和进度验证全部通过后，才勾对应 Roadmap 子项。
+
 ## 2. 阶段目标
 
 完成以下真实闭环：
@@ -572,29 +677,36 @@ Agent Runtime 要求：
 
 ### 7.4 数据模型与 migration
 
-建议新增：
+M7-1 已落地：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/models/
+  environment.py
+  remote_target.py
+modules/platform-api/src/cloudhelm_platform_api/repositories/
+  environment_repository.py
+  remote_target_repository.py
+modules/platform-api/migrations/versions/
+  20260715_0007_create_m7_environment_remote_target.py
+```
+
+其中 `remote_target.py` 同时承载 `RemoteAgentCredential` 和
+`RemoteAgentReplayNonce` ORM。M7-1 的四张表、约束、索引和
+upgrade/downgrade/check 已验证通过。
+
+M7-2 下一纵切新增：
 
 ```text
 modules/platform-api/src/cloudhelm_platform_api/models/
   project_repository_binding.py
   release_candidate.py
   workflow_job.py
-  environment.py
-  remote_target.py
-  ci_run.py
-  deployment.py
-  service_instance.py
 modules/platform-api/src/cloudhelm_platform_api/repositories/
   project_repository_binding_repository.py
   release_candidate_repository.py
   workflow_job_repository.py
-  environment_repository.py
-  remote_target_repository.py
-  ci_run_repository.py
-  deployment_repository.py
-  service_instance_repository.py
 modules/platform-api/migrations/versions/
-  202607xx_0007_create_m7_remote_deployment.py
+  20260716_0008_create_m7_release_jobs.py
 modules/workflow-engine/
   pyproject.toml
   README.md
@@ -606,6 +718,19 @@ modules/workflow-engine/
   tests/
     test_job_claim.py
     test_stale_reclaim.py
+```
+
+后续 M7 纵切再新增：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/repositories/
+  ci_run_repository.py
+  deployment_repository.py
+  service_instance_repository.py
+modules/platform-api/src/cloudhelm_platform_api/models/
+  ci_run.py
+  deployment.py
+  service_instance.py
 ```
 
 新增表：
@@ -1032,40 +1157,73 @@ complete_m7_handoff
 
 ### 7.10 Platform API 远端发布工作流
 
-建议新增：
+M7-1 已落地：
 
 ```text
 modules/platform-api/src/cloudhelm_platform_api/api/
-  project_repository_bindings.py
   environments.py
   remote_targets.py
-  ci_runs.py
-  release_deployment.py
-  deployments.py
-  remote_services.py
-  remote_agent_ingress.py
+  remote_agents.py
+  machine_auth.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/
+  environment.py
+  remote_target.py
+modules/platform-api/src/cloudhelm_platform_api/services/
+  environment_service.py
+  remote_target_service.py
+  machine_auth_service.py
+  remote_agent_heartbeat_service.py
+modules/platform-api/src/cloudhelm_platform_api/providers/
+  remote_target_profile_provider.py
+modules/platform-api/tests/
+  test_m7_environment_remote_target_api.py
+  test_m7_machine_auth_heartbeat.py
+  test_m7_shared_contracts.py
+```
+
+M7-2 下一纵切新增：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/api/
+  repository_bindings.py
+  release_candidates.py
 modules/platform-api/src/cloudhelm_platform_api/schemas/
   project_repository_binding.py
   release_candidate.py
   workflow_job.py
-  environment.py
-  remote_target.py
+modules/platform-api/src/cloudhelm_platform_api/services/
+  project_repository_binding_service.py
+  release_candidate_service.py
+  workflow_job_service.py
+modules/platform-api/src/cloudhelm_platform_api/providers/
+  repository_profile_provider.py
+modules/platform-api/tests/
+  test_m7_project_repository_binding_api.py
+  test_m7_release_candidate_api.py
+  test_m7_workflow_jobs.py
+```
+
+后续 M7 纵切再新增：
+
+```text
+modules/platform-api/src/cloudhelm_platform_api/api/
+  ci_runs.py
+  release_deployment.py
+  deployments.py
+  remote_services.py
+  remote_agent_operations.py
+modules/platform-api/src/cloudhelm_platform_api/schemas/
   ci_run.py
   release_deployment.py
   deployment.py
   remote_service.py
 modules/platform-api/src/cloudhelm_platform_api/services/
-  project_repository_binding_service.py
-  release_candidate_service.py
-  workflow_job_service.py
-  environment_service.py
-  remote_target_service.py
   ci_run_service.py
   ci_webhook_service.py
   release_deployment_service.py
   release_deployment_context.py
   deployment_service.py
-  remote_agent_ingress_service.py
+  remote_agent_operation_service.py
   service_instance_service.py
   deployment_approval_service.py
   event_stream_service.py
@@ -1073,14 +1231,10 @@ modules/platform-api/src/cloudhelm_platform_api/providers/
   ci/
   remote/
 modules/platform-api/tests/
-  test_m7_project_repository_binding_api.py
-  test_m7_workflow_jobs.py
-  test_m7_environment_api.py
-  test_m7_remote_target_api.py
   test_m7_ci_api.py
   test_m7_release_deployment_api.py
   test_m7_deployment_api.py
-  test_m7_remote_agent_ingress.py
+  test_m7_remote_agent_operations.py
   test_m7_remote_services_api.py
 ```
 
@@ -1137,7 +1291,7 @@ POST /api/services/{service_id}/collect-diagnostics
 - 服务日志只返回受限时间窗和字节数。
 - SSE 沿用数据库 EventLog 轮询/tailing 与 `Last-Event-ID` 重连；必须验证连接
   建立后新增的 CI/部署/心跳事件能实时到达，而不只验证历史回放。
-- API 永远不返回 runner token、registry token、Remote Agent token、SSH key、
+- API 永远不返回 runner token、registry token、Remote Agent machine secret、SSH key、
   env secret 或远端真实 secret 文件路径。
 
 建议稳定错误码：
@@ -1271,6 +1425,7 @@ PROJECT_PROGRESS.md
 - `RemoteAgentHeartbeat`
 - `RemoteAgentOnline`
 - `RemoteAgentOffline`
+- `RemoteAgentRecovered`
 - `ReleaseCandidateApprovalRequested`
 - `ReleaseCandidateApproved`
 - `ReleaseCandidateRejected`
@@ -1307,6 +1462,14 @@ CLOUDHELM_CI_POLL_INTERVAL_SECONDS
 CLOUDHELM_REGISTRY_BASE_URL
 CLOUDHELM_REGISTRY_CREDENTIAL_REF
 CLOUDHELM_REMOTE_TARGET_PROFILES_FILE
+CLOUDHELM_REMOTE_TARGET_PROFILES
+CLOUDHELM_REMOTE_AGENT_CREDENTIALS
+CLOUDHELM_REMOTE_AGENT_TIMESTAMP_TOLERANCE_SECONDS
+CLOUDHELM_REMOTE_AGENT_NONCE_TTL_SECONDS
+CLOUDHELM_REMOTE_AGENT_OFFLINE_TIMEOUT_SECONDS
+CLOUDHELM_REMOTE_AGENT_HEARTBEAT_EVENT_INTERVAL_SECONDS
+CLOUDHELM_REMOTE_AGENT_NEXT_HEARTBEAT_SECONDS
+CLOUDHELM_REMOTE_AGENT_HEARTBEAT_MAX_BODY_BYTES
 CLOUDHELM_REMOTE_AGENT_CA_BUNDLE
 CLOUDHELM_REMOTE_AGENT_CONNECT_TIMEOUT_SECONDS
 CLOUDHELM_REMOTE_AGENT_READ_TIMEOUT_SECONDS
@@ -1317,17 +1480,22 @@ CLOUDHELM_M7_STAGING_ONLY
 Remote Agent 配置至少覆盖：
 
 ```text
-CLOUDHELM_REMOTE_AGENT_ID
-CLOUDHELM_REMOTE_TARGET_ID
-CLOUDHELM_REMOTE_AGENT_TOKEN
-CLOUDHELM_CONTROL_PLANE_BASE_URL
-CLOUDHELM_REMOTE_AGENT_PROJECT_ROOT
-CLOUDHELM_REMOTE_AGENT_STATE_PATH
-CLOUDHELM_REMOTE_AGENT_ENV_PROFILE_ROOT
+CLOUDHELM_REMOTE_AGENT_PLATFORM_API_BASE_URL
+CLOUDHELM_REMOTE_AGENT_TARGET_ID
+CLOUDHELM_REMOTE_AGENT_AGENT_ID
+CLOUDHELM_REMOTE_AGENT_KEY_ID
+CLOUDHELM_REMOTE_AGENT_CREDENTIAL_FILE
+CLOUDHELM_REMOTE_AGENT_PLATFORM_CA_BUNDLE
 CLOUDHELM_REMOTE_AGENT_HEARTBEAT_SECONDS
-CLOUDHELM_REMOTE_AGENT_MAX_OUTPUT_CHARS
-CLOUDHELM_REMOTE_AGENT_OPERATION_TIMEOUT_SECONDS
+CLOUDHELM_REMOTE_AGENT_REQUEST_TIMEOUT
+CLOUDHELM_REMOTE_AGENT_VERSION
+CLOUDHELM_REMOTE_AGENT_CAPABILITIES
 ```
+
+M7-1 的 Remote Agent 只包含只读 runtime 端点和 heartbeat，因此 project root、
+state path、env profile、operation timeout 与最大命令输出等配置留到后续真实
+deployment operation 切片再引入。machine secret 只通过 credential file 注入；
+Platform API 侧 secret 映射只写占位引用，示例文件不保存真实值。
 
 版本同步到 `0.6.0`，更新所有受影响模块、lock 文件、health/version 测试和文档。
 
@@ -1338,7 +1506,7 @@ CLOUDHELM_REMOTE_AGENT_OPERATION_TIMEOUT_SECONDS
 |7.1 M7-0 设计闭环|Markdown 链接、UTF-8/BOM、冲突关键词、`git diff --check`|09 细化设计、资料归档、设计书/API/Data/Workflow/Testing 同步|只勾选 M7-0 设计项，不勾任何实现项|
 |7.3 shared contracts|Agent Runtime schema tests、JSON Schema 元校验、Remote Agent OpenAPI contract test|ReleasePlan、CI manifest、DeploymentResult、Heartbeat、Tool schema|“Release / Deploy Agent”“Tool Gateway”相关项待代码完成后勾选|
 |7.4 data/migration|`alembic upgrade/check/downgrade/upgrade`、repository/service pytest|表、约束、索引、lease、single-use approval、无开发库污染|“部署记录、环境与目标”基础子项|
-|7.10 最小 API/heartbeat|Platform API 黑盒/白盒、machine auth/replay、SSE 新事件测试|Environment、RemoteTarget、online/offline/recovery EventLog、credential 不泄露|“实现 Remote Agent，负责心跳...”的基础部分|
+|7.10 M7-1 API/heartbeat|Platform API 黑盒/白盒、machine auth/replay、EventLog 与事件 Schema 测试；项目/环境 SSE 留到后续 M7|Environment、RemoteTarget、online/offline/recovery EventLog、credential 不泄露|“实现 Environment / RemoteTarget API、machine authentication 和 Remote Agent online/offline/recovery 心跳”|
 |7.2 CI|Gitea provider tests、workflow 静态检查、真实 CI run smoke|run/job/log/artifact ID、精确 commit、JUnit、安全、SBOM、digest|“CI 运行测试、安全扫描和构建”|
 |7.5 Remote Agent|模块 pytest、SQLite restart、Compose policy、真实 Linux smoke|systemd、capability、operation、RepoDigests、服务/日志结果|“实现 Remote Agent...”|
 |7.6 Controller|模块 pytest、StrictUndefined、TLS client、timeout/idempotency|rendered manifest hash、危险配置拒绝、DeploymentResult|“实现 Deployment Controller”|
@@ -1357,7 +1525,8 @@ CLOUDHELM_REMOTE_AGENT_OPERATION_TIMEOUT_SECONDS
 
 1. 创建 staging Environment，并拒绝非法 environment type。
 2. 注册受控 RemoteTarget，API 不泄露 credential。
-3. 合法 Remote Agent token 可上报心跳；错误 token、错误 target 和重放请求被拒绝。
+3. 合法 Remote Agent HMAC credential 可上报心跳；错误 key/signature、错误 target
+   和重放请求被拒绝。
 4. 心跳超时后 Target 变为 offline，恢复后回到 online。
 5. 缺少 M6 PullRequestRecord、质量证据或已审批计划时禁止启动 M7。
 6. release candidate 审批前不发布 branch、不触发 CI。
@@ -1531,7 +1700,8 @@ uv run pytest -q tests/e2e/test_m7_remote_deploy.py -m remote
 - M6 commit 与远端仓库历史不一致：让 Project 的 M6 workspace 从受控 Gitea
   baseline clone，禁止 force push 覆盖历史。
 - CI artifact 下载失败：保留 CIRun 和错误事件，不生成 ReleasePlan。
-- Remote Agent token、TLS CA 或时间偏差错误：保持 offline/degraded，部署阻塞。
+- Remote Agent machine credential、TLS CA 或时间偏差错误：保持
+  offline/degraded，部署阻塞。
 - Docker socket 权限较高：限定 staging/demo、专用用户、命令 allowlist、systemd
   hardening 和独立主机。
 - Remote Agent 网络超时但远端操作已执行：依靠 operation store 和相同幂等键查询，

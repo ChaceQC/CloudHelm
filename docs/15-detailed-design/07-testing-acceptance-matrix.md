@@ -55,7 +55,7 @@
 |IT-020|M4 已实现|重复推进门禁|两个调用基于同一 `expected_phase` 请求 start/run-next|Task 行锁串行化；阶段已变化的请求返回 `409 orchestration_phase_changed`|
 |IT-011|M7 规划|Release candidate 审批|启动 remote-deployment|审批绑定最新版 PR、完整 commit、受控 ref 和 request hash；审批前无 push/CI；实现者自批拒绝|
 |IT-012|M7 规划|真实 CI 与不可变制品|candidate 发布后对固定 workflow/ref 发起唯一 `workflow_dispatch`|workflow 不监听 push；同一 candidate 只有一个有效 run；run/job/commit/JUnit/security/SBOM/scan/OCI digest 可追溯，CI 无 SSH/Compose/Remote Agent/restart/部署命令|
-|IT-021|M7 规划|Remote Agent machine heartbeat|对含 `agent_endpoint`、`credential_ref`、`tls_fingerprint`、`capabilities` 的 Linux target 执行合法、跨 target、过期、撤销、重放心跳|online/offline/recovery 正确，credential/完整 endpoint 不泄露，fingerprint/capabilities 可审计|
+|IT-021|M7-1 已实现|Remote Agent machine heartbeat|对受控 profile 注册的 Linux target 执行合法、跨 target、过期、撤销、scope、顺序/并发重放、超大 body、fingerprint 漂移和新旧 key 心跳|online/offline/recovery 正确；nonce 覆盖完整时间窗；credential/完整 endpoint/原始 validation input 不泄露；fingerprint/capabilities 可审计；周期离线 worker 与项目级 SSE 仍属后续 M7|
 |IT-022|M7 规划|部署审批与单次恢复|Release Agent 请求 staging，审批后并发 run-next|Approval L3 绑定 ReleasePlan/digest/target/hash；过期/已消费/hash 漂移拒绝；只执行一次 operation|
 |IT-023|M7 规划|worker hard-crash 恢复|claim 后终止 worker并使 lease 过期|查询 Gitea/Remote operation 后收敛；未知状态进入 recovery_required，不盲目重放|
 |IT-024|M7 规划|Agent 化远端部署|第二道审批后调用 Controller/Linux Remote Agent|危险 Compose 拒绝；config/pull/RepoDigests/up/health 真实执行，生成 DeploymentResult/ServiceInstance；不执行 restart/rollback|

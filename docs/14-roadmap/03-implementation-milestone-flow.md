@@ -122,7 +122,7 @@
   RemoteTarget、CIRun、Deployment、ServiceInstance 数据与 migration。
 - [ ] 接入 Redis + Celery workflow worker，实现 claim、lease、heartbeat、
   stale reclaim 和 recovery_required。
-- [ ] 实现 Environment / RemoteTarget API、machine authentication 和
+- [x] 实现 Environment / RemoteTarget API、machine authentication 和
   Remote Agent online/offline/recovery 心跳。
 - [ ] 建立固定版本的 Gitea Actions、act_runner 和 registry；CI 只执行
   test/security/build/artifact，workflow 不监听 push，输出不可变 OCI digest。
@@ -194,7 +194,8 @@ ReleasePlan 和 L3 deployment approval 后，只执行一次远端 operation；s
 ## 4. 当前下一步
 
 当前 M0、M1、M2、M3、M4、M5、M6 已完成，M1-M6 核验修复版本为
-`0.5.1`，相关跟踪文件已按子系统提交并同步 `origin/dev`；本轮不创建
-`v0.5.1` tag。M7-0 设计、契约和资料闭环已经完成，下一步按
-`PROJECT_PLAN.md` 实施首个真实代码纵切：
-`Environment + RemoteTarget + machine-auth heartbeat`。
+`0.5.1`。M7-0 设计闭环和 M7-1
+`Environment + RemoteTarget + machine-auth heartbeat` 已完成；完整 M7 数据、
+CI、部署、Orchestrator/SSE、控制台和真实远端 E2E 仍未完成。下一步按
+`PROJECT_PLAN.md` 实施 M7-2：
+`ProjectRepositoryBinding + ReleaseCandidate + WorkflowJob/Celery`。

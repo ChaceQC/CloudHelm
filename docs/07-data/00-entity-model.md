@@ -41,6 +41,8 @@
 |WorkflowJob|PostgreSQL 中保存 claim、lease、heartbeat、retry 和恢复状态的异步业务任务|
 |Environment|M7 远端业务项目环境，只允许 staging、demo；production 属于增强版|
 |RemoteTarget|M7 运行 Remote Agent 的 Linux 目标，保存 agent endpoint、credential 引用、TLS 指纹、capabilities 和心跳；Kubernetes target 属于增强版|
+|RemoteAgentCredential|M7-1 machine credential 元数据，保存 key/scope/lifecycle、secret ref 和 fingerprint，不保存 secret|
+|RemoteAgentReplayNonce|M7-1 已认证 nonce hash，用数据库唯一约束防止顺序/并发 replay|
 |Deployment|业务项目一次远端部署记录，绑定第二道审批、ReleasePlan、CI digest 和远端 operation|
 |ServiceInstance|远端业务服务实例，例如 API、Worker、Frontend|
 |ProjectMetric|M8 远端业务项目指标快照或指标引用|

@@ -1,8 +1,9 @@
 # modules/platform-api
 
-CloudHelm 平台 API 服务。M6 使用 FastAPI + SQLAlchemy + Alembic +
+CloudHelm 平台 API 服务。M7-1 使用 FastAPI + SQLAlchemy + Alembic +
 PostgreSQL 提供真实数据库驱动的 Agent 编排、Tool Gateway、本地开发单步流程、
-Artifact 与本地等价 PR record。
+Artifact、本地等价 PR record，以及 Environment、RemoteTarget 和
+machine-auth heartbeat 基础闭环。
 
 ## 命令
 
@@ -74,6 +75,22 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 - `CLOUDHELM_AGENT_MAX_SUBAGENT_DEPTH` / `CLOUDHELM_AGENT_MAX_SUBAGENT_THREADS`：
   显式 child conversation 的深度和并发上限；默认 `1 / 6`，参考 Codex CLI
   只允许 root 创建直接 child。
+- `CLOUDHELM_REMOTE_TARGET_PROFILES_FILE`：服务端受控 RemoteTarget profile
+  UTF-8 JSON 文件；调用方只能引用 profile key。非敏感结构示例见
+  `remote-target-profiles.example.json`。
+- `CLOUDHELM_REMOTE_TARGET_PROFILES`：可选的内联 profile JSON map，生产优先
+  使用权限受控文件。
+- `CLOUDHELM_REMOTE_AGENT_CREDENTIALS`：credential ref 到 machine secret 的
+  服务端映射；真实值只能运行时注入，不得提交。
+- `CLOUDHELM_REMOTE_AGENT_TIMESTAMP_TOLERANCE_SECONDS` /
+  `CLOUDHELM_REMOTE_AGENT_NONCE_TTL_SECONDS`：HMAC 时间偏差和 nonce 最短保留。
+- `CLOUDHELM_REMOTE_AGENT_OFFLINE_TIMEOUT_SECONDS` /
+  `CLOUDHELM_REMOTE_AGENT_NEXT_HEARTBEAT_SECONDS`：离线阈值和建议心跳间隔；
+  离线阈值必须大于两倍建议间隔。
+- `CLOUDHELM_REMOTE_AGENT_HEARTBEAT_EVENT_INTERVAL_SECONDS`：普通 heartbeat
+  EventLog 降频间隔。
+- `CLOUDHELM_REMOTE_AGENT_HEARTBEAT_MAX_BODY_BYTES`：原始 heartbeat body
+  上限，默认 16384。
 - `CLOUDHELM_DATABASE_URL`：SQLAlchemy 数据库连接串，本地默认指向 `infra/docker-compose.dev.yml` 的 PostgreSQL。
 - `CLOUDHELM_TEST_DATABASE_URL`：可选的专用 PostgreSQL 测试库；默认不设置，
   由 pytest 创建会话级随机数据库。
@@ -90,6 +107,7 @@ src/cloudhelm_platform_api/
   services/       # 业务规则、状态流转、事件写入和事务提交
   repositories/   # SQLAlchemy 查询和持久化
   models/         # SQLAlchemy typed ORM 模型
+  middleware/     # heartbeat body 等 ASGI 前置门禁
   db/             # Engine、Session、Declarative Base
 ```
 
@@ -159,6 +177,23 @@ evidence set。`provider=local` 的 PR record 强制 `url=null`。
 `git apply --check` 和 Git 门禁；ToolCall 数据库、Reviewer 输入和 Artifact API
 preview 使用保留 Git 结构的脱敏安全投影，不暴露 raw secrets。
 
+## M7-1 Environment / RemoteTarget / heartbeat 接口
+
+```text
+POST /api/projects/{project_id}/environments
+GET  /api/projects/{project_id}/environments
+GET  /api/environments/{environment_id}
+POST /api/environments/{environment_id}/remote-targets
+GET  /api/environments/{environment_id}/remote-targets
+POST /api/remote-agents/heartbeat
+```
+
+Environment 不接受内部 env profile；RemoteTarget 只接受服务端 profile key。
+heartbeat 六个 HMAC header 全部必填，nonce 由 PostgreSQL 唯一约束裁决并发
+replay。认证与状态更新使用两个短事务，API/EventLog 不保存 secret、credential
+ref 或完整 endpoint。完整请求、响应、错误码和临时边界见
+`docs/08-api/07-environment-deployment-api.md`。
+
 ## 当前边界
 
 M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branch/commit 和
@@ -166,6 +201,8 @@ M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branc
 具备命令数组、环境白名单、超时、进程树清理和有界输出，但不具备 Docker 的
 CPU、内存、PID、只读挂载与网络隔离；不执行 push、远端 SSH、部署或监控操作。
 `/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件。
+M7-1 新环境/心跳事件的 `task_id=null`，尚无项目/环境查询 API 与实时 SSE。
+离线状态由 target list 或下一次 heartbeat 收敛，周期 worker 留到后续 M7。
 
 恢复语义覆盖能够进入应用错误处理的 Provider/CLI/文件系统/数据库异常，以及
 已有 ToolCall/Artifact/PR 幂等证据的重试。进程在终态持久化前被强制终止时，

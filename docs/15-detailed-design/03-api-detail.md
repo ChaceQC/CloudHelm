@@ -548,11 +548,28 @@ SSE 事件类型：
 - 连接建立后服务端继续轮询/tail 新增 EventLog；M7 必须验证 CI、deployment 和
   heartbeat 状态事件能在同一连接中到达，而不只支持历史回放。
 
-## 9. Deployment / Remote Ops API（M7 设计基线）
+## 9. Deployment / Remote Ops API（M7 渐进实现）
 
-本节在 M1-M6 FastAPI OpenAPI 中尚未实现；实现时以
+M7-1 已实现 Environment、RemoteTarget 和 machine-auth heartbeat，并同步到
+FastAPI/共享 OpenAPI。release candidate、CI、deployment、service/log API 仍是
+后续 M7 契约，以
 [09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)
-为权威细化契约。
+为权威细化设计。
+
+已实现：
+
+```text
+POST /api/projects/{project_id}/environments
+GET  /api/projects/{project_id}/environments
+GET  /api/environments/{environment_id}
+POST /api/environments/{environment_id}/remote-targets
+GET  /api/environments/{environment_id}/remote-targets
+POST /api/remote-agents/heartbeat
+```
+
+Environment `base_url` 在 M7-1 只保存/展示，后续健康检查不得直接使用调用方
+host，必须经过服务端 profile/allowlist。RemoteTarget 注册只接受 profile key，
+读取隐藏 credential ref 和完整 endpoint。
 
 ### POST /api/tasks/{task_id}/remote-deployment/start
 
@@ -584,11 +601,25 @@ SSE 事件类型：
 
 ### POST /api/remote-agents/heartbeat
 
+- 原始 body 默认限制 16384 bytes，超限在 JSON 解析前返回 413。
 - 使用 machine credential 签名；签名覆盖 method、path、timestamp、nonce 和
   body SHA-256。
+- 固定请求头为 `X-CloudHelm-Target-Id`、`X-CloudHelm-Agent-Id`、
+  `X-CloudHelm-Key-Id`、`X-CloudHelm-Timestamp`、`X-CloudHelm-Nonce` 和
+  `X-CloudHelm-Signature`。
+- canonical string 精确为
+  `METHOD\nPATH\nTIMESTAMP\nNONCE\nBODY_SHA256`，无末尾换行；signature 为
+  lowercase hex HMAC-SHA256。
+- body hash 必须基于实际发送的原始 UTF-8 bytes，签名后不得重新序列化 JSON。
 - credential 绑定 target/agent/key id；跨 target、过期、撤销和 replay 返回
   稳定认证错误。
+- nonce 在独立短事务中消费，保留时间覆盖完整 timestamp 容差窗口；同步
+  SQLAlchemy/psycopg 工作在线程池执行，不阻塞 ASGI event loop。
+- secret fingerprint 漂移返回脱敏配置错误；轮换使用新的 key/ref。
 - 响应不返回 credential ref、完整 endpoint 或 secret。
+
+M7-1 的 online/offline/recovery 事件已写入 PostgreSQL，但 `task_id=null`；
+项目/环境事件查询与实时 SSE 尚未实现，仍属于后续 M7。
 
 ### GET /api/tasks/{task_id}/release-candidate
 
@@ -622,7 +653,7 @@ SSE 事件类型：
 
 ## 10. Monitoring / Incident API（M8 以后规划）
 
-本节是后续契约草案，不在 M1-M6 FastAPI OpenAPI 中。
+本节是后续契约草案，不在 M1-M7-1 FastAPI OpenAPI 中。
 
 ### POST /api/alerts/{alert_id}/create-incident
 

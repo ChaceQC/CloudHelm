@@ -2,6 +2,124 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-1 完成与 M7-2 执行指针）
+
+### 已完成
+
+- 在 `feature/m7-remote-deploy-closure` 上从暂停点恢复 M7-1
+  `Environment + RemoteTarget + machine-auth heartbeat` 纵切，先复查暂停记录、
+  暂存区、未暂存文档和 `PROJECT_PLAN.md`，再按代码/契约与文档/进度分开收口。
+- 完成 `20260715_0007_create_m7_environment_remote_target.py`，真实新增并验证：
+  - `environments`
+  - `remote_targets`
+  - `remote_agent_credentials`
+  - `remote_agent_replay_nonces`
+- 完成 Environment 创建、列表、详情和 profile-only RemoteTarget 注册、列表。
+  Environment `base_url` 当前只保存和展示；RemoteTarget endpoint、TLS fingerprint、
+  credential ref 与 secret 均由服务端 profile/secret 映射派生，普通 API 不接受
+  任意连接目标或 secret。
+- 完成 Remote Agent machine authentication：
+  - 六个必填 HMAC header。
+  - 固定 canonical：
+    `METHOD\nPATH\nTIMESTAMP\nNONCE\nBODY_SHA256`。
+  - timestamp tolerance、credential lifecycle/scope、secret fingerprint 漂移阻断。
+  - nonce 原文不入库，由 PostgreSQL 唯一约束裁决顺序和并发 replay。
+  - header 格式和 timestamp 窗口通过后，HMAC 不匹配统一返回
+    `machine_auth_invalid`；target/credential lifecycle、scope 和服务端配置状态
+    只在 HMAC 通过后暴露。
+- 完成 heartbeat 16 KiB 原始 body 前置门禁、线程池 machine-auth、独立短
+  Session、online/offline/recovery、heartbeat EventLog 降频和
+  `next heartbeat * 2 < offline timeout` 配置不变量。
+- 完成 `modules/remote-agent` 最小真实模块：
+  - `/health`、`/version`、`/capabilities`。
+  - target id 必须是 UUID，Platform API 必须是 HTTPS origin。
+  - 可选 CA bundle、显式连接池/timeout、禁用环境代理与 redirect。
+  - credential file 使用 `O_NOFOLLOW + fstat + 同一 fd 有界读取`。
+  - heartbeat ACK 最大 16 KiB，machine secret 每次发送前重新读取。
+- 暂存代码审查发现并闭环两个阻断：
+  - `pydantic-settings` 复杂环境变量解析产生的 `SettingsError` 现已收敛为
+    `remote_agent_configuration_invalid` 和退出码 2。
+  - `httpx2` / `httpcore2` INFO 请求日志现已压到 WARNING，避免 journal 记录
+    完整 Platform API 管理入口；新增真实日志回归测试。
+- 同步 Platform OpenAPI、Remote Agent OpenAPI、三个 remote JSON Schema 和
+  Environment/RemoteTarget/RemoteAgent 六类事件枚举。M7-1 代码与共享契约提交为
+  `768c48b`（`feat: 完成 M7-1 远端目标与心跳闭环`），已推送
+  `origin/feature/m7-remote-deploy-closure`。
+- 同步根 README、模块文档、数据/API/安全/细化设计、`.env.example` 和两张
+  machine-auth 子表文档；Roadmap 只勾选已有证据的
+  Environment/RemoteTarget/machine-auth heartbeat 子项。
+- `PROJECT_PLAN.md` 当前执行指针已推进到 M7-2：
+  `ProjectRepositoryBinding + ReleaseCandidate + WorkflowJob +
+  Redis/Celery claim/lease/heartbeat/stale reclaim`。
+
+### 进行中
+
+- M7-2 尚未开始写生产代码。当前只完成下一纵切的精确文件、migration、契约、
+  测试、文档和验收清单，不把完整 M7 数据、CI 或部署能力描述为已实现。
+
+### 阻塞与风险
+
+- offline 当前只由 RemoteTarget 列表访问或下一次 heartbeat reconciliation
+  触发；Celery 周期 worker 尚未落地，不具备自主定时离线检测。
+- M7-1 Environment/RemoteTarget/RemoteAgent 事件以 `task_id=null` 写入 EventLog；
+  项目/环境查询 API 和实时 SSE 留到后续 M7。
+- Environment `base_url` 在后续接入健康检查前必须经过服务端 profile/allowlist，
+  不得直接变成任意 URL 请求入口。
+- 真实 Gitea CI、registry OCI digest、ReleaseCandidate、两道审批、远端部署、
+  控制台 M7 页面和 Linux staging E2E 均未交付。
+- 当前项目版本继续保持 `0.5.1`；完整 M7 验证和真实远端 E2E 完成后才提升到
+  `0.6.0`。
+
+### 下一步
+
+- 创建 `20260716_0008_create_m7_release_jobs.py`，实现
+  `project_repository_bindings`、`release_candidates`、`workflow_jobs` 及
+  upgrade/downgrade/check。
+- repository binding API 只接受服务端 repository profile key，不接受任意 URL、
+  token、workflow path、remote 或 refspec。
+- ReleaseCandidate 必须绑定最新 M6 PullRequestRecord、完整 commit、受控 target
+  ref、request hash 和第一道审批；审批前不产生 push 或 CI 副作用。
+- 建立 `modules/workflow-engine` 的 Redis + Celery 基础，PostgreSQL
+  `workflow_jobs` 作为业务权威；Celery message 只携带 job id，并完成短事务
+  claim/lease/heartbeat/stale reclaim、hard-crash 与 `recovery_required` 测试。
+
+### 涉及文件
+
+- `modules/platform-api/migrations/versions/20260715_0007_create_m7_environment_remote_target.py`
+- `modules/platform-api/src/cloudhelm_platform_api/{api,core,middleware,models,providers,repositories,schemas,services}/`
+- `modules/platform-api/tests/test_m7_*.py`
+- `modules/remote-agent/**`
+- `packages/shared-contracts/openapi/*.yaml`
+- `packages/shared-contracts/schemas/remote/*.schema.json`
+- `packages/shared-contracts/schemas/events/task-event.schema.json`
+- `docs/07-data/**`
+- `docs/08-api/07-environment-deployment-api.md`
+- `docs/10-security/00-security-boundary.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/{03-api-detail.md,04-data-detail.md,07-testing-acceptance-matrix.md,09-m7-ci-remote-deployment-flow.md}`
+- `PROJECT_PLAN.md`
+
+### 验证
+
+- Platform API：`uv run pytest -q`，`153 passed, 1 skipped`。
+- Remote Agent Windows：`uv sync --locked` 后 `uv run pytest -q`，
+  `31 passed, 2 skipped`。
+- Remote Agent Linux 容器：只读挂载仓库根后执行 locked sync 与 pytest，
+  `33 passed`。首次只挂载模块目录时测试无法定位共享契约根；改为只读挂载完整
+  仓库后回归通过，未修改生产代码或跟踪文件。
+- Alembic：
+  - 开始与结束 head 均为 `20260715_0007`。
+  - downgrade 到 `20260714_0006` 后四张 M7-1 表全部消失，`tasks` 等 M1-M6
+    表保留。
+  - upgrade 回 `20260715_0007` 后四表恢复。
+  - `uv run alembic check` 返回 `No new upgrade operations detected`。
+- Platform OpenAPI 与 FastAPI 运行时精确一致；当前为 45 paths、64 schemas。
+- 29 个共享 JSON Schema 均通过 Draft 2020-12 元校验。
+- M7-1 暂存文件严格 UTF-8 解码错误 0、BOM 0；生产路径敏感模式命中 0。
+- `git diff --cached --check` 在代码提交前通过；当前文档 diff 的严格 UTF-8
+  解码错误 0、BOM 0、Markdown 本地链接缺失 0、敏感模式命中 0，
+  `git diff --check` 通过。
+
 ## 2026-07-15（M7-1 首个代码纵切暂停点）
 
 ### 已完成

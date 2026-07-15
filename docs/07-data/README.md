@@ -21,6 +21,8 @@
 - [tables/project_alerts.md](tables/project_alerts.md)
 - [tables/projects.md](tables/projects.md)
 - [tables/pull_request_records.md](tables/pull_request_records.md)
+- [tables/remote_agent_credentials.md](tables/remote_agent_credentials.md)
+- [tables/remote_agent_replay_nonces.md](tables/remote_agent_replay_nonces.md)
 - [tables/remote_sessions.md](tables/remote_sessions.md)
 - [tables/remote_targets.md](tables/remote_targets.md)
 - [tables/requirement_specs.md](tables/requirement_specs.md)

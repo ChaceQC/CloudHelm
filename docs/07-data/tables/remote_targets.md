@@ -1,32 +1,59 @@
 # remote_targets
 
-    > 来源：[设计书 11.2](../../../云舵 CloudHelm 毕设设计书.md)
+> 来源：[设计书 11.2](../../../云舵 CloudHelm 毕设设计书.md)
+> 实现：`20260715_0007_create_m7_environment_remote_target.py`
 
-    ## 业务含义
+## 业务含义
 
-    远端部署目标，例如云服务器、Linux 主机、K8s namespace。
+保存由服务端受控 profile 注册的 Linux Remote Agent 目标。M7 不支持调用方提交
+任意 host、SSH 用户、Kubernetes context、namespace、endpoint 或 credential。
 
-    ## SQL 定义
+## SQL 结构
 
-    ```sql
-    CREATE TABLE remote_targets (
+```sql
+CREATE TABLE remote_targets (
     id UUID PRIMARY KEY,
-    environment_id UUID NOT NULL REFERENCES environments(id),
-    target_type TEXT NOT NULL,
-    host TEXT,
-    ssh_user TEXT,
-    agent_id TEXT,
-    kube_context TEXT,
-    namespace TEXT,
-    status TEXT NOT NULL,
+    environment_id UUID NOT NULL
+      REFERENCES environments(id) ON DELETE CASCADE,
+    display_name TEXT NOT NULL,
+    target_type TEXT NOT NULL DEFAULT 'linux_remote_agent',
+    agent_id TEXT NOT NULL,
+    agent_endpoint TEXT NOT NULL,
+    credential_ref TEXT NOT NULL,
+    tls_fingerprint TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'offline',
+    agent_version TEXT,
+    capabilities_json JSONB NOT NULL DEFAULT '[]'::jsonb,
     last_heartbeat_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    last_error_code TEXT,
+    last_event_at TIMESTAMPTZ,
+    last_status_changed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT ck_remote_targets_type
+      CHECK (target_type = 'linux_remote_agent'),
+    CONSTRAINT ck_remote_targets_status
+      CHECK (status IN ('offline', 'online', 'degraded', 'disabled')),
+    CONSTRAINT ck_remote_targets_capabilities_array
+      CHECK (jsonb_typeof(capabilities_json) = 'array'),
+    CONSTRAINT ck_remote_targets_tls_fingerprint
+      CHECK (tls_fingerprint ~ '^sha256:[0-9a-f]{64}$'),
+    CONSTRAINT uq_remote_targets_environment_agent
+      UNIQUE (environment_id, agent_id)
 );
-    ```
+```
 
-    ## 实现说明
+索引：
 
-    - 主键使用 UUID，便于跨模块和事件引用。
-    - 时间字段统一使用 `TIMESTAMPTZ`。
-    - JSONB 字段用于保存结构化产物、工具参数、标签和注解。
-    - 与高风险动作相关的记录必须能关联 `approval_requests` 或 `event_logs`。
+- `ix_remote_targets_environment_status_created`
+- `ix_remote_targets_last_heartbeat`
+
+## API 与事件边界
+
+- 注册请求只接受 `profile_key` 和 `display_name`。
+- 读取响应隐藏 `credential_ref`，并把完整 endpoint 转为
+  `https://<redacted>:PORT`。
+- 首次成功心跳写 `RemoteAgentOnline`；超时写 `RemoteAgentOffline`；恢复写
+  `RemoteAgentRecovered`；普通 heartbeat 按间隔降频。
+- M7-1 的离线收敛由 RemoteTarget 列表读取或下一次 heartbeat 触发，尚无周期
+  worker；因此不描述为自主实时离线检测。

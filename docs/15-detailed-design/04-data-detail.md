@@ -32,7 +32,8 @@ event_logs
 - `tasks(project_id,status)`、`event_logs(task_id,created_at)` 等控制台常用查询已建索引。
 - 写业务状态和写 `event_logs` 必须在同一 service 事务中提交。
 
-M2 未创建 environments、deployments、remote_targets、monitoring 等远端运维表；这些表保留到部署和监控里程碑。
+M2 当时未创建远端运维表；M7-1 已通过独立迁移补充 Environment、
+RemoteTarget 和 machine-auth 两张子表，Deployment/Monitoring 仍留在后续切片。
 
 ## M4 落地状态
 
@@ -137,6 +138,24 @@ branch/commit ToolCall 和 diff/test/review/security Artifact：
 - local record 必须 `url IS NULL`。
 - `(task_id, commit_sha)` 与 `(task_id, idempotency_key)` 唯一。
 - base/head branch 必须不同；四类质量 Artifact 不可为空。
+
+## M7-1 落地状态
+
+迁移 `20260715_0007_create_m7_environment_remote_target.py` 已新增：
+
+- `environments`
+- `remote_targets`
+- `remote_agent_credentials`
+- `remote_agent_replay_nonces`
+
+整条子资源链路使用 `Project -> Environment -> RemoteTarget -> Credential -> Nonce` 的
+`ON DELETE CASCADE`。数据库只保存 credential ref 与 SHA-256 fingerprint，真实
+secret 不入库。nonce 只保存 hash，并由
+`uq_remote_agent_replay_nonces_credential_hash` 裁决并发 replay。
+
+本切片尚未创建完整 `project_repository_bindings`、`release_candidates`、
+`workflow_jobs`、`ci_runs`、`deployments` 和 `service_instances`；这些表仍属于
+后续 M7 切片，不能因四张基础表已落地而标记为完成。
 
 ## 1. 核心 ER 关系
 
@@ -277,13 +296,18 @@ recovery_required
   request hash 和远端 SHA 校验。
 - `workflow_jobs`：PostgreSQL 业务 job、attempt、lease、heartbeat、retry 和
   recovery 状态；Celery task 只携带 job id。
-- `environments`：只允许 `staging`、`demo`，保存 base URL 与受控 env profile
-  引用；`production` 属于增强版。
+- `environments`：M7-1 已实现。只允许 `staging`、`demo`，保存 base URL；
+  `env_profile_ref` 为内部可空字段，`production` 属于增强版。
 - `remote_targets`：Linux Remote Agent 的 `display_name`、`target_type`、
   `agent_id`、`agent_endpoint`、`credential_ref`、`tls_fingerprint`、
-  `agent_version`、`capabilities`、status、heartbeat 和 error。读取 API 隐藏
+  `agent_version`、`capabilities_json`、status、heartbeat、event 和 error。
+  读取 API 隐藏
   `credential_ref` 并只展示脱敏 endpoint；Kubernetes context/namespace 属于
   增强版独立 schema。
+- `remote_agent_credentials`：target/agent/key/scope/lifecycle、credential ref
+  和 secret fingerprint；真实 secret 不入库。
+- `remote_agent_replay_nonces`：credential + nonce hash 唯一，保留时间覆盖完整
+  timestamp 容差窗口。
 - `ci_runs`：run/job、commit、manifest 和 webhook 幂等身份。
 - `deployments`、`service_instances`：审批后的部署、远端 operation、健康和服务
   实例。
@@ -335,8 +359,11 @@ suppressed
 |approval_requests|`idx_approval_pending(status, risk_level, created_at)`|审批队列|
 |event_logs|`idx_event_logs_task_created(task_id, created_at)`|timeline / SSE 回放|
 |event_logs|`idx_event_logs_type_created(event_type, created_at)`|事件查询|
-|environments|`idx_environments_project(project_id, type)`|环境列表|
-|remote_targets|`idx_remote_targets_environment_status(environment_id, status)`|目标在线状态与心跳扫描|
+|environments|`ix_environments_project_status_created(project_id, status, created_at)`|环境列表|
+|remote_targets|`ix_remote_targets_environment_status_created(environment_id, status, created_at)`|目标列表|
+|remote_targets|`ix_remote_targets_last_heartbeat(last_heartbeat_at)`|离线收敛扫描|
+|remote_agent_credentials|`ix_remote_agent_credentials_target_agent(target_id, agent_id)`|machine identity 查询|
+|remote_agent_replay_nonces|`ix_remote_agent_replay_nonces_expires(expires_at)`|过期 nonce 清理|
 |release_candidates|`ux_release_candidates_binding_ref(repository_binding_id, target_ref)`|受控 candidate ref 唯一|
 |ci_runs|`ux_ci_runs_release_candidate(release_candidate_id)`|同一 candidate 唯一有效 dispatch/run|
 |workflow_jobs|`idx_workflow_jobs_status_lease(status, lease_expires_at)`|worker claim 与 stale reclaim|
@@ -523,6 +550,7 @@ suppressed
 - RemoteAgentHeartbeat
 - RemoteAgentOnline
 - RemoteAgentOffline
+- RemoteAgentRecovered
 - ProjectServiceStatusChanged
 
 普通高频 heartbeat 只更新 `last_heartbeat_at`；首次上线、离线、恢复或错误状态

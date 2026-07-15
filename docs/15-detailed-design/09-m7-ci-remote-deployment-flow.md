@@ -422,14 +422,43 @@ nonce
 body_sha256
 ```
 
+M7-1 固定使用以下请求头：
+
+```text
+X-CloudHelm-Target-Id
+X-CloudHelm-Agent-Id
+X-CloudHelm-Key-Id
+X-CloudHelm-Timestamp
+X-CloudHelm-Nonce
+X-CloudHelm-Signature
+```
+
+`X-CloudHelm-Timestamp` 是 Unix 秒；signature 是 lowercase hex
+HMAC-SHA256。canonical string 无末尾换行，精确格式为：
+
+```text
+METHOD\nPATH\nTIMESTAMP\nNONCE\nBODY_SHA256
+```
+
+`BODY_SHA256` 基于实际发送的原始 UTF-8 body bytes。Remote Agent 必须使用
+与签名相同的 bytes 发送请求，不能签名后再交由 HTTP client 重新序列化 JSON。
+
 Platform API：
 
+- 在 JSON 解析和认证前限制 heartbeat 原始 body，默认最多 16 KiB。
 - 限制时间偏差。
 - 常量时间比较签名。
 - 持久化或唯一约束 replay identity。
 - 拒绝跨 target、过期、撤销和重复 nonce。
 - 允许新旧 key 短期重叠轮换。
 - API、EventLog 和日志只返回 fingerprint。
+- secret ref 的当前 SHA-256 必须与登记 fingerprint 一致；轮换使用新
+  `key_id + credential_ref`，不允许原地替换同一 ref。
+- nonce 保留时间至少覆盖请求 timestamp 的完整容差窗口。
+- 认证失败使用稳定错误码，例如 `machine_auth_required`、
+  `machine_auth_invalid`、`machine_auth_expired`、`machine_auth_revoked`、
+  `machine_auth_scope_denied`、`machine_auth_target_mismatch` 和
+  `machine_auth_replay`；未知 target/key 与错误签名不得泄露可枚举差异。
 
 Heartbeat 更新：
 
@@ -563,7 +592,7 @@ M7 事件至少包括：
 - RepositoryBindingConfigured。
 - EnvironmentCreated。
 - RemoteTargetRegistered。
-- RemoteAgentHeartbeat / Online / Offline。
+- RemoteAgentHeartbeat / Online / Offline / Recovered。
 - ReleaseCandidateApprovalRequested / Approved / Rejected / Published。
 - CIRunTriggered / Started / Passed / Failed。
 - CIArtifactPublished。
@@ -674,6 +703,19 @@ SSE 使用数据库 EventLog tailing：
 - machine auth、online/offline/recovery。
 - Remote Agent 最小 health/version/capabilities。
 - OpenAPI/schema/pytest。
+
+当前实现补充：
+
+- Environment 创建只接受 name/type/base URL，内部 env profile 不接受调用方
+  覆盖；`base_url` 在 M7-1 仅保存/展示，不作为 Platform 任意网络请求入口。
+- RemoteTarget 只接受服务端 `profile_key`，读取响应隐藏 credential ref 和完整
+  endpoint。
+- machine-auth nonce 在独立短事务中提交，同步数据库工作在线程池执行，不阻塞
+  ASGI event loop。
+- 离线状态当前由 RemoteTarget list 或下一次 heartbeat reconciliation 触发；
+  Redis/Celery 周期任务接入前不宣称自主实时检测。
+- Environment/Target 事件当前以 `task_id=null` 写入 PostgreSQL EventLog；项目/
+  环境查询 API 与实时 SSE 留在 M7-5，相关 Roadmap 项保持未完成。
 
 ### M7-2：Repository binding / candidate / workflow jobs
 

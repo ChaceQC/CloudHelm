@@ -41,6 +41,27 @@
 - `git.commit` 只接受经过 review 的显式文件列表；`provider=local` PR record
   强制 `url=null`，不伪造远端入口，也不执行 push。
 
+## M7-1 RemoteTarget 与 machine identity
+
+- RemoteTarget 只能由服务端 profile 派生 endpoint、TLS fingerprint、agent id
+  和 credential metadata；HTTP 请求不能提交 host、endpoint、secret 或
+  credential ref。
+- Platform API 数据库只保存 secret fingerprint 和 ref。真实 HMAC secret 由
+  运行配置注入；Remote Agent 只从绝对 credential file 读取。
+- heartbeat 六个 header、原始 body hash、timestamp、nonce 和 target/agent/key
+  必须同时校验。nonce hash 通过 PostgreSQL 唯一约束防顺序/并发 replay，并保留
+  到 timestamp 窗口关闭。
+- header 格式和 timestamp 窗口通过后，HMAC 不匹配统一返回
+  `machine_auth_invalid`；target/credential lifecycle、scope、禁用和服务端配置
+  状态只有在 HMAC 通过后才返回。
+- 原始 heartbeat body 默认限制 16 KiB；validation detail 不回显 caller input。
+- Remote Agent outbound client 强制 HTTPS，支持受控 CA，禁用环境代理和
+  redirect，并限制 timeout、连接池和 ACK 大小。
+- credential file 使用 no-follow、同一 fd 的类型/权限/大小检查与有界读取；完整
+  key 轮换使用新 key id/ref，原地 secret 漂移由 fingerprint 阻断。
+- Environment `base_url` 在 M7-1 不触发网络访问。后续健康检查必须改由服务端
+  profile/allowlist 派生，避免形成任意 URL/SSRF 入口。
+
 ## 设计书摘录
 
 ### 14.1 安全边界

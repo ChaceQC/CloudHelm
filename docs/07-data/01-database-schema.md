@@ -49,15 +49,32 @@ M6 关键数据库门禁：
 - local PullRequestRecord 必须 `url IS NULL`，base/head 不同，且四类门禁
   Artifact 引用不可为空。
 
-## M7 目标迁移边界
+## M7 迁移状态与目标边界
 
-以下 M7 表结构是 `0.6.0` 的目标设计，只有 migration、ORM、repository/service、
-黑盒/白盒测试和真实远端 E2E 全部落地后才能写成已实现。M7 只支持
-staging/demo Linux Remote Agent，不创建 production、Kubernetes target 或
-`remote_sessions`。
+`20260715_0007_create_m7_environment_remote_target.py` 已落地并验证：
+
+- `environments`
+- `remote_targets`
+- `remote_agent_credentials`
+- `remote_agent_replay_nonces`
+
+这四张表已经具备 ORM、repository/service、真实 PostgreSQL 黑盒/白盒测试、
+upgrade/downgrade/check 和共享契约证据。M7-1 只实现 staging/demo Environment、
+profile-only Linux RemoteTarget 和 machine-auth heartbeat；尚未表示完整 M7
+远端部署闭环完成。
+
+其余 `ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob`、CIRun、
+Deployment 和 ServiceInstance 数据仍是 `0.6.0` 目标设计，必须随对应纵切完成
+migration、ORM、repository/service、黑盒/白盒测试和真实流程证据后，才能逐项
+写成已实现。M7 不创建 production、Kubernetes target 或 `remote_sessions`。
 
 M7 数据门禁固定为：
 
+- RemoteTarget 只由服务端 profile 派生 endpoint、TLS 和 credential 引用；普通
+  API 不接受任意连接目标或 secret。
+- HMAC secret 不入库；数据库只保存 credential ref、scope、生命周期和
+  SHA-256 fingerprint。已认证 nonce 只保存 hash，并由 PostgreSQL 唯一约束裁决
+  顺序与并发重放。
 - `release_candidates.approval_id` 记录第一道 release candidate approval；
   审批前不得发布 candidate ref 或触发 CI。
 - `deployments.approval_id` 记录第二道 deployment approval；审批事务不直接
@@ -340,26 +357,30 @@ PostgreSQL `workflow_jobs` 是业务权威；Redis/Celery 只投递
 ```sql
 CREATE TABLE environments (
     id UUID PRIMARY KEY,
-    project_id UUID NOT NULL REFERENCES projects(id),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    status TEXT NOT NULL,
-    base_url TEXT,
-    env_profile_ref TEXT NOT NULL,
+    environment_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    base_url TEXT NOT NULL,
+    env_profile_ref TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (environment_type IN ('staging', 'demo')),
+    CHECK (status IN ('active', 'disabled', 'degraded')),
     UNIQUE (project_id, name)
 );
 ```
 
-M7 的 `type` 只允许 `staging`、`demo`；`production` 是增强版。
+M7 的 `environment_type` 只允许 `staging`、`demo`；`production` 是增强版。
+`env_profile_ref` 是内部字段，M7-1 创建请求不接受也不返回。`base_url` 在本切片
+只用于标识和展示；后续健康检查前必须经过服务端 profile/allowlist。
 
 #### remote_targets
 
 ```sql
 CREATE TABLE remote_targets (
     id UUID PRIMARY KEY,
-    environment_id UUID NOT NULL REFERENCES environments(id),
+    environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
     display_name TEXT NOT NULL,
     target_type TEXT NOT NULL DEFAULT 'linux_remote_agent',
     agent_id TEXT NOT NULL,
@@ -367,10 +388,12 @@ CREATE TABLE remote_targets (
     credential_ref TEXT NOT NULL,
     tls_fingerprint TEXT NOT NULL,
     agent_version TEXT,
-    capabilities JSONB NOT NULL DEFAULT '[]',
-    status TEXT NOT NULL,
+    capabilities_json JSONB NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'offline',
     last_heartbeat_at TIMESTAMPTZ,
     last_error_code TEXT,
+    last_event_at TIMESTAMPTZ,
+    last_status_changed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (environment_id, agent_id)
@@ -381,6 +404,48 @@ CREATE TABLE remote_targets (
 不返回 `credential_ref`，只返回脱敏 endpoint 与 fingerprint。M7 不保存
 `host`、`ssh_user`、`kube_context` 或 `namespace` 作为可提交部署参数；
 Kubernetes target 属于增强版独立 schema。
+
+#### remote_agent_credentials
+
+```sql
+CREATE TABLE remote_agent_credentials (
+    id UUID PRIMARY KEY,
+    target_id UUID NOT NULL REFERENCES remote_targets(id) ON DELETE CASCADE,
+    agent_id TEXT NOT NULL,
+    key_id TEXT NOT NULL,
+    credential_ref TEXT NOT NULL,
+    scopes_json JSONB NOT NULL DEFAULT '[]',
+    secret_fingerprint TEXT NOT NULL,
+    active_from TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (target_id, key_id)
+);
+```
+
+数据库只保存 secret 引用与 fingerprint。真实 secret 不进入数据库、API、事件
+或日志；新旧 key 可短期重叠，原地替换同一 ref 的 secret 会被 fingerprint
+校验阻断。
+
+#### remote_agent_replay_nonces
+
+```sql
+CREATE TABLE remote_agent_replay_nonces (
+    id UUID PRIMARY KEY,
+    credential_id UUID NOT NULL
+      REFERENCES remote_agent_credentials(id) ON DELETE CASCADE,
+    nonce_hash TEXT NOT NULL,
+    request_timestamp TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (credential_id, nonce_hash)
+);
+```
+
+nonce 只保存 SHA-256；保留时间覆盖完整 timestamp 容差窗口，并由 PostgreSQL
+唯一约束裁决并发 replay。
 
 #### deployments
 
