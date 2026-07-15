@@ -22,10 +22,21 @@ npm.cmd run build
 ## 配置
 
 - `VITE_CLOUDHELM_API_BASE_URL`：平台 API 地址，例如 `http://127.0.0.1:18080`。
+  该变量只用于当前 contributor Web 开发。正式 Desktop 必须支持运行时新增、
+  切换和删除 HTTPS Ops Hub profile。
 
 ## Tauri 说明
 
-当前仍保留 React/TypeScript 工程边界，未初始化 `src-tauri`。Tauri 桌面壳会在控制台功能进入可交互主流程后再接入，避免提前扩大依赖和验证范围。
+当前仍保留 React/TypeScript 工程边界，未初始化 `src-tauri`。M9 目标包括：
+
+- Tauri v2 和 Local Runtime sidecar。
+- Desktop SQLite 非权威 store 与 OS credential store。
+- Login/logout、device/session、用户/role binding。
+- system/project/environment scoped effective permissions。
+- snapshot + event sequence + SSE 重连。
+
+M10 生成 Windows NSIS setup `.exe`、安装后的 `CloudHelm.exe`、Linux AppImage
+和 `.deb`。当前不能把这些目标描述为已实现。
 
 ## M6 功能边界
 
@@ -47,4 +58,6 @@ npm.cmd run build
 - Requirement/TechnicalDesign 只有当前最新版可执行评审；历史版本保持只读。
 - SSE 使用 `EventSource` 连接事件流并显式监听 M2-M6 事件；端点回放结束后固定退避重连、按 event id 去重，M6 事件同步刷新 Task Detail、Task Board 与 Development Evidence。
 - 控制台不提供任意工具调用调试入口，不执行远端 push、CI/CD、SSH、部署或监控告警。
+- 当前没有用户认证或 RBAC；M9 后页面/按钮按服务端 effective permissions 与
+  resource capabilities 门禁，API 仍逐请求重新鉴权。
 - `npm.cmd test` 使用 Node 内置测试运行器覆盖任务/编排/M6 操作策略、证据映射、最新请求门禁和 SSE 事件。

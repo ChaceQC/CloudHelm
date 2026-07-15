@@ -20,9 +20,12 @@ informations/
 ├── m6-code-test-pr/
 │   ├── official-references.md
 │   └── reference-projects.md
-└── m7-ci-remote-deploy/
+├── m7-ci-remote-deploy/
     ├── official-references.md
     └── reference-projects.md
+└── m7-desktop-ops-architecture/
+    ├── official-references.md
+    └── identity-access-references.md
 ```
 
 ## 每份资料建议包含

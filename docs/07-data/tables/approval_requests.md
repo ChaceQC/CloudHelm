@@ -90,6 +90,9 @@ CandidateService 在既定锁序内重验。
   `decided_at <= consumed_at < expires_at`。
 - `DecisionRequest.actor_id` 当前是受控入口传入的审计身份；M7-2 会按 AgentRun ID
   执行领域自批门禁，但不把它描述为独立认证系统。
+- M9 增加 `requested_by_user_id`、`decided_by_user_id` 和认证 user provenance；
+  API 从 session 派生身份，并按 permission/scope/resource/SoD 校验。legacy
+  `actor_id` 只保留安全审计投影，不参与授权。
 
 ## 索引
 

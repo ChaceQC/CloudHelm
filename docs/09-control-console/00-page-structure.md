@@ -4,6 +4,7 @@
 > 目的：定义 Control Console 的页面、面板和信息架构。
 ## UI 分层
 
+- Server / Account：Ops Hub profile、登录、device/session、用户和 role binding。
 - Project Sidebar：项目与仓库状态入口。
 - Task Board / Task Detail：Agent 工作流主视图。
 - Diff Viewer / Design Review Panel：开发审查主视图。
@@ -52,12 +53,33 @@
 - EventSource 新增 M6 事件监听，收到事件后刷新 Task、Task Board 和 Development
   Evidence。
 
+## M9 规划页面
+
+- 首次启动 / Ops Hub Profile。
+- Login / Logout。
+- My Devices / Sessions：Desktop device、Local Runtime pairing challenge、session
+  revoke 和 credential version 状态。
+- User Invitations / User Status。
+- Role Binding 管理。
+- 无权、只读、scope 缺失和 resource capability 不允许状态。
+- Desktop cache/sync 状态与最后 sequence。
+
+所有 route/button/shortcut/batch action 按服务端 effective permissions 与资源
+`allowed_actions` 展示；API 仍逐请求重新鉴权。当前 Vite Web 尚未实现这些页面。
+
 ## 设计书摘录
 
 ### 13.1 页面结构
 
 ```text
 Control Console
+├── Server / Account
+│   ├── Ops Hub Profiles
+│   ├── Login / Logout
+│   ├── Devices / Sessions
+│   ├── Users / Invitations
+│   └── Roles / Scope Bindings
+│
 ├── Project Sidebar
 │   ├── 项目列表
 │   ├── 仓库状态
@@ -101,7 +123,7 @@ Control Console
 ├── Terminal Panel
 │   ├── Sandbox Command Output
 │   ├── Test Logs
-│   └── Human Takeover Shell
+│   └── Human Takeover Shell（增强版）
 │
 └── Approval Panel
     ├── Approve

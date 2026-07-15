@@ -9,6 +9,10 @@
   审批执行远端部署，以及远端业务项目监控运维。
 - M7 固定使用 Gitea `workflow_dispatch`、不可变 OCI digest、Remote Agent 和
   Docker Compose 部署到 Linux staging / demo；CI 不执行部署。
+- 正式产品由可安装的 Windows/Linux Desktop、常在线 Linux Ops Hub、本机 Local
+  Runtime 和远端 Remote Agent 组成；Desktop 退出不停止远端运维。
+- Agent 生成的业务项目必须既能接入 CloudHelm 运维契约，也能移除适配文件后独立
+  构建、部署和运行。
 - 关键闭环是 `Observe -> Plan -> Implement -> Verify -> Review -> Deploy -> Monitor -> Remediate -> Learn`。
 
 ## 设计书摘录
@@ -52,6 +56,17 @@ Kubernetes 生态中的 Helm 形成未来扩展联想，适合表达本项目“
    staging / demo 的 Docker Compose 环境。SSH 只用于单独审批后的固定只读诊断；
    production、Kubernetes 和 GitOps 属于增强版或生产扩展版。
 3. **实时监控运维**：运维对象是 **已经由 Agent 部署到远端环境的业务项目**，包括该项目的进程、容器、服务、日志、指标、告警、发布版本和运行健康状态；这些数据实时回传到控制台，由 SRE Agent / Release Agent 进行分析、建议修复或触发审批。
+
+产品运行边界进一步固定为：
+
+- Windows/Linux Desktop 只是交互、审批和展示客户端，安装时不依赖
+  Docker/PostgreSQL/Redis。
+- Platform API、Orchestrator、Agent Runtime、Tool Gateway、Workflow Engine、
+  PostgreSQL 和 Redis 组成常在线 Linux Ops Hub。
+- Desktop 离线期间，已持久化且不需要新人工决策的 CI、部署、监控和 SRE 步骤
+  继续运行；高风险节点持久等待审批。
+- Agent 输出的业务项目拥有独立源码、依赖、数据库、Dockerfile/Compose 和
+  README；CloudHelm 只通过版本化 manifest 和标准 health/log/metrics 契约接入。
 
 系统目标是把软件生产过程抽象成一条可审计、可暂停、可回滚、可人工接管的自治流水线：
 

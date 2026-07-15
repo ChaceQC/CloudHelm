@@ -60,9 +60,9 @@ API 或独立 thread UI。
 |P1|Git Tool 在内部输出已截断后再比较长度|`patch_truncated` 可能误报 `false`，下游把不完整 patch 当成完整证据|已改为先保留完整 Git 输出，再按调用上限截断并计算标记；新增大 patch 回归|
 |P2|数据库错误和 ToolCall result summary 可能回显敏感内容|HTTP、审计或控制台泄露内部信息|数据库错误 detail 置空，ToolCall 结果入库前脱敏|
 |P2|Timeline 仅按 conversation turn 排序|失败/取消 AgentRun 可能被排到错误位置|改为 `started_at` 优先、同时间再按 turn/ID 稳定排序|
-|P2|subagent 默认允许两层递归、未验证第 7 个 active child、父子角色工具权限未取交集且摘要无长度/脱敏门禁|可能递归 fan-out、借 child 扩大工具权限、污染父线程或回传敏感原始日志|参考 Codex CLI 改为默认 `max_depth=1`、`max_threads=6`；新增第 7 个 child 拒绝；Tool Gateway 沿 lineage 强制父子 allowlist 交集并审计；摘要非空、脱敏且最多 4000 字符|
+|P2|subagent 默认允许两层递归、未验证第 7 个 active child、父子角色工具权限未取交集且摘要无长度/脱敏门禁|可能递归 fan-out、借 child 扩大工具权限、污染父线程或回传敏感原始日志|参考 Codex CLI 的 thread/subagent 协作模型，CloudHelm 自身固定 `max_depth=1`、`max_active_children=6`；新增第 7 个 active child 拒绝；Tool Gateway 沿 lineage 强制父子 allowlist 交集并审计；摘要非空、脱敏且最多 4000 字符|
 |P1|subagent 只在创建时检查上下文，终态 child、active 后代和策略漂移 replay 缺少执行期门禁|child 可能在父级失效后继续调用工具、提前完成或用旧幂等结果绕过新策略|每次 Tool Gateway 调用重验 active lineage；终态 child、active AgentRun/后代、Task paused/terminal、legacy role、跨 Task root 均拒绝；replay 比较 execution-policy fingerprint，拒绝写 `ToolCallRejected`，晚到结果保留 scope/fingerprint|
-|P1|Task、Approval 与 conversation 写操作缺少统一锁顺序|并发 pause/cancel、cancel/spawn 或 design review/spawn 可能死锁、覆盖终态或遗留 active child|统一为 `Task -> AgentRun -> ToolCall -> Conversation -> Approval`；所有相关写操作先锁 Task，并补三类并发回归|
+|P1|Task、Approval 与 conversation 写操作缺少共同串行化入口|并发 pause/cancel、cancel/spawn 或 design review/spawn 可能覆盖终态或遗留 active child|相关写操作统一先锁 Task，再按各用例锁定所需 AgentRun/ToolCall/Conversation/Approval；补 pause/cancel、cancel/spawn、design review/spawn 并发回归，不宣称所有路径存在一条相同的完整锁序|
 |P2|控制台未声明 favicon|浏览器每次加载产生 404 console error，影响无错误门禁|新增 `public/favicon.svg` 和 HTML icon 声明；真实浏览器复测为 0 error / 0 warning|
 |边界|M4 Provider 调用期间持有 Task 行锁|并发 worker 下 pause/cancel 可能等待较久|当前单用户 MVP 以正确性优先；后续改为短事务 claim + lease|
 |边界|进程 hard crash 后 active 记录没有 lease/stale reclaim|`pending/running` AgentRun/ToolCall 可能长期停留|M6 明确记录为未覆盖边界；当前只承诺进入应用错误处理后的恢复，不写成自动恢复|
@@ -96,7 +96,7 @@ API 或独立 thread UI。
 |Orchestrator|`7 passed`|
 |Agent Runtime|`61 passed, 1 skipped`；外部 provider 专项在未注入临时配置时显式 skip|
 |Tool Gateway|`45 passed, 1 skipped`；Windows symlink 权限条件时显式 skip|
-|Platform API|`130 passed, 1 skipped`；锁顺序与 subagent 权限/生命周期定向回归 `16 passed`；OpenAPI `version=0.5.1`、`paths=41`、`schemas=56`、`operations=47` 与共享 YAML 精确一致，`26` 个 JSON Schema 验证通过，并覆盖迁移/约束、M4/M6 API 与 E2E|
+|Platform API|`130 passed, 1 skipped`；Task-first 串行化与 subagent 权限/生命周期定向回归 `16 passed`；OpenAPI `version=0.5.1`、`paths=41`、`schemas=56`、`operations=47` 与共享 YAML 精确一致，`26` 个 JSON Schema 验证通过，并覆盖迁移/约束、M4/M6 API 与 E2E|
 |控制台|`17 passed`；TypeScript/Vite production build 通过|
 |控制台浏览器|Browser 运行时未注入后按记录切换 Playwright Edge；真实 API 页面、Task B→A 切换、Requirement/Timeline/Event Log 数据一致；桌面与 `390x844` 视口通过，console 0 error / 0 warning|
 |测试数据库隔离|两个 pytest 进程并行使用不同随机数据库，结束后未残留会话数据库|
@@ -124,8 +124,8 @@ API 或独立 thread UI。
 M1-M6 原完成标记中存在会破坏开发数据库、固定领域输出、风险降级、旧 Task
 详情竞争、Reviewer/Tester 证据不足及 patch 被脱敏破坏等实质问题。本轮已完成
 修复，并通过模块全量测试、契约/迁移检查、控制台构建、sample 安全扫描和真实
-M4-M6 E2E；subagent 执行期权限、幂等 replay 和全局事务锁顺序也已完成并发
-回归。基于本文第 2 节边界，M1-M6 可标记为核验通过。
+M4-M6 E2E；subagent 执行期权限、幂等 replay 和 Task-first 串行化相关并发路径
+也已完成回归。基于本文第 2 节边界，M1-M6 可标记为核验通过。
 
 进程 hard crash 的 lease/stale recovery 是明确剩余边界。该项不阻断 M6
 “同步本地闭环”的准确验收，但必须保留为后续 worker/recovery 设计输入，且不得

@@ -10,6 +10,12 @@
 - “Sandbox”是安全边界而不是已固定的框架名：M6 以 allowlist 本地目录、
   命令 profile、环境白名单、超时和进程树清理实现最小受控执行；Docker
   CPU/内存/PID/网络隔离属于后续增强。
+- Desktop 是客户端，Ops Hub 是权威常在线控制面；客户端退出不得成为远端
+  工作流停机条件。
+- PostgreSQL 属于 Ops Hub，SQLite 属于 Desktop 非权威本地 store，业务项目数据
+  由项目自身拥有，三者不得混用。
+- CloudHelm 对业务项目的兼容要求通过版本化契约和标准协议实现，不允许形成
+  CloudHelm SDK/数据库/控制台运行时锁定。
 
 ## 设计书摘录
 
@@ -27,5 +33,15 @@
    本地受控 workspace/sandbox 完成；远程环境只接受经过 Git / CI 验证的产物，
    并由 Release / Deploy Agent 通过 Tool Gateway 和受控部署工具执行上线。
 9. **远程控制必须可审计**：针对远端业务项目的远程命令、日志拉取、重启、扩容、回滚都必须记录操作者、参数、输出和审批链。
+10. **Desktop 与常驻控制面分离**：Windows/Linux App 只负责交互、缓存和本地
+    sidecar；权威状态与远端 Agents 运维系统运行在 Linux Ops Hub。
+11. **服务端持久化后独立推进**：用户命令或审批一旦在 Ops Hub 事务内落库，
+    后续不需要新人工决策的步骤由 Workflow Engine 继续，不能依赖 App
+    `run-next` 保持在线。
+12. **项目必须可剥离交付**：Agent 生成项目必须具备独立源码、依赖、配置、
+    migration、测试、Dockerfile/Compose 和 README；移除 CloudHelm adapter 后
+    仍能运行。
+13. **运维层与业务层生命周期分离**：Ops Hub、Remote Agent、观测组件和业务
+    项目使用独立网络、数据卷、凭据、升级和卸载流程。
 
 ---

@@ -47,7 +47,8 @@ Tool Gateway、风险策略和独立人工审批。
    - 扩容副本数
    - 清理业务缓存
 8. Tool Gateway 根据风险等级创建人工审批；生成 proposal 不等于执行动作。
-9. 审批通过并显式推进后执行允许的固定动作，再继续监控恢复情况。
+9. 审批事务提交后由服务端 WorkflowJob/worker 自动恢复并执行允许的固定动作，
+   再继续监控恢复情况；调试 `run-next` 只用于人工恢复。
 ```
 
 交互式 remote session、WebSocket terminal 和任意 shell 不属于 M8 默认闭环，

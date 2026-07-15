@@ -38,6 +38,7 @@
 - [01-architecture/01-local-remote-boundary.md](01-architecture/01-local-remote-boundary.md)
 - [01-architecture/02-core-principles.md](01-architecture/02-core-principles.md)
 - [01-architecture/03-monorepo-structure.md](01-architecture/03-monorepo-structure.md)
+- [01-architecture/04-desktop-ops-hub-project-boundary.md](01-architecture/04-desktop-ops-hub-project-boundary.md)
 
 ### 技术栈文档
 
@@ -58,6 +59,7 @@
 - [03-modules/modules/audit-log.md](03-modules/modules/audit-log.md)
 - [03-modules/modules/deployment-controller.md](03-modules/modules/deployment-controller.md)
 - [03-modules/modules/integrations.md](03-modules/modules/integrations.md)
+- [03-modules/modules/local-runtime.md](03-modules/modules/local-runtime.md)
 - [03-modules/modules/monitoring-collector.md](03-modules/modules/monitoring-collector.md)
 - [03-modules/modules/orchestrator.md](03-modules/modules/orchestrator.md)
 - [03-modules/modules/platform-api.md](03-modules/modules/platform-api.md)
@@ -120,6 +122,7 @@
 
 - [07-data/00-entity-model.md](07-data/00-entity-model.md)
 - [07-data/01-database-schema.md](07-data/01-database-schema.md)
+- [07-data/02-storage-boundary.md](07-data/02-storage-boundary.md)
 - [07-data/tables/agent_conversations.md](07-data/tables/agent_conversations.md)
 - [07-data/tables/agent_runs.md](07-data/tables/agent_runs.md)
 - [07-data/tables/approval_requests.md](07-data/tables/approval_requests.md)
@@ -151,6 +154,7 @@
 - [08-api/07-environment-deployment-api.md](08-api/07-environment-deployment-api.md)
 - [08-api/08-remote-ops-api.md](08-api/08-remote-ops-api.md)
 - [08-api/09-monitoring-incident-api.md](08-api/09-monitoring-incident-api.md)
+- [08-api/12-auth-user-permission-api.md](08-api/12-auth-user-permission-api.md)
 
 ### 桌面端控制台文档
 
@@ -162,6 +166,7 @@
 - [10-security/00-security-boundary.md](10-security/00-security-boundary.md)
 - [10-security/01-permission-policy.md](10-security/01-permission-policy.md)
 - [10-security/02-audit-log.md](10-security/02-audit-log.md)
+- [10-security/03-user-role-permission.md](10-security/03-user-role-permission.md)
 
 ### 可观测性文档
 
@@ -173,6 +178,8 @@
 - [12-deployment/01-remote-demo-deployment.md](12-deployment/01-remote-demo-deployment.md)
 - [12-deployment/02-demo-environment.md](12-deployment/02-demo-environment.md)
 - [12-deployment/03-production-extension.md](12-deployment/03-production-extension.md)
+- [12-deployment/04-desktop-packaging-installation.md](12-deployment/04-desktop-packaging-installation.md)
+- [12-deployment/05-ops-hub-installation.md](12-deployment/05-ops-hub-installation.md)
 
 ### 测试文档
 
@@ -198,3 +205,5 @@
 - [15-detailed-design/07-testing-acceptance-matrix.md](15-detailed-design/07-testing-acceptance-matrix.md)
 - [15-detailed-design/08-m6-local-development-flow.md](15-detailed-design/08-m6-local-development-flow.md)
 - [15-detailed-design/09-m7-ci-remote-deployment-flow.md](15-detailed-design/09-m7-ci-remote-deployment-flow.md)
+- [15-detailed-design/10-desktop-ops-hub-standalone-project.md](15-detailed-design/10-desktop-ops-hub-standalone-project.md)
+- [15-detailed-design/11-identity-access-control.md](15-detailed-design/11-identity-access-control.md)

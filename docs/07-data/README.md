@@ -10,6 +10,7 @@
 
 - [00-entity-model.md](00-entity-model.md)
 - [01-database-schema.md](01-database-schema.md)
+- [02-storage-boundary.md](02-storage-boundary.md)
 - [tables/agent_conversations.md](tables/agent_conversations.md)
 - [tables/agent_runs.md](tables/agent_runs.md)
 - [tables/approval_requests.md](tables/approval_requests.md)
@@ -26,6 +27,11 @@
 - [tables/remote_agent_credentials.md](tables/remote_agent_credentials.md)
 - [tables/remote_agent_replay_nonces.md](tables/remote_agent_replay_nonces.md)
 - [tables/remote_sessions.md](tables/remote_sessions.md)
+
+M9 规划的 users/devices/sessions/invitations/roles/permissions/bindings/security
+state 当前统一定义在
+[../15-detailed-design/11-identity-access-control.md](../15-detailed-design/11-identity-access-control.md)；
+开始对应 migration 时再创建逐表文档，不能把规划表写成当前已落地。
 - [tables/remote_targets.md](tables/remote_targets.md)
 - [tables/requirement_specs.md](tables/requirement_specs.md)
 - [tables/service_instances.md](tables/service_instances.md)

@@ -8,8 +8,9 @@
 - M1-M6 当前闭环止于：Project/Task → Requirement/Design/Plan → 真实本地
   workspace 文件修改 → pytest/JUnit → Review → Bandit/pip-audit → branch/commit
   → `provider=local` 的等价 PR record。
-- M7 的受控 candidate ref、真实 CI、Release / Deploy 和 M8 的远端监控/SRE 尚未进入
-  M1-M6 完成判定；下文相应测试项标记为“规划”，不得用静态数据或假返回冒充。
+- M7-1 的 Environment、profile-only RemoteTarget 和 machine-auth heartbeat 已
+  实现；受控 candidate ref、真实 CI、Release / Deploy 和 M8 远端监控/SRE 尚未
+  进入完成判定。下文相应测试项标记为“规划”，不得用静态数据或假返回冒充。
 - M6 的 `sandbox.*` 使用 allowlist 本地目录和受控 `subprocess`，不是 Docker
   sandbox。Docker CPU/内存/PID/网络隔离属于后续边界。
 
@@ -25,7 +26,7 @@
 |shared-contracts|FastAPI OpenAPI 与共享 YAML 精确一致|全部 JSON Schema 可加载，工具/Agent/Artifact 字段与实现一致|pytest + PyYAML + jsonschema|
 |sample-repo-python|`/health`、`/metrics`、auth/profile 验收、pytest/JUnit|路由、存储、认证错误分支、Bandit 与 pip-audit 结果|pytest + Bandit + pip-audit|
 
-### 1.1 M7-M8 规划测试矩阵
+### 1.1 M7-M10 规划测试矩阵
 
 |模块|规划测试项|计划工具|
 |---|---|---|
@@ -34,6 +35,9 @@
 |deployment-controller|ReleasePlan、不可变 digest、Compose 渲染、健康检查、rollback candidate/request 与幂等；不执行 restart/rollback|pytest + Docker Compose|
 |remote-agent|Linux staging/demo heartbeat、capabilities、service status、受限日志、operation 幂等和断线恢复；无 RemoteSession/restart/rollback|pytest + 远端 fixture|
 |monitoring-collector|Prometheus/Loki 查询、告警转换、Incident 事件|pytest + 真实观测栈|
+|desktop|Tauri、server profile、SQLite/credential store、sequence sync、角色化 UI、Windows/Linux 安装升级|Rust/Node test + Playwright + clean VM|
+|identity-access|bootstrap、login/refresh/logout、device/session、role/scope、resource capabilities、SoD、审计|pytest + PostgreSQL + Desktop E2E|
+|project portability|adapter schema、通用 renderer、standalone/managed 双路径、生命周期隔离|JSON Schema + Compose + Linux E2E|
 
 ## 2. 集成测试矩阵
 
@@ -56,7 +60,7 @@
 |IT-011|M7-2 规划|Release candidate 审批|`POST /api/tasks/{task_id}/release-candidate` 请求 `{}`，随后处理 L2 Approval|Candidate、Approval 与内部 reconcile job 同事务创建；PR、commit、binding snapshot/hash、受控 ref、幂等键和 request hash 均由服务端派生；`requested_by_agent_run_id` 固定为 PR creator；缺 creator、额外字段、通用 Approval 保留 action、自批、过期/hash 漂移均被稳定拒绝；审批前无 push/CI/外部副作用|
 |IT-012|M7 规划|真实 CI 与不可变制品|candidate 发布后对固定 workflow/ref 发起唯一 `workflow_dispatch`|workflow 不监听 push；同一 candidate 只有一个有效 run；run/job/commit/JUnit/security/SBOM/scan/OCI digest 可追溯，CI 无 SSH/Compose/Remote Agent/restart/部署命令|
 |IT-021|M7-1 已实现|Remote Agent machine heartbeat|对受控 profile 注册的 Linux target 执行合法、跨 target、过期、撤销、scope、顺序/并发重放、超大 body、fingerprint 漂移和新旧 key 心跳|online/offline/recovery 正确；nonce 覆盖完整时间窗；credential/完整 endpoint/原始 validation input 不泄露；fingerprint/capabilities 可审计；周期离线 worker 与项目级 SSE 仍属后续 M7|
-|IT-022|M7 规划|部署审批与单次恢复|Release Agent 请求 staging，审批后并发 run-next|Approval L3 绑定 ReleasePlan/digest/target/hash；过期/已消费/hash 漂移拒绝；只执行一次 operation|
+|IT-022|M7 规划|部署审批与单次恢复|Release Agent 请求 staging，审批提交后并发 worker/重复消息自动恢复|Approval L3 绑定 ReleasePlan/digest/target/hash；过期/已消费/hash 漂移拒绝；PostgreSQL claim 保证只执行一次 operation；`run-next` 仅人工恢复|
 |IT-023|M7 规划|worker hard-crash 恢复|claim 后终止 worker并使 lease 过期|查询 Gitea/Remote operation 后收敛；未知状态进入 recovery_required，不盲目重放|
 |IT-024|M7 规划|Agent 化远端部署|第二道审批后调用 Controller/Linux Remote Agent|危险 Compose 拒绝；config/pull/RepoDigests/up/health 真实执行，生成 DeploymentResult/ServiceInstance；不执行 restart/rollback|
 |IT-025|M7 规划|受限远端日志|控制台读取 Remote Agent service logs|限制时间、行数、字节并脱敏；不提供自由 query/终端|
@@ -67,6 +71,20 @@
 |IT-014|M8 规划|指标查询|查询 service_up/error_rate|返回真实指标|
 |IT-015|M8 规划|告警处理|触发服务不可用|ProjectAlertFired 和 Incident|
 |IT-016|M8 规划|SRE 分析|触发 SRE Agent|生成 IncidentAnalysis 和 RunbookProposal|
+|IT-029|M7 规划|Desktop 退出后 continuation|提交无需新审批的 CI/部署步骤后退出客户端|Ops Hub worker 继续，EventLog/WorkflowJob/heartbeat 更新；到审批 gate 后持久等待|
+|IT-030|M7 规划|Redis 重启补投|创建 pending WorkflowJob 后重启 Redis|PostgreSQL durable dispatcher 补投，业务 job 不丢失、不重复副作用|
+|IT-031|M7/M10 规划|Ops Hub installation 生命周期|在干净 Linux 安装/升级/备份/恢复/卸载中心设施，并部署/卸载业务项目|每套中心设施只 bootstrap 一次；Ops Hub/审计保留，业务 volume 与平台 volume 不互删，PostgreSQL 可恢复|
+|IT-032|M7/M10 规划|Adapter 删除与 standalone|删除 `cloudhelm.project.yaml`、`cloudhelm.env.schema.json` 后按 README 构建/启动|业务项目 health、测试、数据保留均通过且不访问 CloudHelm|
+|IT-033|M7 规划|通用 renderer|同一 project schema 渲染 managed Compose，并输入 privileged/host network/socket/越界 mount|合法 manifest 使用固定 digest；危险配置稳定拒绝；无项目专用模板|
+|IT-034|M10 规划|同 commit 双路径|同一 commit 分别 standalone 与 managed 部署|API/health/配置/持久化核心行为一致，证据链关联同一 commit/manifest hash|
+|IT-035|M9 规划|用户/RBAC|Developer、Reviewer、Operator、Approver、Auditor、Viewer 使用相同 Desktop/API；分别创建 system/project/environment binding|页面/按钮符合 `(role,scope)`；environment binding 只能读取直接关联的脱敏 Project/Task/CI 摘要，独立详情 API 返回 403；System Owner 也不能自批|
+|IT-036|M9 规划|Auth/session 安全|bootstrap、refresh rotation、旧 token 重用、禁用用户、撤销 device/binding|最后 owner 不变量成立；token family 撤销；permission version 与审计事件正确|
+|IT-037|M9 规划|Desktop 离线 sequence|长时间断线、管理员撤权、事件保留期内/外重连；actor 与受影响 user 不同|security/project snapshot watermark + incremental + SSE 无丢失/重复/旧覆盖；`/api/me` 只按 subject user；游标按 Ops Hub/user/stream/scope 分区；过期游标重建；高风险 intent 不自动重放|
+|IT-038|M10 规划|Windows/Linux 安装|干净 Windows 11 安装 NSIS；Linux 运行 AppImage/安装 `.deb`|无 Docker/PostgreSQL/Redis 前置；登录、SQLite、credential、sidecar、升级/卸载通过|
+|IT-039|M9/M10 规划|凭据边界|登录、crash、日志、SQLite/Artifact 扫描|access/refresh token、device private key、machine secret 均不出现在 SQLite、日志、crash report 或普通 API|
+|IT-040|M7/M10 规划|Remote Target bootstrap 生命周期|在另一台干净 Linux 目标安装 Docker/Compose、Remote Agent、采集器和 machine credential，并注册既有 Ops Hub；同机 demo 再执行一次|目标安装不创建 Platform/PostgreSQL/Redis/用户体系；两条 bootstrap 的 manifest、credential、数据目录和卸载互不影响|
+|IT-041|M9 规划|Desktop/Local Runtime device|新/已有/revoked Desktop 登录；Local Runtime pairing/session challenge 正常、过期、重放、错误 proof、失败超限和撤销|Desktop/Local Runtime 均使用 Ed25519 proof，服务端只存 public key；revoked public id 不原地恢复；Local Runtime 短期 token 无 refresh，撤销后调用失效|
+|IT-042|M9 规划|Design 职责分离|人类修改、Agent 重写、version/hash 漂移和不同 reviewer 审批|审批绑定 design id/version/content hash；最后修改者或 AgentRun 人类发起者返回 403；漂移返回 409；其他 reviewer 可按 scope 决定|
 
 ## 2.1 M4 conversation/cache 专项通过标准
 
@@ -111,11 +129,13 @@
 10. 从 Artifact/PR API 与控制台交叉核验同一 evidence set。
 11. 展示 Timeline、AgentRun、ToolCall、Approval 和 EventLog 可追溯链。
 
-### 3.2 M7-M8 后续演示
+### 3.2 M7-M10 后续演示
 
 M7 的受控 candidate ref/真实 CI、两道审批、Linux staging 发布、Remote Agent
 和 `MonitoringRegistered`，以及 M8 的集中日志/指标、告警和 SRE 分析在对应
-里程碑完成后追加；当前不纳入 M1-M6 演示通过结论。
+里程碑完成后追加。M9 再追加多用户/RBAC、Desktop 离线同步，M10 追加真实
+Windows/Linux 安装、Ops Hub bootstrap/备份恢复和 standalone/managed 双路径；
+当前不纳入 M1-M6 演示通过结论。
 
 ## 4. M1-M6 验收标准映射
 
@@ -140,7 +160,7 @@ M7 的受控 candidate ref/真实 CI、两道审批、Linux staging 发布、Rem
 |测试数据库不破坏开发库|IT-019|随机临时数据库名与测试后清理结果|
 |重复点击不跨阶段推进|IT-020|阶段漂移 `409` 与唯一目标产物|
 
-### 4.1 M7-M8 规划验收映射
+### 4.1 M7-M10 规划验收映射
 
 |设计书验收点|测试编号|计划证据|
 |---|---|---|
@@ -156,6 +176,14 @@ M7 的受控 candidate ref/真实 CI、两道审批、Linux staging 发布、Rem
 |M8 控制台查看集中日志、指标|IT-013、IT-014|Loki Logs / Metrics panel|
 |远端异常触发告警|IT-015|Alert / Incident|
 |SRE Agent 给出分析|IT-016|IncidentAnalysis|
+|Desktop 退出后服务端继续|IT-029、IT-030|WorkflowJob/EventLog/worker 证据|
+|Ops Hub 可安装、升级和恢复|IT-031|bootstrap/backup/restore/uninstall 报告|
+|业务项目可独立剥离|IT-032、IT-034|Adapter 删除与双路径 E2E|
+|通用 renderer 无项目专用模板|IT-033|schema/Compose policy 测试|
+|用户分层权限、设备配对和职责分离|IT-035、IT-036、IT-041、IT-042|角色 Desktop/API、401/403、自批拒绝、pairing/撤销证据|
+|Desktop sequence 离线补齐|IT-037|security/project snapshot、actor/subject event、SSE 记录|
+|Ops Hub 与 Remote Target 安装生命周期分离|IT-031、IT-040|两台干净 VM 或同机隔离 profile 的安装/卸载证据|
+|Windows/Linux 安装发行|IT-038、IT-039|安装包、checksum、干净 VM 与凭据扫描|
 
 ## 5. 当前失败恢复验证边界
 

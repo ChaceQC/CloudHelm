@@ -11,8 +11,10 @@ branch/commit 和本地等价 PR record。
 
 当前 Orchestrator 是 Python 显式状态机；Tool Gateway 的“sandbox”是 allowlist
 本地目录与受控 `subprocess`。LangGraph、独立 Docker sandbox、真实远端
-PR/CI、Release / Deploy、Remote Agent、监控与 SRE 仍是后续 MVP 阶段目标，
-不能写成 M1-M6 已交付能力。
+PR/CI、Release / Deploy、监控与 SRE 仍是后续 MVP 阶段目标，不能写成 M1-M6
+已交付能力。M7-1 已实现 Environment、profile-only RemoteTarget 和
+machine-auth heartbeat，但尚未实现 Remote Agent deployment operation、服务状态、
+日志或完整部署闭环。
 
 M6 的失败恢复覆盖能够进入应用错误处理的异常和已有幂等证据；进程 hard crash
 后的 active 记录 lease/stale reclaim 尚未实现，也不属于 M1-M6 完成判定。
@@ -33,11 +35,25 @@ Docker Compose 部署闭环，固定语义如下：
   commit 与不可变 OCI index/platform manifest digest，禁止只凭可变 tag 部署。
 - 第二道人工作为 deployment approval，绑定 CIRun、manifest、digest、
   ReleasePlan、Environment、RemoteTarget 和 request hash；审批事务本身不触发
-  远端副作用，审批后仍需显式推进。
+  远端副作用，事务提交后由服务端 durable WorkflowJob/worker 继续；调试
+  `run-next` 不是正式流程依赖。
 - M7 不执行服务 restart 或 rollback；健康失败只保存 rollback candidate /
   rollback request。production、Kubernetes、RemoteSession/交互终端均为增强版。
 - 部署健康后写 `MonitoringRegistered` 并把 Task 交接到 `Monitoring`；真实
   Prometheus/Loki/Alertmanager、告警和 SRE 闭环由 M8 完成，M7 不提前写 `Done`。
+
+## 0.2 M7-M10 产品边界
+
+- M7：Linux Ops Hub 常在线控制面、durable continuation、通用项目契约/renderer、
+  真实 CI 与远端部署。
+- M8：远端监控、告警、Incident 与 SRE。
+- M9：Tauri Desktop、Local Runtime、SQLite/credential store、用户/session/
+  device、system/project/environment scoped RBAC 与 sequence sync。
+- M10：Windows NSIS、Linux AppImage/`.deb`、Ops Hub 安装/升级/备份恢复、
+  standalone/managed 双路径和最终 E2E。
+
+正式 Desktop 安装不依赖 Docker/PostgreSQL/Redis。PostgreSQL 与 Redis 保留在
+常在线 Ops Hub；业务项目拥有自己的数据库和生命周期。
 
 ## 1. MVP 一句话目标
 
@@ -70,12 +86,16 @@ MVP 只追求一个完整闭环：
 |监控告警|M8 接入真实 Prometheus/Loki 或经文档确认的成熟等价方案，产生远端业务告警|`project_alerts` / Incident|
 |SRE 分析|SRE Agent 基于日志、指标、部署记录输出分析和 runbook|incident analysis、runbook proposal|
 |审计与审批|L3/L4 动作进入审批，工具调用有审计|`approval_requests`、`tool_calls`、`event_logs`|
+|可安装 Desktop|Windows setup `.exe`/`CloudHelm.exe` 与 Linux AppImage/`.deb`；无 Docker/PostgreSQL/Redis 前置依赖|真实安装包、checksum、干净 VM 安装/升级/卸载证据|
+|多用户与分层权限|M9 实现 user/device/session、预置角色、permission、system/project/environment scope 和职责分离|Auth/RBAC API、不同角色 Desktop 截图、直接 HTTP 403、自批拒绝|
+|Desktop 离线重连|snapshot + event sequence + SSE live tail；高风险 intent 不自动重放|离线期间服务端继续、重连无丢失/重复/旧覆盖|
+|业务项目可剥离|Project Core 自包含；两个 CloudHelm Adapter 可删除；受管路径使用固定 schema + 通用 renderer|删除 adapter 后 standalone E2E；同 commit 独立/受管行为一致|
 
 ## 3. 明确不做或只做设计说明的能力
 
 |能力|MVP 裁剪线|
 |---|---|
-|多租户与组织权限|不做完整 RBAC，只保留单用户/演示用户和角色化工具权限|
+|组织/计费型多租户|M9 做单 Ops Hub 多用户与 scoped RBAC；不做 organization/billing、企业目录同步或强制 OIDC/SAML|
 |生产级 Kubernetes|只保留设计文档和接口预留，MVP 用 Docker Compose|
 |Argo CD / Flux GitOps|只做后续扩展说明，不实现真实同步控制器|
 |OpenBao / 动态密钥|只做本地加密配置或环境变量引用，生产密钥管理作为扩展|
@@ -116,7 +136,8 @@ examples/sample-repo-python/
 
 ### 软件交付物
 
-- 控制台原型（M6 为 React 浏览器控制台，完整 Tauri 壳在后续演示阶段完成）。
+- 可安装控制台（M6 当前为 React 浏览器控制台；M9 实现 Tauri/Local Runtime/
+  SQLite/IAM，M10 交付 Windows/Linux 安装包）。
 - FastAPI 平台服务。
 - 编排器（M1-M6 为显式状态机；只有后续异步图执行确有需要时再引入
   LangGraph，不把框架名作为完成条件）。
@@ -125,6 +146,10 @@ examples/sample-repo-python/
 - PostgreSQL schema 和迁移。
 - Docker Compose 本地依赖环境；独立 Docker sandbox 按后续隔离设计验收。
 - Remote Agent 或等价远端采集服务。
+- Linux Ops Hub 安装 profile、升级、备份/恢复和卸载流程。
+- 用户/session/device、scoped RBAC、服务端授权与 Desktop 功能门禁。
+- `cloudhelm.project.yaml`、`cloudhelm.env.schema.json` 和通用安全 renderer。
+- 独立可交付业务项目及 standalone/managed 双路径验收。
 
 ### 文档交付物
 
@@ -145,4 +170,5 @@ examples/sample-repo-python/
 |代码闭环|能对 sample repo 生成 diff、测试报告、PR|
 |部署闭环|M6 精确 commit 经 release candidate 审批、唯一 `workflow_dispatch`、不可变制品和 deployment 审批后，由 Release / Deploy Agent 部署到 Linux demo|
 |监控运维|远端异常能触发告警并生成 SRE 分析|
-|安全观测|审批、审计、指标、日志、trace 有基本展示|
+|Desktop/RBAC|不同用户在 Desktop 中拥有不同页面/动作，API 重新鉴权且禁止自批，App 离线后服务端继续|
+|发行验收|Windows/Linux 安装、Ops Hub bootstrap/备份恢复和独立/受管双路径全部可复现|

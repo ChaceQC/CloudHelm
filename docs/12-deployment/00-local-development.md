@@ -1,12 +1,18 @@
-# 本地开发部署
+# 仓库贡献者本地开发部署
 
 > 来源：[设计书 16 章](../../云舵 CloudHelm 毕设设计书.md)  
 > 目的：定义部署拓扑、运行组件和演示/扩展路径。
 ## 验收关注点
 
-- 本地 Docker Compose 能启动核心平台依赖。
-- 远端 demo 主机能运行 Remote Agent、Docker Compose 和监控采集组件。
-- 控制台能展示远端服务状态、日志、指标和部署版本。
+- 本地 Docker Compose 能启动仓库开发所需依赖。
+- 与远端联调时，Linux 目标能运行 Remote Agent 和 Docker Compose；监控采集链
+  属于 M8。
+- 控制台在 M7 展示远端服务状态、受限日志和部署版本；集中指标属于 M8。
+
+本文件只描述 CloudHelm 源码贡献者的 Windows 开发环境。正式 Desktop 安装不
+要求 Docker/PostgreSQL/Redis；正式控制面部署在常在线 Linux Ops Hub，见
+[04-desktop-packaging-installation.md](04-desktop-packaging-installation.md) 和
+[05-ops-hub-installation.md](05-ops-hub-installation.md)。
 
 Windows PowerShell 运行本仓库命令前统一设置 UTF-8：
 
@@ -40,8 +46,9 @@ npm.cmd run build
 ```
 
 Windows PowerShell 如拦截 `npm.ps1`，使用 `npm.cmd`。M1 当时只验证
-React/TypeScript 骨架；当前 M6 仍以浏览器控制台完成真实闭环，完整 Tauri
-桌面壳保留给后续演示阶段。
+React/TypeScript 骨架；当前 M6 仍以浏览器控制台完成真实闭环，Tauri、
+Local Runtime 与 Desktop SQLite 进入 M9，Windows/Linux 真实安装包与干净环境
+验收进入 M10。
 
 ## M2 本地数据库与 API 命令
 
@@ -131,7 +138,9 @@ CPU、内存、PID 和网络隔离；M7 远端部署前再评估一次性 Docker
 
 ### 16.1 本地开发部署
 
-推荐使用 Docker Compose：
+历史目标曾计划把完整平台依赖放在本机 Compose。当前正式产品拓扑已调整为
+Desktop + Linux Ops Hub；以下清单只作为 contributor/all-in-one demo 的参考，
+不得解释为最终用户安装方式：
 
 ```text
 docker-compose.dev.yml

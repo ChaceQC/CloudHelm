@@ -13,6 +13,12 @@
 - M7 远端范围固定为 Linux staging / demo + Docker Compose。SSH 只执行单独审批
   的固定只读诊断；production、Kubernetes 和交互式远程终端属于后续扩展。
 - SRE Agent、Monitoring Collector、Remote Control Tool 的默认上下文必须绑定 `project_id + environment_id + deployment_id + service_id`。
+- 正式产品的控制平面固定部署为常在线 Linux Ops Hub；“本机或云端任选”的表述
+  只适用于开发 profile，不再作为产品拓扑。
+- Desktop 安装器不包含 Docker/PostgreSQL/Redis；本机 SQLite 仅保存非权威缓存、
+  草稿、server profile 和事件 sequence。
+- Agent 生成的项目必须使用独立数据、依赖和运行入口；CloudHelm 兼容性是可删除
+  的 manifest/观测协议适配，不是运行时依赖。
 
 ## 设计书摘录
 
@@ -20,11 +26,11 @@
 
 |区域|运行内容|说明|
 |---|---|---|
-|本地桌面端|Tauri 控制台、需求输入、方案审查、diff viewer、本地内嵌终端、任务面板|开发者主要操作入口，用于指导 Agents、完成两道审批、提出反馈和本地人工接管；M7 不提供交互式远程终端|
-|本地 Agent 开发区|Task 独立 workspace、受控 subprocess、项目模板、测试执行、代码编辑；后续升级 Docker sandbox|Agents 根据开发者目标进行需求分析、项目生成、代码实现、测试和 PR 的默认位置|
+|本地桌面端|Tauri 控制台、SQLite 非权威缓存、OS credential store、需求/审批/状态 UI|Windows/Linux 可安装客户端；退出不停止远端运维；不直连数据库、Redis 或 Remote Agent|
+|本地 Agent 开发区|Local Runtime sidecar、Task 独立 workspace、受控 subprocess、项目模板、测试执行、代码编辑；后续升级 Docker sandbox|依赖本机 workspace 的步骤可在 Desktop/主机离线时暂停|
 |规格与设计区|Requirement Spec、ADR、OpenAPI、数据库 schema、验收标准|保存开发者指导和 Agent 设计产物，作为后续实现、测试和审查的依据|
-|控制平面|FastAPI、Orchestrator、Tool Gateway、PostgreSQL、Redis + Celery worker|可以部署在本机，也可以部署在云端；负责两道审批、调度、权限、业务状态、幂等和审计|
-|远程执行区|M7：Remote Agent、Docker Compose、业务项目进程与容器；增强版：K8s workload|M7 只运行 Linux staging / demo 业务项目，提供状态回传、受限日志和固定 diagnostics|
+|常在线 Ops Hub|FastAPI、Orchestrator、Agent Runtime、Tool Gateway、Workflow Engine、PostgreSQL、Redis|部署在持续运行的 Linux 主机；负责两道审批、调度、权限、权威状态、幂等和审计|
+|远程执行区|M7：Remote Agent、独立 Docker Compose 业务项目；增强版：K8s workload|Remote Agent 与项目生命周期分离；项目可脱离 CloudHelm 独立运行|
 |观测区|Prometheus、Grafana、Loki、Langfuse、Alertmanager|重点采集远端业务项目的指标、日志、告警和发布状态，同时也采集平台自身运行状态|
 
 ### 6.2.1 M7 控制与执行边界
@@ -36,6 +42,14 @@
 |Deployment Controller|校验 ReleasePlan、target 与 digest，调用服务端登记的 Remote Agent endpoint|写 Platform 数据库、直接 SSH 部署、接受可变 tag|
 |Remote Agent|按审批绑定请求执行 Compose policy、pull、digest 复核、up、状态和健康检查|任意 shell、任意 Compose/路径、交互终端、自动切换 SSH|
 |SSH 诊断|目标显式启用且单独审批后执行固定只读 profile|部署、写入、自由 command、PTY 或转发|
+
+### 6.2.2 App 离线边界
+
+- 用户命令或审批在服务端事务提交后，由 Workflow Engine 继续推进。
+- Desktop `run-next` 只作为调试、答辩逐步展示或故障恢复入口。
+- Desktop 离线时不需要新人工决策的工作继续；高风险步骤持久等待审批。
+- 重连通过 project snapshot、单调 event sequence 和 SSE high-watermark 补齐。
+- 高风险离线 intent 不自动 replay，必须重新认证、检查版本并由用户确认。
 
 ### 6.3 运维对象边界
 
@@ -50,7 +64,7 @@ workspace/sandbox 的运维，也不是仅对平台自身的运维。
 |远端业务项目告警|是|例如接口错误率升高、服务不可用、部署健康检查失败|
 |远端业务项目发布版本|是|例如完整 commit、OCI digest、release id、rollback candidate|
 |本地 workspace / 后续 Docker sandbox|否|只作为开发和测试环境，不作为运维目标；M6 尚未启用 Docker 隔离|
-|Agent 平台自身|次要|平台自身需要基础监控，但不是毕设重点运维对象|
+|Ops Hub 平台自身|基础必需|虽不是业务运维展示重点，但必须具备健康、自动重启、worker heartbeat、队列/磁盘/备份检查|
 
 因此 SRE Agent / Monitoring Collector / Remote Control Tool 的默认上下文都应该绑定到：
 

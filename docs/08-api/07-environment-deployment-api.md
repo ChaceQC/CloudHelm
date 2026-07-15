@@ -114,6 +114,43 @@ GET /api/environments/{environment_id}
 列表按 `created_at DESC, id DESC` 排序。项目或 Environment 不存在时返回稳定
 404；非法 cursor 返回统一 422。
 
+### 3.3 M9 environment-scope 响应边界
+
+接入用户/RBAC 后，environment-scope 的 Operator、Approver、Auditor 或 Viewer
+不因此获得独立 `project.read`、`task.read`、`artifact.read` 或 `ci.read`。
+Environment、Deployment 和 Approval 详情可以按当前资源直接关联关系嵌入最小
+脱敏上下文：
+
+```json
+{
+  "parent_project": {
+    "id": "uuid",
+    "name": "sample-service"
+  },
+  "related_task": {
+    "id": "uuid",
+    "title": "发布 sample-service",
+    "status": "WaitingDeployApproval"
+  },
+  "decision_evidence": {
+    "commit_sha": "40-hex",
+    "image_digest": "sha256:...",
+    "ci_conclusion": "succeeded",
+    "security_conclusion": "passed",
+    "risk_level": "L2"
+  }
+}
+```
+
+- `parent_project` 只包含 id/display name；`related_task` 只包含 id/title/status，且
+  没有直接关联 Task 时为 null。
+- `decision_evidence` 只来自当前 Deployment/ReleasePlan/Approval 已绑定的不可变
+  snapshot，不返回其他 Artifact/CI 正文。
+- 以上摘要不能用于调用 Project/Task/Artifact/CIRun 列表或详情 API；服务端仍按
+  对应 project scope permission 独立拒绝。
+- project/environment-scope 的 Auditor、Viewer 也只在资源匹配 binding scope 时
+  获得相应响应，不能跨 binding 枚举。
+
 ## 4. RemoteTarget API
 
 ### 4.1 注册受控目标

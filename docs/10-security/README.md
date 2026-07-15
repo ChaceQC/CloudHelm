@@ -8,3 +8,4 @@
 - [01-permission-model.md](01-permission-model.md)
 - [01-permission-policy.md](01-permission-policy.md)
 - [02-audit-log.md](02-audit-log.md)
+- [03-user-role-permission.md](03-user-role-permission.md)

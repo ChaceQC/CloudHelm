@@ -2,6 +2,133 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（Desktop / Ops Hub / 用户权限架构与规划修订）
+
+### 已完成
+
+- 本轮按“只修改文档和计划、暂停生产代码”执行，重新冻结正式产品拓扑：
+  - Windows/Linux CloudHelm Desktop。
+  - 本机 Local Runtime sidecar。
+  - 常在线 Linux CloudHelm Ops Hub。
+  - Remote Agent。
+  - 可受管、也可完全独立运行的业务项目。
+- 明确 Desktop 最终用户安装不依赖 Docker、PostgreSQL、Redis 或 Python；
+  Desktop SQLite 只保存 server profile、UI 设置、草稿、缓存和 event sequence，
+  token/Ed25519 device private key 保存到 OS credential store。
+- 保留 PostgreSQL/Redis 作为 Ops Hub 服务端基础设施：PostgreSQL 保存任务、
+  Agent、审批、事件、WorkflowJob、用户/RBAC、部署和审计权威状态，Redis/Celery
+  只负责非权威投递。
+- 新增/同步 Desktop 安装、Ops Hub bootstrap、三类存储、项目可剥离四层边界、
+  通用项目 renderer、离线 sequence sync 与 standalone/managed 双路径设计。
+- 新增用户管理与分层权限规划：
+  - User、Device、UserSession、refresh token history、Invitation。
+  - Role、Permission、RoleBinding、permission version。
+  - system/project/environment scope。
+  - resource capability 与 domain separation-of-duty。
+  - Desktop 页面/按钮门禁和 API 服务端重新鉴权。
+- 完成最终契约纠偏：
+  - Ops Hub installation 与 Remote Target / Environment bootstrap 分为两条独立
+    生命周期；M7 不创建真实 user/device/session，identity bootstrap 固定进入 M9。
+  - 预置权限按 `(role_key, binding_scope_type)` 映射；Environment binding 只获得
+    environment-domain permission，父 Project/关联 Task/CI 只返回最小脱敏摘要。
+  - EventLog 区分 `actor_user_id` 与 `subject_user_id`，增加 `stream_kind` 和
+    project/subject sequence index；Desktop cursor 按
+    `ops_hub_id + user_id + stream_kind + scope_id` 分区。
+  - TechnicalDesign 保存当前版本修改者 source、user/AgentRun provenance 和
+    `technical-design-content.v1` stable content hash，支撑最后修改者禁自批。
+  - Desktop 与 Local Runtime 统一使用 Ed25519 challenge proof；服务端只保存
+    public key/fingerprint/version，Local Runtime 只取得短期 device-bound token。
+- 预置角色固定为：
+  `system_owner`、`project_developer`、`project_reviewer`、
+  `environment_operator`、`deployment_approver`、`auditor`、`viewer`。
+- 修订 M7-M10：
+  - M7：Ops Hub 常驻控制面、durable continuation、CI 与远端部署。
+  - M8：监控、告警与 SRE。
+  - M9：Tauri Desktop、Local Runtime、用户/RBAC、SQLite/credential 和同步。
+  - M10：Windows/Linux 发行、Ops Hub 运维、双路径和最终 E2E。
+- `PROJECT_PLAN.md` 已从旧 M7-2 大型代码计划重写为新架构下的恢复计划；
+  当前代码继续暂停，恢复时先保护并验证 `20260716_0008` 草稿。
+- 已核对先前截图中的五项 M1-M6 核验进度。分支/工作区、subagent policy 与
+  Task cancel、Codex CLI 式协作边界、M1-M6 后端/前端/契约回归和 Git 收口均已
+  由历史 `docs/13-testing/01-m1-m6-audit-report.md` 与对应提交归档；该截图不再是
+  当前执行指针。
+- 修正文档中的 subagent 过度表述：
+  - CloudHelm 使用 `max_active_children=6` 的自有计数语义，不再写成与 Codex
+    CLI 并发 thread 配置精确等价。
+  - M1-M6 只有内部 child conversation/权限/生命周期原语，没有真实 child
+    AgentRun/provider 调度、wait-all、steer/queue 或 thread UI。
+  - 并发写路径统一描述为 Task-first 串行化，不再宣称所有路径共享一条不准确的
+    完整锁序。
+
+### 进行中
+
+- 文档、计划和资料归档的全量验证已完成。
+- 正在只暂存 Markdown 文档与资料，确保 M7-2 生产代码草稿不进入本轮提交。
+
+### 阻塞与风险
+
+- 当前 `apps/control-console` 仍是 Vite Web：没有 `src-tauri`、安装包、登录、
+  SQLite、OS credential store 或运行时 server profile。
+- `modules/local-runtime`、`infra/ops-hub`、project/env schema 和通用 renderer
+  尚未实现。
+- 当前 M4/M6 真实流程仍使用 `run-next`；服务端 durable continuation 是 M7
+  目标，不能写成当前已交付。
+- 当前 IAM、RBAC、EventLog sequence 和 Desktop sync 全部是 M9 规划；
+  `20260716_0008` 草稿不包含这些表或字段。
+- 本轮只读 M1-M6 subagent 定向 pytest 尝试因
+  `127.0.0.1:15432` PostgreSQL 连接超时停在 fixture setup，15 个用例未进入
+  测试体；本轮不复用历史通过数冒充当前回归结果。由于本轮不修改生产代码，
+  后续恢复代码前按新计划启动数据库并重新执行。
+
+### 下一步
+
+1. 只 stage 文档/计划/资料，提交并 push 当前功能分支。
+2. 记录提交、远端同步和最终工作区状态。
+3. 继续保持 M7-2 代码暂停；用户后续继续实施时，从
+   `PROJECT_PLAN.md` 的 M7-2A 预检、数据库往返和独立代码小步恢复。
+
+### 涉及文件
+
+- `AGENTS.md`
+- `README.md`
+- `云舵 CloudHelm 毕设设计书.md`
+- `PROJECT_PLAN.md`
+- `PROJECT_PROGRESS.md`
+- `docs/00-project/**`
+- `docs/01-architecture/**`
+- `docs/02-tech-stack/**`
+- `docs/03-modules/**`
+- `docs/04-agents/00-agent-layer.md`
+- `docs/07-data/**`
+- `docs/08-api/**`
+- `docs/10-security/**`
+- `docs/12-deployment/**`
+- `docs/13-testing/01-m1-m6-audit-report.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/**`
+- `informations/m4-agent-context/codex-responses-context.md`
+- `informations/m7-desktop-ops-architecture/**`
+
+### 验证
+
+- 三个只读复核方向最终均为 P0=0、P1=0：
+  - Ops Hub/Remote Target lifecycle、M7 切片、Roadmap、Plan。
+  - IAM/Role Scope、EventLog actor/subject、TechnicalDesign provenance、
+    Desktop/Local Runtime device challenge。
+  - M1-M6 Task-first 串行化与真实 child runtime 未交付边界。
+- `git diff --check` 通过。
+- 全仓纳入 Git 的 203 个 Markdown：
+  - 严格 UTF-8 解码错误 0。
+  - BOM 0。
+  - 检查 469 个相对链接，缺失 0。
+- 高置信敏感信息扫描命中 0。
+- 92 个 `json` fenced block 全部可解析，错误 0。
+- Auth 专项共 31 个规范化 API 端点；API 总览和总体设计书缺失均为 0。
+- 陈旧拓扑、旧 bootstrap、旧 `StrictUndefined`、旧 cursor、旧锁表述和
+  旧设备共享密钥返回语义扫描命中 0。
+- 本轮只修改文档和计划，未运行生产代码全量测试；M1-M6 定向 pytest 的本地
+  PostgreSQL 超时边界继续按本节“阻塞与风险”记录，不用历史通过数替代当前结果。
+
 ## 2026-07-16（M7-2 数据底座实施暂停点）
 
 ### 已完成
@@ -586,22 +713,25 @@
   规则固化到 `AGENTS.md`：root thread 保留目标/决策/汇总，显式 child 承担
   有界独立任务，read-heavy 可并行，写共享 workspace/Git 状态的任务串行或
   隔离，父线程只接收最终摘要和证据引用。
-- 将 subagent 默认配置对齐 Codex CLI 为 `max_depth=1`、
-  `max_threads=6`；child 权限按父级或更严格边界重新经 Tool Gateway 判定，
+- 参考 Codex CLI 的 thread/subagent 协作模型，将 CloudHelm 自有配置固定为
+  `max_depth=1`、`max_active_children=6`；该数量表示 active child，不描述为与
+  Codex CLI 并发 thread 配置精确等价。child 权限按父级或更严格边界重新经 Tool Gateway 判定，
   最终摘要必须非空、脱敏且不超过 4000 字符。新增递归 spawn 拒绝、空/超长
   摘要拒绝和敏感摘要脱敏回归。
 - 补齐 subagent 叶子优先生命周期与执行期门禁：`coder/scaffold` child、跨
   Task root、legacy role、终态 child 工具调用、存在 active AgentRun 或 active
-  后代时提前完成、Task paused/terminal 时创建或完成 child 均会被拒绝；每次
-  Tool Gateway 调用重新校验 active lineage 和父子工具交集。
+  后代时提前完成和 Task paused 时 spawn 均有直接回归；Task terminal/cancel
+  入口由 service guard 与取消级联覆盖。paused/cancelled/failed/done 下
+  `complete_subagent` 的参数化直接回归仍应在后续补齐。每次 Tool Gateway 调用
+  重新校验 active lineage 和父子工具交集。
 - 幂等 replay 现在比较 execution-policy fingerprint；claim 前上下文拒绝和策略
   漂移会写入不含原始参数的 `ToolCallRejected` 事件，晚到结果继续保留
   subagent scope 与策略 fingerprint，不改写原 ToolCall 审计事实。
-- 统一事务锁顺序为
-  `Task -> AgentRun -> ToolCall -> Conversation -> Approval`；pause/resume/
-  cancel、Requirement、Design、Approval 与 subagent conversation 写操作均先
-  锁 Task。并发 pause/cancel、cancel/spawn、design review/spawn 回归未出现
-  死锁、终态复活或 active child 残留。
+- 统一采用 Task-first 串行化：pause/resume/cancel、Requirement、Design、
+  Approval 与 subagent conversation 写操作均先锁 Task，再按具体用例锁定所需
+  AgentRun/ToolCall/Conversation/Approval；不把各路径描述为一条完全相同的总锁序。
+  并发 pause/cancel、cancel/spawn、design review/spawn 回归未出现终态复活或
+  active child 残留。
 - 明确恢复边界：当前只承诺能够进入应用错误处理或留下幂等证据的失败恢复；
   进程 hard crash 后尚无 lease、heartbeat 或 stale reclaim。
 - 形成并同步 M1-M6 核验修复版 `0.5.1`：项目、Platform API、Tool Gateway、控制台
@@ -681,8 +811,8 @@
   `61 passed, 1 skipped`。skip 为外部 LLM/Prompt Cache 凭据条件。
 - Orchestrator：`uv lock --check`；`uv run pytest -q` -> `7 passed`。
 - Platform API：`uv lock --check`；`uv run pytest -q` ->
-  `130 passed, 1 skipped`。skip 为外部模型配置条件；其中锁顺序与 subagent
-  权限/生命周期定向回归 `16 passed`。
+  `130 passed, 1 skipped`。skip 为外部模型配置条件；其中 Task-first 串行化与
+  subagent 权限/生命周期定向回归 `16 passed`。
 - 控制台：`npm.cmd test` -> `17 passed`；`npm.cmd run build` 成功，
   Vite 共转换 `77 modules`。
 - 控制台浏览器黑盒：Browser 插件运行时未注入，记录 `agent=undefined` 后使用

@@ -35,6 +35,45 @@ event_logs
 M2 当时未创建远端运维表；M7-1 已通过独立迁移补充 Environment、
 RemoteTarget 和 machine-auth 两张子表，Deployment/Monitoring 仍留在后续切片。
 
+## 0.1 存储与身份规划修订
+
+后续数据层分成三类：
+
+- Ops Hub PostgreSQL：平台权威任务、事件、审批、WorkflowJob、部署、用户和 RBAC。
+- Desktop SQLite：非权威 server profile、草稿、缓存和 event sequence。
+- 业务项目数据：由项目自己的 migration/volume/database 管理。
+
+Desktop 不复制 PostgreSQL 表，业务项目不连接 CloudHelm database。详细边界见
+[Desktop、Ops Hub 与业务项目存储边界](../07-data/02-storage-boundary.md)。
+
+Ops Hub 多用户目标新增：
+
+```text
+users
+devices
+device_pairing_challenges
+user_sessions
+session_refresh_tokens
+user_invitations
+roles
+permissions
+role_permissions
+role_bindings
+system_security_state
+```
+
+现有 Approval、Task、AgentRun、ToolCall、ReleaseCandidate、CIRun、EventLog、
+Deployment 后续要增加真实 `*_user_id` provenance/审计引用。调用方字符串 actor
+只保留兼容投影，不能继续充当授权身份。
+TechnicalDesign 还要增加当前版本的 user/AgentRun 修改者与 content hash，审批
+绑定 design id/version/hash 后执行职责分离。`last_modified_source` 使用
+`user | agent_run | legacy_system` CHECK；content hash 使用
+`technical-design-content.v1` stable canonical object。
+EventLog 后续增加单调 sequence、stream kind、project/aggregate identity、
+user/device/session actor 与 subject user，支持 Desktop snapshot + incremental
+event sync。精确字段见
+[Ops Hub 身份、用户与分层权限细化](11-identity-access-control.md)。
+
 ## M4 落地状态
 
 M4 新增迁移 `modules/platform-api/migrations/versions/20260708_0002_create_m4_agent_tables.py`：
@@ -161,12 +200,25 @@ secret 不入库。nonce 只保存 hash，并由
 
 ```mermaid
 erDiagram
+    users ||--o{ devices : owns
+    users ||--o{ user_sessions : authenticates
+    devices ||--o{ user_sessions : opens
+    user_sessions ||--o{ session_refresh_tokens : rotates
+    users ||--o{ user_invitations : invites
+    users ||--o{ role_bindings : receives
+    roles ||--o{ role_bindings : grants
+    roles ||--o{ role_permissions : contains
+    permissions ||--o{ role_permissions : maps
+    projects ||--o{ role_bindings : project_scope
+    environments ||--o{ role_bindings : environment_scope
     projects ||--o{ tasks : owns
     projects ||--o{ environments : has
     tasks ||--o{ requirement_specs : produces
     requirement_specs ||--o{ technical_designs : informs
     technical_designs ||--o{ development_plans : plans
     tasks ||--o{ agent_runs : runs
+    users ||--o{ tasks : creates
+    users ||--o{ agent_runs : initiates
     tasks ||--|| agent_conversations : owns_root
     agent_conversations ||--o{ agent_conversations : spawns
     agent_conversations ||--o{ agent_runs : records_turns
@@ -183,7 +235,9 @@ erDiagram
     release_candidates ||--o| ci_runs : dispatches
     tasks ||--o{ workflow_jobs : schedules
     tasks ||--o{ approval_requests : requires
+    users ||--o{ approval_requests : requests_decides
     tasks ||--o{ event_logs : emits
+    users ||--o{ event_logs : acts
     environments ||--o{ remote_targets : contains
     projects ||--o{ deployments : deploys
     environments ||--o{ deployments : receives
@@ -464,6 +518,16 @@ suppressed
 |approval_requests|`idx_approval_pending(status, risk_level, created_at)`|审批队列|
 |event_logs|`idx_event_logs_task_created(task_id, created_at)`|timeline / SSE 回放|
 |event_logs|`idx_event_logs_type_created(event_type, created_at)`|事件查询|
+|event_logs|`ux_event_logs_sequence(sequence)`|M9 Ops Hub 全局单调同步位置|
+|event_logs|`idx_event_logs_project_sequence(project_id, sequence)`|Desktop project 增量补齐|
+|event_logs|`idx_event_logs_subject_sequence(subject_user_id, sequence)`|Desktop 用户控制流增量补齐|
+|event_logs|`idx_event_logs_aggregate_version(aggregate_type, aggregate_id, aggregate_version)`|read model 版本与旧事件拒绝|
+|users|规范化 username/email 唯一索引|登录和邀请冲突|
+|devices|`idx_devices_user_status(user_id,status)`|用户设备管理|
+|user_sessions|`idx_user_sessions_user_device(user_id,device_id,expires_at)`|session 生命周期|
+|session_refresh_tokens|`ux_session_refresh_tokens_hash(token_hash)`|轮换和旧 token 重用检测|
+|user_invitations|`ux_user_invitations_token_hash(token_hash)`|邀请 token 单次消费|
+|role_bindings|system/project/environment 三组 active partial unique index|真实 FK scope 的幂等 binding 与过期/撤销|
 |environments|`ix_environments_project_status_created(project_id, status, created_at)`|环境列表|
 |remote_targets|`ix_remote_targets_environment_status_created(environment_id, status, created_at)`|目标列表|
 |remote_targets|`ix_remote_targets_last_heartbeat(last_heartbeat_at)`|离线收敛扫描|
@@ -591,6 +655,26 @@ suppressed
 }
 ```
 
+M9 目标 envelope 把以下字段放在 payload 外并建立索引：
+
+```text
+sequence
+stream_kind
+project_id
+aggregate_type
+aggregate_id
+aggregate_version
+schema_version
+actor_user_id
+actor_device_id
+actor_session_id
+subject_user_id
+```
+
+payload 中的 actor 只是业务描述；权限、职责分离和审计使用顶层认证引用。
+`actor_user_id` 表示执行者，`subject_user_id` 表示 user_control 事件受众；
+`/api/me/events*` 只按 subject 索引读取。
+
 ## 5. 事件类型建议
 
 ### 任务与 Agent
@@ -680,12 +764,39 @@ EventLog。
 `ProjectLogReceived`、指标、告警和 Incident 从 `MonitoringRegistered` 后由 M8
 接管；RemoteSession 事件只用于增强版。
 
+### M9 用户、权限与 Desktop 同步
+
+- UserInvited
+- UserActivated
+- UserDisabled
+- DevicePairingRequested
+- DevicePairingExpired
+- DevicePairingRejected
+- DevicePaired
+- DeviceRevoked
+- DeviceSessionCreated
+- DeviceSessionRejected
+- SessionRevoked
+- RefreshTokenReuseDetected
+- RoleBindingGranted
+- RoleBindingRevoked
+- RoleBindingExpired
+- PermissionDenied
+- EventCursorResetRequired
+
+role binding 撤销/过期时，被影响用户接收最小 self/control event，用于刷新
+effective permissions 和清理无权 Desktop 缓存；事件不得泄露其他 scope 资源。
+
 ## 6. 数据生命周期
 
 |数据|保留策略|
 |---|---|
 |projects/tasks/spec/design|毕设 MVP 永久保留|
 |event_logs/tool_calls/approval_requests|append-only，永久保留或按项目归档|
+|users/roles/permissions|长期保留；禁用/撤销使用状态，不物理删除审计引用|
+|user_sessions/refresh token history|按安全保留期保存 hash 与撤销/reuse 证据，绝不保存明文 token|
+|role_bindings/invitations|保留 grant/revoke/expire/accept 记录；过期 token hash 按策略清理|
+|Desktop SQLite|独立 migration；cache 可重建，草稿按用户导出/清理，credential 单独管理|
 |Agent conversation|保存完整可重放 ResponseItem；reasoning 只保存供应商 encrypted content，不保存或展示明文思维链|
 |sandbox artifact|本地保留最近 N 次，重要报告转存 artifact|
 |M7 受限直读日志|Remote Agent 按时间、行数和字节上限即时返回并脱敏；平台只保存请求/结果摘要，不建立集中日志库|
@@ -696,6 +807,7 @@ EventLog。
 ## 7. Migration 规则
 
 - 所有表结构通过 migration 管理。
+- Ops Hub PostgreSQL 使用 Alembic；Desktop SQLite 使用独立 migration chain。
 - 字段新增必须向后兼容。
 - 删除字段必须先弃用，再清理。
 - destructive migration 必须生成 ApprovalRequest。

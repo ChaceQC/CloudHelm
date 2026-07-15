@@ -4,9 +4,9 @@
 > 目的：定义部署拓扑、运行组件和演示/扩展路径。
 ## 验收关注点
 
-- 本地 Docker Compose 能启动核心平台依赖。
-- 远端 demo 主机能运行 Remote Agent、Docker Compose 和监控采集组件。
-- 控制台能展示远端服务状态、日志、指标和部署版本。
+- Linux Ops Hub 和 Remote Target 两条安装生命周期已独立完成并可升级/回滚。
+- 远端业务项目可以从 Docker Compose 平滑演进到 Kubernetes/GitOps。
+- 身份、权限、密钥、观测和 sandbox 可以替换为生产级组件而不破坏现有契约。
 
 ## 设计书摘录
 
@@ -19,5 +19,9 @@
 3. 使用 OpenBao 管理密钥。
 4. 使用 OPA 做工具权限策略。
 5. 使用独立 sandbox pool 执行 Agent 任务。
+
+本文件描述 M10 之后的扩展，不是当前 M7-M10 完成判定。M7-M10 仍使用
+Linux Ops Hub + Docker Compose + Remote Agent，并以 scoped RBAC、TLS、备份恢复、
+签名安装包和独立/受管项目双路径完成毕设验收。
 
 ---

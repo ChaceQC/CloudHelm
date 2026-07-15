@@ -13,3 +13,4 @@
 - [01-local-remote-boundary.md](01-local-remote-boundary.md)
 - [02-core-principles.md](02-core-principles.md)
 - [03-monorepo-structure.md](03-monorepo-structure.md)
+- [04-desktop-ops-hub-project-boundary.md](04-desktop-ops-hub-project-boundary.md)

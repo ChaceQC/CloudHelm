@@ -7,5 +7,7 @@ TypeScript + Vite 接入真实 Platform API，展示 Requirement、Technical Des
 DevelopmentPlan、AgentRun、ToolCall、Timeline、Artifact、diff、测试、审查、
 安全扫描和本地等价 PR record。
 
-当前仍未初始化 `src-tauri`。Tauri 桌面壳、远端部署、监控和人工接管页面按
-M7-M9 计划接入，不能把目标页面描述为已实现能力。
+当前仍未初始化 `src-tauri`。M9 接入 Tauri、Local Runtime、运行时 Ops Hub
+profile、Desktop SQLite、OS credential store、用户登录/RBAC 和权限化 UI；
+M10 生成 Windows setup `.exe`、Linux AppImage/`.deb` 并完成安装验收。远端
+部署属于 M7，监控属于 M8，人工 remote session 仍是增强版。

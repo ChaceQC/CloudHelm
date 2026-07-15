@@ -14,6 +14,8 @@
 - [07-testing-acceptance-matrix.md](07-testing-acceptance-matrix.md)
 - [08-m6-local-development-flow.md](08-m6-local-development-flow.md)
 - [09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)
+- [10-desktop-ops-hub-standalone-project.md](10-desktop-ops-hub-standalone-project.md)
+- [11-identity-access-control.md](11-identity-access-control.md)
 
 ## 使用顺序
 
@@ -28,3 +30,7 @@
    [08-m6-local-development-flow.md](08-m6-local-development-flow.md)。
 9. 实现 M7 CI、Release / Deploy Agent、Deployment Controller 和 Remote Agent
    时读 [09-m7-ci-remote-deployment-flow.md](09-m7-ci-remote-deployment-flow.md)。
+10. 设计 Desktop 安装、常在线 Ops Hub、离线同步和可独立项目时读
+    [10-desktop-ops-hub-standalone-project.md](10-desktop-ops-hub-standalone-project.md)。
+11. 实现用户、session、角色绑定、权限和 Desktop 功能门禁时读
+    [11-identity-access-control.md](11-identity-access-control.md)。

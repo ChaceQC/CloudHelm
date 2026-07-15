@@ -5,7 +5,8 @@
 
 ## 职责
 
-桌面控制台，负责开发者需求输入、Agent 指导、方案审查、diff、日志、审批、远程状态和终端接管。
+Windows/Linux Desktop，负责 Ops Hub server profile、登录、项目/任务、Agent
+指导、方案审查、diff、日志、审批、远程状态和权限化交互。
 
 ## M3-M6 实现状态
 
@@ -20,22 +21,28 @@ SSE 显式监听 M2-M6 事件并按 event id 去重；切换 Project/Task 使用
 
 当前不包含远端部署、监控、任意工具调试或交互终端。
 
+当前目录没有 `src-tauri`，也没有 NSIS/MSI/AppImage/`.deb` 安装产物、运行时
+server profile、Desktop SQLite、OS credential store、用户登录或 effective
+permission UI，因此只能称为 Web 控制台，不能称为已交付桌面 App。
+
 ## 当前技术栈
 
-React + TypeScript + Vite。Tauri、Tailwind CSS、shadcn/ui、Monaco 和 xterm.js
-是目标技术组合，尚未全部进入当前工程。
+React + TypeScript + Vite。Tauri、SQLite、OS credential store、
+`modules/local-runtime`、Tailwind CSS、shadcn/ui、Monaco 和 xterm.js 是目标
+技术组合，尚未全部进入当前工程。
 
 ## 目标技术栈
 
-Tauri + React + TypeScript + Tailwind CSS + shadcn/ui + Monaco Editor + xterm.js。
+Tauri v2 + React + TypeScript + SQLite + OS credential store + Local Runtime
+sidecar + Tailwind CSS + shadcn/ui + Monaco Editor + xterm.js。
 
 ## 上游依赖
 
-Project/Task/Event/Approval/Remote Ops API。
+Auth/User/Permission、Project/Task/Event/Sync/Approval/Remote Ops API。
 
 ## 主要输出
 
-需求输入、审批动作、接管动作、UI 事件订阅。
+需求输入、审批动作、权限化 UI、server profile、离线缓存和事件订阅。
 
 ## MVP 实现要点
 
@@ -43,6 +50,9 @@ Project/Task/Event/Approval/Remote Ops API。
 2. 所有跨模块调用优先通过共享契约和 API，不直接耦合内部实现。
 3. 状态变化、工具调用、审批、远程操作都必须写入事件或审计记录。
 4. 与远端业务项目相关的操作必须绑定 `project_id + environment_id + deployment_id + service_id`。
+5. Desktop 不直连 PostgreSQL、Redis 或 Remote Agent，不要求最终用户安装 Docker。
+6. 页面和按钮按 effective permissions 渲染，但服务端 API 必须再次鉴权。
+7. Windows 必须生成 setup `.exe`，Linux 必须生成 AppImage 和 `.deb`。
 
 ## 测试关注点
 

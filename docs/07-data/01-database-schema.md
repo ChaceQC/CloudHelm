@@ -1,7 +1,23 @@
 # 数据库关键表总览
 
 > 来源：[设计书 11.2](../../云舵 CloudHelm 毕设设计书.md)  
-> 目的：汇总所有关键表结构；单表文档放在 tables 目录。
+> 目的：汇总所有关键表结构、实现状态与未来 migration；单表文档放在 tables
+> 目录。Desktop/Ops Hub/业务项目的数据所有权见
+> [02-storage-boundary.md](02-storage-boundary.md)。
+
+## 数据所有权边界
+
+CloudHelm 目标架构存在三类互不复用的数据库：
+
+|数据域|数据库|权威性|
+|---|---|---|
+|Ops Hub Task、Agent、审批、事件、WorkflowJob、用户/RBAC、部署和审计|PostgreSQL + Alembic|平台权威|
+|Desktop server profile、UI 设置、草稿、缓存、事件游标|SQLite + 独立 migration chain|非权威、可重建|
+|Agent 生成业务项目的领域数据|由业务项目自行选择|业务项目权威|
+
+Desktop、Local Runtime、Remote Agent 和业务项目均不得直连或复用 Ops Hub
+PostgreSQL schema。当前 `infra/docker-compose.dev.yml` 的 PostgreSQL 是仓库开发
+依赖，不是 Windows/Linux Desktop 安装器依赖。
 
 ## M2 实现状态
 
@@ -94,6 +110,87 @@ M7 数据门禁固定为：
 - M7 健康失败只保存 rollback candidate/request，不执行 restart 或 rollback；
   健康成功写 `MonitoringRegistered` 并把 Task 交接到 `Monitoring`。
 
+## M9 用户/RBAC 与离线同步 migration 目标
+
+以下内容均为规划，当前 `0.5.1` 和暂停中的 `20260716_0008` 草稿都未实现：
+
+```text
+users
+devices
+device_pairing_challenges
+user_sessions
+session_refresh_tokens
+user_invitations
+roles
+permissions
+role_permissions
+role_bindings
+system_security_state
+```
+
+授权模型固定为：
+
+```text
+role permissions
+  + system/project/environment scope
+  + resource attributes/version
+  + domain separation-of-duty
+```
+
+关键约束：
+
+- API 的 `scope_id` 在数据库物化为 nullable `project_id/environment_id`：
+  system 两者为空、project 仅 project 非空、environment 两者非空，并使用
+  `(environment_id, project_id)` 复合外键保证资源归属。
+- 同一 user/role/scope 只允许一个 active binding。
+- refresh token 只保存 hash，并按 token family 轮换与撤销。
+- 已轮换 refresh token 的 hash 历史用于检测旧 token 重用。
+- `user_sessions.session_type` 区分 Desktop 与 Local Runtime；Local Runtime session
+  的 token family 为空，只签发短期 device-bound access token。
+- 邀请 token 只保存 hash、单次消费；全局 security state 保存
+  `permission_version` 和 bootstrap 完成状态。
+- 用户、Desktop device/session、Local Runtime device 和 Remote Agent machine
+  identity 分离。
+- Desktop 与 Local Runtime 都只在服务端保存 Ed25519 public key/fingerprint/
+  version，private key 只进入本机 OS credential store。
+- fingerprint 对解码后的 32-byte public key 求 SHA-256，格式为
+  `sha256:<lowercase hex>`；首次 version 固定为 1，M9 不提供原地 key rotation。
+- Local Runtime pairing challenge 只保存 one-time code hash、发起 user/Desktop
+  device、请求 public id/public key/fingerprint、TTL、消费状态和失败次数；
+  明文 code 与 private key 不落库。
+- `approval_requests`、`tasks`、`tool_calls`、`deployments` 和 `event_logs`
+  后续增加真实 user actor 引用；请求体自报 `actor_id` 不作为授权身份。
+- `technical_designs` 后续增加当前版本的 user/AgentRun 修改者与 content hash，
+  支撑“最后修改者或其 AgentRun 发起者不得批准当前设计”。
+- System Owner 也不能绕过 release/deployment 自批门禁。
+
+为支持 Desktop 长时间离线补齐，`event_logs` 后续 migration 增加：
+
+```text
+sequence BIGINT
+stream_kind TEXT
+project_id UUID
+aggregate_type TEXT
+aggregate_id UUID
+aggregate_version BIGINT
+schema_version TEXT
+actor_user_id UUID
+actor_device_id UUID
+actor_session_id UUID
+subject_user_id UUID
+```
+
+`sequence` 是同一 Ops Hub 内单调递增的同步位置；现有 UUID `id` 继续作为事件
+唯一身份。`stream_kind` 固定为 `project | user_control | system_audit`：
+project 流必须有 `project_id`，user_control 流必须有 `subject_user_id`；
+`actor_user_id` 是执行者而 `subject_user_id` 是受影响用户。Desktop SQLite 按
+`ops_hub_id + user_id + stream_kind + scope_id` 保存独立的最后已应用 sequence，
+不复制 `event_logs` 或其他 PostgreSQL 表。
+
+未来 migration 至少建立 `UNIQUE(sequence)`、
+`(project_id, sequence)` 和 `(subject_user_id, sequence)` 索引；后者只服务
+user_control 流，`/api/me/events*` 不扫描 payload。
+
 ## 迁移要求
 
 - 使用 Alembic / Prisma Migrate 管理 schema 变更。
@@ -171,10 +268,20 @@ CREATE TABLE technical_designs (
     risk_level TEXT NOT NULL DEFAULT 'L0',
     status TEXT NOT NULL,
     created_by_agent_run_id UUID,
+    version INTEGER NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
+
+M9 为 Design approval 职责分离增加
+`last_modified_source`、`last_modified_by_user_id`、
+`last_modified_by_agent_run_id` 和 `content_sha256`。`user/agent_run` source
+分别要求对应引用恰有一项非空；`legacy_system` 只用于 migration 历史回填且两项
+均为空。`content_sha256` 使用统一 `stable_json_hash` 覆盖
+`schema/design_type/content_markdown/openapi_json/db_schema_json/mermaid_diagram/
+risk_level/version`。审批绑定当前 `technical_design_id + version + content_sha256`；
+Agent 修改者通过 `agent_runs.initiated_by_user_id` 解析当前版本的人类发起者。
 
 #### agent_runs
 
@@ -318,7 +425,7 @@ CREATE INDEX ix_approval_requests_pending_expiry
   WHERE status = 'pending' AND expires_at IS NOT NULL;
 ```
 
-#### event_logs
+#### event_logs（当前已实现结构）
 
 ```sql
 CREATE TABLE event_logs (
@@ -331,6 +438,10 @@ CREATE TABLE event_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
+
+M9 的 sequence/stream/project/aggregate/schema、user/device/session actor 和
+subject user 字段按本文件前述未来 migration 增加；当前 DDL 不得被误写成已经
+支持 Desktop 跨项目离线同步或用户控制流。
 
 #### project_repository_bindings（M7）
 

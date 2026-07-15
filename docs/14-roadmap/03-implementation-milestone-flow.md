@@ -23,10 +23,10 @@
 |M4|Agent 编排与规格化闭环|实现需求规格化、技术设计、任务拆分和状态机推进|M2、M3|
 |M5|Tool Gateway 与本地工具层|实现工具统一入口、风险等级、审计、Repo/Sandbox/Git 工具|M4|
 |M6|本地代码实现、测试与 PR 闭环|让 Agent 真实修改 sample repo、测试、审查并生成 PR|M5|
-|M7|CI/CD 与远端部署闭环|精确 PR record/commit 经两道审批、唯一 CI 和不可变 digest 后部署 staging/demo|M6|
+|M7|Ops Hub 常驻控制面、CI 与远端部署|Linux Ops Hub 持续推进精确 commit、两道审批、唯一 CI、通用项目契约和 staging/demo 部署|M6|
 |M8|远端监控、告警与 SRE 分析|采集日志指标告警，生成 incident 分析和 runbook 建议|M7|
-|M9|审批、安全与可观测性加固|完善 L3/L4 审批、安全扫描、审计、trace、成本统计|M5-M8|
-|M10|答辩演示与最终验收|完成演示脚本、验收矩阵、截图、报告和最终版本|M1-M9|
+|M9|Desktop、用户/RBAC 与安全产品化|实现 Tauri、Local Runtime、SQLite/credential、离线同步、用户分层权限和平台安全加固|M7、M8|
+|M10|跨平台发行与最终验收|完成 Windows/Linux 安装、Ops Hub 运维、独立/受管双路径、答辩证据和最终版本|M1-M9|
 
 ## 3. 里程碑任务
 
@@ -115,14 +115,23 @@
 
 完成判定：能从功能需求生成真实代码变更、测试报告、审查结论和 PR/等价记录。
 
-### M7 CI/CD 与远端部署闭环
+### M7 Ops Hub 常驻控制面、CI 与远端部署
 
 - [x] 完成 M7-0 细化设计、总体设计书/API/Data/Workflow/Testing 同步和官方资料归档。
+- [x] 冻结 Desktop / Local Runtime / Linux Ops Hub / Remote Agent / 独立业务
+  项目边界、三类存储、用户/RBAC 规划和 M7-M10 责任划分；本项仅代表文档完成。
 - [ ] 实现 ProjectRepositoryBinding、ReleaseCandidate、WorkflowJob 与资源绑定
   Approval 数据、migration 和服务端 profile/snapshot 门禁。
 - [ ] 实现 CIRun、Deployment、ServiceInstance 数据与 migration。
 - [ ] 接入 Redis + Celery workflow worker，实现 durable dispatch、claim、lease、
   heartbeat 和 side-effect-aware stale reclaim 基础。
+- [ ] 建立 Linux `ops-hub` 最小 installation/bootstrap，包含 TLS ingress、
+  Platform/Workers、PostgreSQL/Redis、Gitea/runner/registry、服务凭据、持久卷和
+  最小备份；每套中心设施只执行一次，M7 不创建真实 user/device/session。
+- [ ] 建立独立 Remote Target / Environment bootstrap，只安装 Docker/Compose、
+  Remote Agent、采集器和 machine credential，并注册到既有 Ops Hub。
+- [ ] 正常远端流程由服务端 WorkflowJob/worker 自动 continuation；`run-next`
+  只保留调试、答辩逐步展示或人工恢复入口。
 - [ ] 接入真实 Gitea/Remote operation resolver，使外部状态可收敛为 succeeded、
   failed、安全重排或 recovery_required。
 - [x] 实现 Environment / RemoteTarget API、machine authentication 和
@@ -139,26 +148,34 @@
   服务状态、受限日志和 diagnostics。
 - [ ] 实现 Release / Deploy Agent 的 ReleasePlan、第二道部署审批、部署执行和
   健康检查；实现者不得自批。
-- [ ] 实现 Deployment Controller 的 StrictUndefined 渲染、TLS client 和
-  幂等 operation 查询。
+- [ ] 实现 `cloudhelm.project.yaml`、`cloudhelm.env.schema.json`、共享 JSON
+  Schema、manifest hash 和固定通用安全 renderer；移除项目专用模板依赖。
+- [ ] 实现 Deployment Controller 的通用 renderer、TLS client 和幂等 operation
+  查询。
 - [ ] 实现 CI Tool、Deploy Tool 和 Remote Control Tool 的固定 schema、风险、
   审批恢复和审计；M7 Remote Control Tool 只提供 status、受限 logs 和固定
   diagnostics。
-- [ ] 使用固定 OCI digest、远端 env profile / credential store 和受控 Compose
-  模板执行真实远端部署；M7 不自动回滚。
-- [ ] 扩展 Orchestrator 与 SSE，使 Task 每次只推进一步并在成功后进入 Monitoring。
+- [ ] 使用固定 OCI digest、远端 env profile / credential store 和通用 rendered
+  Compose 执行真实远端部署；M7 不自动回滚。
+- [ ] 扩展 Orchestrator、Workflow Engine 与 SSE，使服务端自动推进并在成功后
+  进入 Monitoring。
 - [ ] 控制台展示 CI、ReleasePlan、两道审批、部署版本、Remote Agent、服务健康
   和 M7 受限日志。
 - [ ] 完成真实 Gitea CI + registry + Linux staging E2E，并保存 manifest、
   Approval、DeploymentResult、health、timeline 和清理证据。
+- [ ] 验证 Desktop 退出后无需新审批的流程继续、Redis 重启由 PostgreSQL 补投、
+  业务项目卸载不影响 Ops Hub。
+- [ ] 验证删除两个 CloudHelm Adapter 后业务项目 standalone 运行，同一 commit
+  standalone/managed 核心行为一致。
 
 M7 不包含 remote session、WebSocket terminal、服务重启、metrics、Loki
 集中日志、告警分析或自动回滚。metrics、集中日志、告警和 runbook proposal
 进入 M8；交互式远程接管属于 M8 之后的增强版。
 
-完成判定：精确 M6 commit 经 release candidate 审批、唯一真实 CI、不可变 digest、
-ReleasePlan 和 L3 deployment approval 后，只执行一次远端 operation；sample repo
-在 Linux staging/demo `/health` 成功，Task 进入 Monitoring，且完整证据可追溯。
+完成判定：Linux Ops Hub 在 Desktop 退出后持续运行；精确 M6 commit 经 release
+candidate 审批、唯一真实 CI、不可变 digest、ReleasePlan 和 L3 deployment
+approval 后只执行一次远端 operation；示例项目在 Linux staging/demo `/health`
+成功并进入 Monitoring，且 standalone/managed 边界和完整证据可追溯。
 
 ### M8 远端监控、告警与 SRE 分析
 
@@ -168,38 +185,70 @@ ReleasePlan 和 L3 deployment approval 后，只执行一次远端 operation；s
 - [ ] 实现 SRE Agent 告警分析。
 - [ ] 生成 runbook proposal。
 - [ ] 对重启服务、回滚版本等动作接入审批。
+- [ ] 验证 Desktop 退出后监控、告警和 SRE 分析继续，重连后事件可补齐。
 
 完成判定：远端异常能触发告警或 incident，SRE Agent 能基于日志、指标和部署记录给出分析与建议。
 
-### M9 审批、安全与可观测性加固
+### M9 Desktop、用户/RBAC 与安全产品化
 
-- [ ] 完善 Approval API 和审批面板。
-- [ ] 完成 L3/L4 风险操作审批、拒绝、暂停记录；remote session 与接管记录仅在
-  后续增强版纳入实现和验收。
-- [ ] 接入 Semgrep / Trivy / dependency audit 的报告展示。
-- [ ] 完善 audit log、event log、tool call trace。
-- [ ] 接入平台自身指标和基础 dashboard。
-- [ ] 实现 token/cost 统计。
-- [ ] 检查公网暴露面和敏感日志。
+- [ ] 将 `apps/control-console` 接入 Tauri v2，建立 Windows/Linux Desktop 壳。
+- [ ] 实现 `modules/local-runtime` sidecar、本机 workspace allowlist、device
+  identity、Git/test/tool 通道。
+- [ ] 实现运行时 Ops Hub server profile，不再只依赖编译时
+  `VITE_CLOUDHELM_API_BASE_URL`。
+- [ ] 实现 Desktop SQLite 独立 migration，只保存 profile、UI 设置、草稿、
+  cache 和 event sequence。
+- [ ] 将 access/refresh token、Ed25519 device private key 保存到 OS credential
+  store/Stronghold，完成日志/SQLite/crash report 扫描。
+- [ ] 实现 users、devices、device_pairing_challenges、user_sessions、
+  session_refresh_tokens、invitations、roles、permissions、role_permissions、
+  role_bindings 和 permission version migration/API。
+- [ ] 实现一次性 identity bootstrap token、首个 `system_owner` 和首个 Desktop
+  device/session；第二次 bootstrap 稳定拒绝。
+- [ ] 实现 `system_owner`、`project_developer`、`project_reviewer`、
+  `environment_operator`、`deployment_approver`、`auditor`、`viewer` 精确
+  permission/scope。
+- [ ] 实现 effective permissions、resource `allowed_actions`、最后 owner
+  不变量、refresh rotation/reuse 检测、Desktop/Local Runtime challenge proof、
+  短期 device session 和职责分离。
+- [ ] Desktop 按权限控制 route/button/shortcut/batch action；直接 HTTP 请求由
+  API 重新鉴权。
+- [ ] TechnicalDesign 保存当前版本的 user/AgentRun 修改者与 content hash，设计
+  审批绑定 version/hash 并拒绝最后修改者或其 AgentRun 发起者自批。
+- [ ] EventLog 增加 sequence/stream kind/project/aggregate/version/schema、
+  user/device/session actor 与 subject user，实现用户控制流、project snapshot +
+  incremental + SSE live tail 和 cursor reset。
+- [ ] 完善 L3/L4 Approval、Semgrep/Trivy、audit/event/tool trace、平台指标、
+  token/cost 与公网暴露面检查。
 
-完成判定：高风险操作必须审批，安全扫描、审计、指标和成本信息可查看。
+完成判定：不同用户在同一 Desktop/Ops Hub 中拥有正确功能，API 不能被绕过，
+自批与 scope 越权稳定拒绝；Desktop 离线重连无事件丢失，凭据不进入 SQLite。
 
-### M10 答辩演示与最终验收
+### M10 跨平台发行与最终验收
 
+- [ ] 生成并验证 Windows NSIS setup `.exe` 与安装后的 `CloudHelm.exe`。
+- [ ] 生成并验证 Linux AppImage 与 `.deb`；`.rpm` 可选。
+- [ ] 完成安装、升级、卸载、checksum、SBOM、代码签名和签名 updater 验收。
+- [ ] 在无 Docker/PostgreSQL/Redis 的干净 Windows/Linux 环境完成 Desktop smoke。
+- [ ] 完成 Ops Hub bootstrap、upgrade、backup/restore、uninstall 和版本兼容检查。
+- [ ] 完成 standalone/managed 双路径、Adapter 删除、Compose 生命周期隔离和最终
+  真实 E2E。
 - [ ] 编写完整 E2E 演示脚本。
 - [ ] 按 `docs/15-detailed-design/07-testing-acceptance-matrix.md` 执行验收。
 - [ ] 归档 requirement、design、diff、test report、security report、deployment result、incident analysis。
 - [ ] 准备截图、录屏、测试报告和答辩讲解材料。
-- [ ] 检查 `docs/14-roadmap/02-mvp-acceptance-and-extension.md` 的 21 项 MVP 验收点。
+- [ ] 检查设计书与验收矩阵更新后的全部 MVP 验收点。
 - [ ] 标记最终版本，例如 `v1.0.0`。
 
-完成判定：完整 E2E 演示可复现，验收证据完整，最终版本可用于答辩。
+完成判定：Windows/Linux Desktop、Linux Ops Hub、用户/RBAC、CI/部署/监控、
+standalone/managed 双路径和完整 E2E 均可复现，最终版本可用于答辩。
 
 ## 4. 当前下一步
 
 当前 M0、M1、M2、M3、M4、M5、M6 已完成，M1-M6 核验修复版本为
 `0.5.1`。M7-0 设计闭环和 M7-1
 `Environment + RemoteTarget + machine-auth heartbeat` 已完成；完整 M7 数据、
-CI、部署、Orchestrator/SSE、控制台和真实远端 E2E 仍未完成。下一步按
-`PROJECT_PLAN.md` 实施 M7-2：
-`ProjectRepositoryBinding + ReleaseCandidate + WorkflowJob/Celery`。
+CI、部署、Ops Hub profile、通用 renderer、Orchestrator/Workflow/SSE、控制台和
+真实远端 E2E 仍未完成。当前生产代码继续暂停，未提交的 M7-2
+`ProjectRepositoryBinding + ReleaseCandidate + WorkflowJob` 草稿保持原样；
+下一步按 `PROJECT_PLAN.md` 先完成代码恢复前重基线，再决定恢复实现。

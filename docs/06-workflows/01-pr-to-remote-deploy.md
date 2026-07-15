@@ -49,7 +49,7 @@ sequenceDiagram
     RA->>T: deploy.render_manifest / 请求 deploy_staging
     T->>API: 创建 L3 deployment approval
     U->>C: 批准精确 ReleasePlan / digest / target
-    O->>RA: run-next 恢复部署步骤
+    O->>RA: durable WorkflowJob 自动恢复部署步骤
     RA->>T: deploy.deploy_staging
     T->>D: 调用 Deployment Controller
     D->>R: deploy project version
@@ -80,9 +80,10 @@ M7 部署动作按以下固定顺序执行：
    生成并固化 ReleasePlan。
 7. Tool Gateway 为 `deploy.deploy_staging` 创建绑定 ReleasePlan、digest、
    Environment 和 RemoteTarget 的 L3 deployment approval。
-8. 审批通过并由 `run-next` 显式恢复后，Deploy Tool 调用 Deployment
-   Controller；Controller 从受控模板渲染 Compose，
-   secret 只使用远端 env profile / credential store 引用。
+8. 审批事务提交后由 durable WorkflowJob/worker 自动恢复，Deploy Tool 调用
+   Deployment Controller；Controller 校验 project/env schema 并使用固定通用
+   安全 renderer 生成 Compose，secret 只使用远端 env profile / credential
+   store 引用。`run-next` 只用于调试或人工恢复。
 9. Remote Agent 在远端业务项目目录执行：
    docker compose config
    docker compose pull
@@ -105,6 +106,10 @@ M7 部署动作按以下固定顺序执行：
 
 M7 不提供 remote session、WebSocket terminal、服务重启、metrics 或 Loki
 集中日志查询；指标、集中日志与告警进入 M8，交互式远程接管属于后续增强版。
+
+Desktop 退出不停止已持久化且无需新审批的 M7 工作。业务项目使用独立 Compose
+project/network/volume/credential，并可删除两个 CloudHelm Adapter 后按 README
+standalone 运行。
 
 详细事务、worker、数据、认证与失败恢复契约见
 [M7 CI/CD 与远端部署闭环细化设计](../15-detailed-design/09-m7-ci-remote-deployment-flow.md)。

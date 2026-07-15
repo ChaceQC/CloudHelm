@@ -303,8 +303,9 @@ Scaffold、Coder/Implementation、TestReport、ReviewReport 和 SecurityReport
 - 只有 `spawn_subagent` 可以创建 child，并校验父会话 active、父 AgentRun
   running、Task running、同 Task、最大深度、active 数量、非空 objective 和
   expected result。
-- 默认 `max_depth=1`、`max_threads=6`，参考 Codex CLI 只允许 root 创建直接
-  child；递归委派必须显式调整配置并记录风险。
+- CloudHelm 默认 `max_depth=1`、`max_active_children=6`，只允许 root 创建直接
+  child；这是项目自身的 active-child 计数语义，Codex CLI 的并发 thread 模型只
+  作为协作参考。递归委派必须显式调整配置并记录风险。
 - fresh child 不复制父历史；full-history child 只复制
   system/developer/user message 与 assistant final answer。
 - reasoning、tool call、tool output 和内部 metadata 不跨 child fork。

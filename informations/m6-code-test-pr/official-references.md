@@ -133,8 +133,9 @@
 2. 只在明确的 spawn 请求、深度和并发限制允许时创建 child conversation。
 3. read-heavy 探索适合并行子 Agent；写入同一 workspace 的工作保持串行，避免
    diff、测试和 Git 状态互相覆盖。
-4. 默认参考 Codex CLI 使用 `max_depth=1`、`max_threads=6`；递归委派需显式
-   调整并记录风险。
+4. CloudHelm 自身使用 `max_depth=1`、`max_active_children=6`；Codex CLI 的
+   thread/subagent 模型只作为协作参考，不把 active-child 计数描述为官方并发
+   thread 配置的精确等价。递归委派需显式调整并记录风险。
 5. child 只把不超过 4000 字符的脱敏最终通知回传父会话，不复制 child
    reasoning、工具调用、工具结果或原始日志。
 6. child 权限不得高于父线程；每次工具调用继续由 Tool Gateway 按 role、资源

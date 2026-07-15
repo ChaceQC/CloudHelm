@@ -22,3 +22,4 @@ Remote Ops、Monitoring API。
 - [09-monitoring-incident-api.md](09-monitoring-incident-api.md)
 - [10-development-plan-api.md](10-development-plan-api.md)
 - [11-local-development-api.md](11-local-development-api.md)
+- [12-auth-user-permission-api.md](12-auth-user-permission-api.md)

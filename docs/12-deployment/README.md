@@ -12,3 +12,5 @@
 - [01-remote-demo-deployment.md](01-remote-demo-deployment.md)
 - [02-demo-environment.md](02-demo-environment.md)
 - [03-production-extension.md](03-production-extension.md)
+- [04-desktop-packaging-installation.md](04-desktop-packaging-installation.md)
+- [05-ops-hub-installation.md](05-ops-hub-installation.md)

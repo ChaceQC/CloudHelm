@@ -1,9 +1,9 @@
 # M7 CI/CD 与远端部署闭环细化设计
 
-> 状态：M7-0 实施前设计基线
+> 状态：M7-0 基线 + 2026-07-16 Desktop/Ops Hub/项目可移植性修订
 > 适用版本：`0.5.1` 基线，M7 完成目标 `0.6.0`
-> 适用环境：本地 Windows 控制平面 + 本地 Gitea/CI/registry + 远端 Linux
-> staging/demo
+> 适用环境：Windows/Linux Desktop + 常在线 Linux Ops Hub（Platform API、
+> Workflow、PostgreSQL/Redis、Gitea/CI/registry）+ Linux staging/demo
 > 非完成声明：本文只锁定实现契约；没有对应生产代码、测试和真实远端 E2E 时，
 > 不得把 M7 写成已交付。
 
@@ -84,8 +84,9 @@ Release / Deploy Agent
 - ReleasePlan 和 `release_plan_sha256`。
 - request hash。
 
-审批通过前禁止 Remote Agent 副作用。审批只记录决策；实际执行由后续
-`run-next` 创建或恢复 ToolCall，并交给 workflow worker。
+审批通过前禁止 Remote Agent 副作用。审批只记录决策；事务提交后由 durable
+WorkflowJob/worker 创建或恢复 ToolCall。`run-next` 只用于调试、逐步演示或
+人工恢复。
 
 Coder、Scaffold、提交代码的 AgentRun、创建 PullRequestRecord 的 AgentRun
 不得批准上述任一请求。
@@ -127,7 +128,8 @@ Deployment。
 
 ```mermaid
 flowchart LR
-    User["用户 / Control Console"]
+    User["用户 / CloudHelm Desktop"]
+    OpsHub["Linux Ops Hub"]
     API["Platform API"]
     PG["PostgreSQL"]
     Redis["Redis"]
@@ -140,7 +142,14 @@ flowchart LR
     Remote["Remote Agent"]
     Service["远端业务服务"]
 
-    User --> API
+    User -->|"HTTPS"| OpsHub
+    OpsHub --> API
+    OpsHub --> PG
+    OpsHub --> Redis
+    OpsHub --> Worker
+    OpsHub --> Git
+    OpsHub --> Runner
+    OpsHub --> Registry
     API --> PG
     API --> Redis
     Redis --> Worker
@@ -158,8 +167,9 @@ flowchart LR
 
 隔离要求：
 
-- Gitea、act_runner、registry 和控制平面可在本地 Docker Compose 中运行，但
-  runner 不与 Remote Agent 共用 Docker socket 或权限边界。
+- Gitea、act_runner、registry 和控制平面正式部署在 Linux Ops Hub；仓库开发
+  profile 可以本地 Compose 运行，但不代表 Desktop 安装拓扑。runner 不与
+  Remote Agent 共用 Docker socket 或权限边界。
 - runner 固定 patch 版本或镜像 digest，不使用 `latest`/`nightly`。
 - 远端 Linux 主机只用于 staging/demo，Remote Agent 由 systemd 管理。
 - registry credential、Gitea token、machine credential 和 SSH key 均由受控
@@ -202,7 +212,9 @@ flowchart LR
 ### 4.5 Deployment Controller
 
 - 验证 ReleasePlan。
-- 使用 StrictUndefined 从受控模板渲染 Compose。
+- 校验 versioned `cloudhelm.project.yaml` / `cloudhelm.env.schema.json`，
+  使用固定 schema + 通用安全 renderer 生成 Compose；不长期维护项目专用
+  Jinja 模板。
 - 固定 `image@sha256:...` 和 manifest hash。
 - 调用服务端记录的 Remote Agent endpoint。
 - 轮询同一 idempotency operation，返回 DeploymentResult。
@@ -454,7 +466,8 @@ complete_m7_handoff
 
 规则：
 
-- 每次 start/run-next 只推进一个可审计动作。
+- 正常流程由 durable dispatcher/worker 自动推进一个可审计动作；调试
+  start/run-next 只用于答辩逐步展示或人工恢复。
 - `POST /api/tasks/{task_id}/release-candidate` 是第一道审批的唯一创建入口，只接受
   `{}`，原子创建 candidate、Approval 与无外部副作用的
   `release_candidate_reconcile` WorkflowJob；提交后复用 durable dispatcher
@@ -814,6 +827,8 @@ POST /api/services/{service_id}/collect-diagnostics
 - arbitrary URL、workflow path、refspec、Compose、path 或 command。
 
 `remote-deployment/start` 只接受 `environment_id`，其他资源由服务端派生。
+`remote-deployment/run-next` 不作为正式 Desktop 在线依赖；客户端退出后，
+已持久化且无需新审批的 job 继续执行。
 
 ## 14. Event 与 SSE
 
@@ -894,7 +909,8 @@ SSE 使用数据库 EventLog tailing：
 - CI workflow 无部署命令。
 - digest/commit 全链一致。
 - deployment approval 前远端无变化。
-- 审批通过并显式推进后只执行一次 operation。
+- 审批提交后 worker 自动恢复，并发 worker/重复 message 只执行一次 operation；
+  `run-next` 只验证人工恢复路径。
 - Remote Agent restart 后可查询旧 operation。
 - 健康成功后 Task 进入 Monitoring。
 - 受限日志满足时间、行数和字节上限。
@@ -913,7 +929,9 @@ SSE 使用数据库 EventLog tailing：
 - webhook 签名、空签名、delivery 和 run/job 幂等。
 - ReleasePlan 严格 schema 和 secret 检测。
 - Tool risk/approval/resume 并发。
-- Compose StrictUndefined 和危险配置拒绝。
+- project/environment JSON Schema、确定性通用 renderer 和危险 Compose policy
+  拒绝；若内部使用单一 Jinja 模板，必须固定版本且不得成为项目专用模板或对外
+  契约。
 - Remote Agent path/symlink/operation SQLite。
 - HTTPX TLS、timeout、redirect 和 response size。
 - SSE 建连后新事件、重连和去重。
@@ -927,6 +945,12 @@ SSE 使用数据库 EventLog tailing：
 - systemd Remote Agent、心跳、Compose deployment。
 - `/health` 成功、ServiceInstance 正确。
 - 控制台展示完整 timeline。
+- Desktop 在 CI/部署执行期间退出，Ops Hub 仍完成无需新审批的步骤。
+- Redis 重启后 pending WorkflowJob 由 PostgreSQL durable dispatcher 补投。
+- 业务项目与 `cloudhelm-ops` 使用独立 Compose project/network/volume/
+  credential，项目卸载不影响 Ops Hub。
+- 删除 `cloudhelm.project.yaml` 与 `cloudhelm.env.schema.json` 后，同一业务
+  commit 仍可按 README standalone 启动并通过 `/health`。
 - 清理临时 runner、容器、release 和凭据。
 
 ## 18. 实施切片
@@ -963,16 +987,23 @@ SSE 使用数据库 EventLog tailing：
 - 两道审批基础。
 - Celery + Redis worker 与 lease。
 
-### M7-3：Gitea CI 与不可变制品
+### M7-3：通用项目契约与 renderer
 
-- CI infra、provider、webhook、manifest。
+- `cloudhelm.project.yaml`、`cloudhelm.env.schema.json` 与共享 JSON Schema。
+- manifest/hash、standalone/managed 同 commit 一致性。
+- 固定通用 renderer 与危险 Compose policy；不维护项目专用模板。
 
-### M7-4：Remote Agent / Controller / Tool / Agent
+### M7-4：Ops Hub installation 与 Remote Target bootstrap
 
-- 真实部署能力和审批恢复。
+- 每套中心设施一次安装最小 `ops-hub` profile、服务凭据、持久卷与备份；M7
+  继续使用当前受控网络/认证边界，不创建真实 user/device/session。
+- 每台受管目标只安装 Docker/Compose、Remote Agent、采集器和 machine credential，
+  并注册到既有 Ops Hub。
+- `demo-all-in-one` 可同机执行，但两条安装/升级/卸载生命周期保持分离。
 
-### M7-5：Orchestrator / Console / E2E
+### M7-5：真实 CI、部署与 E2E
 
-- Task 到 Monitoring 的完整闭环。
+- Gitea CI、不可变制品、Remote Agent/Controller/Tool/Agent 真实部署和审批恢复。
+- Durable continuation、Orchestrator/Console 和 Task 到 Monitoring 的完整闭环。
 
 每个切片必须独立测试、记录进度、提交并推送功能分支。

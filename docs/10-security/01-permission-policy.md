@@ -18,6 +18,37 @@ MVP 可先用自研 Policy Engine；规则稳定后可迁移到 OPA/Rego。
 - Release Agent 和远端部署权限尚未开放，
   `approval.request_remote_action` 仍只用于验证 L3 审批链路。
 
+## M9 用户授权策略目标（规划）
+
+用户策略输入：
+
+```text
+authenticated_user_id
+device_id
+session_id
+permission
+scope_type / scope_id
+resource_type / resource_id / resource_version
+resource provenance
+requested action
+```
+
+决策顺序：
+
+1. 验证 user/device/session lifecycle 与 token version。
+2. 解析 active、未过期 role binding 和 effective permissions。
+3. 按 `(role_key, binding_scope_type)` 解析 permission，并校验
+   system/project/environment scope；Environment 响应中的父 Project/关联
+   Task/CI 只允许最小嵌入摘要。
+4. 校验资源状态、版本和服务端 provenance。
+5. 应用 design/release/deployment/diagnostics 职责分离；设计审批重验当前
+   version/content hash 和最后修改者/AgentRun 发起者。
+6. 返回 allow/deny、稳定 reason code 和安全审计；Desktop 只消费结果。
+
+当前 MVP 不提供用户可配置 negative grant；文档中的 deny 表示 scope、resource
+policy 或 domain guard 优先于 role allow。API 与 Tool Gateway 都不得只按 role
+名称或前端按钮状态放行。
+
 ## 设计书摘录
 
 ### 14.2 权限策略示例

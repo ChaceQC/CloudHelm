@@ -84,6 +84,41 @@
 
 不要把业务规则堆在 API 路由、前端页面或 Agent prompt 中；复杂逻辑应沉到 service、workflow、tool 或 policy 层。
 
+### 5.1 Desktop、Ops Hub 与业务项目边界
+
+- `apps/control-console` 的正式交付目标是 Windows setup `.exe` 和 Linux
+  AppImage/`.deb`。最终用户安装 Desktop 时不得要求 Docker Desktop、
+  PostgreSQL、Redis 或 Python 开发环境。
+- Desktop 是交互客户端，不是远端任务、审批、事件、WorkflowJob 或部署状态的
+  权威宿主；本地只使用独立 SQLite 保存非权威缓存、草稿、server profile 和事件
+  游标，凭据进入 OS credential store。
+- PostgreSQL 与 Redis 保留在常在线 Linux Ops Hub。PostgreSQL 保存平台权威
+  业务/审计状态，Redis 只负责非权威投递；本地 Compose PostgreSQL 仅用于仓库
+  开发、测试或单机 demo。
+- 后续 `modules/local-runtime` 作为 Desktop sidecar 负责本机 workspace、Git、
+  测试和受控工具执行；它不直接连接 PostgreSQL、Redis 或 Remote Agent。
+- 每套中心设施先独立执行一次 Ops Hub installation/bootstrap；每台受管 Linux
+  目标再执行只含 Docker/Compose、Remote Agent、采集器和 machine credential 的
+  Remote Target / Environment bootstrap，并注册到既有 Ops Hub。日常业务项目
+  发布不得重复执行任一 bootstrap。
+- Agent 新建或改造的业务项目必须可独立构建、测试、部署和运行，不得 import
+  CloudHelm SDK、连接 CloudHelm 平台数据库或要求控制台在线。
+- CloudHelm 兼容性通过根目录 `cloudhelm.project.yaml`、
+  `cloudhelm.env.schema.json`、标准 health/log/metrics 和 OCI/Compose 契约实现；
+  删除这两个适配文件后，项目核心功能必须仍可运行。
+- Ops Hub、Remote Agent、观测栈和业务项目使用独立 Compose project、network、
+  volume、credential、升级和卸载流程。卸载业务项目不得删除运维系统或审计数据。
+- 正常常驻工作流由服务端 Orchestrator/Workflow Engine 推进；Desktop
+  `run-next` 只用于开发调试、答辩逐步展示或人工恢复，不得成为 App 离线时的
+  单点依赖。
+- Ops Hub 用户权限使用 `role + system/project/environment scope + resource
+  attributes + domain separation-of-duty`。Desktop 的隐藏/禁用按钮不构成安全
+  边界，每个 API 请求都必须由服务端默认拒绝、最小权限并重新鉴权。
+- 用户、Desktop device/session 与 Remote Agent machine identity 必须分离。
+  access/refresh token 进入 OS credential store，不写 Desktop SQLite。
+- System Owner、Reviewer、Operator 等角色也不能绕过“实现者/请求者不得批准同一
+  资源”的领域门禁；调用方自报 `actor_id` 不得作为真实授权身份。
+
 ## 6. 技术选型与实现原则
 
 - 写代码前必须先查阅相关设计文档、接口契约、模块说明和当前 `PROJECT_PLAN.md`，不得凭印象或猜测实现。
@@ -200,8 +235,10 @@ subagent 模型，并结合 CloudHelm 的 Tool Gateway 与审批边界落实：
   会写入同一 workspace、Git index、数据库或共享状态的任务必须串行，或使用
   明确隔离的 worktree / workspace，避免并发覆盖。
 - 每个 subagent 使用独立 child thread / conversation。默认只允许 root 创建
-  直接 child，最大深度为 1；并发线程默认上限参考 Codex CLI 为 6。确需递归
-  委派时，必须先在计划和风险记录中说明原因。
+  直接 child，最大深度为 1。CloudHelm 当前产品原语使用
+  `max_active_children=6` 的自有计数语义；Codex CLI 的并发 thread 模型只作为
+  协作参考，不把两者描述为精确等价。确需递归委派时，必须先在计划和风险记录
+  中说明原因。
 - child 只向父线程回传简洁、结构化、可审计的最终摘要和证据引用；不得把隐藏
   reasoning、完整工具历史、原始日志或大段堆栈拼回父线程。父线程负责等待所需
   child、处理超时/取消并统一形成最终结论。

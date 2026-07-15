@@ -62,6 +62,30 @@
 - Environment `base_url` 在 M7-1 不触发网络访问。后续健康检查必须改由服务端
   profile/allowlist 派生，避免形成任意 URL/SSRF 入口。
 
+## M9 用户、Device、Session 与分层权限（规划）
+
+当前 Platform API 还没有真实用户认证或 RBAC；以下是目标安全边界：
+
+- 用户 access/refresh token、Desktop device、Local Runtime device、Remote Agent
+  machine credential 和 Controller credential 使用不同 identity/secret。
+- Desktop token 进入 OS credential store/Stronghold，不写 SQLite、日志、crash
+  report 或 Artifact。
+- API 从认证上下文派生 `user_id/device_id/session_id`，不相信请求体中的
+  `actor_id`、role 或 permission。
+- 授权决策使用 `role permissions + system/project/environment scope +
+  resource attributes/version + domain separation-of-duty`，默认拒绝。
+- Desktop 隐藏/禁用按钮只改善体验；每个资源请求由 Ops Hub 重新鉴权。
+- System Owner 也不能批准自己发起或实现的 release/deployment。
+- 任何用户禁用、binding 撤销/过期或角色变更都不能移除最后一个 active
+  system owner。
+- Refresh token 轮换必须保留 hash 历史，检测旧 token 重用后撤销整个 family。
+- EventLog、PermissionDenied 和 role/session 事件不得保存密码、token、完整
+  Authorization header 或 secret。
+
+详细角色、权限、数据模型和 Desktop 门禁见
+[03-user-role-permission.md](03-user-role-permission.md) 与
+[../15-detailed-design/11-identity-access-control.md](../15-detailed-design/11-identity-access-control.md)。
+
 ## 设计书摘录
 
 ### 14.1 安全边界
@@ -75,5 +99,5 @@
 |数据库|destructive migration 必须人工审批|
 |部署|Release / Deploy Agent 是部署编排入口；Git / CI 提供可追踪产物，Tool Gateway、审批和 Deployment Controller 控制实际远端变更|
 |工具调用|全部记录 tool_calls 和 event_logs|
-|权限|按 Agent 角色发放最小权限|
+|权限|人类用户按 scoped RBAC + domain guard；Agent/Tool 按角色 allowlist 与 Tool Gateway policy 发放最小权限|
 |成本|按 project / task / agent 设置 token 和资源预算|

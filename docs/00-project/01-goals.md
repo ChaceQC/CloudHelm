@@ -73,6 +73,21 @@
    - 实时监控面板。
    - 工具调用记录。
    - 审批按钮。
+15. 支持 Desktop 产品化发行：
+   - Windows setup `.exe` 和安装后的 `CloudHelm.exe`。
+   - Linux AppImage 和 `.deb` 安装包。
+   - 运行时 Ops Hub server profile、用户/device 认证、本地 SQLite 缓存和断线
+     重连。
+   - 最终用户安装不要求 Docker Desktop、PostgreSQL 或 Redis。
+16. 支持常在线 Agents 运维系统：
+   - Platform API、Orchestrator、Agent Runtime、Tool Gateway、Workflow Engine、
+     Deployment Controller、PostgreSQL 和 Redis 部署在 Linux Ops Hub。
+   - App 退出后，已持久化且不需要新审批的远端工作流继续执行。
+   - App 重连后通过 snapshot + event sequence 补齐状态。
+17. 支持 Agent 项目可剥离交付：
+   - Project Core 独立构建、测试、运行、升级和保存数据。
+   - `cloudhelm.project.yaml` 与 `cloudhelm.env.schema.json` 只是可选适配契约。
+   - 业务项目不依赖 CloudHelm SDK、平台数据库或控制台在线。
 
 ### 3.2 非功能目标
 
@@ -88,5 +103,11 @@
    sandbox 验证 -> PR -> release candidate 审批 -> `workflow_dispatch` CI ->
    不可变 OCI 制品 -> deployment 审批 -> Remote Agent 执行 Linux staging /
    demo 部署 -> 实时监控 -> 运维反馈”的闭环。
+9. **可安装性**：Windows/Linux Desktop 可在未安装 Docker/PostgreSQL/Redis 的
+   干净环境中安装、启动、升级和卸载。
+10. **持续在线性**：Ops Hub 的生命周期独立于 Desktop，App 退出、升级或断网不
+    中止服务端已接受的任务和远端业务项目。
+11. **项目可移植性**：同一 commit 必须能通过 standalone 路径和 CloudHelm 受管
+    路径运行，业务行为、health 和数据保留语义一致。
 
 ---

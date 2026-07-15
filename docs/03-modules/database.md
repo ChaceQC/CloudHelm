@@ -5,19 +5,23 @@
 
 ## 职责
 
-数据库迁移、种子数据和 schema 定义。
+Ops Hub PostgreSQL、Desktop SQLite 和业务项目数据边界、migration、种子数据和
+schema 定义。
 
 ## 技术栈
 
-PostgreSQL + Alembic / Prisma Migrate。
+Ops Hub：PostgreSQL + Alembic。
+Desktop：SQLite + 独立 migration chain。
+业务项目：按项目需求自选并自包含 migration。
 
 ## 上游依赖
 
-Platform API、Spec Store、Audit Log。
+Platform API、Identity/RBAC、Spec Store、Audit Log、Desktop repository。
 
 ## 主要输出
 
-migration、schema.sql、seed data、rollback script。
+服务端 migration/schema/seed/rollback、Desktop local-store migration、存储边界
+与备份/恢复说明。
 
 ## MVP 实现要点
 
@@ -25,6 +29,8 @@ migration、schema.sql、seed data、rollback script。
 2. 所有跨模块调用优先通过共享契约和 API，不直接耦合内部实现。
 3. 状态变化、工具调用、审批、远程操作都必须写入事件或审计记录。
 4. 与远端业务项目相关的操作必须绑定 `project_id + environment_id + deployment_id + service_id`。
+5. Desktop SQLite 不复制 PostgreSQL 业务表，凭据不写 SQLite。
+6. 业务项目不得复用 CloudHelm Ops Hub database/schema/user。
 
 ## 测试关注点
 

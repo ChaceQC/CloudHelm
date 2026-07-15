@@ -103,7 +103,9 @@
 1. root conversation 作为主 agent thread，保存用户目标、约束、决策、审批和
    最终汇总；噪声较大的探索、测试和日志分析放入独立 child。
 2. child 必须由显式 spawn 创建，并携带 role、objective、expected result、
-   fork mode 和完成判定。默认 `max_depth=1`、`max_threads=6`。
+   fork mode 和完成判定。CloudHelm 自身采用 `max_depth=1`、
+   `max_active_children=6`；该计数不描述为 Codex CLI 并发 thread 配置的精确
+   等价实现。
 3. read-heavy 工作可并行；写入同一 workspace、Git index 或共享状态的工作必须
    串行，或使用独立 worktree/workspace。
 4. child 只向父线程回传简洁结构化摘要和证据引用，不复制 reasoning、完整工具

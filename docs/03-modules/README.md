@@ -17,6 +17,7 @@
 - [modules/audit-log.md](modules/audit-log.md)
 - [modules/deployment-controller.md](modules/deployment-controller.md)
 - [modules/integrations.md](modules/integrations.md)
+- [modules/local-runtime.md](modules/local-runtime.md)
 - [modules/monitoring-collector.md](modules/monitoring-collector.md)
 - [modules/orchestrator.md](modules/orchestrator.md)
 - [modules/platform-api.md](modules/platform-api.md)

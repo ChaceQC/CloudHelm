@@ -11,6 +11,12 @@
 - ProjectRepositoryBinding、ReleaseCandidate、CIRun、WorkflowJob、Environment、
   RemoteTarget、Deployment、ServiceInstance 共同描述 M7 的 CI 与远端
   staging/demo 部署闭环。
+- User、Device、DevicePairingChallenge、UserSession、SessionRefreshToken、
+  UserInvitation、Role、Permission、RoleBinding、SystemSecurityState 描述 Ops Hub
+  多用户、设备配对、会话、token rotation、邀请、permission version 和 scoped
+  RBAC。
+- Desktop SQLite 不是本 ER 的服务端数据库副本，只保存本地 profile、缓存、草稿
+  和 event sequence；业务项目数据由项目自己拥有。
 - M7 的 RemoteTarget 固定为运行 Remote Agent 的 Linux 主机；production、
   Kubernetes target、RemoteSession、ProjectMetric、ProjectAlert 和 Incident
   保留为 M8 或增强版实体，不计入 M7 完成范围。
@@ -22,6 +28,16 @@
 |实体|说明|
 |---|---|
 |Project|接入的平台项目或仓库|
+|User|Ops Hub 登录用户|
+|Device|Desktop 或 Local Runtime 的受信设备身份|
+|DevicePairingChallenge|Desktop 明确确认后，为 Local Runtime 创建的短期、单次消费配对挑战|
+|UserSession|短期 access token 与轮换 refresh token 对应的服务端 session|
+|SessionRefreshToken|只保存 refresh token hash 与轮换/重用检测历史|
+|UserInvitation|只保存邀请 token hash、过期、接受和撤销状态|
+|Role|预置或后续可扩展的权限模板|
+|Permission|服务端可判定的稳定能力 key|
+|RoleBinding|把 User/Role 绑定到 system、project 或 environment scope|
+|SystemSecurityState|保存全局 permission version、bootstrap 完成状态和安全版本|
 |Task|一次用户目标或自动触发任务|
 |RequirementSpec|开发者目标、功能需求、约束和验收标准|
 |TechnicalDesign|Agent 生成的技术方案、ADR、API 设计和数据库设计|
@@ -49,3 +65,7 @@
 |ProjectAlert|M8 远端业务项目告警|
 |Incident|M8 远端业务项目故障事件|
 |RemoteSession|增强版远程终端 / 远程接管会话，M7 不创建|
+
+后续 EventLog 需要增加单调 `sequence`、`stream_kind`、`project_id`、
+`aggregate_type/id/version`、`schema_version`、认证 actor 和 `subject_user_id`，
+支持多个 Desktop 长时间离线后的可靠补齐，并区分执行者与用户控制流受众。

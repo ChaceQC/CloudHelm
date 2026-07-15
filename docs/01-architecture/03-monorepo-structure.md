@@ -5,6 +5,7 @@
 ## 放置规则
 
 - 桌面端进入 `apps/control-console`。
+- 随 Desktop 分发的本机执行 sidecar 进入 `modules/local-runtime`。
 - 平台后端、Agent、工具、远端控制、部署、监控等进入 `modules/*`。
 - OpenAPI、事件 schema、工具 schema 等跨语言契约进入 `packages/shared-contracts`。
 - 本地与远端基础设施配置进入 `infra`。
@@ -69,6 +70,13 @@ cloudhelm/
 │   │   │   └── incident_triage.py
 │   │   ├── state_machines/
 │   │   ├── policies/
+│   │   └── tests/
+│   │
+│   ├── local-runtime/
+│   │   ├── src/
+│   │   ├── workspace/
+│   │   ├── transport/
+│   │   ├── policy/
 │   │   └── tests/
 │   │
 │   ├── agent-runtime/
@@ -254,6 +262,16 @@ cloudhelm/
 │   └── schema.sql
 │
 ├── infra/
+│   ├── desktop/
+│   │   ├── windows/
+│   │   ├── linux/
+│   │   └── release/
+│   ├── ops-hub/
+│   │   ├── compose.yaml
+│   │   ├── install.sh
+│   │   ├── upgrade.sh
+│   │   ├── backup.sh
+│   │   └── restore.sh
 │   ├── docker-compose/
 │   │   ├── docker-compose.dev.yml
 │   │   └── docker-compose.observability.yml
@@ -266,6 +284,8 @@ cloudhelm/
 │
 ├── examples/
 │   ├── sample-repo-python/
+│   │   ├── cloudhelm.project.yaml
+│   │   └── cloudhelm.env.schema.json
 │   ├── sample-repo-node/
 │   └── demo-issues/
 │
