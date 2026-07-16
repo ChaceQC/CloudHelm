@@ -170,6 +170,41 @@ if (
 - Windows 侧 Platform API 测试可通过 `127.0.0.1:15432` 访问 PostgreSQL。
 - WSL 停止、容器重启和数据卷位置都必须记录，不使用历史通过数替代当前验证。
 
+M7-2C 起 Celery worker 也在该 WSL 基线中运行。2026-07-16 已使用官方安装器把
+`uv 0.11.29` 安装到 `/home/cloudhelm/.local/bin`。为避免 Windows/Linux wheel
+混用，WSL 使用独立环境：
+
+```text
+UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv
+```
+
+验证命令：
+
+```powershell
+wsl -d Ubuntu-24.04 -u cloudhelm `
+  --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  UV_LINK_MODE=copy `
+  /home/cloudhelm/.local/bin/uv sync --frozen --all-groups
+
+wsl -d Ubuntu-24.04 -u cloudhelm `
+  --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  /home/cloudhelm/.local/bin/uv run pytest -q -m "not workflow_integration"
+
+wsl -d Ubuntu-24.04 -u cloudhelm `
+  --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  CLOUDHELM_RUN_WORKFLOW_INTEGRATION=1 `
+  /home/cloudhelm/.local/bin/uv run pytest -q -m workflow_integration
+```
+
+Redis stop/start 集成使用临时 `cloudhelm-redis-workflow-test` container 和
+`127.0.0.1:16380`，验证 broker 不可用时 PostgreSQL job 保持 pending、Redis
+恢复后 dispatcher 补投、prefork worker 只 claim 一次并收敛 succeeded；同一
+集成组还会 SIGKILL 独立 prefork 进程组并验证过期 `none` job 安全回排。fixture
+强制使用 DB 15，自动创建/删除临时 container，保留共享开发 PostgreSQL/Redis。
+
 开发测试结束时可以只停止 CloudHelm keepalive，不影响其他发行版会话：
 
 ```powershell

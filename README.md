@@ -1,10 +1,10 @@
 # 云舵 CloudHelm
 
 CloudHelm 是面向毕业设计演示的多 Agent DevOps 系统。本仓库已完成
-**M1-M6**，并完成 M7-0/M7-1 与 M7-2A/B1/B2 已交付切片，包括
+**M1-M6**，并完成 M7-0/M7-1 与 M7-2A/B1/B2/C 已交付切片，包括
 **Environment + RemoteTarget + machine-auth heartbeat**、数据底座、
 RepositoryBinding PUT/GET，以及 ReleaseCandidate、第一道审批和 reconcile
-WorkflowJob 原子创建。当前已实现系统在已审批
+WorkflowJob 原子创建与 durable 自动执行。当前已实现系统在已审批
 DevelopmentPlan 基础上，由 Scaffold、Coder、Tester、Reviewer、Security 经统一
 Tool Gateway 真实修改受控 sample repo、运行 pytest 与安全扫描、创建本地
 branch/commit，并持久化 Artifact 和 `provider=local` 的 PR record。
@@ -15,8 +15,9 @@ branch/commit，并持久化 Artifact 和 `provider=local` 的 PR record。
 > record；Platform API 还可登记 staging/demo Environment、受控 RemoteTarget
 > 与 RepositoryBinding，Remote Agent 可通过 HMAC 上报心跳；Candidate POST
 > 严格接受 `{}` 并原子创建第一道 L2 Approval 和无外部副作用的 reconcile
-> WorkflowJob，GET 执行 active-first 查询。durable worker、真实 Gitea CI、
-> 远端部署和监控仍未交付。
+> WorkflowJob，GET 执行 active-first 查询。服务端 dispatcher/worker 可在
+> Desktop `run-next` 之外完成 claim、lease、heartbeat、retry 与 stale reclaim。
+> 真实 Gitea CI、远端部署和监控仍未交付。
 
 正式产品目标已经调整为：
 
@@ -71,7 +72,7 @@ modules/
   tool-gateway/           # 本地 Repo/Test/Security/Git 工具、策略和审计
   remote-agent/           # M7-1 runtime 端点、credential file 与签名 heartbeat
   local-runtime/          # 规划：随 Desktop 分发的本机 workspace/Git/test sidecar
-  workflow-engine/        # 规划：Ops Hub durable job、dispatcher、worker 与恢复
+  workflow-engine/        # M7-2C durable dispatcher、worker、lease/retry/reclaim
   deployment-controller/  # 规划：通用项目契约渲染与 Remote Agent 部署
 packages/
   shared-contracts/       # OpenAPI、事件 schema、工具风险等级 schema、Agent 输出 schema
@@ -162,7 +163,30 @@ Candidate POST 只接受严格 `{}`；服务端绑定最新版 open PullRequestR
 命中返回 `200`。Candidate、第一道 L2 Approval、`release_candidate_reconcile`
 WorkflowJob 和事件在同一 PostgreSQL 事务中创建。approve/reject 会重新校验
 PR、Binding、request hash、有效期和实现 AgentRun 自批门禁。M7-2B2 只持久化
-pending job，不发布 ref、不触发 CI；dispatcher/worker 属于 M7-2C。
+pending job，不发布 ref、不触发 CI；M7-2C dispatcher/worker 现会自动执行纯
+数据库 reconcile，但仍不发布 ref 或触发 CI。
+
+## Workflow Engine M7-2C
+
+Celery worker、dispatcher 与 reclaimer 在 WSL/Linux 中运行；Windows 与 WSL
+分别使用独立虚拟环境，避免共享跨平台 `.venv`：
+
+```powershell
+wsl -d Ubuntu-24.04 -u cloudhelm --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  /home/cloudhelm/.local/bin/uv sync --frozen --all-groups
+
+wsl -d Ubuntu-24.04 -u cloudhelm --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  /home/cloudhelm/.local/bin/uv run cloudhelm-workflow-engine dispatcher
+```
+
+worker 与 reclaimer 命令见
+[`modules/workflow-engine/README.md`](modules/workflow-engine/README.md)。
+`release_candidate_reconcile` 不调用 Git、HTTP、Docker、Gitea、CI 或 Remote
+Agent；Redis 重启后由 PostgreSQL pending job 周期补投。真实集成测试会自动
+创建并删除 `127.0.0.1:16380/15` 的隔离 Redis，同时验证 prefork worker
+hard-crash 后 `none` job 按 lease 回排。
 
 ## Remote Agent M7-1
 
@@ -349,18 +373,20 @@ VITE_CLOUDHELM_API_BASE_URL=http://127.0.0.1:18080
 
 ## 当前未实现能力
 
-当前尚未实现 durable Workflow Engine、CIRun/Deployment/ServiceInstance、
-Release / Deploy / SRE Agent、真实远端 PR、Gitea CI、远端 Compose deployment、
-监控告警或完整桌面端壳。也尚未实现用户登录/RBAC、Local Runtime、正式 Ops Hub
-安装/备份、project/env adapter schema、通用 renderer、Desktop 离线 sequence
-同步和 Windows/Linux 安装包。Sandbox 当前使用本地受控目录 + subprocess 超时，
-没有 Docker 的 CPU、内存、PID 和网络隔离；M7 在接入远端 staging/demo 前继续
-收敛 Docker/远端执行边界。
+当前尚未实现 CIRun/Deployment/ServiceInstance、Release / Deploy / SRE Agent、
+真实远端 PR、Gitea CI、远端 Compose deployment、监控告警或完整桌面端壳。也
+尚未实现用户登录/RBAC、Local Runtime、正式 Ops Hub 安装/备份、project/env
+adapter schema、通用 renderer、Desktop 离线 sequence 同步和 Windows/Linux
+安装包。Sandbox 当前使用本地受控目录 + subprocess 超时，没有 Docker 的 CPU、
+内存、PID 和网络隔离；M7 在接入远端 staging/demo 前继续收敛 Docker/远端执行
+边界。
 
 当前失败恢复只覆盖能够进入应用异常处理的错误和已有幂等证据。Platform API
 进程在终态写入前被强制终止时，`pending/running` AgentRun/ToolCall 尚无
 lease、heartbeat 或 stale reclaim，需依据数据库与工作区证据人工核验；M6
-不宣称 hard crash 后自动恢复。M7-2B2 的 WorkflowJob 目前也只有 PostgreSQL
-持久化和事件，没有 dispatcher、claim、lease、heartbeat 或 stale reclaim；
-这些由 M7-2C 实现。M7-1 的离线状态暂由 RemoteTarget list 或下一次 heartbeat
-收敛，项目/环境事件查询与实时 SSE 尚未实现。
+不宣称 hard crash 后自动恢复。M7-2C 的 `release_candidate_reconcile`
+WorkflowJob 已具备 PostgreSQL dispatch/claim/lease/heartbeat/retry/reclaim，
+并通过 Redis restart 与 prefork hard-crash WSL 集成测试；外部 CI/deploy
+handler、resolver 和 `recovery_required` 人工恢复入口仍未实现。M7-1 的离线
+状态暂由 RemoteTarget list 或下一次 heartbeat 收敛，项目/环境事件查询与实时
+SSE 尚未实现。

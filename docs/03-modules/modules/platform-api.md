@@ -3,7 +3,7 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`modules/platform-api`
 
-## M2-M7-2B2 实现状态
+## M2-M7-2C 实现状态
 
 `modules/platform-api` `0.5.1` 已从 M1 `/health` 扩展为真实数据库 API 和
 本地开发工作流：
@@ -94,7 +94,9 @@
 - 新 PR 或 Binding 漂移会原子 stale 旧 Candidate，并使 pending Approval
   expired；锁等待后的决策时间使用 PostgreSQL `clock_timestamp()`。
 - B2 没有 push、CI 或远端副作用。Redis/Celery durable Workflow Engine 属于
-  M7-2C。
+  M7-2C，现已由独立模块实现；Platform API 只提供 PostgreSQL repository、严格
+  DTO、reconcile 事务服务与 Task pause/resume/cancel 联动，不反向依赖 Celery
+  运行模块。
 
 ## 职责
 
@@ -103,11 +105,13 @@
 ## 当前技术栈
 
 Python + FastAPI + Pydantic v2 + SQLAlchemy 2.x + Alembic + PostgreSQL。
-Redis 当前只是预留配置，尚未进入生产路径。
+Redis/Celery 由 `modules/workflow-engine` 使用，Platform API 仍不把 Redis 作为
+业务权威或直接执行 worker。
 
 ## 上游依赖
 
-PostgreSQL、Redis、Orchestrator、Tool Gateway。
+PostgreSQL、Orchestrator、Tool Gateway。Redis 是 Ops Hub 中供独立 Workflow
+Engine 使用的基础设施，不是 Platform API 的直接运行依赖。
 
 ## 主要输出
 

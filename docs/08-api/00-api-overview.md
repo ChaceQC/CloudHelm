@@ -258,7 +258,8 @@ M7 的 `POST /api/tasks/{task_id}/release-candidate` 是第一道审批的唯一
 请求体固定为 `{}`；最新版 PullRequestRecord、完整 commit、repository binding
 snapshot/hash、candidate ref、幂等键和 request hash 均由服务端派生，并在同一
 事务创建 Candidate、L2 Approval 与 pending `release_candidate_reconcile`
-WorkflowJob。当前 B2 只完成该原子持久化，不发布 ref 或触发 CI。
+WorkflowJob。M7-2C dispatcher/worker 已自动执行该纯数据库 reconcile，但不发布
+ref 或触发 CI。
 `remote-deployment/start` 只接受
 `environment_id`，要求已有 approved candidate，并由服务端选择 active
 RemoteTarget，不重复创建第一道审批。审批通过后才发布受控 ref，并对固定
@@ -267,9 +268,10 @@ manifest 和不可变 OCI digest；Release / Deploy Agent 随后生成 ReleasePl
 第二道 deployment approval 通过后才允许 Deployment Controller 调用 Remote
 Agent。`rollback-request` 只生成候选与审批请求，不自动执行回滚。
 
-`remote-deployment/run-next` 只用于调试、逐步演示和人工恢复。M7-2C 完成后，
-正式 Ops Hub 才在命令/审批事务提交后由 durable dispatcher 与 worker 自动继续，
-Desktop 退出不停止已持久化且无需新审批的工作。
+`remote-deployment/run-next` 只用于调试、逐步演示和人工恢复。M7-2C 已提供
+durable dispatcher/worker，Desktop 退出不会停止已提交的
+`release_candidate_reconcile`；CI、发布和部署只有在后续注册真实 handler/
+resolver 后才具备同样的服务端 continuation，当前不得提前宣称完整远端闭环。
 
 ### 12.7 M7 Remote Ops API
 

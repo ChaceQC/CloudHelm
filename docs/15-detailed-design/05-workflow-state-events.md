@@ -232,15 +232,26 @@ WorkflowJob 运行事件固定为：
 
 ```text
 WorkflowJobQueued
+  | WorkflowJobDispatchDeferred
   -> WorkflowJobStarted
-  -> WorkflowJobSucceeded
+     | WorkflowJobSucceeded
+     | WorkflowJobFailed
      | WorkflowJobRetryScheduled
+     | WorkflowJobExecutionDeferred
+     | WorkflowJobCancelRequested
+        | WorkflowJobCancelled
+        | WorkflowJobSucceeded
+        | WorkflowJobFailed
+        | WorkflowJobRecoveryRequired
      | WorkflowJobCancelled
      | WorkflowJobRecoveryRequired
 ```
 
 broker publish 暂时失败只写脱敏的 `WorkflowJobDispatchDeferred`，Candidate 创建
-事务仍成功；durable dispatcher 后续补投。
+事务仍成功；durable dispatcher 后续补投。worker claim 后若 Task 恰好暂停，
+本次尚未开始的 attempt 会撤销并回 pending，写
+`WorkflowJobExecutionDeferred(error_code=workflow_job_task_paused)`，不得复用
+只表示 broker publish 失败的 `WorkflowJobDispatchDeferred`。
 
 两道审批彼此独立：第一道审批前不发布 candidate ref、不触发 CI；第二道审批前
 不产生 Remote Agent 副作用。Gitea workflow 不监听 push，`CIRunTriggered`

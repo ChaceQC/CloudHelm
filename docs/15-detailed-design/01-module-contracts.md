@@ -222,16 +222,18 @@ Compose、文件路径或 command；这些值必须从受控 binding/target/prof
 - 部署健康后写 `MonitoringRegistered` 并停在 `Monitoring`，把监控告警交给
   M8；健康失败只保存 rollback candidate/request。
 
-## 4.1 modules/workflow-engine（M7 计划）
+## 4.1 modules/workflow-engine（M7-2C 已实现；外部副作用 handler 仍规划）
 
-- 使用 Redis + Celery 投递，task payload 只包含 PostgreSQL
-  `workflow_job_id`。
-- PostgreSQL WorkflowJob 保存 request hash、idempotency key、claim、lease、
-  heartbeat、attempt、retry、cancel requested、结果与 `recovery_required`。
-- worker 在短事务 claim 后执行 Git、CI、HTTP 或远端副作用，再用新事务写终态；
-  不得在 Task/Job 行锁内等待外部系统。
-- stale reclaim 必须先查询 Gitea run 或 Remote Agent operation；状态未知时
-  转 `recovery_required`，不得盲目重放 push、CI 或部署。
+- 已使用 Redis + Celery 完成 durable 投递，task payload 只包含 PostgreSQL
+  `workflow_job_id`；PostgreSQL 保持业务权威。
+- WorkflowJob 已实现 dispatch、claim、lease、heartbeat、attempt、retry、
+  cancel requested、stale reclaim、结果与 `recovery_required`。
+- 当前唯一生产 registry 为
+  `release_candidate_reconcile -> release_candidate -> none`，handler 只执行
+  PostgreSQL reconcile，不调用 Git、CI、HTTP、Docker 或 Remote Agent。
+- 后续 Git、CI、部署 operation 必须补同一远端 operation resolver；状态未知时
+  转 `recovery_required`，不得盲目重放 push、CI 或部署，也不得在 Task/Job
+  行锁内等待外部系统。
 
 ## 5. modules/agent-runtime
 

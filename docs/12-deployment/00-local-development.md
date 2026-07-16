@@ -96,7 +96,8 @@ Remove-Item Env:CLOUDHELM_TEST_ALLOW_SCHEMA_RESET
 显式模式会重建目标测试库的 `public` schema；数据库名必须包含独立 `test`
 段，不得指向 `cloudhelm` 开发库。缺少确认时测试在迁移前终止。
 
-M2 的 Redis 服务仅通过 Compose profile 预留：
+M2 当时的 Redis 服务仅通过 Compose profile 预留；M7-2C 起由 Workflow
+Engine 作为 Celery broker 使用：
 
 ```powershell
 wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
@@ -106,7 +107,65 @@ docker compose -f infra/docker-compose.dev.yml \
 "@
 ```
 
-当前生产代码路径未使用 Redis。
+Redis 只负责消息投递，不保存 WorkflowJob 业务事实。
+
+## M7-2C Workflow Engine WSL 开发与故障测试
+
+Celery worker 统一在 Ubuntu 24.04 WSL2 中运行。WSL 用户环境已使用官方安装器
+安装 `uv 0.11.29` 到 `/home/cloudhelm/.local/bin`。Windows 与 Linux wheel
+不同，不共享仓库内 `.venv`；WSL 固定使用：
+
+```text
+/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv
+```
+
+首次同步：
+
+```powershell
+wsl -d Ubuntu-24.04 -u cloudhelm `
+  --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  UV_LINK_MODE=copy `
+  /home/cloudhelm/.local/bin/uv sync --frozen --all-groups
+```
+
+启动三个独立进程：
+
+```bash
+uv run cloudhelm-workflow-engine dispatcher
+
+uv run celery \
+  -A cloudhelm_workflow_engine.celery_app:celery_app \
+  worker \
+  --queues cloudhelm.workflow \
+  --pool prefork \
+  --concurrency 1 \
+  --hostname 'cloudhelm-workflow@%h' \
+  --loglevel INFO
+
+uv run cloudhelm-workflow-engine reclaimer
+```
+
+执行普通与真实 Redis restart 测试：
+
+```powershell
+wsl -d Ubuntu-24.04 -u cloudhelm `
+  --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  /home/cloudhelm/.local/bin/uv run pytest -q -m "not workflow_integration"
+
+wsl -d Ubuntu-24.04 -u cloudhelm `
+  --cd "/mnt/d/graduation project/modules/workflow-engine" -- `
+  env UV_PROJECT_ENVIRONMENT=/home/cloudhelm/.cache/cloudhelm/workflow-engine-venv `
+  CLOUDHELM_RUN_WORKFLOW_INTEGRATION=1 `
+  /home/cloudhelm/.local/bin/uv run pytest -q -m workflow_integration
+```
+
+restart 用例使用临时 `cloudhelm-redis-workflow-test` container 和独立端口
+`127.0.0.1:16380`、DB 15；fixture 强制校验该隔离目标并自动创建/删除。集成组
+同时验证 Redis stop/start 补投和真实 prefork 进程组 hard-crash 后 `none` job
+lease 回排；共享 `cloudhelm-postgres-dev`/`cloudhelm-redis-dev` 保持运行。正式 Ops Hub
+installation/bootstrap 仍是独立的后续验收，不把本节开发基线写成正式安装。
 
 ## M6 sample repo 与本地工作区
 

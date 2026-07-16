@@ -5,10 +5,20 @@
 
 ## 当前实现状态
 
-M7-2B2 目前只由 Platform API 在 PostgreSQL 中创建 pending
-`release_candidate_reconcile` WorkflowJob。仓库尚未创建
-`modules/workflow-engine` 运行模块，也没有 Celery dispatcher、worker、claim、
-lease、heartbeat、retry 或 stale reclaim；本文件其余内容是 M7-2C 的实施契约。
+M7-2C 已创建独立 `modules/workflow-engine` 包并固定 Celery `5.6.3`、
+Kombu `5.6.2`、redis-py `6.4.0`。当前已实现：
+
+- PostgreSQL due scan、dispatch lease、publish success/failure finalize、
+  enqueue backoff 与周期 redispatch。
+- Celery JSON message、late ack、prefetch=1、worker claim、mark-running、
+  heartbeat、terminal、safe retry 与 stale reclaim。
+- Task pause/resume/cancel 联动。
+- 首个真实且无外部副作用的 `release_candidate_reconcile` handler。
+- WSL Ubuntu 24.04 原生 Docker PostgreSQL/Redis、真实 prefork Celery worker
+  与 Redis stop/start 补投、进程组 hard-crash lease 回排集成测试。
+
+candidate ref、Gitea CI、registry、Deployment 和 Remote Agent operation 仍属于
+后续 M7 纵切，不在当前 handler registry 中注册。
 
 ## 职责
 
@@ -33,7 +43,8 @@ job、retry state、scheduled task、worker heartbeat。
 2. durable dispatcher 使用 dispatch lease、next enqueue、attempt/error 周期补投，
    关闭数据库 commit 与 broker publish 的永久空窗。
 3. claim、mark-running、heartbeat、finish 和 stale reclaim 分别使用短 Session；
-   handler 运行期间不持有 Task/job 行锁。
+   外部 I/O 或长业务计算期间不持有 Task/job 行锁。纯数据库 reconcile 在最终
+   收敛短事务中按规定锁序持锁。
 4. job 保存 `side_effect_class`。无外部副作用 job 可安全重排；可能已经产生外部
    副作用且状态未知时进入 `recovery_required`。
 5. worker 使用 JSON serializer、late ack、prefetch=1 和显式 soft/hard timeout；
@@ -53,6 +64,9 @@ manual-blocking   = recovery_required
 
 - `attempt` 在 claim 成功时增加；`started_at` 在首次进入 running 时写入；
   succeeded/failed/cancelled 写 `finished_at`。
+- claim 后若 mark-running 发现 Task 已暂停，handler 尚未开始，因此释放 worker
+  lease、回 pending，并把本次 claim 增加的 `attempt` 同事务减回 1。用户暂停
+  不消耗业务执行次数，也不会在 `attempt=max_attempts` 时违反 pending 约束。
 - safe retry/stale reclaim 仅在 `attempt < max_attempts` 时回 pending；耗尽时进入
   failed，写 `workflow_job_attempts_exhausted`、数据库完成时间并清 lease/retry/
   enqueue。已请求取消且确认无副作用时优先 cancelled。
@@ -63,7 +77,11 @@ manual-blocking   = recovery_required
 - terminal 不再迁移；M7-2 不提供 recovery_required 自动退出路径。
 - `release_candidate_reconcile` 只允许 Task `running|waiting_approval`。dispatcher
   排除 paused/cancelled/failed/done；mark-running 遇到 paused 时回 pending 并清
-  lease，Task resume 把 pending job 的 next enqueue 推进到数据库当前时间。
+  lease，Task resume 把 pending job 的 next enqueue 推进到
+  `max(clock_timestamp(), next_retry_at)`，不得绕过业务重试退避。
+- mark-running 因 Task pause 撤销 attempt 时写
+  `WorkflowJobExecutionDeferred(error_code=workflow_job_task_paused)`；
+  `WorkflowJobDispatchDeferred` 只表示 broker publish 失败。
 
 ## Side-effect stale 规则
 
@@ -87,9 +105,10 @@ release_candidate_reconcile -> release_candidate -> none
 
 ## Durable dispatcher
 
-Candidate POST 在 PostgreSQL 事务内创建 pending job。M7-2B2 提交后只依赖该
-权威记录，不直接 import 尚未建立的 Workflow Engine；M7-2C 周期 dispatcher
-使用同一 reserve 入口扫描和投递。其 due 条件为：
+Candidate POST 在 PostgreSQL 事务内创建 pending job。M7-2B2 事务层只依赖
+PostgreSQL WorkflowJob repository，不直接依赖 Workflow Engine 运行包；M7-2C
+独立 dispatcher 使用同一 reserve 入口扫描和投递。每轮先读取一次
+`due_cutoff=clock_timestamp()`，其 due 条件为：
 
 ```sql
 tasks.status IN ('running', 'waiting_approval')
@@ -97,18 +116,22 @@ AND workflow_jobs.status = 'pending'
 AND workflow_jobs.attempt < workflow_jobs.max_attempts
 AND (
   workflow_jobs.next_retry_at IS NULL
-  OR workflow_jobs.next_retry_at <= now()
+  OR workflow_jobs.next_retry_at <= due_cutoff
 )
-AND workflow_jobs.next_enqueue_at <= now()
+AND workflow_jobs.next_enqueue_at <= due_cutoff
 AND (
   workflow_jobs.dispatch_lease_expires_at IS NULL
-  OR workflow_jobs.dispatch_lease_expires_at <= now()
+  OR workflow_jobs.dispatch_lease_expires_at <= due_cutoff
 )
 ```
 
-reserve 事务使用 `FOR UPDATE SKIP LOCKED`，写 owner/expiry 并先增加
-`enqueue_attempt`；提交后才 publish。success/failure finalize 必须按
-`id + status=pending + owner` 条件更新。success 还必须清
+reserve 事务先无锁扫描候选，再按 Task -> WorkflowJob 使用
+`FOR UPDATE SKIP LOCKED` 重验并写 owner/expiry、增加 `enqueue_attempt`；取得
+Job 锁后另读一次 `reserved_at=clock_timestamp()`。提交后才 publish。
+success/failure finalize 必须按
+`id + status=pending + dispatch_lease_owner=reservation_owner +
+expected_enqueue_attempt` 条件更新。dispatch owner 必须是每次 reservation
+唯一 token。success 还必须清
 `last_enqueue_error_code`；若 worker 已先 claim，finalize no-op。
 
 - reserve 后、publish 前崩溃：dispatch lease 到期后补投。
@@ -128,7 +151,7 @@ min(max_retry_backoff, retry_backoff * 2 ** max(attempt - 1, 0))
 Celery business message 只含 `workflow_job_id`。同时访问 Task/job/resource 时：
 
 ```text
-无锁读取 job.task_id hint
+无锁读取 job.task_id/resource_id 与 Candidate binding/approval identity hint
   -> Task FOR UPDATE
   -> WorkflowJob FOR UPDATE
   -> ProjectRepositoryBinding FOR UPDATE
@@ -136,9 +159,20 @@ Celery business message 只含 `workflow_job_id`。同时访问 Task/job/resourc
   -> Approval
 ```
 
-dispatcher reserve 只锁 WorkflowJob；Binding PUT 只按
-`Binding -> Candidate(UUID 顺序) -> Approval(UUID 顺序)` 加锁。两者不得在同一
-事务反向获取 Task。Redis、HTTP、Git 或 handler 执行期间不持有数据库行锁。
+worker lease owner 必须包含每次 delivery 唯一 token，不能只使用 hostname/PID，
+否则旧 attempt 的 late result 可能覆盖同一进程中的新 claim。
+
+dispatcher reserve 按 `Task -> WorkflowJob` 加锁；Task pause 在已持 Task 锁时
+按 Job UUID 顺序撤销 pending job 的 dispatch token，使旧 finalize no-op。
+Binding PUT 只按
+`Binding -> Candidate(UUID 顺序) -> Approval(UUID 顺序)` 加锁，不反向获取
+Task。Redis、HTTP、Git 或其他外部 I/O 期间不持有数据库行锁。
+reconcile 获取全部资源锁后重新读取一次 `clock_timestamp()` 并重验
+worker owner、lease 和 Approval expiry，禁止锁等待后沿用旧时间。
+
+stale reclaimer 先无锁扫描过期 job ID，再为每个 ID 建立独立短 Session：
+无锁读取 `task_id` hint，随后按 `Task -> WorkflowJob` 加锁并重新验证 lease。
+不得先锁 WorkflowJob 再反向获取 Task，也不得在一批 job 上长期持锁。
 
 Celery 固定使用 JSON serializer、`accept_content=["json"]`、
 `acks_late=true`、`task_reject_on_worker_lost=true`、
@@ -220,6 +254,10 @@ binding snapshot、Candidate request hash 与 Approval：
 该 job 不执行外部副作用，也不替代 ApprovalService 在 approve/reject 时的同步
 freshness 校验。
 
+当前数据库 CHECK 会直接拒绝 `approve_release_candidate` 的 action、
+resource type 或 L2 risk 结构漂移；handler 仍保留防御性契约校验，并对可持久化
+的 resource id、request hash、Candidate snapshot/hash/PR 漂移执行 stale 收敛。
+
 ## 测试关注点
 
 - 参数校验和错误处理。
@@ -229,6 +267,8 @@ freshness 校验。
 - worker hard-crash、stale claimed/running、side-effect-aware reclaim。
 - Redis 重启后 pending job 能由 dispatcher 恢复投递。
 - Task pause/cancel 与 claim 并发。
+- Task cancel 同事务把 active Candidate 标记为 `cancelled`，只把 pending
+  Candidate Approval 标记为 expired，避免终态 Task 遗留可推进资源。
 - PostgreSQL/migration/worker 集成只创建真实 `none` job；
   `external_idempotent/external_uncertain` 仅测试纯 stale policy/registry。后续真实
   handler 用新 migration 扩展 CHECK 后再补数据库集成。

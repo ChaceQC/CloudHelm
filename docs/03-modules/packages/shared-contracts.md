@@ -3,7 +3,7 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`packages/shared-contracts`
 
-## M2-M7-2B2 实现状态
+## M2-M7-2C 实现状态
 
 共享契约已同步当前 Platform API：
 
@@ -14,11 +14,12 @@
 - `schemas/agents/*.schema.json`：覆盖 Requirement、Architect、Planner、
   Scaffold、Coder、Tester、Reviewer、Security 的稳定结构化输出。
 - `schemas/artifacts/*.schema.json`：约束 Artifact 安全引用和本地 PR record。
-- `schemas/events/task-event.schema.json`：覆盖 M1-M7-2B2 当前真实事件类型；
-  `RepositoryBindingConfigured`、`WorkflowJobQueued`、
-  `ReleaseCandidateApprovalRequested`、`ReleaseCandidateApproved` 和
-  `ReleaseCandidateRejected` 使用 `additionalProperties:false` 的精确 payload
-  allowlist。
+- `schemas/events/task-event.schema.json`：覆盖 M1-M7-2C 当前真实事件类型；
+  RepositoryBinding、Candidate 以及 WorkflowJob dispatch/started/succeeded/
+  failed/retry/cancel/recovery/execution-deferred 事件使用
+  `additionalProperties:false` 的精确 payload allowlist。
+- `schemas/workflow/workflow-job.schema.json`：严格约束只含 job ID 的 broker
+  message、`release_candidate_reconcile` payload/result 和持久化 record。
 - `schemas/tools/*.schema.json`：描述 ToolCall、风险等级和 Requirement、Design、
   Repo、Scaffold、Sandbox、Test、Security、Git 已实现工具契约；名称、风险和
   参数字段与 Tool Gateway registry 执行一致性测试。

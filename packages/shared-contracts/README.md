@@ -8,7 +8,10 @@
 - `openapi/cloudhelm-remote-agent.openapi.yaml`：M7-1 Remote Agent
   `/health`、`/version`、`/capabilities` 运行时契约；文件使用 JSON 语法保存，仍是
   有效 YAML，便于模块只用标准库执行精确匹配测试。
-- `schemas/events/task-event.schema.json`：M2-M7-1 真实 `event_logs` 字段和事件类型枚举，包括 `AgentConversationStopped` / `SubagentStopped` 会话终止事件、`ToolCallRejected` claim 前/重放策略拒绝、AgentRun/ToolCall 取消、Approval 过期、本地开发证据事件，以及 Environment/RemoteTarget/RemoteAgent heartbeat 状态事件；Task 取消时由 `TaskCancelled.payload.cancelled_agent_conversations` 记录关闭数量。
+- `schemas/events/task-event.schema.json`：M2-M7-2C 真实 `event_logs` 字段和事件类型枚举，包括 `AgentConversationStopped` / `SubagentStopped` 会话终止事件、`ToolCallRejected` claim 前/重放策略拒绝、AgentRun/ToolCall 取消、Approval 过期、本地开发证据、WorkflowJob dispatch/worker/retry/cancel/recovery 事件，以及 Environment/RemoteTarget/RemoteAgent heartbeat 状态事件。
+- `schemas/workflow/workflow-job.schema.json`：严格 broker message、
+  `release_candidate_reconcile` payload/result 和 PostgreSQL WorkflowJob 读取
+  契约；所有对象拒绝额外字段，broker 只允许 `workflow_job_id`。
 - `schemas/agents/agent-common.schema.json`：八类普通 Agent 共用的稳定传输
   前缀，约束 schema 版本、角色、状态、摘要、证据引用、风险、阻塞项和
   ToolCall 摘要。
@@ -31,4 +34,6 @@
 - `modules/platform-api`：实现 OpenAPI 中声明的 REST API。
 - `modules/remote-agent`：实现独立 Remote Agent OpenAPI，并发送共享 heartbeat。
 - `apps/control-console`：按契约调用平台 API 并展示结构化结果。
+- `modules/workflow-engine`：按 workflow schema 解析 broker message，并把
+  dispatch、lease、retry 与 terminal 结果写回 PostgreSQL。
 - `modules/orchestrator`、`modules/tool-gateway`、`modules/agent-runtime`：按事件和工具 schema 写入状态、工具调用和审计记录。

@@ -97,20 +97,21 @@ PR record 或新 binding snapshot。
 ```text
 status=approved
 consumed_at IS NULL
-expires_at > PostgreSQL now()
+expires_at > 锁后有效消费时间
 resource_type/resource_id/request_hash 与当前资源完全一致
 ```
 
-approve/reject 本身也必须先校验 `PostgreSQL now() < expires_at`；数据库约束
-approved/rejected 的 `decided_at < expires_at`，过期决策返回
-`409 approval_expired`。
+approve/reject 必须先按规定顺序锁定 Task、领域资源和 Approval，再读取
+`clock_timestamp()`，并取不早于资源与 Approval 已持久化审计时间的有效决策
+时间。只有该时间 `< expires_at` 才可决策；数据库约束 approved/rejected 的
+`decided_at < expires_at`，过期决策返回 `409 approval_expired`。
 
-校验通过后才写 `consumed_at=now()`；数据库约束要求
+校验通过后才写锁后有效消费时间；数据库约束要求
 `decided_at <= consumed_at < expires_at`。Approval approve HTTP 本身不写该字段。
 
 binding、PR 或 request hash 漂移导致 pending Approval 失效时，系统固定写
 `status=expired`、`decided_by=system:release_candidate_freshness` 和数据库
-`decided_at=now()`，不伪装成用户 reject。
+锁后有效决策时间，不伪装成用户 reject。
 
 过期、request hash/snapshot 漂移、已消费或实现 AgentRun 自批返回稳定冲突/权限
 错误。当前 `DecisionRequest.actor_id` 仍是受控入口传入的审计字符串，因此本切片的

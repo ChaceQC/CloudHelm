@@ -76,7 +76,9 @@ retry/enqueue。已请求取消且确认无副作用时，cancelled 优先于 at
 
 - dispatcher 不选择 paused/cancelled/failed/done Task。
 - mark-running 发现 paused 时 `claimed -> pending`、清 worker lease；Task resume
-  把相关 pending job 的 `next_enqueue_at` 推进到数据库当前时间。
+  把本次尚未执行的 claim `attempt` 减回 1；Task resume 把相关 pending job 的
+  `next_enqueue_at` 推进到
+  `max(clock_timestamp(), next_retry_at)`，不绕过 retry backoff。
 - mark-running 发现 cancelled/failed/done 时收敛为 cancelled，并写
   `cancel_requested_at` 与稳定错误码。
 
@@ -104,12 +106,12 @@ failed，running/unknown -> recovery_required。
 status=pending
 attempt=0
 enqueue_attempt=0
-next_enqueue_at=PostgreSQL now()
+next_enqueue_at=数据库列 DEFAULT now()
 next_retry_at=null
 worker/dispatch lease=null
 ```
 
-due 条件：
+每轮先读取一次 `due_cutoff=clock_timestamp()`，due 条件统一复用该值：
 
 ```sql
 tasks.status IN ('running', 'waiting_approval')
@@ -117,20 +119,24 @@ AND workflow_jobs.status = 'pending'
 AND workflow_jobs.attempt < workflow_jobs.max_attempts
 AND (
   workflow_jobs.next_retry_at IS NULL
-  OR workflow_jobs.next_retry_at <= now()
+  OR workflow_jobs.next_retry_at <= due_cutoff
 )
-AND workflow_jobs.next_enqueue_at <= now()
+AND workflow_jobs.next_enqueue_at <= due_cutoff
 AND (
   workflow_jobs.dispatch_lease_expires_at IS NULL
-  OR workflow_jobs.dispatch_lease_expires_at <= now()
+  OR workflow_jobs.dispatch_lease_expires_at <= due_cutoff
 )
 ```
 
-dispatcher 使用 `FOR UPDATE SKIP LOCKED ORDER BY next_enqueue_at,id`：
+dispatcher 先无锁扫描候选，再按 Task -> WorkflowJob 使用
+`FOR UPDATE SKIP LOCKED` 重验；Job 仍按 `next_enqueue_at,id` 稳定排序：
 
-1. reserve 短事务写 dispatch owner/expiry 并先增加 `enqueue_attempt`。
+1. reserve 短事务为每条 reservation 生成唯一
+   `dispatch_lease_owner`，写 expiry 并先增加 `enqueue_attempt`。
 2. 提交后 publish 仅含 job UUID 的 JSON message。
-3. success finalize 以 `id + status=pending + owner` 条件写
+3. success finalize 以
+   `id + status=pending + dispatch_lease_owner=reservation_owner +
+   expected_enqueue_attempt` 条件写
    `last_enqueued_at`、下一 redispatch 时间，清
    `last_enqueue_error_code` 与 lease。
 4. failure finalize 使用同一条件写稳定错误码和指数退避。
@@ -225,11 +231,18 @@ transient DB error 只有在 `attempt < max_attempts` 时回 pending，否则 fa
 同时访问 Task/job/resource 的事务固定：
 
 ```text
-Task -> WorkflowJob -> ProjectRepositoryBinding -> ReleaseCandidate -> Approval
+无锁读取 job/candidate identity hint
+  -> Task
+  -> WorkflowJob
+  -> ProjectRepositoryBinding
+  -> ReleaseCandidate
+  -> Approval
 ```
 
-dispatcher reserve 只锁 WorkflowJob；stale reserve 提交后再用新事务按上述顺序
-收敛。Binding PUT 只按
+dispatcher reserve 按 `Task -> WorkflowJob` 加锁；Task pause 在已持 Task 锁时
+按 Job UUID 顺序撤销 pending job 的 dispatch token，使旧 finalize no-op。
+stale reclaimer 先无锁扫描过期 job ID，再为每个 ID 使用新短 Session 按
+`Task -> WorkflowJob` 重验并收敛。Binding PUT 只按
 `Binding -> Candidate(UUID 顺序) -> Approval(UUID 顺序)` 加锁，不反向获取
 Task。Redis、HTTP、Git 或 handler 执行期间不持有数据库行锁。
 

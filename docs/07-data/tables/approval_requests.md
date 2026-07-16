@@ -71,23 +71,24 @@ user/AgentRun provenance 后再统一收敛历史删除策略。
 - ReleaseCandidate approve/reject 先用无锁 hint 找到资源，再固定按
   `Task -> ProjectRepositoryBinding -> ReleaseCandidate -> Approval` 加锁并重验
   task/resource/hash/expiry；不得先锁 Approval 再反向锁 Candidate。
-- 资源审批必须在 `PostgreSQL now() < expires_at` 时决策；数据库同时约束
-  approved/rejected 的 `decided_at < expires_at`。
+- 取得规定资源锁后读取 `clock_timestamp()`，并取不早于资源与 Approval
+  已持久化审计时间的有效决策时间；只有该时间 `< expires_at` 才可决策。
+  数据库同时约束 approved/rejected 的 `decided_at < expires_at`。
 - approve/reject 同一事务更新 Approval 与 ReleaseCandidate，但不 push、不 dispatch
   CI，也不写 `consumed_at`。
 - binding/PR/hash 漂移把 pending Approval 标记 expired 时，必须同时写
-  `decided_by=system:release_candidate_freshness` 与数据库 `decided_at=now()`，
-  满足非 pending 状态的决策审计约束。
+  `decided_by=system:release_candidate_freshness` 与上述有效决策时间，满足非
+  pending 状态的决策审计约束。
 - 消费审批时必须重新校验：
 
   ```text
   status=approved
   consumed_at IS NULL
-  expires_at > PostgreSQL now()
+  expires_at > 锁后有效消费时间
   resource_type/resource_id/request_hash 与当前资源完全一致
   ```
 
-- 校验成功后在同一行锁事务写 `consumed_at=now()`。
+- 校验成功后在同一行锁事务写上述锁后有效消费时间。
 - `consumed_at` 只允许出现在 approved、未过期的资源审批上，且必须满足
   `decided_at <= consumed_at < expires_at`。
 - `DecisionRequest.actor_id` 当前是受控入口传入的审计身份；M7-2 会按 AgentRun ID

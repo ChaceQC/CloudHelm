@@ -1,10 +1,13 @@
 # modules/platform-api
 
-CloudHelm 平台 API 服务。M7-2B2 使用 FastAPI + SQLAlchemy + Alembic +
+CloudHelm 平台 API 服务。M7-2C 使用 FastAPI + SQLAlchemy + Alembic +
 PostgreSQL 提供真实数据库驱动的 Agent 编排、Tool Gateway、本地开发单步流程、
 Artifact、本地等价 PR record，以及 Environment、RemoteTarget 和
 machine-auth heartbeat 基础闭环、受控 RepositoryBinding、ReleaseCandidate
 第一道审批和 reconcile WorkflowJob 原子创建。
+Platform API 还提供 WorkflowJob 的 PostgreSQL repository、严格 DTO、
+`release_candidate_reconcile` 事务服务，以及 Task pause/resume/cancel 联动；
+Celery 进程由独立 `modules/workflow-engine` 承载，Platform API 不反向依赖它。
 
 ## 命令
 
@@ -104,8 +107,8 @@ Invoke-RestMethod http://127.0.0.1:18080/health
   由 pytest 创建会话级随机数据库。
 - `CLOUDHELM_TEST_ALLOW_SCHEMA_RESET`：显式测试库的破坏性 schema 重建确认；
   只有专用 test 数据库可设为 `true`。
-- `CLOUDHELM_REDIS_URL`：Redis 预留配置；M7-2B2 只持久化 WorkflowJob，
-  M7-2C 才接入 dispatcher/worker。
+- `CLOUDHELM_REDIS_URL`：Platform API Redis 预留入口；Workflow Engine 使用
+  独立 `CLOUDHELM_WORKFLOW_BROKER_URL`，业务状态仍只写 PostgreSQL。
 
 ## API 分层
 
@@ -239,8 +242,25 @@ POST /api/approvals/{approval_id}/reject
   pending Approval expired。
 - 锁等待后的审批时间使用 PostgreSQL `clock_timestamp()`，避免事务开始时间早于
   并发创建记录的 `created_at`。
-- B2 不 push candidate ref、不触发 Gitea CI，也不运行 WorkflowJob。
-  durable dispatcher/worker 属于 M7-2C。
+- B2 不 push candidate ref、不触发 Gitea CI；M7-2C 已由独立 Workflow Engine
+  自动执行纯数据库 reconcile。该 handler 不执行外部副作用。
+
+## M7-2C WorkflowJob persistence
+
+- `WorkflowJobRepository` 实现 due reserve、publish finalize、claim、
+  mark-running、heartbeat、terminal、retry、Task cancel/resume 和 stale reclaim。
+- dispatcher 先无锁扫描候选，再按 Task -> WorkflowJob 使用
+  `FOR UPDATE SKIP LOCKED` 重验；worker/reclaimer 同样保持 Task-first 锁序。
+- 取得规定行锁后读取 PostgreSQL `clock_timestamp()` 作为下界；WorkflowJob
+  transition 再与既有审计时间取最大值，reconcile `checked_at` 还与 Candidate、
+  Approval、Binding 的持久化审计时间取最大值。旧 dispatch reservation 的
+  finalize 和旧 worker `lease_owner` 的 heartbeat/terminal 写入均为 no-op。
+- Task pause 阻止新 dispatch，并在 Task 锁内撤销 pending job 的 reservation
+  token，使旧 finalize no-op；尚未进入 handler 的 claim 会撤销 attempt 并回
+  pending。Task cancel 将 pending/claimed job 直接 cancelled、running job 转
+  `cancel_requested`，并关闭 active Candidate/pending Approval。
+- `release_candidate_reconcile` 原子写 Candidate/Approval、WorkflowJob 终态和
+  EventLog；Redis/Celery message 只包含 `workflow_job_id`。
 
 ## 当前边界
 
@@ -248,9 +268,9 @@ M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branc
 本地等价 PR record。Sandbox 暂用 allowlist 内本地目录 + 受控 `subprocess`，
 具备命令数组、环境白名单、超时、进程树清理和有界输出，但不具备 Docker 的
 CPU、内存、PID、只读挂载与网络隔离；不执行 push、远端 SSH、部署或监控操作。
-M7-2B2 已提供 Candidate/Approval 真实 API，但 reconcile WorkflowJob 当前仅
-持久化为 PostgreSQL pending 记录；尚无 Celery dispatch、claim、lease、heartbeat
-或 stale reclaim。
+M7-2C 已提供 Celery dispatch、claim、lease/heartbeat、retry、stale reclaim
+和真实纯数据库 reconcile handler。candidate ref、Gitea CI、CIRun、
+Deployment、Deployment Controller 与远端 Compose operation 仍未实现。
 `/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件。
 M7-1 新环境/心跳事件的 `task_id=null`，尚无项目/环境查询 API 与实时 SSE。
 离线状态由 target list 或下一次 heartbeat 收敛，周期 worker 留到后续 M7。

@@ -409,11 +409,13 @@ expired，已 approved 的 Approval 保留 approved；terminal_noop 只对应
 rejected/published/stale/cancelled Candidate。payload/result 不保存 profile、
 clone URL 或 credential ref。
 
-对 pending/approved Candidate，Approval `expires_at<=now()`、已消费、状态为
+对 pending/approved Candidate，取得规定资源行锁后读取
+`clock_timestamp()`，并取不早于 Candidate、Approval、Binding 已持久化审计时间的
+有效检查时间。Approval `expires_at<=有效检查时间`、已消费、状态为
 expired/cancelled，或 action/resource/hash 不匹配时，Candidate stale、job
-succeeded + stale；仅 pending Approval 转 expired，其他审批历史不改写。Approval
-缺失或 pending/approved/rejected 决策状态组合违反原子事务时，job failed +
-`release_candidate_approval_state_invalid`。
+succeeded + stale；仅 pending Approval 转 expired，其他审批历史不改写。
+Approval 缺失或 pending/approved/rejected 决策状态组合违反原子事务时，job
+failed + `release_candidate_approval_state_invalid`。
 
 ### 5.5 Environment
 
@@ -480,8 +482,8 @@ complete_m7_handoff
   start/run-next 只用于答辩逐步展示或人工恢复。
 - `POST /api/tasks/{task_id}/release-candidate` 是第一道审批的唯一创建入口，只接受
   `{}`，原子创建 candidate、Approval 与无外部副作用的
-  `release_candidate_reconcile` WorkflowJob。M7-2B2 当前只提交 PostgreSQL
-  pending job；M7-2C 接入 durable dispatcher 后再自动投递。
+  `release_candidate_reconcile` WorkflowJob。M7-2C 已由 durable dispatcher
+  自动投递，并由真实 worker 收敛该纯数据库 handler。
 - `remote-deployment/start` 只接受 `environment_id`，要求已有 approved candidate，
   不重复创建 candidate。
 - CI 由 webhook/poll 更新，不在 HTTP 请求内长时间等待。
@@ -496,9 +498,8 @@ complete_m7_handoff
 ### 7.1 Claim
 
 1. API/service 在短事务创建 PostgreSQL WorkflowJob。
-2. M7-2C durable dispatcher 对
-   同时满足 business retry 与 next enqueue 到期的 pending job 使用 dispatch
-   lease 投递与补投；M7-2B2 当前尚未运行该步骤。
+2. M7-2C durable dispatcher 对同时满足 business retry 与 next enqueue 到期的
+   pending job 使用 dispatch lease 投递与补投。
 3. Celery business message 只携带 job UUID；重复 delivery 由数据库 claim 去重。
 4. worker 无锁读取 immutable task id hint，再固定按
    `Task FOR UPDATE -> WorkflowJob FOR UPDATE -> ProjectRepositoryBinding
@@ -518,6 +519,8 @@ complete_m7_handoff
 ### 7.3 Stale reclaim
 
 - 只处理 lease 已过期且状态 active 的 job。
+- reclaimer 先无锁扫描过期 job ID，再为每个 ID 使用新短 Session 按
+  `Task -> WorkflowJob` 加锁并重验，避免先锁 Job 后反向获取 Task。
 - `none`：未取消的 stale claimed/running 可安全回 pending；stale
   cancel_requested 进入 cancelled。
 - `external_idempotent`：查询相同 Gitea run 或 Remote Agent operation；明确
@@ -543,13 +546,16 @@ complete_m7_handoff
   cancelled/not_started -> cancelled，succeeded -> succeeded，failed -> failed，
   running/unknown -> recovery_required。
 - `release_candidate_reconcile` 只允许 Task `running|waiting_approval`。Task pause
-  不产生新 claim；mark-running 遇到 paused 时回 pending 并清 lease，resume 把
-  pending job 的 next enqueue 推进到数据库当前时间。Task cancel 先锁 Task，再按
-  WorkflowJob ID 升序执行取消转移。
+  在 Task 锁内按 Job UUID 顺序撤销 pending job 的 dispatch token，不产生新
+  reservation/claim；旧 finalize 因 token 失效成为 no-op。mark-running 遇到
+  paused 时撤销尚未执行的 claim attempt、回 pending 并清 lease。resume 写
+  `next_enqueue_at=max(clock_timestamp(), next_retry_at)`。Task cancel 先锁 Task，
+  再按 WorkflowJob ID 升序执行取消转移，并关闭 active Candidate/pending
+  Approval。
 
 ### 7.5 Durable dispatcher
 
-due 条件：
+先读取一次 `due_cutoff=clock_timestamp()`，due 条件统一复用该值：
 
 ```sql
 tasks.status IN ('running', 'waiting_approval')
@@ -557,20 +563,23 @@ AND workflow_jobs.status = 'pending'
 AND workflow_jobs.attempt < workflow_jobs.max_attempts
 AND (
   workflow_jobs.next_retry_at IS NULL
-  OR workflow_jobs.next_retry_at <= now()
+  OR workflow_jobs.next_retry_at <= due_cutoff
 )
-AND workflow_jobs.next_enqueue_at <= now()
+AND workflow_jobs.next_enqueue_at <= due_cutoff
 AND (
   workflow_jobs.dispatch_lease_expires_at IS NULL
-  OR workflow_jobs.dispatch_lease_expires_at <= now()
+  OR workflow_jobs.dispatch_lease_expires_at <= due_cutoff
 )
 ```
 
-1. `FOR UPDATE SKIP LOCKED ORDER BY next_enqueue_at,id` reserve，写 dispatch
+1. 无锁扫描候选后按 Task -> WorkflowJob 使用 `FOR UPDATE SKIP LOCKED` 重验，
+   Job 按 `next_enqueue_at,id` 稳定排序；每条 reservation 写唯一 dispatch
    owner/expiry 并先增加 enqueue attempt。
 2. 提交后 publish 只含 job UUID 的 JSON message。
 3. success/failure finalize 必须按
-   `id + status=pending + dispatch owner` 条件更新；worker 已先 claim 时 no-op。
+   `id + status=pending + dispatch_lease_owner=reservation_owner +
+   expected_enqueue_attempt` 条件更新；
+   worker 已先 claim 时 no-op。
 4. success 把 next enqueue 推进到 redispatch 时间并清
    `last_enqueue_error_code`；failure 使用
    `min(max_enqueue_backoff, enqueue_backoff * 2 ** (enqueue_attempt - 1))`。
@@ -988,7 +997,8 @@ SSE 使用数据库 EventLog tailing：
 - machine-auth nonce 在独立短事务中提交，同步数据库工作在线程池执行，不阻塞
   ASGI event loop。
 - 离线状态当前由 RemoteTarget list 或下一次 heartbeat reconciliation 触发；
-  Redis/Celery 周期任务接入前不宣称自主实时检测。
+  M7-2C 已接入 Workflow Engine，但尚未注册 RemoteTarget offline 周期 handler，
+  因此仍不宣称自主实时检测。
 - Environment/Target 事件当前以 `task_id=null` 写入 PostgreSQL EventLog；项目/
   环境查询 API 与实时 SSE 留在 M7-5，相关 Roadmap 项保持未完成。
 
@@ -1014,9 +1024,19 @@ SSE 使用数据库 EventLog tailing：
 
 ### M7-2C：durable Workflow Engine
 
-- Celery + Redis dispatcher/worker、dispatch/worker lease、heartbeat、retry、
-  Redis 补投和 side-effect-aware stale reclaim。
-- 首个生产 handler 为 `release_candidate_reconcile`。
+- 已实现 Celery + Redis dispatcher/worker、dispatch/worker lease、heartbeat、
+  retry、Redis 补投和 side-effect-aware stale reclaim。
+- 首个生产 handler 为 `release_candidate_reconcile`；Candidate/Approval/job/event
+  在同一事务收敛，不调用 Git、HTTP、Docker、Gitea、CI 或 Remote Agent。
+- WSL Ubuntu 24.04 已通过真实 prefork worker、Redis stop/start、PostgreSQL
+  pending 补投、重复 delivery 和 hard-crash lease 回排测试。
+
+### M7-2D：CI 与部署数据底座
+
+- 规划实现 CIRun、Deployment、ServiceInstance 的 PostgreSQL migration、ORM、
+  repository 和严格共享数据契约。
+- 本切片不发布 candidate ref、不触发 Gitea CI、不创建部署 API/事件，也不调用
+  Deployment Controller 或 Remote Agent。
 
 ### M7-3：通用项目契约与 renderer
 

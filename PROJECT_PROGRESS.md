@@ -2,6 +2,240 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2C durable Workflow Engine 完成并进入 M7-2D）
+
+### 已完成
+
+- 完成 PostgreSQL 权威的 Redis + Celery Workflow Engine：
+  - dispatcher due scan、逐 reservation 唯一 token、dispatch lease、publish
+    success/failure finalize、指数退避和周期补投。
+  - worker claim、mark-running、heartbeat、terminal、safe retry、Task
+    pause/resume/cancel 联动和 stale reclaim。
+  - Celery message 只携带 `workflow_job_id`，每次 delivery 使用独立 claim token。
+  - 首个生产 handler 为
+    `release_candidate_reconcile -> release_candidate -> none`，只执行数据库
+    reconcile，不调用 Git、CI、Docker、HTTP 或 Remote Agent。
+- 完成 Candidate reconcile 锁后重验：
+  - Task、Job、Binding、Candidate、Approval 全部加锁后重新读取
+    `clock_timestamp()`。
+  - PR、Binding snapshot/hash、request hash、Approval expiry/consumed 和非法状态
+    分支均使用精确错误码或 stale/terminal-noop 结果收敛。
+- 根据并发审计补齐三个阻断问题：
+  - dispatcher 改为无锁候选扫描后按 `Task -> WorkflowJob` 加锁重验。
+  - 同一 batch 内每条 reservation 使用独立 `dispatch_owner`。
+  - Task pause 在 Task 锁内撤销 pending job 的 dispatch token，旧 finalize
+    no-op，不能覆盖 resume 的立即补投时间。
+  - registry mismatch 在 Task cancel/pause 竞争后按 Task -> Job 重新加锁；
+    cancel_requested/终态 Task 优先 cancelled，paused 回 pending，只有 runnable
+    Task 才写 registry failure。
+- 补齐 stale/retry 白盒矩阵：
+  - stale claimed。
+  - stale cancel_requested。
+  - recovery_required 不自动重放。
+  - `external_idempotent/external_uncertain` 在无 resolver 时 fail closed 为
+    `recovery_required`，attempt 耗尽或 Task 终态不能伪造远端失败/取消。
+  - Handler registry 拒绝未知 side-effect class；未来 external handler 异常不
+    进入通用盲目 retry。
+- 拆分 WorkflowJob repository、dispatch、lifecycle、recovery 和纯 recovery
+  policy；本轮新增/重构的主要生产源码均不超过 300 行，函数不超过 60 行。
+- 新增严格 WorkflowJob DTO、共享 JSON Schema 和完整事件 payload 门禁；Control
+  Console 显式监听全部 WorkflowJob/Candidate 事件。
+- 清除 M7-2C 文档漂移：
+  - Workflow Engine、Platform API、Orchestrator、数据库、事件、审批、
+    Ops Hub WSL 和测试文档已同步。
+  - Roadmap 已勾选 M7-2C。
+  - `PROJECT_PLAN.md` 已重写为 M7-2D CIRun、Deployment、ServiceInstance
+    migration/ORM/repository/contract 数据底座计划。
+- WSL 干净依赖环境发现
+  `test_m7_machine_auth_heartbeat.py` 仍直接 import `httpx`，而当前 Starlette/
+  项目依赖使用 `httpx2`；已改为 `import httpx2 as httpx` 并完成全量回归。
+- 并行重载时 heartbeat thread 测试出现一次调度型假失败；测试改为较长初始
+  lease，并在有界时间内轮询真实续租结果，随后隔离全量回归稳定通过。
+- M7-2C 代码、配置、共享契约与测试已提交为 `16a0c27`，并 push 到
+  `origin/feature/m7-remote-deploy-closure`。
+
+### 进行中
+
+- M7-2D：先同步总设计书、数据库总表和三个逐表文档，冻结 CIRun、
+  Deployment、ServiceInstance 的字段、状态、约束和索引，再实现
+  `20260716_0009` migration、ORM、repository 与严格共享契约。
+- 当前尚未创建 M7-2D migration 或生产表，不把下一阶段计划写成已交付能力。
+
+### 阻塞与风险
+
+- 完整 M7 仍缺 candidate ref 发布、真实 Gitea CI、ReleasePlan、第二道审批、
+  Deployment Controller、Remote Agent operation、正式 Ops Hub installation 和
+  Linux staging E2E。
+- M7-2D 现有总表、旧逐表文档、详细设计和总设计书仍有字段/状态漂移；必须先
+  文档冻结，再写 migration。
+- Platform API 全量测试仍有 Pydantic `UnsupportedFieldAttributeWarning`；当前
+  不影响测试结论，但后续应单独清理公共分页/查询 `Annotated` alias 定义。
+- Agent Runtime 真实外部 provider/Prompt Cache 专项仍因未注入临时凭据而 skip，
+  不能把本轮结果描述为新的外部 provider 实时证据。
+
+### 下一步
+
+1. 复查 M7-2C `git diff --stat`、关键代码/契约 diff 和敏感信息扫描结果。
+2. 按可验证小步提交并 push M7-2C 代码/测试与文档/计划。
+3. 同步 `云舵 CloudHelm 毕设设计书.md`、数据库总表和
+   `ci_runs/deployments/service_instances` 逐表文档。
+4. 新增 `20260716_0009` migration、三表 ORM/repository/Pydantic/JSON Schema。
+5. 在 WSL 使用真实 PostgreSQL 执行正负约束、并发、migration 往返和 Platform
+   API 全量验收。
+
+### 涉及文件
+
+- `modules/workflow-engine/`
+- `modules/platform-api/src/cloudhelm_platform_api/repositories/workflow_job_*.py`
+- `modules/platform-api/src/cloudhelm_platform_api/services/release_candidate_reconcile_*.py`
+- `modules/platform-api/src/cloudhelm_platform_api/services/task_service.py`
+- `modules/platform-api/tests/test_m7_release_candidate_reconcile.py`
+- `packages/shared-contracts/schemas/workflow/workflow-job.schema.json`
+- `packages/shared-contracts/schemas/events/task-event.schema.json`
+- `apps/control-console/src/shared/types/events.ts`
+- `apps/control-console/tests/m6EventTypes.test.ts`
+- `README.md`
+- `docs/01-architecture/04-desktop-ops-hub-project-boundary.md`
+- `docs/03-modules/`
+- `docs/07-data/`
+- `docs/08-api/`
+- `docs/12-deployment/`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/`
+- `PROJECT_PLAN.md`
+
+### 验证
+
+- WSL Platform API：
+  - `uv lock --check`
+  - Alembic `current=20260716_0008 (head)`
+  - `alembic check=No new upgrade operations detected`
+  - 全量 `332 passed, 1 skipped`
+- WSL Workflow Engine：
+  - 非 integration：`51 passed, 2 deselected`
+  - 隔离 Redis restart + prefork hard-crash：`2 passed, 51 deselected`
+  - dispatcher/pause/claim 并发门禁连续 5 轮，每轮 `7 passed`
+- WSL 其余服务：
+  - Orchestrator：`7 passed`
+  - Agent Runtime：`61 passed, 1 skipped`
+  - Tool Gateway：`46 passed`
+  - Remote Agent：`33 passed`
+- Control Console：`17 passed`，production build 通过。
+- sample repo：`2 passed`，Bandit 无发现，pip-audit 无已知漏洞；本地包因不在
+  PyPI 按工具真实行为跳过。
+- 当前 Git 纳入范围：
+  - UTF-8 文本 `726` 个，解码错误 `0`、BOM `0`
+  - Markdown `204` 个、相对链接 `472` 条，缺失 `0`
+  - JSON `38` 个，解析错误 `0`
+  - 非测试生产代码/配置/文档高置信敏感信息命中 `0`
+  - Python `compileall` 通过
+  - `git diff --check` 通过
+
+## 2026-07-16（暂停：M1-M7 当前代码复核与 M7-2C 验证）
+
+### 已完成
+
+- 按最新 `AGENTS.md`、`PROJECT_PLAN.md` 和
+  `docs/14-roadmap/03-implementation-milestone-flow.md` 对当前工作树重新进行
+  M1-M7 分段复核。
+- 当前阶段性结论：
+  - M1-M3 的目录骨架、真实 API/数据库事件、控制台真实数据主流程满足各自完成
+    判定。
+  - M4 的代码、结构化输出、root/child conversation 原语和本地回归满足现行
+    边界；真实外部 provider 五轮 Prompt Cache 专项本轮未重新注入配置执行，
+    保留既有验收记录，不把本轮 skip 写成新的实时证据。
+  - M5 Tool Gateway 的参数校验、角色/工具权限、风险、限流、审批和脱敏审计满足
+    当前受控本地工具边界。
+  - M6 本地代码修改、测试、安全扫描、Git 与等价 PR record 闭环继续通过回归。
+  - 完整 M7 尚未完成；当前已交付 M7-0、M7-1、M7-2A、M7-2B1、M7-2B2。
+    M7-2C 已形成可运行草稿并通过 Windows 回归，但尚未完成最终 WSL 复测、
+    文档/Progress/Roadmap 同步、代码体量收口和 Git 提交，因此本次暂停不将
+    M7-2C 或完整 M7 标记为完成。
+- 当前工作树验证：
+  - Platform API：`317 passed, 1 skipped`。
+  - Workflow Engine Windows：`26 passed, 1 skipped`；唯一 skip 为需显式启用的
+    WSL Redis restart 集成测试。
+  - Workflow Engine dispatcher/claim/lifecycle 定向并发连续 5 轮，每轮
+    `13 passed`。
+  - Orchestrator：`7 passed`。
+  - Agent Runtime：`61 passed, 1 skipped`；skip 为未注入真实外部 provider
+    配置的专项。
+  - Tool Gateway：`45 passed, 1 skipped`；skip 为当前 Windows symlink 权限
+    条件。
+  - Remote Agent：`31 passed, 2 skipped`；skip 为 POSIX mode/symlink 的
+    Windows 条件。
+  - Control Console：`17 passed`，production build 通过。
+  - sample repo：`2 passed`，Bandit 通过，pip-audit 无已知漏洞。
+  - Alembic：`current=20260716_0008 (head)`；
+    `No new upgrade operations detected`。
+  - FastAPI OpenAPI 与共享 YAML 精确一致、全部共享 JSON Schema
+    Draft 2020-12 meta-validation 随 Platform API 全量测试通过。
+  - 当前纳入 Git 的文本文件与未跟踪草稿共检查 `726` 个，UTF-8 解码错误 `0`、
+    BOM `0`。
+  - Markdown `204` 个文件、相对链接 `472` 条，缺失 `0`。
+  - 生产代码、配置和文档高置信密钥模式命中 `0`；测试目录中的假 secret
+    仅用于脱敏测试。
+  - `git diff --check` 通过。
+
+### 进行中
+
+- 已按用户要求立即暂停，不再继续 WSL 集成、文档同步、代码重构、Roadmap 打钩
+  或 Git 提交。
+- 当前分支保持 `feature/m7-remote-deploy-closure`，HEAD 保持 `6144ad5`；
+  `origin/feature/m7-remote-deploy-closure` 与 HEAD 无领先/落后。
+- M7-2C 的生产代码、测试、共享契约和文档草稿继续原样保留在未提交工作树中，
+  没有清理、reset、stash 或覆盖。
+
+### 阻塞与风险
+
+- 当前最终草稿拆分后尚未重新执行 WSL 非集成全量和隔离 Redis stop/start +
+  真实 prefork Celery worker 测试；此前结果不能替代暂停点代码的最终复测。
+- `README.md`、`docs/07-data/01-database-schema.md`、
+  `docs/15-detailed-design/04-data-detail.md`、
+  `docs/15-detailed-design/05-workflow-state-events.md` 和
+  `docs/15-detailed-design/07-testing-acceptance-matrix.md` 仍有把
+  durable Workflow Engine 写成未实现/规划项的旧表述，与当前 M7-2C 草稿存在
+  状态漂移。
+- Roadmap 的 M7-2C 仍为 `[ ]`，`PROJECT_PLAN.md` 仍指向 M7-2C；
+  这是正确的暂停状态，必须在全部完成判定满足后再打钩和滚动计划。
+- `release_candidate_reconcile_service.py` 当前为 `441` 行，其中 `execute`
+  为 `184` 行；超过 `AGENTS.md` 对复杂 service 和函数的拆分评估线，恢复后需
+  先拆分或形成明确评估结论。
+- 完整 M7 Roadmap 当前仍有 CIRun/Deployment/ServiceInstance、正式 Ops Hub
+  installation/bootstrap、Gitea runner/registry、受控 ref 发布与唯一 CI、
+  Release/Deploy Agent、Deployment Controller、Remote Agent operation、
+  通用 renderer、控制台证据页和 Linux staging E2E 等未完成项，因此不能把
+  “M1-M7 全部符合”作为当前结论。
+- M4 真实外部 provider 五轮 Prompt Cache 专项本轮为条件 skip；恢复后若要生成
+  新的当前时点实时证据，需要显式注入临时 provider 配置再执行。
+
+### 下一步
+
+1. 恢复时先执行 `git status --short`、`git diff --stat` 和关键文件 diff，
+   确认暂停期间工作树未漂移。
+2. 拆分或评估 `release_candidate_reconcile_service.py` 的职责与长函数，并回归
+   Candidate cancellation、freshness、审批和事件事务分支。
+3. 同步数据库、Workflow/Event、Testing、README、Roadmap 和
+   `PROJECT_PROGRESS.md` 中的 M7-2C 状态，清除相互矛盾的旧表述。
+4. 在 WSL 独立虚拟环境执行最终非集成全量，并使用隔离 Redis container 复跑
+   Redis stop/start、PostgreSQL 补投和真实 prefork Celery worker E2E。
+5. 重跑 Platform API、Workflow Engine、并发多轮、Alembic、OpenAPI/JSON
+   Schema、UTF-8/BOM、Markdown 链接、敏感信息、文件体量和
+   `git diff --check` 门禁。
+6. 全部通过后再勾选 M7-2C、把 `PROJECT_PLAN.md` 重写到
+   CIRun/Deployment/ServiceInstance 数据与 migration，并按可验证小步
+   commit/push 当前功能分支。
+
+### 涉及文件
+
+- `PROJECT_PROGRESS.md`
+- 当前未提交 M7-2C 工作树，详见 `git status --short`
+
+### 验证
+
+- 本条仅记录暂停点和此前已完成的只读审计/验证；写入后不继续执行新的实现或
+  集成测试。
+
 ## 2026-07-16（M7-2B2 Candidate、第一道审批与 reconcile WorkflowJob 原子创建纵切）
 
 ### 已完成

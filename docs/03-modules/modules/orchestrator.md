@@ -23,8 +23,9 @@ Planning -> Scaffolding -> Implementing -> Testing -> Reviewing
 `PullRequestCreated` 不是终态，M7 从该阶段继续 CI 与远端部署。
 
 该模块保持纯状态机和边界类型，不直接写数据库；Platform API service 负责持久化
-Task、AgentRun、业务产物、Artifact、PullRequestRecord 和 EventLog。LangGraph /
-Redis worker 尚未进入生产路径，后续如确需异步图执行再单独设计。
+Task、AgentRun、业务产物、Artifact、PullRequestRecord 和 EventLog。Orchestrator
+不内嵌 LangGraph 或 Redis worker；M7-2C 异步执行由独立
+`modules/workflow-engine` 承载。
 
 ## 当前技术栈
 
