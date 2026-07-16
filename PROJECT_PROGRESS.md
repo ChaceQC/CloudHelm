@@ -2,6 +2,50 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2D Git 收口并进入 M7-2E）
+
+### 已完成
+
+- 已将 M7-2D migration、ORM、repository、严格共享契约、评审修复、测试、文档、
+  Roadmap、进度和 M7-2E 详细计划提交为 `db16a3d`：
+  `feat: 完成 M7-2D CI 与部署数据底座`。
+- 已 push 到
+  `origin/feature/m7-remote-deploy-closure`，远端功能分支更新到 `db16a3d`。
+- 常规 Git Credential Manager push 返回 HTTP 403；按既有仓库处理方式只对本次
+  命令使用当前 `gh` token 的临时 `http.extraheader`，未修改 remote 或持久化
+  credential。
+- 当前执行指针已进入 M7-2E 受控 candidate ref、精确 SHA 回读、唯一 Gitea
+  `workflow_dispatch` 和 CIRun run identity。
+
+### 进行中
+
+- 按 `PROJECT_PLAN.md` 执行 M7-2E 文档/资料冻结和 WSL Gitea fixture 预检。
+
+### 阻塞与风险
+
+- 正式 Ops Hub installation、runner、CI completion/artifact、ReleasePlan、第二道
+  Approval API 和远端部署仍未交付。
+- M7-2E 必须继续留在当前功能分支，不向 `main` 合并。
+
+### 下一步
+
+1. 更新 Gitea 1.26.4 dispatch/run API 官方资料归档。
+2. 冻结 publish/dispatch 两段 external WorkflowJob 与恢复契约。
+3. 新增 `20260716_0010` 和 WSL 隔离 Gitea 测试 fixture。
+
+### 涉及文件
+
+- `PROJECT_PROGRESS.md`
+- `PROJECT_PLAN.md`
+- M7-2D 提交 `db16a3d`
+
+### 验证
+
+- `git diff --cached --check` 通过。
+- 提交包含 42 个文件，`9169 insertions, 439 deletions`。
+- push 输出：
+  `f4f16bb..db16a3d feature/m7-remote-deploy-closure`。
+
 ## 2026-07-16（M7-2D CI/部署数据底座实现与评审闭环）
 
 ### 已完成
