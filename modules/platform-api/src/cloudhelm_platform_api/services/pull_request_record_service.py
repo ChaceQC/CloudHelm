@@ -10,9 +10,6 @@ from cloudhelm_platform_api.models.pull_request_record import PullRequestRecord
 from cloudhelm_platform_api.repositories.agent_run_repository import (
     AgentRunRepository,
 )
-from cloudhelm_platform_api.repositories.artifact_repository import (
-    ArtifactRepository,
-)
 from cloudhelm_platform_api.repositories.development_plan_repository import (
     DevelopmentPlanRepository,
 )
@@ -24,7 +21,6 @@ from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.repositories.tool_call_repository import (
     ToolCallRepository,
 )
-from cloudhelm_platform_api.schemas.artifact import ArtifactStatus
 from cloudhelm_platform_api.schemas.common import PageInfo, PageResponse
 from cloudhelm_platform_api.schemas.common import DevelopmentPlanStatus
 from cloudhelm_platform_api.schemas.pull_request_record import (
@@ -36,13 +32,12 @@ from cloudhelm_platform_api.schemas.pull_request_record import (
 from cloudhelm_platform_api.services.base import BaseService
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
-
-REQUIRED_ARTIFACT_TYPES = {
-    "diff": {"diff_patch", "format_patch"},
-    "test": {"test_report"},
-    "review": {"review_report"},
-    "security": {"security_report"},
-}
+from cloudhelm_platform_api.services.pull_request_record_gate import (
+    PullRequestRecordGate,
+)
+from cloudhelm_platform_api.services.release_candidate_freshness import (
+    ReleaseCandidateFreshnessService,
+)
 
 
 class PullRequestRecordService(BaseService):
@@ -56,14 +51,19 @@ class PullRequestRecordService(BaseService):
         self.plans = DevelopmentPlanRepository(session)
         self.agent_runs = AgentRunRepository(session)
         self.tool_calls = ToolCallRepository(session)
-        self.artifacts = ArtifactRepository(session)
+        self.gate = PullRequestRecordGate(session)
+        self.candidate_freshness = ReleaseCandidateFreshnessService(session)
         self.events = EventService(session)
 
     def create(
         self,
         data: PullRequestRecordCreate,
     ) -> PullRequestRecord:
-        """创建或复用同一 Task/commit 的本地 PR record。"""
+        """按 Task-first 锁序创建或复用同一 commit 的本地 PR record。"""
+
+        task = self.tasks.get(data.task_id, for_update=True)
+        if task is None:
+            raise ServiceError("task_not_found", "任务不存在。", 404)
 
         existing = self.records.get_by_task_idempotency_key(
             data.task_id,
@@ -84,9 +84,12 @@ class PullRequestRecordService(BaseService):
         if by_commit is not None:
             return by_commit
 
-        self._validate_ownership(data)
+        self._validate_ownership(data, task=task)
         self._validate_gate_artifacts(data)
-        previous = self.records.latest_by_task(data.task_id)
+        previous = self.records.latest_by_task(
+            data.task_id,
+            for_update=True,
+        )
         if (
             previous is not None
             and previous.status == PullRequestRecordStatus.OPEN.value
@@ -97,6 +100,11 @@ class PullRequestRecordService(BaseService):
         values["provider"] = data.provider.value
         values["status"] = data.status.value
         record = self.records.create(PullRequestRecord(**values))
+        self.candidate_freshness.invalidate_active_by_task(
+            record.task_id,
+            current_pull_request_record_id=record.id,
+            reason="pull_request_record_changed",
+        )
         self.events.record(
             "PullRequestRecordCreated",
             "system",
@@ -147,12 +155,14 @@ class PullRequestRecordService(BaseService):
             page=PageInfo(limit=limit, next_cursor=next_cursor),
         )
 
-    def _validate_ownership(self, data: PullRequestRecordCreate) -> None:
+    def _validate_ownership(
+        self,
+        data: PullRequestRecordCreate,
+        *,
+        task,
+    ) -> None:
         """校验 Task、Project、Plan、AgentRun 和 ToolCall 归属。"""
 
-        task = self.tasks.get(data.task_id)
-        if task is None:
-            raise ServiceError("task_not_found", "任务不存在。", 404)
         if task.project_id != data.project_id:
             raise ServiceError(
                 "project_task_mismatch",
@@ -213,73 +223,11 @@ class PullRequestRecordService(BaseService):
     ) -> None:
         """校验 diff/test/review/security Artifact 类型、归属和门禁结论。"""
 
-        references = {
-            "diff": data.diff_artifact_id,
-            "test": data.test_artifact_id,
-            "review": data.review_artifact_id,
-            "security": data.security_artifact_id,
-        }
-        records = {}
-        for purpose, artifact_id in references.items():
-            artifact = self.artifacts.get(artifact_id)
-            if artifact is None:
-                raise ServiceError(
-                    "artifact_not_found",
-                    f"{purpose} Artifact 不存在。",
-                    404,
-                )
-            if (
-                artifact.task_id != data.task_id
-                or artifact.status != ArtifactStatus.AVAILABLE.value
-                or artifact.artifact_type
-                not in REQUIRED_ARTIFACT_TYPES[purpose]
-            ):
-                raise ServiceError(
-                    "pull_request_artifact_invalid",
-                    f"{purpose} Artifact 类型、状态或 Task 归属无效。",
-                    409,
-                )
-            records[purpose] = artifact
-
-        if records["test"].metadata_json.get("passed") is not True:
-            raise ServiceError(
-                "test_gate_not_passed",
-                "测试报告未通过，不能创建 PR record。",
-                409,
-            )
-        if records["review"].metadata_json.get("verdict") != "approved":
-            raise ServiceError(
-                "review_gate_not_passed",
-                "Review 结论未通过，不能创建 PR record。",
-                409,
-            )
-        if records["security"].metadata_json.get("blocking") is not False:
-            raise ServiceError(
-                "security_gate_blocked",
-                "Security 报告仍有阻断项。",
-                409,
-            )
-        evidence_set_ids = {
-            record.metadata_json.get("evidence_set_id")
-            for record in records.values()
-        }
-        plan_ids = {
-            record.metadata_json.get("development_plan_id")
-            for record in records.values()
-        }
-        recipe_hashes = {
-            record.metadata_json.get("recipe_sha256")
-            for record in records.values()
-        }
-        if (
-            None in evidence_set_ids
-            or len(evidence_set_ids) != 1
-            or plan_ids != {str(data.development_plan_id)}
-            or None in recipe_hashes
-            or len(recipe_hashes) != 1
-        ):
-            raise ServiceError(
-                "pull_request_evidence_set_mismatch",
-                "PR record 的 diff/test/review/security 必须来自同一 plan/recipe/rework cycle。",
-                409,
-            )
+        self.gate.validate_references(
+            task_id=data.task_id,
+            development_plan_id=data.development_plan_id,
+            diff_artifact_id=data.diff_artifact_id,
+            test_artifact_id=data.test_artifact_id,
+            review_artifact_id=data.review_artifact_id,
+            security_artifact_id=data.security_artifact_id,
+        )

@@ -22,6 +22,9 @@ from cloudhelm_platform_api.services.approval_domain_decision_service import (
 )
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
+from cloudhelm_platform_api.services.release_candidate_approval_service import (
+    ReleaseCandidateApprovalService,
+)
 TERMINAL_TASK_STATUSES = {TaskStatus.DONE.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value}
 RESERVED_APPROVAL_ACTIONS = {"approve_release_candidate"}
 
@@ -36,6 +39,9 @@ class ApprovalService(BaseService):
         self.agent_runs = AgentRunRepository(session)
         self.events = EventService(session)
         self.domain = ApprovalDomainDecisionService(session)
+        self.release_candidate_decisions = ReleaseCandidateApprovalService(
+            session
+        )
         self.agent_conversations = AgentConversationService(session, get_settings())
 
     def create_approval(self, task_id: UUID, data: ApprovalRequestCreate) -> ApprovalRequestRead:
@@ -93,6 +99,15 @@ class ApprovalService(BaseService):
         """通过审批并写入 ApprovalApproved 事件。"""
 
         approval_hint = self._require_approval(approval_id)
+        if (
+            approval_hint.action == "approve_release_candidate"
+            or approval_hint.resource_type == "release_candidate"
+        ):
+            return self.release_candidate_decisions.approve(
+                approval_id,
+                actor_id,
+                reason,
+            )
         task = self._require_active_task(
             approval_hint.task_id,
             for_update=True,
@@ -132,6 +147,15 @@ class ApprovalService(BaseService):
         """拒绝审批并写入 ApprovalRejected 事件。"""
 
         approval_hint = self._require_approval(approval_id)
+        if (
+            approval_hint.action == "approve_release_candidate"
+            or approval_hint.resource_type == "release_candidate"
+        ):
+            return self.release_candidate_decisions.reject(
+                approval_id,
+                actor_id,
+                reason,
+            )
         task = self._require_active_task(
             approval_hint.task_id,
             for_update=True,

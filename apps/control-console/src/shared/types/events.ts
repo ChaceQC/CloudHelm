@@ -1,7 +1,7 @@
 import type { EventLog } from './api'
 
 /**
- * M2-M6 已落库的任务相关事件类型。
+ * M2-M7-2B2 已落库且可进入 Task SSE 的事件类型。
  *
  * EventSource 需要显式监听具名事件；后续事件 schema 扩展后应同步
  * `packages/shared-contracts/schemas/events/task-event.schema.json`。
@@ -55,6 +55,10 @@ export const TASK_EVENT_TYPES = [
   'BranchCreated',
   'CommitCreated',
   'PullRequestRecordCreated',
+  'WorkflowJobQueued',
+  'ReleaseCandidateApprovalRequested',
+  'ReleaseCandidateApproved',
+  'ReleaseCandidateRejected',
 ] as const
 
 export type TaskEventType = (typeof TASK_EVENT_TYPES)[number]

@@ -1,5 +1,5 @@
 /**
- * CloudHelm M2-M7-2B1 API 类型。
+ * CloudHelm M2-M7-2B2 API 类型。
  *
  * 本文件手写映射 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
  * 中当前控制台需要的 DTO。后续如接入 OpenAPI 类型生成器，应以该契约为
@@ -101,6 +101,66 @@ export interface RepositoryBinding {
   status: 'active' | 'disabled'
   created_at: string
   updated_at: string
+}
+
+export type ReleaseCandidateCreateInput = Record<string, never>
+
+export interface RepositoryBindingSnapshot {
+  schema_version: 'm7.repository-binding.snapshot.v1'
+  provider: 'gitea'
+  repository_external_id: string
+  repository_owner: string
+  repository_name: string
+  default_branch: string
+  workflow_id: string
+  release_ref_prefix: string
+}
+
+export type ReleaseCandidateStatus =
+  | 'pending_approval'
+  | 'approved'
+  | 'rejected'
+  | 'published'
+  | 'stale'
+  | 'cancelled'
+
+export interface ReleaseCandidate {
+  id: string
+  task_id: string
+  project_id: string
+  pull_request_record_id: string
+  repository_binding_id: string
+  binding_snapshot: RepositoryBindingSnapshot
+  binding_snapshot_sha256: string
+  commit_sha: string
+  target_ref: string
+  request_hash: string
+  status: ReleaseCandidateStatus
+  approval_id: string
+  remote_verified_sha: string | null
+  idempotency_key: string
+  approved_at: string | null
+  published_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ReleaseCandidateApprovalSummary {
+  id: string
+  action: 'approve_release_candidate'
+  risk_level: 'L2'
+  resource_type: 'release_candidate'
+  resource_id: string
+  status: ApprovalStatus
+  requested_by_agent_run_id: string
+  request_hash: string
+  expires_at: string
+  consumed_at: string | null
+}
+
+export interface ReleaseCandidateEnvelope {
+  candidate: ReleaseCandidate
+  approval: ReleaseCandidateApprovalSummary
 }
 
 export interface TaskCreateInput {

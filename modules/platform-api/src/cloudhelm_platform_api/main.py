@@ -28,6 +28,9 @@ from cloudhelm_platform_api.api.projects import router as project_router
 from cloudhelm_platform_api.api.pull_request_records import (
     router as pull_request_record_router,
 )
+from cloudhelm_platform_api.api.release_candidates import (
+    router as release_candidate_router,
+)
 from cloudhelm_platform_api.api.requirements import router as requirement_router
 from cloudhelm_platform_api.api.remote_agents import router as remote_agent_router
 from cloudhelm_platform_api.api.remote_targets import router as remote_target_router
@@ -59,7 +62,8 @@ def create_app() -> FastAPI:
             "CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、"
             "受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增"
             " Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环；"
-            "M7-2B1 新增服务端受控 RepositoryBinding PUT/GET。"
+            "M7-2B 新增受控 RepositoryBinding、ReleaseCandidate、第一道审批"
+            "与 reconcile WorkflowJob 原子创建。"
         ),
         version=settings.version,
         responses={
@@ -115,6 +119,7 @@ def create_app() -> FastAPI:
     app.include_router(tool_gateway_router)
     app.include_router(artifact_router)
     app.include_router(pull_request_record_router)
+    app.include_router(release_candidate_router)
     app.include_router(approval_router)
     app.include_router(event_router)
     app.include_router(orchestration_router)

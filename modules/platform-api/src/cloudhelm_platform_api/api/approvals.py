@@ -7,7 +7,12 @@ from fastapi import APIRouter, Body, Depends, Query, status
 
 from cloudhelm_platform_api.api.deps import DbSession, pagination_params
 from cloudhelm_platform_api.schemas.approval import ApprovalRequestCreate, ApprovalRequestRead
-from cloudhelm_platform_api.schemas.common import ApprovalStatus, DecisionRequest, PageResponse
+from cloudhelm_platform_api.schemas.common import (
+    ApprovalStatus,
+    DecisionRequest,
+    ErrorResponse,
+    PageResponse,
+)
 from cloudhelm_platform_api.services.approval_service import ApprovalService
 
 router = APIRouter(tags=["approvals"])
@@ -45,7 +50,17 @@ def get_approval(approval_id: UUID, db: DbSession) -> ApprovalRequestRead:
     return ApprovalService(db).get_approval(approval_id)
 
 
-@router.post("/api/approvals/{approval_id}/approve", response_model=ApprovalRequestRead, summary="通过审批请求")
+@router.post(
+    "/api/approvals/{approval_id}/approve",
+    response_model=ApprovalRequestRead,
+    summary="通过审批请求",
+    responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "当前审批人违反资源职责分离门禁。",
+        }
+    },
+)
 def approve_approval(
     approval_id: UUID,
     db: DbSession,
@@ -57,7 +72,17 @@ def approve_approval(
     return ApprovalService(db).approve(approval_id, payload.actor_id, payload.reason)
 
 
-@router.post("/api/approvals/{approval_id}/reject", response_model=ApprovalRequestRead, summary="拒绝审批请求")
+@router.post(
+    "/api/approvals/{approval_id}/reject",
+    response_model=ApprovalRequestRead,
+    summary="拒绝审批请求",
+    responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "当前审批人违反资源职责分离门禁。",
+        }
+    },
+)
 def reject_approval(
     approval_id: UUID,
     db: DbSession,

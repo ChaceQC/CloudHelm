@@ -1,8 +1,9 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增 Environment、RemoteTarget
-    和 machine-auth heartbeat 基础闭环；M7-2B1 新增服务端受控 RepositoryBinding PUT/GET。
+  description: CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、受控本地开发工具、Artifact 与本地等价 PR
+    record；M7-1 新增 Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环；M7-2B 新增受控
+    RepositoryBinding、ReleaseCandidate、第一道审批与 reconcile WorkflowJob 原子创建。
   version: 0.5.1
 paths:
   /health:
@@ -2634,6 +2635,121 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/tasks/{task_id}/release-candidate:
+    post:
+      tags:
+      - release-candidates
+      summary: 原子创建候选发布与第一道审批
+      description: 严格空对象请求；首次返回 201，幂等命中返回 200。
+      operationId: create_release_candidate_api_tasks__task_id__release_candidate_post
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseCandidateCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseCandidateEnvelope'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: M6 证据、Binding 或 Candidate 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '200':
+          description: 同一 PR 与 Binding snapshot 的幂等命中。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseCandidateEnvelope'
+    get:
+      tags:
+      - release-candidates
+      summary: 读取任务当前或最新候选发布
+      description: 优先返回 pending/approved Candidate，否则返回最新历史。
+      operationId: get_release_candidate_api_tasks__task_id__release_candidate_get
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseCandidateEnvelope'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/tasks/{task_id}/approvals:
     post:
       tags:
@@ -2894,6 +3010,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 当前审批人违反资源职责分离门禁。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/approvals/{approval_id}/reject:
     post:
       tags:
@@ -2950,6 +3072,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 当前审批人违反资源职责分离门禁。
           content:
             application/json:
               schema:
@@ -4025,6 +4153,7 @@ components:
           - type: 'null'
           title: Reason
           description: 操作原因。
+      additionalProperties: false
       type: object
       title: DecisionRequest
       description: 审批、通过或要求修改类动作的请求体。
@@ -4993,6 +5122,185 @@ components:
       - closed
       title: PullRequestRecordStatus
       description: PR record 生命周期状态。
+    ReleaseCandidateApprovalRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        action:
+          type: string
+          const: approve_release_candidate
+          title: Action
+        risk_level:
+          type: string
+          const: L2
+          title: Risk Level
+        resource_type:
+          type: string
+          const: release_candidate
+          title: Resource Type
+        resource_id:
+          type: string
+          format: uuid
+          title: Resource Id
+        status:
+          $ref: '#/components/schemas/ApprovalStatus'
+        requested_by_agent_run_id:
+          type: string
+          format: uuid
+          title: Requested By Agent Run Id
+        request_hash:
+          type: string
+          title: Request Hash
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        consumed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Consumed At
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - action
+      - risk_level
+      - resource_type
+      - resource_id
+      - status
+      - requested_by_agent_run_id
+      - request_hash
+      - expires_at
+      - consumed_at
+      title: ReleaseCandidateApprovalRead
+      description: Candidate envelope 中的最小审批摘要。
+    ReleaseCandidateCreate:
+      properties: {}
+      additionalProperties: false
+      type: object
+      title: ReleaseCandidateCreate
+      description: Candidate 创建只接受 JSON 空对象。
+    ReleaseCandidateEnvelope:
+      properties:
+        candidate:
+          $ref: '#/components/schemas/ReleaseCandidateRead'
+        approval:
+          $ref: '#/components/schemas/ReleaseCandidateApprovalRead'
+      additionalProperties: false
+      type: object
+      required:
+      - candidate
+      - approval
+      title: ReleaseCandidateEnvelope
+      description: Candidate 与其第一道审批的原子 public envelope。
+    ReleaseCandidateRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        task_id:
+          type: string
+          format: uuid
+          title: Task Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        pull_request_record_id:
+          type: string
+          format: uuid
+          title: Pull Request Record Id
+        repository_binding_id:
+          type: string
+          format: uuid
+          title: Repository Binding Id
+        binding_snapshot:
+          $ref: '#/components/schemas/RepositoryBindingSnapshotRead'
+        binding_snapshot_sha256:
+          type: string
+          title: Binding Snapshot Sha256
+        commit_sha:
+          type: string
+          title: Commit Sha
+        target_ref:
+          type: string
+          title: Target Ref
+        request_hash:
+          type: string
+          title: Request Hash
+        status:
+          $ref: '#/components/schemas/ReleaseCandidateStatus'
+        approval_id:
+          type: string
+          format: uuid
+          title: Approval Id
+        remote_verified_sha:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Remote Verified Sha
+        idempotency_key:
+          type: string
+          title: Idempotency Key
+        approved_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Approved At
+        published_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Published At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - task_id
+      - project_id
+      - pull_request_record_id
+      - repository_binding_id
+      - binding_snapshot
+      - binding_snapshot_sha256
+      - commit_sha
+      - target_ref
+      - request_hash
+      - status
+      - approval_id
+      - remote_verified_sha
+      - idempotency_key
+      - approved_at
+      - published_at
+      - created_at
+      - updated_at
+      title: ReleaseCandidateRead
+      description: 不暴露 clone URL、profile 或 credential 的 Candidate 响应。
+    ReleaseCandidateStatus:
+      type: string
+      enum:
+      - pending_approval
+      - approved
+      - rejected
+      - published
+      - stale
+      - cancelled
+      title: ReleaseCandidateStatus
+      description: ReleaseCandidate 生命周期状态。
     RemoteAgentHeartbeat:
       properties:
         target_id:
@@ -5276,6 +5584,47 @@ components:
       - updated_at
       title: RepositoryBindingRead
       description: 不暴露 clone URL 或 credential 引用的仓库绑定响应。
+    RepositoryBindingSnapshotRead:
+      properties:
+        schema_version:
+          type: string
+          const: m7.repository-binding.snapshot.v1
+          title: Schema Version
+        provider:
+          type: string
+          const: gitea
+          title: Provider
+        repository_external_id:
+          type: string
+          title: Repository External Id
+        repository_owner:
+          type: string
+          title: Repository Owner
+        repository_name:
+          type: string
+          title: Repository Name
+        default_branch:
+          type: string
+          title: Default Branch
+        workflow_id:
+          type: string
+          title: Workflow Id
+        release_ref_prefix:
+          type: string
+          title: Release Ref Prefix
+      additionalProperties: false
+      type: object
+      required:
+      - schema_version
+      - provider
+      - repository_external_id
+      - repository_owner
+      - repository_name
+      - default_branch
+      - workflow_id
+      - release_ref_prefix
+      title: RepositoryBindingSnapshotRead
+      description: Candidate 可公开的精确八字段 RepositoryBinding snapshot。
     RequirementSpecCreate:
       properties:
         source_type:

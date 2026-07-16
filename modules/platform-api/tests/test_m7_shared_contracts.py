@@ -42,6 +42,12 @@ M7_2B_EVENT_TYPES = {
     "RepositoryBindingConfigured",
     "ApprovalExpired",
 }
+M7_2B2_EVENT_TYPES = {
+    "WorkflowJobQueued",
+    "ReleaseCandidateApprovalRequested",
+    "ReleaseCandidateApproved",
+    "ReleaseCandidateRejected",
+}
 MACHINE_HEADER_NAMES = {
     "X-CloudHelm-Target-Id",
     "X-CloudHelm-Agent-Id",
@@ -109,7 +115,8 @@ def test_m7_event_types_are_unique_and_present_in_shared_contract() -> None:
     assert len(event_types) == len(set(event_types))
     assert M7_1_EVENT_TYPES.issubset(event_types)
     assert M7_2B_EVENT_TYPES.issubset(event_types)
-    assert "M2-M7-2B1" in schema["description"]
+    assert M7_2B2_EVENT_TYPES.issubset(event_types)
+    assert "M2-M7-2B2" in schema["description"]
 
 
 def test_repository_binding_event_schema_rejects_internal_fields() -> None:
@@ -172,6 +179,100 @@ def test_heartbeat_openapi_requires_headers_and_documents_errors() -> None:
     assert {"200", "401", "403", "413", "422", "503"}.issubset(
         operation["responses"]
     )
+
+
+def test_candidate_decision_openapi_documents_self_decision_error() -> None:
+    """Candidate approve/reject 实际 403 必须进入共享 OpenAPI。"""
+
+    paths = app.openapi()["paths"]
+    for operation_name in ("approve", "reject"):
+        operation = paths[
+            f"/api/approvals/{{approval_id}}/{operation_name}"
+        ]["post"]
+        assert "403" in operation["responses"]
+        assert operation["responses"]["403"]["content"][
+            "application/json"
+        ]["schema"] == {"$ref": "#/components/schemas/ErrorResponse"}
+
+
+def test_release_candidate_event_payloads_use_exact_allowlists() -> None:
+    """四类 B2 事件允许真实低敏字段，并拒绝内部配置注入。"""
+
+    schema = _read_json(
+        CONTRACT_ROOT / "schemas/events/task-event.schema.json"
+    )
+    validator = Draft202012Validator(schema)
+    common = {
+        "candidate_id": "00000000-0000-0000-0000-000000000401",
+        "approval_id": "00000000-0000-0000-0000-000000000501",
+        "workflow_job_id": "00000000-0000-0000-0000-000000000601",
+        "pull_request_record_id": (
+            "00000000-0000-0000-0000-000000000021"
+        ),
+        "repository_binding_id": (
+            "00000000-0000-0000-0000-000000000301"
+        ),
+        "binding_snapshot_sha256": "sha256:" + ("a" * 64),
+        "candidate_request_hash": "sha256:" + ("b" * 64),
+    }
+    cases = {
+        "WorkflowJobQueued": {
+            **common,
+            "job_type": "release_candidate_reconcile",
+            "job_request_hash": "sha256:" + ("c" * 64),
+            "status": "pending",
+        },
+        "ReleaseCandidateApprovalRequested": {
+            **common,
+            "action": "approve_release_candidate",
+            "risk_level": "L2",
+            "status": "pending_approval",
+        },
+        "ReleaseCandidateApproved": {
+            key: value
+            for key, value in common.items()
+            if key != "workflow_job_id"
+        }
+        | {"status": "approved", "reason": "reviewed"},
+        "ReleaseCandidateRejected": {
+            key: value
+            for key, value in common.items()
+            if key != "workflow_job_id"
+        }
+        | {"status": "rejected", "reason": None},
+    }
+    for event_type, payload in cases.items():
+        event = {
+            "id": "00000000-0000-0000-0000-000000000701",
+            "task_id": "00000000-0000-0000-0000-000000000011",
+            "event_type": event_type,
+            "actor_type": (
+                "system"
+                if event_type
+                in {
+                    "WorkflowJobQueued",
+                    "ReleaseCandidateApprovalRequested",
+                }
+                else "user"
+            ),
+            "actor_id": (
+                "release-candidate"
+                if event_type == "WorkflowJobQueued"
+                else "00000000-0000-0000-0000-000000000031"
+            ),
+            "created_at": "2026-07-16T00:00:00Z",
+            "payload": payload,
+        }
+        assert validator.is_valid(event), list(validator.iter_errors(event))
+        for forbidden in (
+            "clone_url",
+            "profile_key",
+            "credential_ref",
+            "token",
+        ):
+            injected = copy.deepcopy(event)
+            injected["payload"][forbidden] = "internal"
+            assert not validator.is_valid(injected)
 
 
 def _read_json(path: Path) -> dict[str, Any]:

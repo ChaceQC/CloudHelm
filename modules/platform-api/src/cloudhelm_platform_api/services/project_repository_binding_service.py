@@ -11,19 +11,12 @@ from cloudhelm_platform_api.models.project_repository_binding import (
 from cloudhelm_platform_api.providers.repository_profile_provider import (
     RepositoryProfileProvider,
 )
-from cloudhelm_platform_api.repositories.approval_repository import (
-    ApprovalRepository,
-)
 from cloudhelm_platform_api.repositories.project_repository import (
     ProjectRepository,
 )
 from cloudhelm_platform_api.repositories.project_repository_binding_repository import (
     ProjectRepositoryBindingRepository,
 )
-from cloudhelm_platform_api.repositories.release_candidate_repository import (
-    ReleaseCandidateRepository,
-)
-from cloudhelm_platform_api.schemas.common import ApprovalStatus
 from cloudhelm_platform_api.schemas.repository_binding import (
     RepositoryBindingPut,
     RepositoryBindingRead,
@@ -35,6 +28,9 @@ from cloudhelm_platform_api.services.database_errors import (
 )
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
+from cloudhelm_platform_api.services.release_candidate_freshness import (
+    ReleaseCandidateFreshnessService,
+)
 from cloudhelm_platform_api.services.repository_binding_snapshot import (
     build_repository_binding_public_snapshot,
     internal_snapshot_hash_from_binding,
@@ -45,9 +41,6 @@ _BINDING_CONFLICT_CONSTRAINTS = {
     "uq_project_repository_bindings_external",
     "ux_project_repository_bindings_owner_name",
 }
-_FRESHNESS_ACTOR = "system:release_candidate_freshness"
-
-
 class ProjectRepositoryBindingService(BaseService):
     """物化服务端 RepositoryProfile，并同步处理配置漂移。"""
 
@@ -61,8 +54,7 @@ class ProjectRepositoryBindingService(BaseService):
         self.profiles = profiles or RepositoryProfileProvider()
         self.projects = ProjectRepository(session)
         self.bindings = ProjectRepositoryBindingRepository(session)
-        self.candidates = ReleaseCandidateRepository(session)
-        self.approvals = ApprovalRepository(session)
+        self.freshness = ReleaseCandidateFreshnessService(session)
         self.events = EventService(session)
 
     def put_binding(
@@ -187,7 +179,10 @@ class ProjectRepositoryBindingService(BaseService):
             (
                 stale_candidate_ids,
                 expired_approval_ids,
-            ) = self._invalidate_drifted_candidates(binding)
+            ) = self.freshness.invalidate_by_binding(
+                binding.id,
+                reason="repository_binding_changed",
+            )
 
         self.events.record(
             event_type="RepositoryBindingConfigured",
@@ -231,49 +226,3 @@ class ProjectRepositoryBindingService(BaseService):
                 404,
             )
         return RepositoryBindingRead.model_validate(binding)
-
-    def _invalidate_drifted_candidates(
-        self,
-        binding: ProjectRepositoryBinding,
-    ) -> tuple[list[str], list[str]]:
-        """按固定 UUID 锁序使旧 Candidate stale，并过期 pending Approval。"""
-
-        candidates = self.candidates.list_active_by_binding_for_update(
-            binding.id
-        )
-        approvals = self.approvals.list_by_ids_for_update(
-            sorted(candidate.approval_id for candidate in candidates)
-        )
-        approvals_by_id = {approval.id: approval for approval in approvals}
-        decided_at = self.approvals.database_now()
-        stale_candidate_ids: list[str] = []
-        expired_approval_ids: list[str] = []
-
-        for candidate in candidates:
-            candidate.status = "stale"
-            stale_candidate_ids.append(str(candidate.id))
-            approval = approvals_by_id.get(candidate.approval_id)
-            if (
-                approval is not None
-                and approval.status == ApprovalStatus.PENDING.value
-            ):
-                approval.status = ApprovalStatus.EXPIRED.value
-                approval.decided_by = _FRESHNESS_ACTOR
-                approval.decided_at = decided_at
-                expired_approval_ids.append(str(approval.id))
-                self.events.record(
-                    event_type="ApprovalExpired",
-                    actor_type="system",
-                    actor_id=_FRESHNESS_ACTOR,
-                    payload={
-                        "approval_id": str(approval.id),
-                        "action": approval.action,
-                        "resource_type": approval.resource_type,
-                        "resource_id": str(approval.resource_id),
-                        "reason": "repository_binding_changed",
-                        "repository_binding_id": str(binding.id),
-                    },
-                    task_id=candidate.task_id,
-                )
-
-        return stale_candidate_ids, expired_approval_ids

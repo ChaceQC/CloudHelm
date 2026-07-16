@@ -116,6 +116,11 @@ class ErrorResponse(BaseModel):
 class DecisionRequest(BaseModel):
     """审批、通过或要求修改类动作的请求体。"""
 
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+    )
+
     actor_id: str = Field(default="user", min_length=1, description="操作人或组件标识。")
     reason: str | None = Field(default=None, description="操作原因。")
 

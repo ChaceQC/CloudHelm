@@ -52,6 +52,23 @@ class ProjectRepositoryBindingRepository:
         self.session.flush()
         return binding
 
+    def get(
+        self,
+        binding_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> ProjectRepositoryBinding | None:
+        """按 ID 读取绑定，可选按 Candidate 决策锁序加行锁。"""
+
+        statement = select(ProjectRepositoryBinding).where(
+            ProjectRepositoryBinding.id == binding_id
+        )
+        if for_update:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+        return self.session.scalar(statement)
+
     def get_by_project(
         self,
         project_id: UUID,

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/events/task-event.schema.json",
   "title": "CloudHelm Task Event",
-  "description": "CloudHelm 事件流的基础结构。M2-M7-2B1 已接入真实 event_logs，事件来自数据库而非内存模拟；项目级与环境级事件的 task_id 可为空。",
+  "description": "CloudHelm 事件流的基础结构。M2-M7-2B2 已接入真实 event_logs，事件来自数据库而非内存模拟；项目级与环境级事件的 task_id 可为空。",
   "type": "object",
   "required": ["id", "task_id", "event_type", "actor_type", "created_at", "payload"],
   "properties": {
@@ -68,6 +68,10 @@
         "CommitCreated",
         "PullRequestRecordCreated",
         "RepositoryBindingConfigured",
+        "WorkflowJobQueued",
+        "ReleaseCandidateApprovalRequested",
+        "ReleaseCandidateApproved",
+        "ReleaseCandidateRejected",
         "EnvironmentCreated",
         "RemoteTargetRegistered",
         "RemoteAgentHeartbeat",
@@ -75,7 +79,7 @@
         "RemoteAgentOffline",
         "RemoteAgentRecovered"
       ],
-      "description": "M2-M7-2B1 真实写入的事件类型。"
+      "description": "M2-M7-2B2 真实写入的事件类型。"
     },
     "actor_type": {
       "type": "string",
@@ -202,6 +206,312 @@
                   "type": "string",
                   "format": "uuid"
                 }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobQueued"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["task_id", "actor_type", "actor_id", "payload"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_type": {
+            "const": "system"
+          },
+          "actor_id": {
+            "const": "release-candidate"
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "candidate_id",
+              "approval_id",
+              "workflow_job_id",
+              "pull_request_record_id",
+              "repository_binding_id",
+              "binding_snapshot_sha256",
+              "candidate_request_hash",
+              "job_type",
+              "job_request_hash",
+              "status"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "approval_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "workflow_job_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pull_request_record_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "repository_binding_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "binding_snapshot_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "candidate_request_hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "job_type": {
+                "const": "release_candidate_reconcile"
+              },
+              "job_request_hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "status": {
+                "const": "pending"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ReleaseCandidateApprovalRequested"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["task_id", "actor_type", "actor_id", "payload"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_type": {
+            "const": "system"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "candidate_id",
+              "approval_id",
+              "workflow_job_id",
+              "pull_request_record_id",
+              "repository_binding_id",
+              "binding_snapshot_sha256",
+              "candidate_request_hash",
+              "action",
+              "risk_level",
+              "status"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "approval_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "workflow_job_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pull_request_record_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "repository_binding_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "binding_snapshot_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "candidate_request_hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "action": {
+                "const": "approve_release_candidate"
+              },
+              "risk_level": {
+                "const": "L2"
+              },
+              "status": {
+                "const": "pending_approval"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ReleaseCandidateApproved"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["task_id", "actor_type", "actor_id", "payload"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_type": {
+            "const": "user"
+          },
+          "actor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "candidate_id",
+              "approval_id",
+              "pull_request_record_id",
+              "repository_binding_id",
+              "binding_snapshot_sha256",
+              "candidate_request_hash",
+              "status",
+              "reason"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "approval_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pull_request_record_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "repository_binding_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "binding_snapshot_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "candidate_request_hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "status": {
+                "const": "approved"
+              },
+              "reason": {
+                "type": ["string", "null"]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ReleaseCandidateRejected"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["task_id", "actor_type", "actor_id", "payload"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_type": {
+            "const": "user"
+          },
+          "actor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "candidate_id",
+              "approval_id",
+              "pull_request_record_id",
+              "repository_binding_id",
+              "binding_snapshot_sha256",
+              "candidate_request_hash",
+              "status",
+              "reason"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "approval_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pull_request_record_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "repository_binding_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "binding_snapshot_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "candidate_request_hash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "status": {
+                "const": "rejected"
+              },
+              "reason": {
+                "type": ["string", "null"]
               }
             },
             "additionalProperties": false

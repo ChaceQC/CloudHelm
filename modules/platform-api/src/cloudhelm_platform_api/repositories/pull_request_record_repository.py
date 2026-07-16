@@ -60,10 +60,15 @@ class PullRequestRecordRepository:
             .limit(1)
         )
 
-    def latest_by_task(self, task_id: UUID) -> PullRequestRecord | None:
-        """读取任务最新 PR record。"""
+    def latest_by_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> PullRequestRecord | None:
+        """读取任务最新 PR record，可选加锁后更新其生命周期。"""
 
-        return self.session.scalar(
+        statement = (
             select(PullRequestRecord)
             .where(PullRequestRecord.task_id == task_id)
             .order_by(
@@ -72,6 +77,45 @@ class PullRequestRecordRepository:
             )
             .limit(1)
         )
+        if for_update:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+        return self.session.scalar(statement)
+
+    def latest_open_by_task(
+        self,
+        task_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> PullRequestRecord | None:
+        """读取任务最新 open PR，可选锁定其不可变来源证据。"""
+
+        statement = (
+            select(PullRequestRecord)
+            .where(
+                PullRequestRecord.task_id == task_id,
+                PullRequestRecord.status == "open",
+            )
+            .order_by(
+                PullRequestRecord.created_at.desc(),
+                PullRequestRecord.id.desc(),
+            )
+            .limit(1)
+        )
+        if for_update:
+            statement = statement.with_for_update().execution_options(
+                populate_existing=True
+            )
+        return self.session.scalar(statement)
+
+    def latest_open_by_task_for_update(
+        self,
+        task_id: UUID,
+    ) -> PullRequestRecord | None:
+        """锁定任务最新 open PR，供 Candidate 创建流程复用。"""
+
+        return self.latest_open_by_task(task_id, for_update=True)
 
     def latest_by_task_and_plan(
         self,

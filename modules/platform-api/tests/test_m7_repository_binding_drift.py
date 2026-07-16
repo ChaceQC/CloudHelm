@@ -18,6 +18,9 @@ from m7_repository_binding_fixture import (
     event_count,
     seed_candidate,
 )
+from m7_release_candidate_api_fixture import (
+    seed_release_candidate_dependencies,
+)
 from conftest import create_project
 
 
@@ -254,3 +257,37 @@ def test_binding_drift_preserves_published_candidate(
         assert approval is not None
         assert candidate.status == "published"
         assert approval.status == "approved"
+
+
+def test_binding_drift_invalidates_api_created_candidate(
+    client: TestClient,
+) -> None:
+    """API 使用 PostgreSQL 时间创建的 Candidate 也可安全漂移失效。"""
+
+    seeded = seed_release_candidate_dependencies(client)
+    created = client.post(
+        f"/api/tasks/{seeded['task_id']}/release-candidate",
+        json={},
+    )
+    assert created.status_code == 201
+
+    response = client.put(
+        f"/api/projects/{seeded['project_id']}/repository-binding",
+        json={"profile_key": "test-primary-drift"},
+    )
+
+    assert response.status_code == 200, response.text
+    with Session(get_engine()) as session:
+        candidate = session.get(
+            ReleaseCandidate,
+            UUID(created.json()["candidate"]["id"]),
+        )
+        approval = session.get(
+            ApprovalRequest,
+            UUID(created.json()["approval"]["id"]),
+        )
+        assert candidate is not None
+        assert approval is not None
+        assert candidate.status == "stale"
+        assert candidate.updated_at >= candidate.created_at
+        assert approval.status == "expired"

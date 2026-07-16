@@ -1,7 +1,8 @@
 """M7-2B1 RepositoryBinding identity、回滚与并发测试。"""
 
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Event
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,8 +11,19 @@ from sqlalchemy.orm import Session
 
 from cloudhelm_platform_api.db.session import get_engine
 from cloudhelm_platform_api.main import create_app
+from cloudhelm_platform_api.models.approval import ApprovalRequest
 from cloudhelm_platform_api.models.project_repository_binding import (
     ProjectRepositoryBinding,
+)
+from cloudhelm_platform_api.models.release_candidate import ReleaseCandidate
+from cloudhelm_platform_api.providers.repository_profile_provider import (
+    RepositoryProfileProvider,
+)
+from cloudhelm_platform_api.services.repository_binding_snapshot import (
+    internal_snapshot_hash_from_binding,
+)
+from m7_release_candidate_api_fixture import (
+    seed_release_candidate_dependencies,
 )
 from m7_repository_binding_fixture import event_count
 from conftest import create_project
@@ -204,3 +216,91 @@ def test_concurrent_binding_identity_swap_returns_stable_conflicts(
         )
         assert response.status_code == 200
         assert response.json()["profile_key"] == initial_profile
+
+
+def test_concurrent_binding_put_and_candidate_post_preserve_freshness(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """先启动 PUT 事务再创建 Candidate，失效时间仍不得早于创建时间。"""
+
+    seeded = seed_release_candidate_dependencies(client)
+    candidate_path = (
+        f"/api/tasks/{seeded['task_id']}/release-candidate"
+    )
+    binding_path = (
+        f"/api/projects/{seeded['project_id']}/repository-binding"
+    )
+    profile_lookup_started = Event()
+    continue_profile_lookup = Event()
+    original_get_profile = RepositoryProfileProvider.get_profile
+
+    def delayed_get_profile(
+        provider: RepositoryProfileProvider,
+        profile_key: str,
+    ):
+        """在 PUT 已开启事务但尚未锁 Binding 时让 Candidate 完成创建。"""
+
+        if profile_key == "test-primary-drift":
+            profile_lookup_started.set()
+            assert continue_profile_lookup.wait(timeout=10)
+        return original_get_profile(provider, profile_key)
+
+    monkeypatch.setattr(
+        RepositoryProfileProvider,
+        "get_profile",
+        delayed_get_profile,
+    )
+
+    def create_candidate() -> tuple[int, dict]:
+        with TestClient(create_app()) as concurrent_client:
+            response = concurrent_client.post(candidate_path, json={})
+            return response.status_code, response.json()
+
+    def drift_binding() -> tuple[int, dict]:
+        with TestClient(create_app()) as concurrent_client:
+            response = concurrent_client.put(
+                binding_path,
+                json={"profile_key": "test-primary-drift"},
+            )
+            return response.status_code, response.json()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        binding_future = pool.submit(drift_binding)
+        assert profile_lookup_started.wait(timeout=10)
+        try:
+            candidate_result = create_candidate()
+        finally:
+            continue_profile_lookup.set()
+        binding_result = binding_future.result()
+
+    assert candidate_result[0] == 201
+    assert binding_result[0] == 200
+    with Session(get_engine()) as session:
+        binding = session.get(
+            ProjectRepositoryBinding,
+            UUID(seeded["repository_binding_id"]),
+        )
+        candidate = session.scalar(
+            select(ReleaseCandidate).where(
+                ReleaseCandidate.task_id == UUID(seeded["task_id"])
+            )
+        )
+        assert binding is not None
+        assert candidate is not None
+        current_hash = internal_snapshot_hash_from_binding(binding)
+        approval = session.get(
+            ApprovalRequest,
+            candidate.approval_id,
+        )
+        assert approval is not None
+        if candidate.status in {"pending_approval", "approved"}:
+            assert candidate.binding_snapshot_sha256 == current_hash
+            assert approval.status == "pending"
+        else:
+            assert candidate.status == "stale"
+            assert candidate.binding_snapshot_sha256 != current_hash
+            assert candidate.updated_at >= candidate.created_at
+            assert approval.status == "expired"
+            assert approval.decided_at is not None
+            assert approval.decided_at >= approval.created_at

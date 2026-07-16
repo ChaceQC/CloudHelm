@@ -120,8 +120,13 @@ class ApprovalRepository:
         )
 
     def database_now(self) -> datetime:
-        """读取 PostgreSQL 事务时间，供资源审批过期与数据库约束统一。"""
+        """读取 PostgreSQL 实时时钟，供资源审批过期与数据库约束统一。
 
-        value = self.session.scalar(select(func.now()))
+        ``now()`` 固定为事务开始时间。事务等待其他行锁后再处理刚创建的审批时，
+        该时间可能早于目标记录的 ``created_at``，因此这里必须使用会随语句推进的
+        ``clock_timestamp()``。
+        """
+
+        value = self.session.scalar(select(func.clock_timestamp()))
         assert value is not None
         return value
