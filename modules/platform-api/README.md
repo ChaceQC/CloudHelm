@@ -1,9 +1,10 @@
 # modules/platform-api
 
-CloudHelm 平台 API 服务。M7-1 使用 FastAPI + SQLAlchemy + Alembic +
+CloudHelm 平台 API 服务。M7-2B2 使用 FastAPI + SQLAlchemy + Alembic +
 PostgreSQL 提供真实数据库驱动的 Agent 编排、Tool Gateway、本地开发单步流程、
 Artifact、本地等价 PR record，以及 Environment、RemoteTarget 和
-machine-auth heartbeat 基础闭环。
+machine-auth heartbeat 基础闭环、受控 RepositoryBinding、ReleaseCandidate
+第一道审批和 reconcile WorkflowJob 原子创建。
 
 ## 命令
 
@@ -103,7 +104,8 @@ Invoke-RestMethod http://127.0.0.1:18080/health
   由 pytest 创建会话级随机数据库。
 - `CLOUDHELM_TEST_ALLOW_SCHEMA_RESET`：显式测试库的破坏性 schema 重建确认；
   只有专用 test 数据库可设为 `true`。
-- `CLOUDHELM_REDIS_URL`：Redis 预留配置；M2 暂不接入生产路径。
+- `CLOUDHELM_REDIS_URL`：Redis 预留配置；M7-2B2 只持久化 WorkflowJob，
+  M7-2C 才接入 dispatcher/worker。
 
 ## API 分层
 
@@ -214,12 +216,41 @@ workflow 和 release ref prefix，并在内部保存 clone URL 与 credential re
 锁序使旧 active Candidate stale，并过期对应 pending Approval。GET 只读取数据库
 物化结果，即使 profile 文件暂时不可用也可返回历史绑定。
 
+## M7-2B2 ReleaseCandidate 与第一道审批
+
+```text
+POST /api/tasks/{task_id}/release-candidate
+GET  /api/tasks/{task_id}/release-candidate
+POST /api/approvals/{approval_id}/approve
+POST /api/approvals/{approval_id}/reject
+```
+
+- Candidate POST 只接受严格 `{}`；服务端绑定最新版 open M6
+  PullRequestRecord、完整 commit、Binding public snapshot/internal hash、
+  target ref、request hash 和 idempotency key。
+- 首次创建返回 `201`；相同 PR 与 Binding snapshot 的顺序或并发请求返回同一
+  Candidate/Approval，状态码为 `200`。GET 优先 active Candidate，否则返回最新
+  历史记录。
+- Candidate、第一道 L2 Approval、无外部副作用的
+  `release_candidate_reconcile` WorkflowJob，以及 `WorkflowJobQueued` /
+  `ReleaseCandidateApprovalRequested` 事件在同一事务创建。
+- approve/reject 使用 Task-first 锁序，重验 PR、Binding、request hash、expiry、
+  consumed 状态和实现 AgentRun 自批门禁；漂移会原子写 Candidate stale 与
+  pending Approval expired。
+- 锁等待后的审批时间使用 PostgreSQL `clock_timestamp()`，避免事务开始时间早于
+  并发创建记录的 `created_at`。
+- B2 不 push candidate ref、不触发 Gitea CI，也不运行 WorkflowJob。
+  durable dispatcher/worker 属于 M7-2C。
+
 ## 当前边界
 
 M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branch/commit 和
 本地等价 PR record。Sandbox 暂用 allowlist 内本地目录 + 受控 `subprocess`，
 具备命令数组、环境白名单、超时、进程树清理和有界输出，但不具备 Docker 的
 CPU、内存、PID、只读挂载与网络隔离；不执行 push、远端 SSH、部署或监控操作。
+M7-2B2 已提供 Candidate/Approval 真实 API，但 reconcile WorkflowJob 当前仅
+持久化为 PostgreSQL pending 记录；尚无 Celery dispatch、claim、lease、heartbeat
+或 stale reclaim。
 `/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件。
 M7-1 新环境/心跳事件的 `task_id=null`，尚无项目/环境查询 API 与实时 SSE。
 离线状态由 target list 或下一次 heartbeat 收敛，周期 worker 留到后续 M7。

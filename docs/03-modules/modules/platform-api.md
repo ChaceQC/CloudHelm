@@ -3,7 +3,7 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`modules/platform-api`
 
-## M2-M7-2B1 实现状态
+## M2-M7-2B2 实现状态
 
 `modules/platform-api` `0.5.1` 已从 M1 `/health` 扩展为真实数据库 API 和
 本地开发工作流：
@@ -21,6 +21,9 @@
 - M7-2B1 已新增 server-controlled RepositoryProfile、ProjectRepositoryBinding
   PUT/GET、配置幂等、repository identity advisory lock、Candidate/Approval
   漂移失效和 CORS PUT。
+- M7-2B2 已新增严格空对象的 Candidate POST、active-first Candidate GET、
+  第一道 L2 Approval approve/reject、PR/Binding/request freshness、自批门禁、
+  原子 `release_candidate_reconcile` WorkflowJob 和精确事件。
 - 远端 push、真实 Gitea CI、ReleasePlan、Deployment Controller、实际 Compose
   部署和监控仍在后续 M7-M8。
 
@@ -78,7 +81,20 @@
   Candidate stale，并过期 pending Approval。
 - RepositoryProfile 支持严格 UTF-8 JSON 文件或环境变量 map，拒绝重复 key、
   非 HTTPS URL、非法 Git ref 和缺失 credential。
-- Candidate POST/第一道审批和 durable Workflow Engine 属于 M7-2B2/C。
+
+## M7-2B2 实现状态
+
+- `POST/GET /api/tasks/{task_id}/release-candidate` 已进入 FastAPI 与共享
+  OpenAPI；POST 严格只接受 `{}`，首次创建 `201`，幂等命中 `200`。
+- Candidate、第一道 L2 Approval、pending `release_candidate_reconcile`
+  WorkflowJob 和创建事件在同一 PostgreSQL 事务写入，公开响应不包含 job id、
+  clone URL、profile 或 credential。
+- approve/reject 按 Task-first 锁序重验最新版 PR、Binding snapshot/hash、
+  request hash、expiry、consumed 状态和实现 AgentRun 自批门禁。
+- 新 PR 或 Binding 漂移会原子 stale 旧 Candidate，并使 pending Approval
+  expired；锁等待后的决策时间使用 PostgreSQL `clock_timestamp()`。
+- B2 没有 push、CI 或远端副作用。Redis/Celery durable Workflow Engine 属于
+  M7-2C。
 
 ## 职责
 

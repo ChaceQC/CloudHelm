@@ -3,19 +3,22 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`packages/shared-contracts`
 
-## M2-M7-2B1 实现状态
+## M2-M7-2B2 实现状态
 
 共享契约已同步当前 Platform API：
 
 - `openapi/cloudhelm.openapi.yaml`：由 `modules/platform-api` 当前 FastAPI
   应用导出，版本 `0.5.1`，覆盖 M6 local-development、Artifact、本地等价
   PR record，以及 M7 Environment、RemoteTarget、heartbeat 和
-  RepositoryBinding PUT/GET。
+  RepositoryBinding PUT/GET、ReleaseCandidate POST/GET 与第一道审批响应。
 - `schemas/agents/*.schema.json`：覆盖 Requirement、Architect、Planner、
   Scaffold、Coder、Tester、Reviewer、Security 的稳定结构化输出。
 - `schemas/artifacts/*.schema.json`：约束 Artifact 安全引用和本地 PR record。
-- `schemas/events/task-event.schema.json`：覆盖 M1-M7-2B1 当前真实事件类型；
-  RepositoryBindingConfigured 使用精确 payload allowlist。
+- `schemas/events/task-event.schema.json`：覆盖 M1-M7-2B2 当前真实事件类型；
+  `RepositoryBindingConfigured`、`WorkflowJobQueued`、
+  `ReleaseCandidateApprovalRequested`、`ReleaseCandidateApproved` 和
+  `ReleaseCandidateRejected` 使用 `additionalProperties:false` 的精确 payload
+  allowlist。
 - `schemas/tools/*.schema.json`：描述 ToolCall、风险等级和 Requirement、Design、
   Repo、Scaffold、Sandbox、Test、Security、Git 已实现工具契约；名称、风险和
   参数字段与 Tool Gateway registry 执行一致性测试。

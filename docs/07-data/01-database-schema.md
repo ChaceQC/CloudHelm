@@ -82,8 +82,10 @@ profile-only Linux RemoteTarget 和 machine-auth heartbeat；尚未表示完整 
 `ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob` 和资源型
 Approval 字段已由 `20260716_0008` 建立 migration 与 ORM 数据底座。该结论只表示
 M7-2A 数据结构已经进入实现与数据库门禁。M7-2B1 已进一步交付
-RepositoryProfile、Binding PUT/GET、幂等、漂移失效和并发门禁；Candidate 原子
-创建、审批服务或 durable worker 仍属于 M7-2B2/C。
+RepositoryProfile、Binding PUT/GET、幂等、漂移失效和并发门禁；M7-2B2 已交付
+Candidate 原子创建、第一道审批 approve/reject、freshness 门禁、pending
+`release_candidate_reconcile` WorkflowJob 和精确事件。durable dispatcher/
+worker 仍属于 M7-2C。
 
 `CIRun`、`Deployment` 和 `ServiceInstance` 仍是 `0.6.0` 后续纵切的目标设计，
 必须随对应 migration、ORM、repository/service、黑盒/白盒测试和真实流程证据
@@ -1031,6 +1033,9 @@ PostgreSQL `workflow_jobs` 是业务权威；Redis/Celery 只投递
 `workflow_job_id`。M7-2 数据库 CHECK 暂时只允许
 `release_candidate_reconcile -> release_candidate -> none`，后续新增 publish、
 CI 或 deploy handler 时必须由新 migration 扩展映射。
+
+当前 M7-2B2 只创建 pending job，尚未运行下述 dispatcher 逻辑；以下 due、lease、
+retry 和 reclaim 规则由 M7-2C 实现。
 
 dispatcher due 条件必须同时满足：
 

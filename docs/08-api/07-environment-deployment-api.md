@@ -16,7 +16,7 @@ GET  /api/environments/{environment_id}/remote-targets
 POST /api/remote-agents/heartbeat
 ```
 
-M7-2 已冻结、尚待本轮代码实现的契约：
+M7-2B1/B2 已实现并进入共享 OpenAPI：
 
 ```text
 PUT  /api/projects/{project_id}/repository-binding
@@ -26,6 +26,9 @@ GET  /api/tasks/{task_id}/release-candidate
 ```
 
 Candidate POST 请求体固定为严格空对象 `{}`，是第一道 approval 的唯一创建入口。
+首次创建返回 `201`，同一 PR 与 Binding snapshot 幂等命中返回 `200`；Candidate、
+L2 Approval 和 pending reconcile WorkflowJob 同事务创建。B2 不 push、不触发 CI，
+也不运行该 job。
 后续 `remote-deployment/start` 只选择 Environment/RemoteTarget 并要求已有 approved
 candidate，不再重复创建第一道审批。
 
@@ -44,8 +47,9 @@ POST /api/deployments/{deployment_id}/health-check
 POST /api/deployments/{deployment_id}/rollback-request
 ```
 
-M7 完整闭环仍要求 release candidate、真实 CI、不可变 digest、第二道审批、
-Deployment Controller、Remote Agent deployment operation 和 Monitoring 交接。
+M7 完整闭环仍要求 candidate ref 发布与远端 SHA 复核、真实 CI、不可变 digest、
+第二道审批、Deployment Controller、Remote Agent deployment operation 和
+Monitoring 交接。
 
 ## 2. 调用边界
 
@@ -435,7 +439,8 @@ Content-Type: application/json
   AgentRun 比较，相同则拒绝自批。
 - `approve_release_candidate` 是保留 action；通用 Approval create endpoint 返回
   `422 approval_action_reserved`，只能由 CandidateService 内部事务创建。
-- broker 暂时不可用不回滚已提交 Candidate；durable dispatcher 后续补投。
+- M7-2B2 只提交 PostgreSQL pending job；M7-2C durable dispatcher 周期扫描后
+  投递，因此当前没有 broker 调用失败需要回滚 Candidate 的路径。
 - reconcile job 无外部副作用，且不替代 ApprovalService 的同步 freshness 校验。
 - M7-2 Candidate create/approve/reject 不改 Task status/current phase；后续
   Orchestrator 纵切再接入 WaitingMergeApproval/CIValidating。

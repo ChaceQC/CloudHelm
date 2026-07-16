@@ -480,8 +480,8 @@ complete_m7_handoff
   start/run-next 只用于答辩逐步展示或人工恢复。
 - `POST /api/tasks/{task_id}/release-candidate` 是第一道审批的唯一创建入口，只接受
   `{}`，原子创建 candidate、Approval 与无外部副作用的
-  `release_candidate_reconcile` WorkflowJob；提交后复用 durable dispatcher
-  best-effort 投递。
+  `release_candidate_reconcile` WorkflowJob。M7-2B2 当前只提交 PostgreSQL
+  pending job；M7-2C 接入 durable dispatcher 后再自动投递。
 - `remote-deployment/start` 只接受 `environment_id`，要求已有 approved candidate，
   不重复创建 candidate。
 - CI 由 webhook/poll 更新，不在 HTTP 请求内长时间等待。
@@ -496,9 +496,9 @@ complete_m7_handoff
 ### 7.1 Claim
 
 1. API/service 在短事务创建 PostgreSQL WorkflowJob。
-2. 提交后尽力投递；durable dispatcher 对
+2. M7-2C durable dispatcher 对
    同时满足 business retry 与 next enqueue 到期的 pending job 使用 dispatch
-   lease 补投。
+   lease 投递与补投；M7-2B2 当前尚未运行该步骤。
 3. Celery business message 只携带 job UUID；重复 delivery 由数据库 claim 去重。
 4. worker 无锁读取 immutable task id hint，再固定按
    `Task FOR UPDATE -> WorkflowJob FOR UPDATE -> ProjectRepositoryBinding
@@ -848,6 +848,7 @@ M7 事件至少包括：
 - EnvironmentCreated。
 - RemoteTargetRegistered。
 - RemoteAgentHeartbeat / Online / Offline / Recovered。
+- WorkflowJobQueued。
 - ReleaseCandidateApprovalRequested / Approved / Rejected / Published。
 - CIRunTriggered / Started / Passed / Failed。
 - CIArtifactPublished。
@@ -991,11 +992,31 @@ SSE 使用数据库 EventLog tailing：
 - Environment/Target 事件当前以 `task_id=null` 写入 PostgreSQL EventLog；项目/
   环境查询 API 与实时 SSE 留在 M7-5，相关 Roadmap 项保持未完成。
 
-### M7-2：Repository binding / candidate / workflow jobs
+### M7-2A：数据底座
 
-- 受控 profile。
-- 两道审批基础。
-- Celery + Redis worker 与 lease。
+- `ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob` 与资源 Approval
+  migration/ORM/约束。
+
+### M7-2B1：Repository binding
+
+- server-controlled RepositoryProfile。
+- Binding PUT/GET、幂等、identity 冲突与漂移失效。
+
+### M7-2B2：Candidate 与第一道审批
+
+- 严格 `{}` Candidate POST/GET、201/200 幂等和 active-first 查询。
+- 服务端绑定最新 PR、完整 commit、Binding snapshot/hash、target ref 与
+  request hash。
+- Candidate、第一道 L2 Approval、pending reconcile WorkflowJob 与
+  `WorkflowJobQueued` / Candidate 事件同事务创建。
+- approve/reject 重验 freshness、expiry、consumed、request hash 和实现 AgentRun
+  自批门禁；无 push、CI 或远端副作用。
+
+### M7-2C：durable Workflow Engine
+
+- Celery + Redis dispatcher/worker、dispatch/worker lease、heartbeat、retry、
+  Redis 补投和 side-effect-aware stale reclaim。
+- 首个生产 handler 为 `release_candidate_reconcile`。
 
 ### M7-3：通用项目契约与 renderer
 

@@ -9,8 +9,10 @@
   workspace 文件修改 → pytest/JUnit → Review → Bandit/pip-audit → branch/commit
   → `provider=local` 的等价 PR record。
 - M7-1 的 Environment、profile-only RemoteTarget 和 machine-auth heartbeat 已
-  实现；受控 candidate ref、真实 CI、Release / Deploy 和 M8 远端监控/SRE 尚未
-  进入完成判定。下文相应测试项标记为“规划”，不得用静态数据或假返回冒充。
+  实现；M7-2B1/B2 的 RepositoryBinding、Candidate API、第一道审批和无副作用
+  reconcile job 也已实现。受控 candidate ref 发布、真实 CI、Release / Deploy
+  和 M8 远端监控/SRE 尚未进入完成判定。下文相应测试项标记为“规划”，不得用
+  静态数据或假返回冒充。
 - M6 的 `sandbox.*` 使用 allowlist 本地目录和受控 `subprocess`，不是 Docker
   sandbox。Docker CPU/内存/PID/网络隔离属于后续边界。
 
@@ -57,7 +59,7 @@
 |IT-018|M4-M6 会话/权限原语已实现；执行调度后续|显式 child conversation 持久化与隔离|running Task/AgentRun 调用内部唯一 spawn 入口；顺序与并发触发 active 上限；尝试暂停后 spawn、父 child 提前结束、遗留写角色、跨 Task root、终态 child、递归越权和策略漂移重放|只新增独立 child；默认拒绝 depth>1 和第 7 个 active child；并发配额不超限；parent/role/fork/status 正确；Tool Gateway 强制 active lineage 工具交集并审计拒绝；完成必须叶子优先且无 active AgentRun；父线程只收到非空、脱敏、≤4000 字符的最终通知；不把真实 child provider 执行、wait-all、steer/queue 或 thread UI 写成已交付|
 |IT-019|M2-M6 已实现|测试数据库隔离|并行启动两个 Platform API pytest 会话|分别创建 `cloudhelm_test_<pid>_<uuid>`，均不重置开发库，结束后删除临时库|
 |IT-020|M4 已实现|重复推进门禁|两个调用基于同一 `expected_phase` 请求 start/run-next|Task 行锁串行化；阶段已变化的请求返回 `409 orchestration_phase_changed`|
-|IT-011|M7-2 规划|Release candidate 审批|`POST /api/tasks/{task_id}/release-candidate` 请求 `{}`，随后处理 L2 Approval|Candidate、Approval 与内部 reconcile job 同事务创建；PR、commit、binding snapshot/hash、受控 ref、幂等键和 request hash 均由服务端派生；`requested_by_agent_run_id` 固定为 PR creator；缺 creator、额外字段、通用 Approval 保留 action、自批、过期/hash 漂移均被稳定拒绝；审批前无 push/CI/外部副作用|
+|IT-011|M7-2B2 已实现|Release candidate 审批|`POST /api/tasks/{task_id}/release-candidate` 请求 `{}`，随后处理 L2 Approval|Candidate、Approval 与内部 reconcile job 同事务创建；首次 `201`、幂等 `200`；PR、commit、binding snapshot/hash、受控 ref、幂等键和 request hash 均由服务端派生；`requested_by_agent_run_id` 固定为 PR creator；缺 creator、额外字段、通用 Approval 保留 action、自批、过期/hash/PR/Binding 漂移均被稳定拒绝；审批前无 push/CI/外部副作用；并发锁等待时间不早于记录创建时间|
 |IT-012|M7 规划|真实 CI 与不可变制品|candidate 发布后对固定 workflow/ref 发起唯一 `workflow_dispatch`|workflow 不监听 push；同一 candidate 只有一个有效 run；run/job/commit/JUnit/security/SBOM/scan/OCI digest 可追溯，CI 无 SSH/Compose/Remote Agent/restart/部署命令|
 |IT-021|M7-1 已实现|Remote Agent machine heartbeat|对受控 profile 注册的 Linux target 执行合法、跨 target、过期、撤销、scope、顺序/并发重放、超大 body、fingerprint 漂移和新旧 key 心跳|online/offline/recovery 正确；nonce 覆盖完整时间窗；credential/完整 endpoint/原始 validation input 不泄露；fingerprint/capabilities 可审计；周期离线 worker 与项目级 SSE 仍属后续 M7|
 |IT-022|M7 规划|部署审批与单次恢复|Release Agent 请求 staging，审批提交后并发 worker/重复消息自动恢复|Approval L3 绑定 ReleasePlan/digest/target/hash；过期/已消费/hash 漂移拒绝；PostgreSQL claim 保证只执行一次 operation；`run-next` 仅人工恢复|

@@ -3,6 +3,13 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`modules/workflow-engine`
 
+## 当前实现状态
+
+M7-2B2 目前只由 Platform API 在 PostgreSQL 中创建 pending
+`release_candidate_reconcile` WorkflowJob。仓库尚未创建
+`modules/workflow-engine` 运行模块，也没有 Celery dispatcher、worker、claim、
+lease、heartbeat、retry 或 stale reclaim；本文件其余内容是 M7-2C 的实施契约。
+
 ## 职责
 
 异步任务队列、worker、重试、定时任务。
@@ -80,8 +87,9 @@ release_candidate_reconcile -> release_candidate -> none
 
 ## Durable dispatcher
 
-Candidate POST 在 PostgreSQL 事务内创建 pending job，提交后调用 dispatcher 的
-同一 reserve 入口 best-effort 投递。周期 dispatcher 的 due 条件为：
+Candidate POST 在 PostgreSQL 事务内创建 pending job。M7-2B2 提交后只依赖该
+权威记录，不直接 import 尚未建立的 Workflow Engine；M7-2C 周期 dispatcher
+使用同一 reserve 入口扫描和投递。其 due 条件为：
 
 ```sql
 tasks.status IN ('running', 'waiting_approval')

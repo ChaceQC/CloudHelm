@@ -2,6 +2,100 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2B2 Candidate、第一道审批与 reconcile WorkflowJob 原子创建纵切）
+
+### 已完成
+
+- 实现：
+  - `POST /api/tasks/{task_id}/release-candidate`
+  - `GET /api/tasks/{task_id}/release-candidate`
+- Candidate POST 使用严格空对象 DTO；首次创建返回 `201`，相同 PR 与 Binding
+  snapshot 的顺序/并发幂等命中返回 `200`。GET 优先 active Candidate，否则返回
+  `created_at,id` 最新历史。
+- 服务端绑定最新版 open M6 PullRequestRecord、实现 AgentRun、完整 commit、
+  Binding public snapshot/internal hash、受控 target ref、request hash 和
+  idempotency key；重新核验四类 M6 门禁 Artifact。
+- Candidate、第一道 L2 Approval、pending
+  `release_candidate_reconcile` WorkflowJob、`WorkflowJobQueued` 和
+  `ReleaseCandidateApprovalRequested` 在同一 PostgreSQL 事务创建。
+- 复用 Approval approve/reject API，新增 Candidate 专用领域决策：
+  - Task-first 锁序。
+  - PR、Binding snapshot/hash 与 request hash freshness。
+  - expiry、consumed、resource/action 与重复决策门禁。
+  - plain UUID、`agent-run:<UUID>` 和首尾空格统一规范化后的实现 AgentRun
+    自批拒绝。
+  - reason 脱敏，事件不包含 clone URL、profile 或 credential。
+- 新 PR 创建先锁 Task，并发创建最终只保留一条 open PR；新 PR 或 Binding 漂移
+  会原子使旧 Candidate stale、pending Approval expired。
+- 修复锁等待时间竞争：原 `PostgreSQL now()` 固定为事务开始时间，Binding PUT
+  事务先开始、等待 Candidate 创建后可能写出 `decided_at < created_at`。资源审批
+  现改用 `clock_timestamp()`，并以 Candidate/Approval `created_at` 作为下界；
+  确定性测试先启动 PUT 事务、再创建 Candidate、最后恢复 PUT。
+- 共享 OpenAPI、事件 JSON Schema、Control Console API/事件类型、README、API/
+  Data/Workflow/Testing 文档与 Roadmap 已同步。版本继续保持 `0.5.1`；完整 M7
+  E2E 收口时再发布 `0.6.0`。
+- B2 生产代码、测试与共享契约已提交为 `dfbee7e`，并 push 到
+  `origin/feature/m7-remote-deploy-closure`。
+
+### 进行中
+
+- M7-2C Redis + Celery durable Workflow Engine。
+
+### 阻塞与风险
+
+- B2 只持久化 pending WorkflowJob，尚无 dispatcher、claim、lease、heartbeat、
+  retry、stale reclaim 或 Redis 重启补投。
+- CIRun、Deployment、ServiceInstance、正式 Ops Hub installation、Gitea
+  runner/registry、Deployment Controller、Remote Agent operation 和 Linux
+  staging E2E 仍属于后续 M7 切片。
+- 当前自批门禁基于 AgentRun provenance；真实 user/session/RBAC/SoD 由 M9
+  接入，不把调用方 actor 字符串描述为不可伪造身份。
+
+### 下一步
+
+1. 创建独立 `modules/workflow-engine` Python 包并固定 Celery/redis 依赖。
+2. 扩展 WorkflowJob repository 的 reserve/finalize/claim/heartbeat/terminal/
+   retry/reclaim 短事务。
+3. 实现首个真实 `release_candidate_reconcile` handler。
+4. 使用 WSL 原生 PostgreSQL/Redis 验证重复消息、并发 claim、worker kill、
+   Redis 重启补投和 Task pause/cancel。
+
+### 涉及文件
+
+- `modules/platform-api/src/cloudhelm_platform_api/api/release_candidates.py`
+- `modules/platform-api/src/cloudhelm_platform_api/repositories/{pull_request_record,release_candidate,workflow_job}_repository.py`
+- `modules/platform-api/src/cloudhelm_platform_api/schemas/release_candidate.py`
+- `modules/platform-api/src/cloudhelm_platform_api/services/{pull_request_record_gate,release_candidate_*}.py`
+- `modules/platform-api/tests/{m7_release_candidate_api_fixture,test_m7_release_candidate_api,test_m7_approval_decisions,test_m7_repository_binding_concurrency,test_m6_pull_request_concurrency}.py`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `packages/shared-contracts/schemas/events/task-event.schema.json`
+- `apps/control-console/src/shared/types/{api,events}.ts`
+- `README.md`
+- `modules/platform-api/README.md`
+- `docs/01-architecture/04-desktop-ops-hub-project-boundary.md`
+- `docs/03-modules/{modules/platform-api,modules/workflow-engine,packages/shared-contracts}.md`
+- `docs/07-data/01-database-schema.md`
+- `docs/08-api/{00-api-overview,07-environment-deployment-api}.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/{03-api-detail,04-data-detail,07-testing-acceptance-matrix,09-m7-ci-remote-deployment-flow}.md`
+- `PROJECT_PLAN.md`
+
+### 验证
+
+- WSL Ubuntu 24.04 原生 Docker：PostgreSQL `healthy`，Redis `PONG`。
+- `uv lock --check`、`alembic current`=`20260716_0008 (head)`、
+  `alembic check`=`No new upgrade operations detected`。
+- Candidate/Approval/Binding/PR/共享契约定向：`46 passed, 2 warnings`。
+- 确定性 Binding PUT/Candidate POST 锁等待竞争连续 10 轮，每轮 `1 passed`。
+- Platform API 全量：`308 passed, 1 skipped`。
+- Orchestrator：`7 passed`。
+- Agent Runtime：`61 passed, 1 skipped`。
+- Tool Gateway：`45 passed, 1 skipped`。
+- Remote Agent：`31 passed, 2 skipped`。
+- Control Console：`17 passed`，production build 通过。
+- sample repo：`2 passed`，Bandit 0 finding，pip-audit 无已知漏洞。
+- Python `compileall` 与 `git diff --check` 通过。
+
 ## 2026-07-16（M7-2B1 RepositoryProfile 与 Binding PUT/GET）
 
 ### 已完成

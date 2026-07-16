@@ -5,351 +5,163 @@
 
 ## 1. 当前执行指针
 
-当前阶段为：
-
 ```text
 M7 Ops Hub 常驻控制面、CI 与远端部署
-  -> M7-2B ReleaseCandidate、第一道审批与 WorkflowJob 原子创建
+  -> M7-2C Redis + Celery durable Workflow Engine
 ```
 
-用户已明确恢复生产代码实施。M7-2A 数据底座已经完成数据库往返、负约束、
-OpenAPI/前端类型同步和 Platform API 全量回归；M7-2B1 server-controlled
-RepositoryProfile 与 Binding PUT/GET 也已完成。当前继续 M7-2B2 Candidate、
-第一道审批与 WorkflowJob 原子创建，随后进入 M7-2C durable Workflow Engine。
+M7-2A 数据底座、M7-2B1 RepositoryBinding 和 M7-2B2 Candidate/第一道审批
+已经完成。当前任务是让 PostgreSQL 中的 pending WorkflowJob 在 Desktop
+`run-next` 之外由服务端 dispatcher/worker 持续推进，并完成首个真实
+`release_candidate_reconcile` handler。
 
-### 1.1 已确认基线
+当前版本继续保持 `0.5.1`；完整 M7 E2E 收口时再发布 `0.6.0`。
 
-- 当前项目实现版本：`0.5.1`。
-- M0-M6 已完成；M1-M6 核验报告见
-  `docs/13-testing/01-m1-m6-audit-report.md`。
-- M7-0 设计基线已完成。
-- M7-1 已完成：
-  - Environment。
-  - profile-only RemoteTarget。
-  - Remote Agent HMAC machine authentication。
-  - online/offline/recovery heartbeat。
-- M7-2A 已完成：
-  - `project_repository_bindings`、`release_candidates`、`workflow_jobs`。
-  - ApprovalRequest 的资源/hash/有效期/消费字段与 `cancelled` 状态。
-  - Candidate snapshot 类型/ref 约束、published 远端 SHA 非空门禁。
-  - WorkflowJob 初始 `next_enqueue_at` 使用 PostgreSQL `now()`。
-- M7-2B1 已完成：
-  - server-controlled RepositoryProfile。
-  - Binding PUT/GET、Project mutex、幂等与 repository identity 冲突映射。
-  - binding 漂移后的 Candidate stale / pending Approval expired。
-  - CORS PUT、共享 OpenAPI、前端类型与真实并发回归。
-- 版本影响：B1 新增兼容 API，属于下一 minor `0.6.0` 的组成部分；当前功能分支
-  尚未形成 M7 release/tag，因此开发包继续标记 `0.5.1`，完整 M7 E2E 收口时统一
-  发布 `0.6.0`。
-- 当前分支：`feature/m7-remote-deploy-closure`。
-- 当前开发 PostgreSQL Alembic head：`20260716_0008`。
-- Ops Hub 开发/测试基线：安装在 `D:\WSL\Ubuntu-24.04` 的 Ubuntu 24.04
-  WSL2，使用发行版内原生 Docker Engine/Compose；Docker Desktop 已卸载。
+## 2. 已确认基线
 
-### 1.2 M7-2A 已验证代码面
+### 2.1 已交付能力
 
-```text
-modules/platform-api/migrations/versions/
-  20260716_0008_create_m7_release_jobs.py
-
-modules/platform-api/src/cloudhelm_platform_api/models/
-  __init__.py
-  approval.py
-  project_repository_binding.py
-  release_candidate.py
-  workflow_job.py
-
-modules/platform-api/src/cloudhelm_platform_api/schemas/
-  approval.py
-  common.py
-
-modules/platform-api/src/cloudhelm_platform_api/services/
-  approval_service.py
-
-modules/platform-api/tests/
-  conftest.py
-  m7_release_job_fixture.py
-  test_agent_tool_approval_api.py
-  test_database_migration.py
-  test_m7_release_job_constraints.py
-
-apps/control-console/src/shared/types/
-  api.ts
-
-packages/shared-contracts/openapi/
-  cloudhelm.openapi.yaml
-```
-
-当前验证证据：
-
-- Ubuntu WSL 原生 Docker 中 PostgreSQL/Redis 分别通过 `healthy` / `PONG`。
-- `downgrade 20260715_0007 -> upgrade 20260716_0008` 往返通过。
-- downgrade 后 M7-2 三表和 Approval 五字段消失，M1-M7-1 表保留。
-- `alembic check` 为 `No new upgrade operations detected`。
-- migration/约束定向回归覆盖所有新增 CHECK 类别、唯一/部分唯一索引、函数式
-  唯一索引、NO ACTION/CASCADE 外键行为和关键 PostgreSQL server default。
-- Platform API 当前全量回归 `243 passed, 1 skipped`。
-- FastAPI OpenAPI 与共享 YAML 已重新生成并精确同步。
-- RepositoryBinding service/API 已由 M7-2B1 完成；Candidate service/API 和
-  Workflow Engine 仍属于下一切片，不因 M7-2A 数据底座完成而提前标记。
-
-## 2. 固定架构与范围
-
-### 2.1 Desktop、Local Runtime 与 Ops Hub
-
-```text
-CloudHelm Desktop
-  Tauri + React
-  SQLite 非权威缓存/草稿/sequence
-  OS credential store
-          │
-          ├── Local Runtime sidecar
-          │     workspace / Git / test / local tools
-          │
-          └── HTTPS REST / SSE
-                │
-CloudHelm Ops Hub（Linux always-on）
-  Platform API
-  Orchestrator
-  Agent Runtime
-  Tool Gateway / Policy / Audit
-  Workflow Engine
-  Deployment Controller
-  PostgreSQL
-  Redis
-  Artifact store
-  Identity / User / Session / RBAC
-```
-
-固定约束：
-
-- Desktop 最终用户不安装 Docker、PostgreSQL、Redis 或 Python。
-- Desktop 不直连 PostgreSQL、Redis、Remote Agent 或 Docker socket。
-- Local Runtime 只访问用户 allowlist workspace。
-- Ops Hub 是平台权威宿主；Desktop 退出后，已持久化且无需新审批的服务端流程
-  继续。
-- PostgreSQL 保存业务权威，Redis/Celery 只负责非权威投递。
-- 正常 M7/M8 流程由服务端 WorkflowJob/worker 自动推进。
-- `run-next` 只保留为开发调试、答辩逐步展示或人工恢复入口。
-
-### 2.2 用户与分层权限
-
-M9 实现：
-
-```text
-users
-devices
-device_pairing_challenges
-user_sessions
-session_refresh_tokens
-user_invitations
-roles
-permissions
-role_permissions
-role_bindings
-system_security_state
-```
-
-授权固定为：
-
-```text
-role permissions
-  + system/project/environment scope
-  + resource attributes/version
-  + domain separation-of-duty
-```
-
-M7 的 `20260716_0008` 不混入 IAM 或 EventLog sequence migration。M9 再统一完成
-Auth API、PermissionService、真实 user provenance、Desktop effective
-permissions 和 sequence sync。冻结约束包括：
-
-- 预置权限按 `(role_key, binding_scope_type)` 映射；Environment binding 只授予
-  environment-domain permission，父 Project/关联 Task/CI 只嵌入最小脱敏摘要。
-- EventLog 增加 `stream_kind`、user/device/session actor 和 `subject_user_id`，
-  Desktop cursor 按 `ops_hub_id + user_id + stream_kind + scope_id` 分区。
-- TechnicalDesign 审批绑定当前 id/version/content hash，并持久化当前版本的
-  user/AgentRun 修改者 provenance；hash 使用 `technical-design-content.v1`
-  stable canonical object，修改者 source 受 CHECK 约束。
-- Desktop 首次登记和 Local Runtime pairing/session 使用短期 challenge、Ed25519
-  proof、credential version 与撤销级联；服务端只存 public key，Local Runtime
-  只取得短期 device-bound token且不复用 Desktop refresh token。
-
-### 2.3 业务项目可移植性
-
-四层边界：
-
-1. Project Core：源码、锁文件、README、测试、Dockerfile、standalone Compose、
-   `.env.example`、migration。
-2. 可删除 Adapter：
-   - `cloudhelm.project.yaml`
-   - `cloudhelm.env.schema.json`
-3. Managed Release Bundle：manifest hash、CI manifest、OCI digest、ReleasePlan、
-   rendered Compose。
-4. Host Ops Runtime：Ops Hub、Remote Agent、采集器和凭据。
-
-不变量：
-
-- Project Core 不 import CloudHelm SDK。
-- Project Core 不连接 CloudHelm 平台 PostgreSQL。
-- 删除两个 Adapter 后仍能独立构建、测试、部署和运行。
-- Deployment Controller 使用固定 schema + 通用安全 renderer，不长期维护项目
-  专用 Jinja 模板。
-- Ops Hub、Remote Agent、观测栈和业务项目使用独立 Compose project、network、
-  volume、credential、升级和卸载流程。
-
-### 2.4 Agent 协作边界
-
-- 仓库开发参考 Codex CLI 的 root thread / turn / explicit child 模型。
-- CloudHelm 当前产品原语使用 `max_depth=1`、
-  `max_active_children=6` 的自有计数语义。
-- M1-M6 只实现 root/child conversation、父 AgentRun 绑定、生命周期、工具权限
-  交集、摘要门禁和 Task cancel 级联。
-- 真实 child AgentRun/provider 调度、wait-all、steer/queue、独立 thread API/UI
-  和 workspace/worktree scheduler 尚未交付。
-
-## 3. M7 恢复切片
-
-### 3.1 M7-2A：建立并验证 0008 数据底座（已完成）
-
-结果：当前 migration/ORM 已形成可审查、可往返、可独立提交的数据库小步；
-后续不得再向 `0008` 混入 M7-2B/C 或 M9 能力。由于 0008 在数据库层保留
-`approve_release_candidate` action，M7-2A 同时包含通用 Approval POST 的兼容
-guard：该入口必须返回稳定 `422 approval_action_reserved`，不能退化为数据库
-CHECK 触发的 500；真正的 Candidate 原子创建和审批决策仍属于 M7-2B。
-
-预检：
-
-```powershell
-$env:PYTHONIOENCODING='utf-8'
-$OutputEncoding=[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new()
-
-git branch --show-current
-git status --short
-git diff --stat
-
-cd modules/platform-api
-uv lock --check
-uv run alembic current
-uv run alembic heads
-uv run alembic check
-```
-
-实现要求：
-
-- 复查 `20260716_0008` 的 upgrade/downgrade。
-- 本 revision 只包含：
+- M1-M6 本地需求、设计、实现、测试、安全和等价 PR 闭环。
+- M7-1 Environment、RemoteTarget、machine authentication 与 heartbeat。
+- M7-2A：
   - `project_repository_bindings`
   - `release_candidates`
   - `workflow_jobs`
-  - ApprovalRequest 的 M7 resource/hash/expiry/consumed 字段
-- 不包含：
-  - User/RBAC。
-  - EventLog sequence。
-  - CIRun/Deployment/ServiceInstance。
-  - 占位 publish/CI/deploy handler。
-- ORM 的字段、nullability、CHECK、索引和 M7 状态默认与 migration 对齐；关键
-  PostgreSQL server default 另用省略字段的真实 INSERT 验证。当前 Alembic
-  `env.py` 未启用 `compare_server_default`，不得只用 `alembic check` 证明默认值
-  一致。
-- 外键删除规则、CHECK、部分唯一索引、函数式索引和状态枚举有真实数据库负测。
-- 执行：
+  - 资源型 Approval 字段与数据库约束
+- M7-2B1：
+  - server-controlled RepositoryProfile
+  - Binding PUT/GET
+  - identity 冲突、幂等和漂移失效
+- M7-2B2：
+  - 严格 `{}` Candidate POST；首次 `201`、幂等 `200`
+  - active-first Candidate GET
+  - 第一道人工作为 L2 Approval
+  - Candidate、Approval、pending reconcile WorkflowJob 和事件同事务创建
+  - PR/Binding/request freshness、expiry、consumed 和实现 AgentRun 自批门禁
+  - PostgreSQL `clock_timestamp()` 锁等待时间修复
+
+### 2.2 当前环境
+
+- 分支：`feature/m7-remote-deploy-closure`
+- Alembic head：`20260716_0008`
+- WSL：`Ubuntu-24.04`，发行版数据位于 `D:\WSL\Ubuntu-24.04`
+- Docker：WSL 发行版内原生 Docker Engine/Compose
+- PostgreSQL：Windows `127.0.0.1:15432`
+- Redis：Windows `127.0.0.1:16379`
+- Docker Desktop 已卸载，不作为开发或测试依赖
+
+### 2.3 B2 收口证据
+
+- Platform API：`308 passed, 1 skipped`
+- B2 定向：`46 passed`
+- 确定性 Binding PUT/Candidate POST 竞争连续 10 轮通过
+- Orchestrator：`7 passed`
+- Agent Runtime：`61 passed, 1 skipped`
+- Tool Gateway：`45 passed, 1 skipped`
+- Remote Agent：`31 passed, 2 skipped`
+- Control Console：`17 passed`，production build 通过
+- sample repo：`2 passed`，Bandit/pip-audit 通过
+
+## 3. 本切片目标与裁剪线
+
+### 3.1 必须完成
+
+1. 建立独立 `modules/workflow-engine` Python 包和可复现依赖环境。
+2. PostgreSQL `workflow_jobs` 保持业务权威；Celery message 只携带
+   `workflow_job_id`。
+3. 实现 durable dispatcher：
+   - due scan
+   - dispatch lease
+   - publish success/failure finalize
+   - enqueue backoff
+   - Redis 丢消息后的周期补投
+4. 实现 worker 生命周期：
+   - claim
+   - mark-running
+   - heartbeat/lease
+   - succeeded/failed/cancelled
+   - retry
+   - stale reclaim
+5. 实现首个真实 `release_candidate_reconcile` handler。
+6. Task pause/resume/cancel 与 WorkflowJob 状态联动。
+7. 增加精确 workflow schema、事件 payload、测试和文档。
+8. 使用 WSL 原生 PostgreSQL/Redis 完成真实集成验证。
+
+### 3.2 本切片不做
+
+- candidate ref push 或远端 SHA 复核。
+- Gitea workflow dispatch、runner 或 registry。
+- CIRun、Deployment、ServiceInstance。
+- Release / Deploy Agent 和第二道部署审批。
+- Deployment Controller、Remote Agent Compose operation。
+- 外部副作用 handler 的真实 replay/resolver。
+- 正式 Ops Hub TLS installation/bootstrap。
+
+外部副作用分类只保留严格 policy/registry 结构，不写固定成功 handler。
+
+## 4. 写代码前必须查阅
+
+- `AGENTS.md`
+- `docs/03-modules/modules/workflow-engine.md`
+- `docs/07-data/tables/workflow_jobs.md`
+- `docs/15-detailed-design/04-data-detail.md`
+- `docs/15-detailed-design/05-workflow-state-events.md`
+- `docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md`
+- `informations/m7-ci-remote-deploy/official-references.md`
+- `informations/m7-ci-remote-deploy/reference-projects.md`
+- Celery、redis-py、SQLAlchemy 和 PostgreSQL 官方文档
+
+新增 Celery/Redis Python 依赖前必须确认官方支持版本，固定在独立
+`pyproject.toml` 和 `uv.lock`，并把采用结论补充到 `informations/`。
+
+## 5. 预检
+
+### 5.1 Git 与工作区
 
 ```powershell
-uv run alembic downgrade 20260715_0007
-uv run alembic upgrade 20260716_0008
+git branch --show-current
+git status --short
+git diff --check
+```
+
+只有 B2 已提交并 push 后才开始 Workflow Engine 代码提交。
+
+### 5.2 WSL/PostgreSQL/Redis
+
+```powershell
+wsl -d Ubuntu-24.04 -- bash -lc @"
+docker ps
+docker exec cloudhelm-postgres-dev pg_isready -U cloudhelm -d cloudhelm
+docker exec cloudhelm-redis-dev redis-cli ping
+"@
+```
+
+预期：
+
+```text
+PostgreSQL accepting connections
+Redis PONG
+```
+
+### 5.3 数据库
+
+```powershell
+cd modules/platform-api
+$env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
+uv lock --check
+uv run alembic current
 uv run alembic check
-uv run pytest -q `
-  tests/test_database_migration.py `
-  tests/test_m7_release_job_constraints.py `
-  tests/test_agent_tool_approval_api.py
 ```
 
-完成判定：
-
-- downgrade 后 M7-2 表/字段消失且 M7-1/M1-M6 数据结构保留。
-- upgrade 后全部恢复。
-- migration test、全部新增约束类别的真实违反写入、ORM import、数据库默认值和
-  `alembic check` 通过。
-- 作为独立小步检查 diff、更新进度、提交并 push。
-
-### 3.2 M7-2B：RepositoryBinding、Candidate 与第一道审批
-
-当前状态：
-
-- M7-2B1 RepositoryProfile 与 Binding PUT/GET 已完成并通过全量回归。
-- M7-2B2 Candidate、第一道审批与 reconcile WorkflowJob 正在实施。
-
-计划文件：
-
-```text
-modules/platform-api/src/cloudhelm_platform_api/core/
-  repository_config.py
-
-modules/platform-api/src/cloudhelm_platform_api/providers/
-  repository_profile_provider.py
-
-modules/platform-api/src/cloudhelm_platform_api/repositories/
-  project_repository_binding_repository.py
-  release_candidate_repository.py
-  workflow_job_repository.py
-
-modules/platform-api/src/cloudhelm_platform_api/services/
-  project_repository_binding_service.py
-  release_candidate_service.py
-  release_candidate_policy.py
-  approval_domain_decision_service.py
-
-modules/platform-api/src/cloudhelm_platform_api/api/
-  repository_bindings.py
-  release_candidates.py
-
-modules/platform-api/tests/
-  test_m7_project_repository_binding_api.py
-  test_m7_release_candidate_api.py
-  test_m7_approval_decisions.py
-```
-
-接口：
-
-```text
-PUT  /api/projects/{project_id}/repository-binding
-GET  /api/projects/{project_id}/repository-binding
-POST /api/tasks/{task_id}/release-candidate
-GET  /api/tasks/{task_id}/release-candidate
-```
-
-固定门禁：
-
-- Binding 请求只接受服务端 `profile_key`。
-- 拒绝任意 URL、token、credential ref、workflow path、remote、refspec。
-- Candidate POST 请求体严格为 `{}`。
-- 服务端绑定最新版 M6 PullRequestRecord、完整 commit、受控 target ref、
-  binding snapshot/hash、request hash 和第一道 L2 Approval。
-- 审批前没有 push、CI 或其他外部副作用。
-- 同一 PR + binding snapshot 幂等返回同一 Candidate/Approval/WorkflowJob。
-- Binding 漂移后旧 pending/approved Candidate 转 stale，pending Approval 过期。
-- `approve_release_candidate` 是内部保留 action，通用 Approval POST 拒绝创建。
-- 当前 M7-2 自批门禁只能基于 AgentRun provenance，必须继续标注为领域门禁；
-  M9 接入真实认证 user provenance 后再形成不可伪造身份边界。
-- 事务采用 Task-first 串行化，各路径按用例锁定 Binding/Candidate/Approval；
-  不宣称一条不符合实现的全局总锁序。
-
-黑盒/白盒：
-
-- 201 首次创建、200 幂等命中。
-- extra field、缺 PR creator、stale binding、非法 profile、重复/并发请求。
-- approval 过期、已消费、hash 漂移、自批、错误 resource/action。
-- 审批前 Git/Gitea/CI 调用次数为 0。
-
-### 3.3 M7-2C：Workflow Engine durable continuation
-
-计划目录：
+## 6. 计划目录与文件
 
 ```text
 modules/workflow-engine/
   pyproject.toml
+  uv.lock
   README.md
   src/cloudhelm_workflow_engine/
+    __init__.py
     config.py
     celery_app.py
     dispatcher.py
@@ -357,354 +169,330 @@ modules/workflow-engine/
     handlers.py
     lease_heartbeat.py
     stale_reclaimer.py
+    schemas.py
+    errors.py
   tests/
+    conftest.py
+    test_config.py
+    test_dispatcher.py
+    test_claim_and_duplicate.py
+    test_heartbeat.py
+    test_worker_terminal.py
+    test_reclaimer.py
+    test_release_candidate_reconcile.py
+    test_redis_restart_requeue.py
+    test_task_pause_cancel.py
+
+modules/platform-api/src/cloudhelm_platform_api/
+  repositories/workflow_job_repository.py
+  schemas/workflow_job.py
+  services/release_candidate_reconcile_service.py
+
+packages/shared-contracts/schemas/workflow/
+  workflow-job.schema.json
 ```
 
-固定语义：
+需要同步：
 
-- PostgreSQL `workflow_jobs` 是业务权威。
-- Celery message 只携带 `workflow_job_id`。
-- API 事务创建业务状态、EventLog 和 WorkflowJob 后提交。
-- durable dispatcher 使用 dispatch lease、`next_enqueue_at`、attempt/error 补投。
-- worker 使用短事务 claim、lease、heartbeat、terminal update。
-- 无外部副作用 job 可安全重排。
-- 外部幂等 job 先查询 provider/operation，再决定收敛或重排。
-- 外部状态未知进入 `recovery_required`，不盲目重放。
-- Redis 重启后由 PostgreSQL pending job 补投。
-- Task pause/cancel 在 dispatch 前阻断；dispatch 后记录 cancel requested 并等待
-  外部 operation 终态。
-- 正常 continuation 不要求 Desktop 点击 `run-next`。
+```text
+packages/shared-contracts/schemas/events/task-event.schema.json
+modules/platform-api/README.md
+modules/workflow-engine/README.md
+docs/03-modules/modules/workflow-engine.md
+docs/07-data/tables/workflow_jobs.md
+docs/15-detailed-design/04-data-detail.md
+docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md
+docs/14-roadmap/03-implementation-milestone-flow.md
+PROJECT_PROGRESS.md
+```
 
-首个生产 handler 只实现无外部副作用的
-`release_candidate_reconcile`。Publish、CI、Deploy handler 在对应后续切片实现，
-不写固定成功或空 handler。
+## 7. 实现任务
 
-验证：
+### 7.1 独立包和配置
+
+- Workflow Engine 可以单向依赖 Platform API 的数据库模型/repository。
+- Platform API 不得反向依赖 Workflow Engine，避免包循环。
+- 配置使用 Pydantic Settings，至少包含：
+  - database URL
+  - broker URL
+  - queue names
+  - dispatch interval/batch/lease
+  - worker lease/heartbeat
+  - retry/enqueue backoff
+  - soft/hard timeout
+  - visibility timeout
+- 校验：
+  - `2 * heartbeat < worker lease`
+  - `2 * publish timeout < dispatch lease`
+  - `soft timeout < hard timeout < visibility timeout`
+  - `visibility timeout >= hard timeout + worker lease`
+- Celery 仅接受 JSON，`prefetch=1`、late ack、worker lost reject、ignore result。
+- 禁止通用 autoretry 盲目重放业务 handler。
+
+### 7.2 WorkflowJob repository
+
+所有方法使用短 Session，按 `workflow_job.id` 稳定排序。
+
+必须实现：
+
+```text
+reserve_due_jobs
+finalize_dispatch_success
+finalize_dispatch_failure
+claim_job
+mark_running
+heartbeat
+finish_succeeded
+finish_failed
+schedule_retry
+request_cancel
+reclaim_stale_jobs
+```
+
+due reserve：
+
+```sql
+tasks.status IN ('running', 'waiting_approval')
+AND workflow_jobs.status = 'pending'
+AND workflow_jobs.attempt < workflow_jobs.max_attempts
+AND (next_retry_at IS NULL OR next_retry_at <= clock_timestamp())
+AND next_enqueue_at <= clock_timestamp()
+AND (
+  dispatch_lease_expires_at IS NULL
+  OR dispatch_lease_expires_at <= clock_timestamp()
+)
+ORDER BY next_enqueue_at, workflow_jobs.id
+FOR UPDATE SKIP LOCKED
+```
+
+reserve 写 dispatch owner/expiry，并在 publish 前增加 `enqueue_attempt`。事务提交后
+才调用 broker。
+
+finalize 必须带：
+
+```text
+job id + status=pending + dispatch owner
+```
+
+worker 已 claim 时，旧 dispatcher finalize 必须 no-op。
+
+### 7.3 Worker claim、lease 与 heartbeat
+
+- claim 成功时：
+  - `attempt += 1`
+  - status -> `claimed`
+  - 写 lease owner/expiry/heartbeat
+  - 清 dispatch lease、next enqueue、next retry
+- mark-running 使用独立事务：
+  - Task paused：job 回 pending
+  - Task terminal：job cancelled
+  - 合法 Task：status -> running，首次写 `started_at`
+- handler 期间不持有 Task/job 行锁。
+- heartbeat 只允许当前 owner 更新 active lease。
+- finish 只接受当前 owner；旧 owner 晚到结果 no-op。
+
+锁等待后产生的 transition、lease、heartbeat、retry 和 finish 时间统一使用锁后
+读取的一次 PostgreSQL `clock_timestamp()`。既有 migration 的 server default
+继续保持 `0008` 定义，不修改历史 migration。
+
+### 7.4 Retry 与 stale reclaim
+
+- safe retry 只在 `attempt < max_attempts` 时回 pending。
+- attempt 耗尽：
+  - status -> failed
+  - error code -> `workflow_job_attempts_exhausted`
+  - 写 `finished_at`
+  - 清两类 lease、retry/enqueue
+- `side_effect_class=none`：
+  - 未取消 stale active job -> pending
+  - cancel_requested -> cancelled
+- external 类型：
+  - 本切片不执行真实 handler
+  - unknown 必须进入 recovery_required
+  - recovery_required 不自动重放
+
+### 7.5 release_candidate_reconcile
+
+输入固定：
+
+```json
+{
+  "schema_version": "m7.release-candidate-reconcile.payload.v1",
+  "candidate_id": "UUID",
+  "approval_id": "UUID",
+  "expected_candidate_request_hash": "sha256:<64 hex>",
+  "expected_binding_snapshot_sha256": "sha256:<64 hex>",
+  "expected_pull_request_record_id": "UUID"
+}
+```
+
+锁序：
+
+```text
+Task
+  -> WorkflowJob
+  -> ProjectRepositoryBinding
+  -> ReleaseCandidate
+  -> Approval
+```
+
+分支：
+
+- pending/approved 且 freshness 一致：`succeeded + valid`
+- PR、Binding、hash、expiry 或 consumed 漂移：
+  - Candidate -> stale
+  - 只有 pending Approval -> expired
+  - job -> `succeeded + stale`
+- rejected/published/stale/cancelled：`succeeded + terminal_noop`
+- Approval 缺失或状态组合异常：
+  `failed + release_candidate_approval_state_invalid`
+- transient DB error：按 retry policy 回排
+
+handler 不调用 Git、HTTP、Docker、Gitea、CI 或 Remote Agent。
+
+### 7.6 Task pause/resume/cancel
+
+- pause：dispatcher 不再 reserve 新 job；已 running job 保留可审计状态。
+- resume：pending job 的 `next_enqueue_at` 推进到数据库当前时间。
+- cancel：
+  - pending -> cancelled
+  - claimed 且 handler 未开始 -> cancelled
+  - running -> cancel_requested
+- Task 与 job 写操作先锁 Task，再按 job UUID 升序锁定。
+
+### 7.7 契约和事件
+
+新增严格 `workflow-job.schema.json`，payload/result：
+
+- 所有必填字段明确。
+- `additionalProperties=false`。
+- hash、UUID、时间、状态枚举使用固定格式。
+- broker payload 只允许 `workflow_job_id`，不得包含 credential、clone URL、
+  profile、环境变量或业务正文。
+
+事件至少包含：
+
+```text
+WorkflowJobStarted
+WorkflowJobSucceeded
+WorkflowJobRetryScheduled
+WorkflowJobCancelled
+WorkflowJobRecoveryRequired
+WorkflowJobDispatchDeferred
+```
+
+每种事件使用精确 payload allowlist。
+
+## 8. 黑盒与白盒测试
+
+### 8.1 配置
+
+- 默认值和环境变量覆盖。
+- 时间不变量非法时启动失败。
+- broker message 不包含业务 payload/secret。
+
+### 8.2 Dispatcher
+
+- due/未到期/暂停/终态 Task 过滤。
+- 批量、顺序和 `SKIP LOCKED`。
+- reserve 后 publish 前崩溃。
+- publish 后 finalize 前崩溃。
+- publish 成功但消息丢失。
+- dispatch failure backoff 和错误码。
+
+### 8.3 Worker
+
+- 重复 message 与并发 claim 只有一个成功。
+- claim、mark-running、heartbeat 和 terminal。
+- owner 不匹配和 lease 过期。
+- 旧 owner late result no-op。
+- worker kill 后 stale reclaim。
+- attempt exhausted。
+
+### 8.4 Reconcile
+
+- valid。
+- PR drift。
+- Binding snapshot/hash drift。
+- request hash drift。
+- Approval expired/consumed。
+- rejected/published/stale/cancelled terminal_noop。
+- Approval 缺失/非法状态组合。
+- transient DB error retry。
+
+### 8.5 Task 生命周期
+
+- pause/dispatch 竞争。
+- resume 推进 pending job。
+- cancel/claim 竞争。
+- running cancel_requested。
+
+### 8.6 WSL 真实集成
+
+1. 启动 PostgreSQL/Redis。
+2. 通过 Candidate API 创建 pending reconcile job。
+3. 启动 dispatcher/worker。
+4. 验证 job 自动 succeeded。
+5. 停止 Redis，创建新 pending job。
+6. 恢复 Redis。
+7. 验证 PostgreSQL dispatcher 补投，且没有重复副作用。
+
+## 9. 验证命令
 
 ```powershell
-wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
-cd '/mnt/d/graduation project'
-docker compose -f infra/docker-compose.dev.yml \
-  --profile optional up -d redis
+wsl -d Ubuntu-24.04 -- bash -lc @"
 docker exec cloudhelm-redis-dev redis-cli ping
+docker exec cloudhelm-postgres-dev pg_isready -U cloudhelm -d cloudhelm
 "@
 
 cd modules/workflow-engine
 uv lock --check
 uv run pytest -q
-```
 
-必须覆盖：
-
-- 重复 message。
-- 并发 claim。
-- lease heartbeat。
-- worker kill / stale reclaim。
-- enqueue 前后 crash window。
-- Redis 重启补投。
-- attempt exhausted。
-- Task pause/cancel。
-- `recovery_required` 不重放。
-
-### 3.4 M7-3：通用项目契约与 renderer
-
-计划文件：
-
-```text
-packages/shared-contracts/schemas/projects/
-  cloudhelm-project.schema.json
-  cloudhelm-environment.schema.json
-  project-delivery-manifest.schema.json
-
-examples/sample-repo-python/
-  cloudhelm.project.yaml
-  cloudhelm.env.schema.json
-  compose.yaml
-  README.md
-
-modules/deployment-controller/
-  src/.../project_contract.py
-  src/.../compose_renderer.py
-  src/.../compose_policy.py
-  tests/
-```
-
-要求：
-
-- JSON Schema 使用明确 `schema_version` 和 `additionalProperties=false`。
-- 所有文件引用是规范化仓库相对路径；拒绝绝对路径、`..`、symlink 越界。
-- 项目 manifest 不接受 host、endpoint、credential、secret、任意 command、
-  privileged、host network、Docker socket 或 host path mount。
-- Controller 只使用固定通用 renderer。
-- CI manifest/ReleasePlan 绑定 project manifest hash、environment schema hash、
-  standalone Compose hash 和 deployment adapter。
-- 删除两个 Adapter 后，sample repo 仍按 README standalone 通过测试、Compose
-  config/up/health/down。
-- 同一 commit 的 standalone/managed 核心行为一致。
-
-### 3.5 M7-4：Ops Hub installation 与 Remote Target bootstrap
-
-计划目录：
-
-```text
-infra/ops-hub/
-  compose.yaml
-  .env.example
-  install.sh
-  upgrade.sh
-  backup.sh
-  restore.sh
-  uninstall.sh
-  cloudhelm-ops-hub.service
-
-infra/remote-agent/
-  install.sh
-  upgrade.sh
-  uninstall.sh
-  cloudhelm-remote-agent.service
-```
-
-#### 3.5.1 Ops Hub installation/bootstrap
-
-每套 CloudHelm 中心设施只执行一次。最小组件：
-
-```text
-TLS ingress
-platform-api
-orchestrator / agent-runtime workers
-tool-gateway / policy / audit
-workflow-engine scheduler/workers
-deployment-controller
-postgresql
-redis
-artifact storage
-gitea / act_runner / OCI registry（内置或受控外接）
-```
-
-中心设施门禁：
-
-- 对外只暴露 TLS ingress。
-- PostgreSQL、Redis、worker、Docker socket 和内部管理端口不暴露公网。
-- 创建专用服务用户、服务凭据、持久卷和备份/恢复目录。
-- 验证 Platform `/health`、`/ready`、worker/scheduler heartbeat、持久化和备份。
-- 不以 Project、Environment 或业务项目发布为单位重复安装 Ops Hub。
-- M7 沿用当前受控网络/认证边界，不创建真实 user/device/session；一次性 identity
-  bootstrap token、首个 owner 和 Desktop device/session 固定留到 M9。
-
-#### 3.5.2 Remote Target / Environment bootstrap
-
-每台受管 Linux 目标只安装：
-
-```text
-Docker Engine / Compose
-cloudhelm-remote-agent.service
-telemetry collectors
-TLS trust
-machine credential
-target registration
-```
-
-目标门禁：
-
-- 注册到既有 Ops Hub，不安装 Platform API、PostgreSQL、Redis、Gitea/registry、
-  用户 pairing 或中心备份体系。
-- Ops Hub、Remote Agent、观测栈和业务项目使用独立 Compose project/network/
-  volume/credential 或 systemd/data 目录。
-- 验证 Remote Agent heartbeat、版本和 capabilities。
-- `demo-all-in-one` 允许两条安装链同机运行，但 manifest、credential、升级和
-  卸载入口仍分离。
-- 普通业务项目发布不重复执行任一 bootstrap。
-- 业务项目卸载不删除 Ops Hub 或审计数据。
-
-### 3.6 M7-5：真实 CI、部署与 E2E
-
-完成：
-
-- 固定版本 Gitea、act_runner、OCI registry。
-- 不监听 push 的固定 workflow。
-- 精确 ref 的唯一 `workflow_dispatch`。
-- JUnit/security/SBOM/scan/OCI digest manifest。
-- Release / Deploy Agent 严格 ReleasePlan。
-- 第二道 deployment approval。
-- Tool Gateway → Deploy Tool → Controller → Remote Agent。
-- Remote Agent Compose config/pull/digest verify/up/ps/health。
-- ServiceInstance、DeploymentResult、MonitoringRegistered。
-- Desktop 退出后流程继续。
-- Redis 重启补投。
-- Linux staging cleanup。
-
-完成后版本目标为 `0.6.0`；在完整 M7 E2E 前保持 `0.5.1`。
-
-## 4. 必须阅读的本地文档
-
-```text
-AGENTS.md
-云舵 CloudHelm 毕设设计书.md
-PROJECT_PROGRESS.md
-docs/14-roadmap/03-implementation-milestone-flow.md
-docs/01-architecture/04-desktop-ops-hub-project-boundary.md
-docs/07-data/01-database-schema.md
-docs/07-data/02-storage-boundary.md
-docs/08-api/07-environment-deployment-api.md
-docs/08-api/12-auth-user-permission-api.md
-docs/10-security/03-user-role-permission.md
-docs/15-detailed-design/00-mvp-scope-and-cutline.md
-docs/15-detailed-design/01-module-contracts.md
-docs/15-detailed-design/02-agent-tool-contract.md
-docs/15-detailed-design/03-api-detail.md
-docs/15-detailed-design/04-data-detail.md
-docs/15-detailed-design/05-workflow-state-events.md
-docs/15-detailed-design/06-deployment-observability-detail.md
-docs/15-detailed-design/07-testing-acceptance-matrix.md
-docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md
-docs/15-detailed-design/10-desktop-ops-hub-standalone-project.md
-docs/15-detailed-design/11-identity-access-control.md
-```
-
-外部资料归档：
-
-```text
-informations/m7-ci-remote-deploy/official-references.md
-informations/m7-ci-remote-deploy/reference-projects.md
-informations/m7-desktop-ops-architecture/official-references.md
-informations/m7-desktop-ops-architecture/identity-access-references.md
-informations/m4-agent-context/codex-responses-context.md
-```
-
-## 5. 恢复实施前统一预检
-
-```powershell
-$env:PYTHONIOENCODING='utf-8'
-$OutputEncoding=[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new()
-
-git branch --show-current
-git status --short
-git log --oneline --decorate --max-count=10
-git diff --stat
-
-wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
-cd '/mnt/d/graduation project'
-docker compose -f infra/docker-compose.dev.yml ps
-docker compose -f infra/docker-compose.dev.yml --profile optional ps
-"@
-
-cd modules/platform-api
+cd ../platform-api
+$env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
 uv lock --check
 uv run alembic current
-uv run alembic heads
 uv run alembic check
-```
-
-要求：
-
-- 当前分支不是 `main`。
-- 工作区修改集合与当前 M7-2B/C 执行指针及 `PROJECT_PROGRESS.md` 一致。
-- 开发数据库 head 与代码 revision 一致。
-- PostgreSQL/Redis 可用后再运行 migration/worker 测试。
-- 数据、API、worker 和文档按可验证子系统分步提交，不混入未来 M9 能力。
-
-## 6. 验证矩阵
-
-### 后端
-
-```powershell
-cd modules/platform-api
 uv run pytest -q
 
-cd ..\orchestrator
-uv run pytest -q
-
-cd ..\agent-runtime
-uv run pytest -q
-
-cd ..\tool-gateway
-uv run pytest -q
-```
-
-### 前端
-
-```powershell
-cd apps/control-console
+cd ../../apps/control-console
 npm.cmd test
 npm.cmd run build
+
+cd ../..
+git diff --check
+git status --short
 ```
 
-### 数据库
+还必须执行：
 
-```powershell
-cd modules/platform-api
-uv run alembic downgrade 20260715_0007
-uv run alembic upgrade head
-uv run alembic check
-```
+- 全部 JSON Schema meta-validation。
+- FastAPI OpenAPI 与共享 YAML 精确一致。
+- UTF-8/BOM、Markdown 相对链接、敏感信息和文件体量检查。
+- dispatcher/claim/reclaim 并发文件连续多轮。
 
-### 契约
+## 10. 完成判定
 
-- FastAPI OpenAPI 与 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
-  反序列化后精确一致。
-- 全部 JSON Schema 通过 Draft 2020-12 元校验。
-- project/env schema 与 Python/TypeScript 类型、文档示例同步。
+- API 创建的 pending reconcile job 无需 Desktop `run-next` 即可由 dispatcher
+  投递、worker claim 并收敛到正确终态。
+- Celery 重复消息和并发 worker 只有一个有效 claim。
+- Redis 重启后 PostgreSQL pending job 自动补投。
+- worker hard crash 后 `none` job 按 lease/stale 规则安全回排。
+- Task pause/resume/cancel 与 WorkflowJob 状态一致。
+- `release_candidate_reconcile` 所有分支有真实 PostgreSQL 测试。
+- Workflow Engine、Platform API、共享契约、前端和 WSL 集成全部通过。
+- README、详细设计、Roadmap、`PROJECT_PROGRESS.md` 和 Git commit/push 同步。
 
-### 黑盒
-
-- 正常路径。
-- 缺失/额外字段。
-- 非法枚举和非法状态。
-- 401/403/404/409/422。
-- 重复与并发提交。
-- 审批前无副作用。
-- Desktop 退出后 continuation。
-- Adapter 删除后的 standalone。
-
-### 白盒
-
-- repository/service/policy 分层。
-- migration、CHECK、索引、事务回滚。
-- Task-first 串行化和具体资源锁。
-- WorkflowJob claim/lease/heartbeat/reclaim。
-- refresh/permission/EventLog 留到 M9，不混入 M7 测试完成声明。
-
-## 7. 文档与 Git 收口
-
-每个可验证小步：
-
-1. 更新相关 API/Data/Workflow/Testing 文档。
-2. 更新 `PROJECT_PROGRESS.md`。
-3. 只勾已有真实证据的 Roadmap 项。
-4. 执行：
-
-   ```powershell
-   git status --short
-   git diff --stat
-   git diff --check
-   ```
-
-5. 复查关键 diff，移除缓存、日志、构建产物、临时备份和凭据。
-6. 使用中文 commit message。
-7. push 当前功能分支。
-8. push 后再次检查 status/log/remote branch。
-
-## 8. 风险与处理
+## 11. 风险与处理
 
 |风险|处理|
 |---|---|
-|开发 DB 与 0008 约束漂移|每次修改 migration 后重新执行真实 downgrade/upgrade、约束负测和 `alembic check`|
-|WSL 环境记录与生产代码混入同一提交|WSL 开发基线已独立提交；M7-2A 再按数据/契约小步提交|
-|把 IAM 混入 M7 migration|IAM/EventLog sequence 固定留给 M9 新 revision|
-|继续依赖 Desktop `run-next`|M7 worker 以 durable job 自动 continuation；入口仅调试/恢复|
-|项目专用模板扩散|以 project/env schema + 通用 renderer 替换|
-|Redis 消息丢失|PostgreSQL job 权威 + durable dispatcher 补投|
-|外部副作用未知|查询 provider/operation；未知进入 `recovery_required`|
-|业务项目绑定平台|Adapter 可删除、standalone/managed 双路径强制验收|
-|用户权限只做前端|M9 API 每次鉴权，Desktop 只消费 effective permission/capability|
-|subagent 能力过度声明|只描述内部原语；真实 child 调度仍保持未实现|
-
-## 9. 当前完成判定
-
-生产代码实施已经恢复。M7-2A 已提交并 push；M7-2B1 RepositoryProfile 与
-Binding PUT/GET 已满足真实代码、幂等/漂移/并发黑盒白盒测试、OpenAPI、前端
-类型、文档和 WSL PostgreSQL 证据。当前执行指针进入 M7-2B2 Candidate、第一道
-审批与 WorkflowJob 原子创建。
-
-后续每个切片仍必须有真实代码、黑盒/白盒测试、数据库/契约验证、文档、
-`PROJECT_PROGRESS.md`、Roadmap 和 Git 证据，才能标记完成。
+|Platform API 与 Workflow Engine 循环依赖|只允许 Workflow Engine 单向依赖 Platform API persistence；API 只落 PostgreSQL job|
+|把 Redis 当业务权威|所有状态、lease、attempt、结果与错误只写 PostgreSQL|
+|事务 `now()` 在锁等待后倒挂|transition/lease/heartbeat/finish 使用锁后单次 `clock_timestamp()`|
+|重复消息产生重复执行|数据库 claim + owner/lease 条件更新|
+|publish crash window 丢 job|dispatch lease + `next_enqueue_at` 周期补投|
+|worker 崩溃后盲目重放|按 side-effect class reclaim；unknown external -> recovery_required|
+|把空 handler 写成完成|本切片只实现真实 reconcile handler，其余 handler 不注册|
+|WSL 开发基线被写成正式 Ops Hub|只记录 IT-031A；正式 installation/IT-031B 继续未完成|
