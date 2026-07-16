@@ -53,6 +53,8 @@
   lease，并在有界时间内轮询真实续租结果，随后隔离全量回归稳定通过。
 - M7-2C 代码、配置、共享契约与测试已提交为 `16a0c27`，并 push 到
   `origin/feature/m7-remote-deploy-closure`。
+- M7-2C README、设计文档、Roadmap、进度和 M7-2D 计划已提交为
+  `b53f0ac`，并 push 到同一远端功能分支。
 
 ### 进行中
 
