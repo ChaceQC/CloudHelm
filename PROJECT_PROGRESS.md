@@ -36,6 +36,8 @@
   E2E 收口时再发布 `0.6.0`。
 - B2 生产代码、测试与共享契约已提交为 `dfbee7e`，并 push 到
   `origin/feature/m7-remote-deploy-closure`。
+- B2 README、API/Data/Workflow/Testing 文档、Roadmap 与 M7-2C
+  `PROJECT_PLAN.md` 已提交为 `2aee882`，并 push 到同一远端分支。
 
 ### 进行中
 
