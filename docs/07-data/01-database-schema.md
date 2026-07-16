@@ -79,17 +79,22 @@ upgrade/downgrade/check 和共享契约证据。M7-1 只实现 staging/demo Envi
 profile-only Linux RemoteTarget 和 machine-auth heartbeat；尚未表示完整 M7
 远端部署闭环完成。
 
-其余 `ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob`、CIRun、
-Deployment 和 ServiceInstance 数据仍是 `0.6.0` 目标设计，必须随对应纵切完成
-migration、ORM、repository/service、黑盒/白盒测试和真实流程证据后，才能逐项
-写成已实现。M7 不创建 production、Kubernetes target 或 `remote_sessions`。
+`ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob` 和资源型
+Approval 字段已由 `20260716_0008` 建立 migration 与 ORM 数据底座。该结论只表示
+M7-2A 数据结构已经进入实现与数据库门禁，不代表 RepositoryProfile、Binding API、
+Candidate 原子创建、审批服务或 durable worker 已交付；这些属于 M7-2B/C。
 
-M7-2 已先冻结以下迁移语义：repository 字段统一使用
+`CIRun`、`Deployment` 和 `ServiceInstance` 仍是 `0.6.0` 后续纵切的目标设计，
+必须随对应 migration、ORM、repository/service、黑盒/白盒测试和真实流程证据
+完成后，才能逐项写成已实现。M7 不创建 production、Kubernetes target 或
+`remote_sessions`。
+
+M7-2 数据底座固定以下迁移语义：repository 字段统一使用
 `repository_external_id`；candidate 保存安全 binding snapshot JSON 与覆盖内部
 配置的 snapshot hash，状态包含 rejected；远端校验字段统一为
 `remote_verified_sha`；WorkflowJob 唯一身份为
 `(task_id, job_type, idempotency_key)`，并保存 side-effect class、dispatch lease
-与 enqueue 补偿字段。代码和 migration 尚未完成前，本段只表示执行契约已定稿。
+与 enqueue 补偿字段。M7-2B/C 必须复用这些字段与约束，不得另建平行状态源。
 
 M7 数据门禁固定为：
 
@@ -112,7 +117,8 @@ M7 数据门禁固定为：
 
 ## M9 用户/RBAC 与离线同步 migration 目标
 
-以下内容均为规划，当前 `0.5.1` 和暂停中的 `20260716_0008` 草稿都未实现：
+以下内容均为规划，当前 `0.5.1` 与已落地的 `20260716_0008` M7-2A 数据底座
+都未实现：
 
 ```text
 users
@@ -493,11 +499,14 @@ CREATE TABLE project_repository_bindings (
         left(release_ref_prefix, 11) = 'refs/heads/'
         AND length(release_ref_prefix) BETWEEN 12 AND 240
         AND release_ref_prefix !~ '[[:space:]~^:?*]'
+        AND release_ref_prefix !~ '[[:cntrl:]]'
         AND position('[' IN release_ref_prefix) = 0
         AND position(chr(92) IN release_ref_prefix) = 0
         AND position('..' IN release_ref_prefix) = 0
         AND position('//' IN release_ref_prefix) = 0
         AND position('@{' IN release_ref_prefix) = 0
+        AND release_ref_prefix !~ '(^|/)[.]'
+        AND release_ref_prefix !~ '[.]lock(/|$)'
         AND right(release_ref_prefix, 1) NOT IN ('.', '/')
         AND release_ref_prefix NOT LIKE '%.lock'
       ),
@@ -590,6 +599,81 @@ CREATE TABLE release_candidates (
         AND binding_snapshot_json->>'schema_version'
           = 'm7.repository-binding.snapshot.v1'
         AND binding_snapshot_json->>'provider' = 'gitea'
+        AND jsonb_typeof(
+          binding_snapshot_json->'schema_version'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'provider'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'repository_external_id'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'repository_owner'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'repository_name'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'default_branch'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'workflow_id'
+        ) = 'string'
+        AND jsonb_typeof(
+          binding_snapshot_json->'release_ref_prefix'
+        ) = 'string'
+        AND length(
+          btrim(binding_snapshot_json->>'repository_external_id')
+        ) BETWEEN 1 AND 255
+        AND length(
+          btrim(binding_snapshot_json->>'repository_owner')
+        ) BETWEEN 1 AND 255
+        AND length(
+          btrim(binding_snapshot_json->>'repository_name')
+        ) BETWEEN 1 AND 255
+        AND length(
+          btrim(binding_snapshot_json->>'default_branch')
+        ) BETWEEN 1 AND 255
+        AND length(
+          btrim(binding_snapshot_json->>'workflow_id')
+        ) BETWEEN 1 AND 512
+        AND left(
+          binding_snapshot_json->>'release_ref_prefix',
+          11
+        ) = 'refs/heads/'
+        AND length(
+          binding_snapshot_json->>'release_ref_prefix'
+        ) BETWEEN 12 AND 240
+        AND binding_snapshot_json->>'release_ref_prefix'
+          !~ '[[:space:]~^:?*]'
+        AND binding_snapshot_json->>'release_ref_prefix'
+          !~ '[[:cntrl:]]'
+        AND position(
+          '[' IN binding_snapshot_json->>'release_ref_prefix'
+        ) = 0
+        AND position(
+          chr(92) IN binding_snapshot_json->>'release_ref_prefix'
+        ) = 0
+        AND position(
+          '..' IN binding_snapshot_json->>'release_ref_prefix'
+        ) = 0
+        AND position(
+          '//' IN binding_snapshot_json->>'release_ref_prefix'
+        ) = 0
+        AND position(
+          '@{' IN binding_snapshot_json->>'release_ref_prefix'
+        ) = 0
+        AND binding_snapshot_json->>'release_ref_prefix'
+          !~ '(^|/)[.]'
+        AND binding_snapshot_json->>'release_ref_prefix'
+          !~ '[.]lock(/|$)'
+        AND right(
+          binding_snapshot_json->>'release_ref_prefix',
+          1
+        ) NOT IN ('.', '/')
+        AND binding_snapshot_json->>'release_ref_prefix'
+          NOT LIKE '%.lock'
       ),
     CONSTRAINT ck_release_candidates_snapshot_hash
       CHECK (binding_snapshot_sha256 ~ '^sha256:[0-9a-f]{64}$'),
@@ -609,11 +693,14 @@ CREATE TABLE release_candidates (
         left(target_ref, 11) = 'refs/heads/'
         AND length(target_ref) BETWEEN 12 AND 1024
         AND target_ref !~ '[[:space:]~^:?*]'
+        AND target_ref !~ '[[:cntrl:]]'
         AND position('[' IN target_ref) = 0
         AND position(chr(92) IN target_ref) = 0
         AND position('..' IN target_ref) = 0
         AND position('//' IN target_ref) = 0
         AND position('@{' IN target_ref) = 0
+        AND target_ref !~ '(^|/)[.]'
+        AND target_ref !~ '[.]lock(/|$)'
         AND right(target_ref, 1) NOT IN ('.', '/')
         AND target_ref NOT LIKE '%.lock'
       ),
@@ -641,6 +728,7 @@ CREATE TABLE release_candidates (
           status = 'published'
           AND approved_at IS NOT NULL
           AND published_at IS NOT NULL
+          AND remote_verified_sha IS NOT NULL
           AND remote_verified_sha = commit_sha
         )
         OR (

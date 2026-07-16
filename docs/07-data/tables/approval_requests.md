@@ -60,9 +60,11 @@ CandidateService 固定写
 `403 approval_self_decision_forbidden`。
 
 数据库约束同步要求 `approve_release_candidate` 的
-`requested_by_agent_run_id IS NOT NULL`。该列为兼容其他审批类型和历史删除仍保持
-可空、外键仍为 `ON DELETE SET NULL`；Candidate 与 PR creator 的跨表等值关系由
-CandidateService 在既定锁序内重验。
+`requested_by_agent_run_id IS NOT NULL`。该列为兼容其他审批类型仍保持可空，
+外键仍为 `ON DELETE SET NULL`；但 ReleaseCandidate Approval 存在时，SET NULL
+会被该 CHECK 阻断，因此对应 creator AgentRun 不能被单独删除。Candidate 与 PR
+creator 的跨表等值关系由 CandidateService 在既定锁序内重验。M9 引入不可变
+user/AgentRun provenance 后再统一收敛历史删除策略。
 
 ## 决策与消费
 

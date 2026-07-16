@@ -9,12 +9,12 @@
 
 ```text
 M7 Ops Hub 常驻控制面、CI 与远端部署
-  -> 实施恢复前重基线
+  -> M7-2B RepositoryBinding、ReleaseCandidate 与第一道审批
 ```
 
-当前明确 **暂停生产代码**。本轮只完成 Desktop、Local Runtime、Linux Ops Hub、
-业务项目可剥离、用户/RBAC、离线同步、跨平台安装和 M7-M10 路线图的文档冻结。
-用户后续明确继续代码实施时，再按本计划从预检开始恢复。
+用户已明确恢复生产代码实施。M7-2A 数据底座已经完成数据库往返、负约束、
+OpenAPI/前端类型同步和 Platform API 全量回归；当前按本计划继续 M7-2B，随后
+进入 M7-2C durable Workflow Engine。
 
 ### 1.1 已确认基线
 
@@ -27,11 +27,17 @@ M7 Ops Hub 常驻控制面、CI 与远端部署
   - profile-only RemoteTarget。
   - Remote Agent HMAC machine authentication。
   - online/offline/recovery heartbeat。
+- M7-2A 已完成：
+  - `project_repository_bindings`、`release_candidates`、`workflow_jobs`。
+  - ApprovalRequest 的资源/hash/有效期/消费字段与 `cancelled` 状态。
+  - Candidate snapshot 类型/ref 约束、published 远端 SHA 非空门禁。
+  - WorkflowJob 初始 `next_enqueue_at` 使用 PostgreSQL `now()`。
 - 当前分支：`feature/m7-remote-deploy-closure`。
 - 当前开发 PostgreSQL Alembic head：`20260716_0008`。
-- 工作区保留未提交 M7-2 草稿；当前文档阶段不修改、不暂存这些代码。
+- Ops Hub 开发/测试基线：安装在 `D:\WSL\Ubuntu-24.04` 的 Ubuntu 24.04
+  WSL2，使用发行版内原生 Docker Engine/Compose；Docker Desktop 已卸载。
 
-### 1.2 未提交代码恢复面
+### 1.2 M7-2A 已验证代码面
 
 ```text
 modules/platform-api/migrations/versions/
@@ -48,18 +54,35 @@ modules/platform-api/src/cloudhelm_platform_api/schemas/
   approval.py
   common.py
 
+modules/platform-api/src/cloudhelm_platform_api/services/
+  approval_service.py
+
 modules/platform-api/tests/
   conftest.py
+  m7_release_job_fixture.py
+  test_agent_tool_approval_api.py
   test_database_migration.py
+  test_m7_release_job_constraints.py
+
+apps/control-console/src/shared/types/
+  api.ts
+
+packages/shared-contracts/openapi/
+  cloudhelm.openapi.yaml
 ```
 
-恢复前不得假设这些草稿已经完成。当前已有证据仅包括：
+当前验证证据：
 
-- migration 已升级到 `20260716_0008`。
-- `alembic check` 当时无待生成变更。
-- migration 定向测试当时为 `9 passed`。
-- 尚未完成 downgrade/upgrade 往返、全量 pytest、repository/service/API、
-  Workflow Engine、Redis crash recovery、OpenAPI/JSON Schema 和 E2E。
+- Ubuntu WSL 原生 Docker 中 PostgreSQL/Redis 分别通过 `healthy` / `PONG`。
+- `downgrade 20260715_0007 -> upgrade 20260716_0008` 往返通过。
+- downgrade 后 M7-2 三表和 Approval 五字段消失，M1-M7-1 表保留。
+- `alembic check` 为 `No new upgrade operations detected`。
+- migration/约束定向回归覆盖所有新增 CHECK 类别、唯一/部分唯一索引、函数式
+  唯一索引、NO ACTION/CASCADE 外键行为和关键 PostgreSQL server default。
+- Platform API 当前全量回归 `243 passed, 1 skipped`。
+- FastAPI OpenAPI 与共享 YAML 已重新生成并精确同步。
+- RepositoryBinding/Candidate service/API 和 Workflow Engine 仍属于下一切片，
+  不因 M7-2A 数据底座完成而提前标记。
 
 ## 2. 固定架构与范围
 
@@ -177,10 +200,13 @@ permissions 和 sequence sync。冻结约束包括：
 
 ## 3. M7 恢复切片
 
-### 3.1 M7-2A：保护并验证现有 0008 数据草稿
+### 3.1 M7-2A：建立并验证 0008 数据底座（已完成）
 
-目标：先把当前未提交 migration/ORM 草稿恢复为可审查、可往返、可独立提交的
-数据库小步，不继续扩大代码范围。
+结果：当前 migration/ORM 已形成可审查、可往返、可独立提交的数据库小步；
+后续不得再向 `0008` 混入 M7-2B/C 或 M9 能力。由于 0008 在数据库层保留
+`approve_release_candidate` action，M7-2A 同时包含通用 Approval POST 的兼容
+guard：该入口必须返回稳定 `422 approval_action_reserved`，不能退化为数据库
+CHECK 触发的 500；真正的 Candidate 原子创建和审批决策仍属于 M7-2B。
 
 预检：
 
@@ -212,7 +238,10 @@ uv run alembic check
   - EventLog sequence。
   - CIRun/Deployment/ServiceInstance。
   - 占位 publish/CI/deploy handler。
-- ORM metadata 与 migration 精确一致。
+- ORM 的字段、nullability、CHECK、索引和 M7 状态默认与 migration 对齐；关键
+  PostgreSQL server default 另用省略字段的真实 INSERT 验证。当前 Alembic
+  `env.py` 未启用 `compare_server_default`，不得只用 `alembic check` 证明默认值
+  一致。
 - 外键删除规则、CHECK、部分唯一索引、函数式索引和状态枚举有真实数据库负测。
 - 执行：
 
@@ -220,14 +249,18 @@ uv run alembic check
 uv run alembic downgrade 20260715_0007
 uv run alembic upgrade 20260716_0008
 uv run alembic check
-uv run pytest -q tests/test_database_migration.py
+uv run pytest -q `
+  tests/test_database_migration.py `
+  tests/test_m7_release_job_constraints.py `
+  tests/test_agent_tool_approval_api.py
 ```
 
 完成判定：
 
 - downgrade 后 M7-2 表/字段消失且 M7-1/M1-M6 数据结构保留。
 - upgrade 后全部恢复。
-- migration test、ORM import、`alembic check` 通过。
+- migration test、全部新增约束类别的真实违反写入、ORM import、数据库默认值和
+  `alembic check` 通过。
 - 作为独立小步检查 diff、更新进度、提交并 push。
 
 ### 3.2 M7-2B：RepositoryBinding、Candidate 与第一道审批
@@ -335,8 +368,12 @@ modules/workflow-engine/
 验证：
 
 ```powershell
-docker compose -f infra/docker-compose.dev.yml --profile optional up -d redis
+wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
+cd '/mnt/d/graduation project'
+docker compose -f infra/docker-compose.dev.yml \
+  --profile optional up -d redis
 docker exec cloudhelm-redis-dev redis-cli ping
+"@
 
 cd modules/workflow-engine
 uv lock --check
@@ -531,8 +568,11 @@ git status --short
 git log --oneline --decorate --max-count=10
 git diff --stat
 
+wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
+cd '/mnt/d/graduation project'
 docker compose -f infra/docker-compose.dev.yml ps
 docker compose -f infra/docker-compose.dev.yml --profile optional ps
+"@
 
 cd modules/platform-api
 uv lock --check
@@ -544,10 +584,10 @@ uv run alembic check
 要求：
 
 - 当前分支不是 `main`。
-- 未提交 M7-2 草稿集合与 `PROJECT_PROGRESS.md` 记录一致。
+- 工作区修改集合与当前 M7-2B/C 执行指针及 `PROJECT_PROGRESS.md` 一致。
 - 开发数据库 head 与代码 revision 一致。
 - PostgreSQL/Redis 可用后再运行 migration/worker 测试。
-- 不把文档提交与 M7-2 代码草稿混在同一 commit。
+- 数据、API、worker 和文档按可验证子系统分步提交，不混入未来 M9 能力。
 
 ## 6. 验证矩阵
 
@@ -579,7 +619,7 @@ npm.cmd run build
 
 ```powershell
 cd modules/platform-api
-uv run alembic downgrade <previous_revision>
+uv run alembic downgrade 20260715_0007
 uv run alembic upgrade head
 uv run alembic check
 ```
@@ -634,8 +674,8 @@ uv run alembic check
 
 |风险|处理|
 |---|---|
-|开发 DB 已先到 0008|恢复第一步核对 revision，并完成真实 downgrade/upgrade|
-|文档与未提交代码混入同一提交|只按明确文档路径 stage；代码草稿保持未暂存|
+|开发 DB 与 0008 约束漂移|每次修改 migration 后重新执行真实 downgrade/upgrade、约束负测和 `alembic check`|
+|WSL 环境记录与生产代码混入同一提交|WSL 开发基线已独立提交；M7-2A 再按数据/契约小步提交|
 |把 IAM 混入 M7 migration|IAM/EventLog sequence 固定留给 M9 新 revision|
 |继续依赖 Desktop `run-next`|M7 worker 以 durable job 自动 continuation；入口仅调试/恢复|
 |项目专用模板扩散|以 project/env schema + 通用 renderer 替换|
@@ -647,11 +687,9 @@ uv run alembic check
 
 ## 9. 当前完成判定
 
-本计划当前仅表示恢复路径已经按新架构重写。满足以下条件前，不恢复生产代码：
+生产代码实施已经恢复，M7-2A 满足真实代码、数据库往返、黑盒/白盒约束测试、
+OpenAPI/前端类型、文档、Roadmap 和 WSL PostgreSQL 证据，当前等待独立提交并
+push。提交后执行指针直接进入 M7-2B，不再回到“是否恢复”的决策点。
 
-- 文档修订已提交并 push。
-- 工作区代码草稿与数据库 head 已重新核对。
-- 用户明确继续实施。
-
-恢复后，每个切片必须有真实代码、黑盒/白盒测试、数据库/契约验证、文档、
+后续每个切片仍必须有真实代码、黑盒/白盒测试、数据库/契约验证、文档、
 `PROJECT_PROGRESS.md`、Roadmap 和 Git 证据，才能标记完成。

@@ -37,7 +37,12 @@ export type ToolCallStatus =
   | 'waiting_approval'
   | 'cancelled'
 
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired'
+export type ApprovalStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'expired'
+  | 'cancelled'
 
 export interface PageInfo {
   limit: number
@@ -240,10 +245,15 @@ export interface ApprovalRequest {
   action: string
   risk_level: RiskLevel
   reason: string
+  resource_type: string | null
+  resource_id: string | null
+  request_hash: string | null
   status: ApprovalStatus
   requested_by_agent_run_id: string | null
   decided_by: string | null
   decided_at: string | null
+  expires_at: string | null
+  consumed_at: string | null
   created_at: string
 }
 

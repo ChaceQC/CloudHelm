@@ -45,7 +45,8 @@ cancelled
 - `rejected/published/stale/cancelled` 为 Candidate 终态。
 - `published` 必须满足
   `approved_at IS NOT NULL`、`published_at IS NOT NULL` 且
-  `remote_verified_sha = commit_sha`。
+  `remote_verified_sha IS NOT NULL`、`remote_verified_sha = commit_sha`；数据库
+  CHECK 显式阻断 SQL NULL 绕过。
 - 每 Task 同时最多一个 `pending_approval|approved` Candidate。published 不进入
   该部分唯一索引，因此后续新 PR/snapshot 可创建下一 Candidate，同时保留旧发布
   事实。
@@ -66,6 +67,10 @@ cancelled
   "release_ref_prefix": "refs/heads/cloudhelm/candidates"
 }
 ```
+
+数据库 CHECK 同时要求八个值都是 JSON string，拒绝 JSON null、数字、数组、
+对象、额外字段和不安全的 `release_ref_prefix`。服务层 Pydantic 校验不能替代
+该落库门禁。
 
 内部 snapshot 对象固定包含：
 

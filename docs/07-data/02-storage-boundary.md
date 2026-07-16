@@ -121,7 +121,8 @@ REST snapshot
 ## 8. 当前迁移影响
 
 - 现有 Alembic migration 继续属于 Ops Hub PostgreSQL。
-- 暂停中的 `20260716_0008` migration/ORM 草稿不改写为 SQLite。
+- `20260716_0008` 的 RepositoryBinding、ReleaseCandidate、WorkflowJob 和资源
+  Approval 数据底座继续属于 Ops Hub PostgreSQL，不改写为 SQLite。
 - 后续 Desktop SQLite schema 单独规划，不能把现有 ORM 直接复制到桌面。
 - 当前本地 PostgreSQL 开发库未来迁移到远端 Ops Hub 时，应使用一次性导出/
   导入或重新初始化流程，不通过 Desktop 数据文件搬运。

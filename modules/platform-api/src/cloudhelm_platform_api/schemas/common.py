@@ -74,6 +74,7 @@ class ApprovalStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPIRED = "expired"
+    CANCELLED = "cancelled"
 
 
 class OrmModel(BaseModel):

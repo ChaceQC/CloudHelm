@@ -1652,8 +1652,8 @@ user/device/session actor 引用和 `subject_user_id`。`sequence` 在单个 Ops
 - system/project/environment scoped role binding。
 - 全局 `permission_version` 和最后一个 active system owner 不变量。
 
-这些表当前尚未进入 migration；`20260716_0008` 草稿仍只属于 M7 release/workflow
-数据，不得把 IAM 或 EventLog sequence 写成已实现。
+这些表当前尚未进入 migration；已落地的 `20260716_0008` 仍只属于 M7-2A
+release/workflow 数据底座，不得把 IAM 或 EventLog sequence 写成已实现。
 
 #### environments
 

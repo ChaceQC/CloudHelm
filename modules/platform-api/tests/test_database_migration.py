@@ -1,9 +1,20 @@
 """Alembic 迁移验证。"""
 
+from typing import Any
+
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from conftest import ALLOW_SCHEMA_RESET_ENV, _prepare_test_database
+from m7_release_job_fixture import (
+    build_release_candidate,
+    build_workflow_job,
+    seed_m7_candidate_dependencies,
+    valid_binding_snapshot,
+)
+from cloudhelm_platform_api.db.base import utc_now
 from cloudhelm_platform_api.db.session import get_engine
 
 
@@ -27,6 +38,9 @@ def test_alembic_migration_creates_core_tables() -> None:
         "remote_targets",
         "remote_agent_credentials",
         "remote_agent_replay_nonces",
+        "project_repository_bindings",
+        "release_candidates",
+        "workflow_jobs",
     }
     with get_engine().connect() as connection:
         rows = connection.execute(
@@ -367,6 +381,375 @@ def test_m7_environment_remote_target_migration_contract() -> None:
     assert expected_indexes.issubset(indexes)
     for identity, delete_rule in expected_delete_rules.items():
         assert delete_rules[identity] == delete_rule
+
+
+def test_m7_release_job_migration_contract() -> None:
+    """M7-2 表、Approval 扩展、部分索引和删除规则必须精确落库。"""
+
+    expected_columns = {
+        "approval_requests": {
+            "resource_type",
+            "resource_id",
+            "request_hash",
+            "expires_at",
+            "consumed_at",
+        },
+        "project_repository_bindings": {
+            "id",
+            "project_id",
+            "provider",
+            "profile_key",
+            "repository_external_id",
+            "repository_owner",
+            "repository_name",
+            "clone_url",
+            "default_branch",
+            "credential_ref",
+            "workflow_id",
+            "release_ref_prefix",
+            "status",
+            "created_at",
+            "updated_at",
+        },
+        "release_candidates": {
+            "id",
+            "task_id",
+            "project_id",
+            "pull_request_record_id",
+            "repository_binding_id",
+            "binding_snapshot_json",
+            "binding_snapshot_sha256",
+            "commit_sha",
+            "target_ref",
+            "request_hash",
+            "approval_id",
+            "remote_verified_sha",
+            "status",
+            "idempotency_key",
+            "approved_at",
+            "published_at",
+            "created_at",
+            "updated_at",
+        },
+        "workflow_jobs": {
+            "id",
+            "task_id",
+            "job_type",
+            "resource_type",
+            "resource_id",
+            "side_effect_class",
+            "request_hash",
+            "idempotency_key",
+            "status",
+            "attempt",
+            "max_attempts",
+            "lease_owner",
+            "lease_expires_at",
+            "heartbeat_at",
+            "next_retry_at",
+            "cancel_requested_at",
+            "dispatch_lease_owner",
+            "dispatch_lease_expires_at",
+            "next_enqueue_at",
+            "last_enqueued_at",
+            "enqueue_attempt",
+            "last_enqueue_error_code",
+            "payload_json",
+            "result_json",
+            "error_code",
+            "started_at",
+            "finished_at",
+            "created_at",
+            "updated_at",
+        },
+    }
+    expected_constraints = {
+        "ck_approval_requests_status",
+        "ck_approval_requests_resource_group",
+        "ck_approval_requests_request_hash",
+        "ck_approval_requests_decision",
+        "ck_approval_requests_release_candidate",
+        "ck_approval_requests_expiry",
+        "ck_approval_requests_decision_before_expiry",
+        "ck_approval_requests_consumed",
+        "ck_approval_requests_time_order",
+        "uq_project_repository_bindings_project",
+        "uq_project_repository_bindings_external",
+        "ck_project_repository_bindings_provider",
+        "ck_project_repository_bindings_status",
+        "ck_project_repository_bindings_profile_key",
+        "ck_project_repository_bindings_identity",
+        "ck_project_repository_bindings_clone_url",
+        "ck_project_repository_bindings_config",
+        "ck_project_repository_bindings_release_ref_prefix",
+        "ck_project_repository_bindings_time_order",
+        "uq_release_candidates_task_idempotency",
+        "uq_release_candidates_binding_ref",
+        "uq_release_candidates_pr_snapshot",
+        "ck_release_candidates_status",
+        "ck_release_candidates_snapshot",
+        "ck_release_candidates_snapshot_hash",
+        "ck_release_candidates_commit_sha",
+        "ck_release_candidates_remote_sha",
+        "ck_release_candidates_request_hash",
+        "ck_release_candidates_idempotency_key",
+        "ck_release_candidates_target_ref",
+        "ck_release_candidates_lifecycle",
+        "ck_release_candidates_time_order",
+        "uq_workflow_jobs_task_type_idempotency",
+        "ck_workflow_jobs_m7_2_handler",
+        "ck_workflow_jobs_status",
+        "ck_workflow_jobs_request_hash",
+        "ck_workflow_jobs_idempotency_key",
+        "ck_workflow_jobs_attempts",
+        "ck_workflow_jobs_payload_object",
+        "ck_workflow_jobs_result_object",
+        "ck_workflow_jobs_worker_lease_pair",
+        "ck_workflow_jobs_dispatch_lease_pair",
+        "ck_workflow_jobs_dispatch_lease_status",
+        "ck_workflow_jobs_retry_enqueue",
+        "ck_workflow_jobs_enqueue_attempt",
+        "ck_workflow_jobs_lifecycle",
+        "ck_workflow_jobs_cancel",
+        "ck_workflow_jobs_result_semantics",
+        "ck_workflow_jobs_time_order",
+    }
+    expected_index_predicates = {
+        "ux_approval_requests_resource_action": (
+            "resource_type IS NOT NULL"
+        ),
+        "ix_approval_requests_resource_status": (
+            "resource_type IS NOT NULL"
+        ),
+        "ix_approval_requests_pending_expiry": (
+            "status = 'pending'::text"
+        ),
+        "ux_release_candidates_task_active": (
+            "status = ANY (ARRAY['pending_approval'::text, 'approved'::text])"
+        ),
+        "ux_workflow_jobs_blocking_resource": (
+            "status = ANY (ARRAY['pending'::text, 'claimed'::text"
+        ),
+        "ix_workflow_jobs_status_lease": (
+            "status = ANY (ARRAY['claimed'::text, 'running'::text"
+        ),
+        "ix_workflow_jobs_due_enqueue": "status = 'pending'::text",
+        "ix_workflow_jobs_due_retry": "next_retry_at IS NOT NULL",
+    }
+    expected_indexes = {
+        "ux_project_repository_bindings_owner_name",
+        "ix_project_repository_bindings_status_updated",
+        "ux_release_candidates_approval",
+        "ix_release_candidates_task_status_created",
+        "ix_release_candidates_project_created",
+        "ix_workflow_jobs_task_created",
+        "ix_workflow_jobs_resource_created",
+    }
+    expected_delete_rules = {
+        (
+            "project_repository_bindings",
+            "project_repository_bindings_project_id_fkey",
+        ): "c",
+        ("release_candidates", "release_candidates_task_id_fkey"): "c",
+        ("release_candidates", "release_candidates_project_id_fkey"): "c",
+        (
+            "release_candidates",
+            "release_candidates_pull_request_record_id_fkey",
+        ): "a",
+        (
+            "release_candidates",
+            "release_candidates_repository_binding_id_fkey",
+        ): "a",
+        (
+            "release_candidates",
+            "release_candidates_approval_id_fkey",
+        ): "a",
+        ("workflow_jobs", "workflow_jobs_task_id_fkey"): "c",
+    }
+
+    with get_engine().connect() as connection:
+        for table_name, expected in expected_columns.items():
+            columns = {
+                row.column_name
+                for row in connection.execute(
+                    text(
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = :table_name
+                        """
+                    ),
+                    {"table_name": table_name},
+                )
+            }
+            if table_name in {
+                "project_repository_bindings",
+                "release_candidates",
+                "workflow_jobs",
+            }:
+                assert columns == expected
+            else:
+                assert expected.issubset(columns)
+
+        constraints = {
+            row.conname
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE connamespace = 'public'::regnamespace
+                    """
+                )
+            )
+        }
+        index_definitions = {
+            row.indexname: row.indexdef
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT indexname, indexdef
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                    """
+                )
+            )
+        }
+        delete_rules = {
+            (row.table_name, row.constraint_name): row.confdeltype
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT
+                        relation.relname AS table_name,
+                        constraint_record.conname AS constraint_name,
+                        constraint_record.confdeltype
+                    FROM pg_constraint AS constraint_record
+                    JOIN pg_class AS relation
+                      ON relation.oid = constraint_record.conrelid
+                    WHERE constraint_record.contype = 'f'
+                      AND constraint_record.connamespace = 'public'::regnamespace
+                    """
+                )
+            )
+        }
+
+    assert expected_constraints.issubset(constraints)
+    assert expected_indexes.issubset(index_definitions)
+    for index_name, predicate in expected_index_predicates.items():
+        assert predicate in index_definitions[index_name]
+    for identity, delete_rule in expected_delete_rules.items():
+        assert delete_rules[identity] == delete_rule
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value"),
+    [
+        ("provider", None),
+        ("repository_owner", 123),
+        ("release_ref_prefix", "refs/heads/invalid..candidate"),
+    ],
+)
+def test_m7_release_candidate_snapshot_rejects_null_type_and_ref_violations(
+    field_name: str,
+    invalid_value: Any,
+) -> None:
+    """Candidate 安全快照必须是精确八字段、字符串且使用安全 ref。"""
+
+    references = seed_m7_candidate_dependencies()
+    snapshot = valid_binding_snapshot()
+    snapshot[field_name] = invalid_value
+
+    with Session(get_engine()) as session:
+        session.add(
+            build_release_candidate(
+                references,
+                binding_snapshot_json=snapshot,
+            )
+        )
+        with pytest.raises(IntegrityError) as exc_info:
+            session.commit()
+        assert (
+            exc_info.value.orig.diag.constraint_name
+            == "ck_release_candidates_snapshot"
+        )
+        session.rollback()
+
+
+def test_m7_published_candidate_requires_non_null_matching_remote_sha() -> None:
+    """published 不能利用 SQL NULL 绕过远端 commit 精确回读门禁。"""
+
+    references = seed_m7_candidate_dependencies()
+    now = utc_now()
+    with Session(get_engine()) as session:
+        session.add(
+            build_release_candidate(
+                references,
+                status="published",
+                approved_at=now,
+                published_at=now,
+                remote_verified_sha=None,
+            )
+        )
+        with pytest.raises(IntegrityError) as exc_info:
+            session.commit()
+        assert (
+            exc_info.value.orig.diag.constraint_name
+            == "ck_release_candidates_lifecycle"
+        )
+        session.rollback()
+
+
+def test_m7_valid_candidate_and_workflow_job_use_database_enqueue_time() -> None:
+    """合法 Candidate 可落库，WorkflowJob 初始投递时间由 PostgreSQL 生成。"""
+
+    references = seed_m7_candidate_dependencies()
+    with Session(get_engine(), expire_on_commit=False) as session:
+        candidate = build_release_candidate(references)
+        session.add(candidate)
+        session.flush()
+        job = build_workflow_job(
+            references,
+            resource_id=candidate.id,
+        )
+        session.add(job)
+        session.flush()
+        session.refresh(job)
+
+        assert job.next_enqueue_at is not None
+        session.commit()
+
+
+def test_m7_candidate_prevents_deleting_source_pull_request() -> None:
+    """Candidate 存在时 PullRequestRecord 的 NO ACTION 外键必须真实阻断删除。"""
+
+    references = seed_m7_candidate_dependencies()
+    with Session(get_engine()) as session:
+        session.add(build_release_candidate(references))
+        session.commit()
+
+    with Session(get_engine()) as session:
+        with pytest.raises(IntegrityError) as exc_info:
+            session.execute(
+                text(
+                    """
+                    DELETE FROM pull_request_records
+                    WHERE id = :pull_request_record_id
+                    """
+                ),
+                {
+                    "pull_request_record_id": references[
+                        "pull_request_record_id"
+                    ]
+                },
+            )
+            session.commit()
+        assert (
+            exc_info.value.orig.diag.constraint_name
+            == "release_candidates_pull_request_record_id_fkey"
+        )
+        session.rollback()
 
 
 def test_test_database_guard_rejects_development_database(

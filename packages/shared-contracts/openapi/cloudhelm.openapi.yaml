@@ -1,7 +1,8 @@
 openapi: 3.1.0
 info:
   title: CloudHelm Platform API
-  description: CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增 Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环。
+  description: CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增 Environment、RemoteTarget
+    和 machine-auth heartbeat 基础闭环。
   version: 0.5.1
 paths:
   /health:
@@ -3604,6 +3605,22 @@ components:
         reason:
           type: string
           title: Reason
+        resource_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Resource Type
+        resource_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Resource Id
+        request_hash:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Hash
         status:
           $ref: '#/components/schemas/ApprovalStatus'
         requested_by_agent_run_id:
@@ -3623,6 +3640,18 @@ components:
             format: date-time
           - type: 'null'
           title: Decided At
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+        consumed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Consumed At
         created_at:
           type: string
           format: date-time
@@ -3634,10 +3663,15 @@ components:
       - action
       - risk_level
       - reason
+      - resource_type
+      - resource_id
+      - request_hash
       - status
       - requested_by_agent_run_id
       - decided_by
       - decided_at
+      - expires_at
+      - consumed_at
       - created_at
       title: ApprovalRequestRead
       description: 审批请求响应结构。
@@ -3648,6 +3682,7 @@ components:
       - approved
       - rejected
       - expired
+      - cancelled
       title: ApprovalStatus
       description: ApprovalRequest 状态。
     ArtifactDetailRead:

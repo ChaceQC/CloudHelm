@@ -278,8 +278,10 @@ Agent 生成或修改的业务项目必须同时满足：
 
 - `apps/control-console` 是 React + TypeScript + Vite Web 控制台，尚无
   `src-tauri`、安装器、运行时 server profile、桌面 SQLite 或用户认证。
-- Platform API/PostgreSQL/Redis 当前按开发环境运行，尚无 Ops Hub 安装 profile。
+- Platform API/PostgreSQL/Redis 当前已在 Ubuntu 24.04 WSL2 原生 Docker 中形成
+  仓库开发基线，但尚无满足 M7 安装验收的正式 Ops Hub installation profile。
 - M7-1 Remote Agent heartbeat 已实现，但完整远端部署和常驻运维闭环未交付。
-- M7-2 migration/ORM 草稿仍未提交，且本轮不继续修改生产代码。
+- M7-2A migration/ORM 数据底座已完成往返与回归；M7-2B/C API、领域事务和
+  durable Workflow Engine 正在按 `PROJECT_PLAN.md` 继续实现。
 
 任何文档、答辩材料或完成判定都不得把上述目标架构描述为已实现。

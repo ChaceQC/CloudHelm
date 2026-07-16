@@ -192,9 +192,11 @@ branch/commit ToolCall 和 diff/test/review/security Artifact：
 secret 不入库。nonce 只保存 hash，并由
 `uq_remote_agent_replay_nonces_credential_hash` 裁决并发 replay。
 
-本切片尚未创建完整 `project_repository_bindings`、`release_candidates`、
-`workflow_jobs`、`ci_runs`、`deployments` 和 `service_instances`；这些表仍属于
-后续 M7 切片，不能因四张基础表已落地而标记为完成。
+M7-2A 的 `20260716_0008` 已创建 `project_repository_bindings`、
+`release_candidates`、`workflow_jobs` 和资源型 Approval 字段。该数据底座不代表
+RepositoryProfile/Binding API、Candidate 原子事务或 durable worker 已完成。
+`ci_runs`、`deployments` 和 `service_instances` 仍属于后续 M7 纵切，不能因 M7-1
+四张基础表或 M7-2A 三张数据表已落地而标记完整 M7 完成。
 
 ## 1. 核心 ER 关系
 

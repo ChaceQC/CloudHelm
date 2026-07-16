@@ -14,7 +14,11 @@ from cloudhelm_platform_api.models.development_plan import DevelopmentPlan
 from cloudhelm_platform_api.models.environment import Environment
 from cloudhelm_platform_api.models.event_log import EventLog
 from cloudhelm_platform_api.models.project import Project
+from cloudhelm_platform_api.models.project_repository_binding import (
+    ProjectRepositoryBinding,
+)
 from cloudhelm_platform_api.models.pull_request_record import PullRequestRecord
+from cloudhelm_platform_api.models.release_candidate import ReleaseCandidate
 from cloudhelm_platform_api.models.remote_target import (
     RemoteAgentCredential,
     RemoteAgentReplayNonce,
@@ -23,6 +27,7 @@ from cloudhelm_platform_api.models.remote_target import (
 from cloudhelm_platform_api.models.requirement import RequirementSpec
 from cloudhelm_platform_api.models.task import Task
 from cloudhelm_platform_api.models.tool_call import ToolCall
+from cloudhelm_platform_api.models.workflow_job import WorkflowJob
 
 __all__ = [
     "AgentRun",
@@ -34,7 +39,9 @@ __all__ = [
     "Environment",
     "EventLog",
     "Project",
+    "ProjectRepositoryBinding",
     "PullRequestRecord",
+    "ReleaseCandidate",
     "RemoteAgentCredential",
     "RemoteAgentReplayNonce",
     "RemoteTarget",
@@ -42,4 +49,5 @@ __all__ = [
     "Task",
     "TechnicalDesign",
     "ToolCall",
+    "WorkflowJob",
 ]

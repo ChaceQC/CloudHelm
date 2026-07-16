@@ -105,6 +105,32 @@ def test_internal_tool_call_api_rejects_caller_supplied_audit_fields(client: Tes
     assert response.json()["code"] == "validation_error"
 
 
+def test_generic_approval_api_rejects_release_candidate_action(
+    client: TestClient,
+) -> None:
+    """第一道候选发布审批只能由服务端 Candidate 事务创建。"""
+
+    project = create_project(client)
+    task = create_task(client, project["id"])
+
+    response = client.post(
+        f"/api/tasks/{task['id']}/approvals",
+        json={
+            "action": "approve_release_candidate",
+            "risk_level": "L2",
+            "reason": "尝试绕过 Candidate 资源绑定。",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "approval_action_reserved"
+    approvals = client.get(
+        "/api/approvals",
+        params={"task_id": task["id"]},
+    ).json()["items"]
+    assert approvals == []
+
+
 def test_internal_agent_run_api_cannot_forge_running_execution(client: TestClient) -> None:
     """running AgentRun 只能由 Orchestrator 创建，联调 API 不得提升工具权限。"""
 

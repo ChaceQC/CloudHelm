@@ -2,6 +2,135 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M1-M7 复核、WSL Ops Hub 基线与 M7-2A 数据底座）
+
+### 已完成
+
+- 按最新 `AGENTS.md`、Roadmap、详细设计和已提交文档重新核对 M1-M7：
+  - M1-M6 已实现边界与 `docs/13-testing/01-m1-m6-audit-report.md` 一致。
+  - M7-0/M7-1 已实现边界仍为设计基线、Environment/RemoteTarget、
+    machine-auth heartbeat 和最小 Remote Agent。
+  - Tauri、IAM/RBAC、EventLog sequence、TechnicalDesign user provenance 继续
+    属于 M9，没有混入 M7 migration。
+- 完成 M1-M6 与 M7-1 当前非数据库回归：
+  - Orchestrator `7 passed`。
+  - Agent Runtime `61 passed, 1 skipped`。
+  - Tool Gateway `45 passed, 1 skipped`。
+  - Remote Agent `31 passed, 2 skipped`。
+  - Control Console `17 passed`，production build 通过。
+- 建立 Windows 开发机的 WSL Ops Hub 基线：
+  - 安装 Ubuntu 24.04 WSL2。
+  - 发行版迁移到 `D:\WSL\Ubuntu-24.04`。
+  - 创建 `cloudhelm` 用户，安装发行版内原生 Docker Engine `29.1.3`、
+    Docker Compose `2.40.3`、PostgreSQL/Redis client 和开发工具。
+  - 使用隐藏 `sleep infinity` keepalive 保持 WSL 运行；未保持时发行版会进入
+    `Stopped`，容器端口随之消失。
+  - WSL 原生 Docker 中 PostgreSQL 为 `healthy`，Redis 返回 `PONG`，
+    Windows psycopg 可连接 `127.0.0.1:15432`。
+  - 修正 keepalive 检测：一次 WSL 调用在 Windows 侧会形成 parent/child 两个
+    同命令行 `wsl.exe`，现按根 client 计数，避免把一次启动误判为两个。
+  - 连续执行两次 keepalive 启动均保持同一根 client；等待 60 秒后 PostgreSQL
+    仍为 `healthy`、Redis 为 `PONG`，Windows `15432` 端口可达。
+- 按用户决定卸载 Docker Desktop：
+  - `docker-desktop` 发行版、C 盘用户数据和 D 盘迁移副本已删除。
+  - C 盘可用空间由约 `12.8 GiB` 增至约 `42.1 GiB`。
+  - `C:\ProgramData\DockerDesktop` 仅残留约 16 KiB 的管理员安装日志，不作为
+    CloudHelm 运行依赖。
+- 完成 M7-2A `20260716_0008` 数据底座：
+  - 新增 `project_repository_bindings`、`release_candidates`、
+    `workflow_jobs`。
+  - ApprovalRequest 新增资源、request hash、有效期、消费时间和 cancelled 状态。
+  - 修复 Candidate `published` 对 SQL NULL 的 CHECK 漏洞，强制
+    `remote_verified_sha IS NOT NULL AND remote_verified_sha = commit_sha`。
+  - Candidate 八字段安全 snapshot 现在拒绝 JSON null、非字符串、额外字段和
+    不安全 `release_ref_prefix`。
+  - 修复 Binding、Candidate snapshot 和 target ref 对 component 以点开头、
+    中间 component 以 `.lock` 结尾及控制字符的数据库漏检；这些值会被
+    `git check-ref-format` 拒绝，现已由 PostgreSQL CHECK 同步阻断。
+  - WorkflowJob 初始 `next_enqueue_at` 改由 PostgreSQL `now()` 生成。
+  - 通用 Approval POST 对 `approve_release_candidate` 返回稳定
+    `422 approval_action_reserved`，避免数据库 CHECK 退化为 500。
+  - 同步 Control Console Approval 类型和共享 OpenAPI。
+  - 新增独立 M7-2A 约束夹具和真实 PostgreSQL 行为测试：
+    - 覆盖 Approval、RepositoryBinding、Candidate、WorkflowJob 的全部新增
+      CHECK 类别。
+    - 覆盖普通/部分/函数式唯一约束、NO ACTION/CASCADE 外键行为。
+    - 直接省略字段执行 INSERT，验证关键 PostgreSQL server default。
+    - 每个可区分的失败断言 PostgreSQL 返回的真实 constraint name，避免负测
+      命中错误约束形成假阳性。
+    - Candidate 六个状态和 WorkflowJob 八个状态均有合法数据库形态正向测试，
+      避免只证明“会拒绝”而未证明生命周期分支可用。
+  - 修正数据库权威 DDL、storage boundary、M7 data detail、Roadmap 和当前执行
+    指针；M7-2A 与 M7-2B/C 已拆分，不再把数据底座与未实现 service/worker 混写。
+  - 补充 WSL 发行版/Docker/Compose/用户权限预检、keepalive 去重和停止命令，
+    并将 IT-031A 开发依赖基线与 IT-031B 最小 Ops Hub profile 预演拆分。
+  - WSL 开发基线文档已以 `c82f3bb` 独立提交并 push 到
+    `origin/feature/m7-remote-deploy-closure`。
+
+### 进行中
+
+- M7-2A 数据/契约小步随本条进度记录独立提交并 push。
+- 当前实施切片进入 M7-2B：
+  ProjectRepositoryBinding profile/API、ReleaseCandidate 原子创建、第一道审批、
+  binding 漂移和 Task-first 并发门禁。
+
+### 阻塞与风险
+
+- WSL systemd 服务本身不保证发行版始终保持 Running；当前开发环境使用显式
+  keepalive。正式 Ops Hub 必须在独立 Linux 主机/systemd/Compose 中验证常驻。
+- ReleaseCandidate Approval 要求 `requested_by_agent_run_id IS NOT NULL`，因此
+  对应 AgentRun 的 `ON DELETE SET NULL` 会被 CHECK 阻断；当前按保留审计
+  provenance 记录，M9 再统一历史删除策略。
+- M7-2B/C、通用 renderer、Ops Hub 正式 bootstrap、CI/部署和 Linux staging E2E
+  尚未完成，版本继续保持 `0.5.1`。
+
+### 下一步
+
+1. 实现 server-controlled RepositoryProfile 与 Binding PUT/GET，补 CORS PUT、
+   幂等和漂移失效测试。
+2. 修复 PullRequestRecord Task 锁，再实现 Candidate/Approval/WorkflowJob 原子
+   创建、201/200 幂等语义和专用审批锁序。
+3. 建立 `modules/workflow-engine` durable dispatcher/worker/heartbeat/reclaimer。
+4. 继续实现通用 renderer、正式 Ops Hub profile、Gitea CI/registry 和远端 E2E。
+
+### 涉及文件
+
+- `modules/platform-api/migrations/versions/20260716_0008_create_m7_release_jobs.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/**`
+- `modules/platform-api/src/cloudhelm_platform_api/schemas/{approval,common}.py`
+- `modules/platform-api/src/cloudhelm_platform_api/services/approval_service.py`
+- `modules/platform-api/tests/{conftest,m7_release_job_fixture,test_database_migration,test_m7_release_job_constraints,test_agent_tool_approval_api}.py`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `apps/control-console/src/shared/types/api.ts`
+- `docs/07-data/{01-database-schema,02-storage-boundary}.md`
+- `docs/07-data/tables/{approval_requests,release_candidates}.md`
+- `docs/12-deployment/05-ops-hub-installation.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/04-data-detail.md`
+- `docs/15-detailed-design/07-testing-acceptance-matrix.md`
+- `云舵 CloudHelm 毕设设计书.md`
+- `README.md`
+- `PROJECT_PLAN.md`
+
+### 验证
+
+- WSL 原生 Docker：
+  - 发行版、D 盘 VHD、Docker group、systemd daemon、Docker info、Compose
+    version 和 Compose config 预检通过。
+  - keepalive 连续执行两次后根 client 数均为 1。
+  - PostgreSQL `healthy`。
+  - Redis `PONG`。
+  - 等待 60 秒后 Windows `15432` 可达，psycopg 连接成功。
+- Alembic：
+  - `upgrade -> 20260716_0008` 通过。
+  - `downgrade 20260715_0007` 后 M7-2 三表和 Approval 五字段消失，
+    M1-M7-1 表保留。
+  - 重新 upgrade 后 `alembic current=20260716_0008`。
+  - `alembic check`：`No new upgrade operations detected`。
+- Platform API migration/约束/Approval 定向回归：`101 passed`。
+- Platform API 全量回归：`243 passed, 1 skipped`。
+- Python `compileall` 与 `uv lock --check` 通过。
+
 ## 2026-07-16（Desktop / Ops Hub / 用户权限架构与规划修订）
 
 ### 已完成

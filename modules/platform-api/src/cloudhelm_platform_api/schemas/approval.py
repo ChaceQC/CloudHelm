@@ -25,8 +25,13 @@ class ApprovalRequestRead(OrmModel):
     action: str
     risk_level: RiskLevel
     reason: str
+    resource_type: str | None
+    resource_id: UUID | None
+    request_hash: str | None
     status: ApprovalStatus
     requested_by_agent_run_id: UUID | None
     decided_by: str | None
     decided_at: datetime | None
+    expires_at: datetime | None
+    consumed_at: datetime | None
     created_at: datetime

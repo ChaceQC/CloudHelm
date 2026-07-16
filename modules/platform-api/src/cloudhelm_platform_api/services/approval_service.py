@@ -23,6 +23,7 @@ from cloudhelm_platform_api.services.approval_domain_decision_service import (
 from cloudhelm_platform_api.services.event_service import EventService
 from cloudhelm_platform_api.services.exceptions import ServiceError
 TERMINAL_TASK_STATUSES = {TaskStatus.DONE.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value}
+RESERVED_APPROVAL_ACTIONS = {"approve_release_candidate"}
 
 
 class ApprovalService(BaseService):
@@ -40,6 +41,12 @@ class ApprovalService(BaseService):
     def create_approval(self, task_id: UUID, data: ApprovalRequestCreate) -> ApprovalRequestRead:
         """创建审批请求并写入 ApprovalRequested 事件。"""
 
+        if data.action in RESERVED_APPROVAL_ACTIONS:
+            raise ServiceError(
+                "approval_action_reserved",
+                "候选发布审批只能由服务端 ReleaseCandidate 流程创建。",
+                422,
+            )
         self._require_active_task(task_id, for_update=True)
         agent_run = self.agent_runs.get(data.requested_by_agent_run_id) if data.requested_by_agent_run_id else None
         if data.requested_by_agent_run_id and agent_run is None:
