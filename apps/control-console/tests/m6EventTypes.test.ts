@@ -21,12 +21,22 @@ const M6_EVENT_TYPES = [
 
 const M7_CANDIDATE_EVENT_TYPES = [
   'WorkflowJobQueued',
+  'WorkflowJobStarted',
+  'WorkflowJobSucceeded',
+  'WorkflowJobFailed',
+  'WorkflowJobRetryScheduled',
+  'WorkflowJobCancelRequested',
+  'WorkflowJobCancelled',
+  'WorkflowJobRecoveryRequired',
+  'WorkflowJobDispatchDeferred',
+  'WorkflowJobExecutionDeferred',
   'ReleaseCandidateApprovalRequested',
   'ReleaseCandidateApproved',
   'ReleaseCandidateRejected',
+  'ReleaseCandidateCancelled',
 ] as const
 
-test('EventSource 显式监听全部 M6/M7 Candidate 事件且列表无重复', () => {
+test('EventSource 显式监听全部 M6/M7 Workflow/Candidate 事件且列表无重复', () => {
   ;[...M6_EVENT_TYPES, ...M7_CANDIDATE_EVENT_TYPES].forEach((eventType) => {
     assert.equal(TASK_EVENT_TYPES.includes(eventType), true)
   })

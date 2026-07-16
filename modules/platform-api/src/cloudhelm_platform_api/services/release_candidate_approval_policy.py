@@ -50,6 +50,42 @@ class ReleaseCandidateApprovalPolicy:
             and approval.requested_by_agent_run_id is not None
         )
 
+    @staticmethod
+    def reconcile_static_ownership_is_valid(
+        *,
+        task,
+        binding,
+        candidate: ReleaseCandidate,
+        approval: ApprovalRequest,
+    ) -> bool:
+        """校验不可按 freshness 自动修复的资源静态归属。"""
+
+        return (
+            candidate.task_id == task.id
+            and candidate.project_id == task.project_id
+            and binding.id == candidate.repository_binding_id
+            and binding.project_id == task.project_id
+            and candidate.approval_id == approval.id
+            and approval.task_id == task.id
+            and approval.risk_level == "L2"
+            and approval.requested_by_agent_run_id is not None
+        )
+
+    @staticmethod
+    def reconcile_approval_contract_is_fresh(
+        *,
+        candidate: ReleaseCandidate,
+        approval: ApprovalRequest,
+    ) -> bool:
+        """判断可通过 Candidate stale 收敛的 Approval 契约漂移。"""
+
+        return (
+            approval.action == APPROVAL_ACTION
+            and approval.resource_type == "release_candidate"
+            and approval.resource_id == candidate.id
+            and approval.request_hash == candidate.request_hash
+        )
+
     def is_fresh(
         self,
         *,

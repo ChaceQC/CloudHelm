@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 from typing import Any
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 
 from cloudhelm_platform_api.main import app
 from cloudhelm_platform_api.schemas.environment import (
@@ -47,6 +47,18 @@ M7_2B2_EVENT_TYPES = {
     "ReleaseCandidateApprovalRequested",
     "ReleaseCandidateApproved",
     "ReleaseCandidateRejected",
+}
+M7_2C_EVENT_TYPES = {
+    "WorkflowJobStarted",
+    "WorkflowJobSucceeded",
+    "WorkflowJobFailed",
+    "WorkflowJobRetryScheduled",
+    "WorkflowJobCancelRequested",
+    "WorkflowJobCancelled",
+    "WorkflowJobRecoveryRequired",
+    "WorkflowJobDispatchDeferred",
+    "WorkflowJobExecutionDeferred",
+    "ReleaseCandidateCancelled",
 }
 MACHINE_HEADER_NAMES = {
     "X-CloudHelm-Target-Id",
@@ -116,7 +128,8 @@ def test_m7_event_types_are_unique_and_present_in_shared_contract() -> None:
     assert M7_1_EVENT_TYPES.issubset(event_types)
     assert M7_2B_EVENT_TYPES.issubset(event_types)
     assert M7_2B2_EVENT_TYPES.issubset(event_types)
-    assert "M2-M7-2B2" in schema["description"]
+    assert M7_2C_EVENT_TYPES.issubset(event_types)
+    assert "M2-M7-2C" in schema["description"]
 
 
 def test_repository_binding_event_schema_rejects_internal_fields() -> None:
@@ -273,6 +286,119 @@ def test_release_candidate_event_payloads_use_exact_allowlists() -> None:
             injected = copy.deepcopy(event)
             injected["payload"][forbidden] = "internal"
             assert not validator.is_valid(injected)
+
+
+def test_workflow_job_event_payloads_use_exact_allowlists() -> None:
+    """M7-2C 生命周期事件只允许低敏 job identity 与状态摘要。"""
+
+    schema = _read_json(
+        CONTRACT_ROOT / "schemas/events/task-event.schema.json"
+    )
+    validator = Draft202012Validator(schema)
+    common = {
+        "workflow_job_id": "00000000-0000-4000-8000-000000000601",
+        "job_type": "release_candidate_reconcile",
+        "resource_type": "release_candidate",
+        "resource_id": "00000000-0000-4000-8000-000000000401",
+        "attempt": 1,
+        "max_attempts": 3,
+        "error_code": None,
+    }
+    cases = {
+        "WorkflowJobStarted": {**common, "status": "running"},
+        "WorkflowJobSucceeded": {
+            **common,
+            "status": "succeeded",
+            "outcome": "valid",
+        },
+        "WorkflowJobFailed": {
+            **common,
+            "status": "failed",
+            "error_code": "release_candidate_approval_state_invalid",
+        },
+        "WorkflowJobRetryScheduled": {
+            **common,
+            "status": "pending",
+            "error_code": "workflow_handler_execution_failed",
+        },
+        "WorkflowJobCancelRequested": {
+            **common,
+            "status": "cancel_requested",
+            "error_code": "task_cancelled",
+            "reason": "取消任务",
+        },
+        "WorkflowJobCancelled": {
+            **common,
+            "status": "cancelled",
+            "error_code": "task_cancelled",
+        },
+        "WorkflowJobRecoveryRequired": {
+            **common,
+            "status": "recovery_required",
+            "error_code": "workflow_external_state_unknown",
+        },
+        "WorkflowJobDispatchDeferred": {
+            **common,
+            "status": "pending",
+            "error_code": "workflow_broker_unavailable",
+        },
+        "WorkflowJobExecutionDeferred": {
+            **common,
+            "status": "pending",
+            "error_code": "workflow_job_task_paused",
+        },
+    }
+    for event_type, payload in cases.items():
+        event = {
+            "id": "00000000-0000-4000-8000-000000000701",
+            "task_id": "00000000-0000-4000-8000-000000000011",
+            "event_type": event_type,
+            "actor_type": "system",
+            "actor_id": "workflow-engine",
+            "created_at": "2026-07-16T00:00:00Z",
+            "payload": payload,
+        }
+        assert validator.is_valid(event), list(validator.iter_errors(event))
+        injected = copy.deepcopy(event)
+        injected["payload"]["credential_ref"] = "secret/path"
+        assert not validator.is_valid(injected)
+        if event_type != "WorkflowJobSucceeded":
+            wrong_outcome = copy.deepcopy(event)
+            wrong_outcome["payload"]["outcome"] = "valid"
+            assert not validator.is_valid(wrong_outcome)
+        if event_type not in {
+            "WorkflowJobCancelRequested",
+            "WorkflowJobCancelled",
+        }:
+            wrong_reason = copy.deepcopy(event)
+            wrong_reason["payload"]["reason"] = "不属于该事件"
+            assert not validator.is_valid(wrong_reason)
+
+
+def test_workflow_shared_schema_rejects_broker_business_payload() -> None:
+    """broker contract 只有 job ID，payload/result 仍由独立严格 defs 描述。"""
+
+    schema = _read_json(
+        CONTRACT_ROOT / "schemas/workflow/workflow-job.schema.json"
+    )
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(
+        schema,
+        format_checker=FormatChecker(),
+    )
+    message = {
+        "workflow_job_id": "00000000-0000-4000-8000-000000000601"
+    }
+
+    assert validator.is_valid(message)
+    assert not validator.is_valid(
+        {
+            **message,
+            "payload": {
+                "clone_url": "https://internal.example.test/repo.git"
+            },
+        }
+    )
 
 
 def _read_json(path: Path) -> dict[str, Any]:

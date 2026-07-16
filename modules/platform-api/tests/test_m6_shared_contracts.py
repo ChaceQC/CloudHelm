@@ -98,7 +98,7 @@ def test_task_event_contract_contains_each_m6_event_once() -> None:
 
     assert len(event_types) == len(set(event_types))
     assert M6_EVENT_TYPES.issubset(event_types)
-    assert "M2-M7-2B2" in schema["description"]
+    assert "M2-M7-2C" in schema["description"]
 
 
 def test_shared_openapi_matches_fastapi_application() -> None:

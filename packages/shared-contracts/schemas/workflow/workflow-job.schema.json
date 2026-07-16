@@ -1,0 +1,453 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/workflow/workflow-job.schema.json",
+  "title": "CloudHelm M7 WorkflowJob Contracts",
+  "description": "PostgreSQL 权威 WorkflowJob 的 broker、handler payload/result 与持久化读取契约。",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/brokerMessage"
+    },
+    {
+      "$ref": "#/$defs/releaseCandidateReconcilePayload"
+    },
+    {
+      "$ref": "#/$defs/releaseCandidateReconcileResult"
+    },
+    {
+      "$ref": "#/$defs/workflowJobRecord"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "brokerMessage": {
+      "type": "object",
+      "required": [
+        "workflow_job_id"
+      ],
+      "properties": {
+        "workflow_job_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      },
+      "additionalProperties": false
+    },
+    "releaseCandidateReconcilePayload": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "candidate_id",
+        "approval_id",
+        "expected_candidate_request_hash",
+        "expected_binding_snapshot_sha256",
+        "expected_pull_request_record_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "m7.release-candidate-reconcile.payload.v1"
+        },
+        "candidate_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "approval_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "expected_candidate_request_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "expected_binding_snapshot_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "expected_pull_request_record_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      },
+      "additionalProperties": false
+    },
+    "releaseCandidateReconcileResult": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "outcome",
+        "candidate_status",
+        "approval_status",
+        "pull_request_record_id",
+        "binding_snapshot_sha256",
+        "checked_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "m7.release-candidate-reconcile.result.v1"
+        },
+        "outcome": {
+          "enum": [
+            "valid",
+            "stale",
+            "terminal_noop"
+          ]
+        },
+        "candidate_status": {
+          "enum": [
+            "pending_approval",
+            "approved",
+            "rejected",
+            "published",
+            "stale",
+            "cancelled"
+          ]
+        },
+        "approval_status": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected",
+            "expired",
+            "cancelled"
+          ]
+        },
+        "pull_request_record_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "binding_snapshot_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "oneOf": [
+              {
+                "properties": {
+                  "candidate_status": {
+                    "const": "pending_approval"
+                  },
+                  "approval_status": {
+                    "const": "pending"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "candidate_status": {
+                    "const": "approved"
+                  },
+                  "approval_status": {
+                    "const": "approved"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "stale"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "properties": {
+              "candidate_status": {
+                "const": "stale"
+              },
+              "approval_status": {
+                "enum": [
+                  "approved",
+                  "expired",
+                  "cancelled"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "terminal_noop"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "oneOf": [
+              {
+                "properties": {
+                  "candidate_status": {
+                    "const": "rejected"
+                  },
+                  "approval_status": {
+                    "const": "rejected"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "candidate_status": {
+                    "const": "published"
+                  },
+                  "approval_status": {
+                    "const": "approved"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "candidate_status": {
+                    "const": "stale"
+                  },
+                  "approval_status": {
+                    "enum": [
+                      "approved",
+                      "expired",
+                      "cancelled"
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "candidate_status": {
+                    "const": "cancelled"
+                  },
+                  "approval_status": {
+                    "enum": [
+                      "approved",
+                      "expired",
+                      "cancelled"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "workflowJobRecord": {
+      "type": "object",
+      "required": [
+        "id",
+        "task_id",
+        "job_type",
+        "resource_type",
+        "resource_id",
+        "side_effect_class",
+        "request_hash",
+        "idempotency_key",
+        "status",
+        "attempt",
+        "max_attempts",
+        "lease_owner",
+        "lease_expires_at",
+        "heartbeat_at",
+        "next_retry_at",
+        "cancel_requested_at",
+        "dispatch_lease_owner",
+        "dispatch_lease_expires_at",
+        "next_enqueue_at",
+        "last_enqueued_at",
+        "enqueue_attempt",
+        "last_enqueue_error_code",
+        "payload_json",
+        "result_json",
+        "error_code",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "task_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "job_type": {
+          "const": "release_candidate_reconcile"
+        },
+        "resource_type": {
+          "const": "release_candidate"
+        },
+        "resource_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "side_effect_class": {
+          "const": "none"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 180
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "claimed",
+            "running",
+            "succeeded",
+            "failed",
+            "cancel_requested",
+            "cancelled",
+            "recovery_required"
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "max_attempts": {
+          "const": 3
+        },
+        "lease_owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lease_expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "heartbeat_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "next_retry_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "cancel_requested_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "dispatch_lease_owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dispatch_lease_expires_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "next_enqueue_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "last_enqueued_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "enqueue_attempt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_enqueue_error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "payload_json": {
+          "$ref": "#/$defs/releaseCandidateReconcilePayload"
+        },
+        "result_json": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/releaseCandidateReconcileResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "finished_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloudhelm.local/schemas/events/task-event.schema.json",
   "title": "CloudHelm Task Event",
-  "description": "CloudHelm 事件流的基础结构。M2-M7-2B2 已接入真实 event_logs，事件来自数据库而非内存模拟；项目级与环境级事件的 task_id 可为空。",
+  "description": "CloudHelm 事件流的基础结构。M2-M7-2C 已接入真实 event_logs，事件来自数据库而非内存模拟；项目级与环境级事件的 task_id 可为空。",
   "type": "object",
   "required": ["id", "task_id", "event_type", "actor_type", "created_at", "payload"],
   "properties": {
@@ -69,9 +69,19 @@
         "PullRequestRecordCreated",
         "RepositoryBindingConfigured",
         "WorkflowJobQueued",
+        "WorkflowJobStarted",
+        "WorkflowJobSucceeded",
+        "WorkflowJobFailed",
+        "WorkflowJobRetryScheduled",
+        "WorkflowJobCancelRequested",
+        "WorkflowJobCancelled",
+        "WorkflowJobRecoveryRequired",
+        "WorkflowJobDispatchDeferred",
+        "WorkflowJobExecutionDeferred",
         "ReleaseCandidateApprovalRequested",
         "ReleaseCandidateApproved",
         "ReleaseCandidateRejected",
+        "ReleaseCandidateCancelled",
         "EnvironmentCreated",
         "RemoteTargetRegistered",
         "RemoteAgentHeartbeat",
@@ -79,7 +89,7 @@
         "RemoteAgentOffline",
         "RemoteAgentRecovered"
       ],
-      "description": "M2-M7-2B2 真实写入的事件类型。"
+      "description": "M2-M7-2C 真实写入的事件类型。"
     },
     "actor_type": {
       "type": "string",
@@ -509,6 +519,462 @@
               },
               "status": {
                 "const": "rejected"
+              },
+              "reason": {
+                "type": ["string", "null"]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "enum": [
+              "WorkflowJobStarted",
+              "WorkflowJobSucceeded",
+              "WorkflowJobFailed",
+              "WorkflowJobRetryScheduled",
+              "WorkflowJobCancelRequested",
+              "WorkflowJobCancelled",
+              "WorkflowJobRecoveryRequired",
+              "WorkflowJobDispatchDeferred",
+              "WorkflowJobExecutionDeferred"
+            ]
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["task_id", "actor_type", "actor_id", "payload"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_type": {
+            "enum": ["system", "user"]
+          },
+          "actor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "workflow_job_id",
+              "job_type",
+              "resource_type",
+              "resource_id",
+              "status",
+              "attempt",
+              "max_attempts",
+              "error_code"
+            ],
+            "properties": {
+              "workflow_job_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "job_type": {
+                "const": "release_candidate_reconcile"
+              },
+              "resource_type": {
+                "const": "release_candidate"
+              },
+              "resource_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "enum": [
+                  "pending",
+                  "claimed",
+                  "running",
+                  "succeeded",
+                  "failed",
+                  "cancel_requested",
+                  "cancelled",
+                  "recovery_required"
+                ]
+              },
+              "attempt": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "max_attempts": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "error_code": {
+                "type": ["string", "null"],
+                "maxLength": 160
+              },
+              "reason": {
+                "type": ["string", "null"]
+              },
+              "outcome": {
+                "enum": ["valid", "stale", "terminal_noop"]
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobStarted"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["outcome"]
+                }
+              ]
+            },
+            "properties": {
+              "status": {
+                "const": "running"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobSucceeded"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": ["outcome"],
+            "not": {
+              "required": ["reason"]
+            },
+            "properties": {
+              "status": {
+                "const": "succeeded"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobFailed"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["outcome"]
+                }
+              ]
+            },
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobRetryScheduled"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["outcome"]
+                }
+              ]
+            },
+            "properties": {
+              "status": {
+                "const": "pending"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobCancelRequested"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": ["reason"],
+            "not": {
+              "required": ["outcome"]
+            },
+            "properties": {
+              "status": {
+                "const": "cancel_requested"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobCancelled"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "required": ["outcome"]
+            },
+            "properties": {
+              "status": {
+                "const": "cancelled"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobRecoveryRequired"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["outcome"]
+                }
+              ]
+            },
+            "properties": {
+              "status": {
+                "const": "recovery_required"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobDispatchDeferred"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["outcome"]
+                }
+              ]
+            },
+            "properties": {
+              "status": {
+                "const": "pending"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobExecutionDeferred"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "properties": {
+          "actor_type": {
+            "const": "system"
+          },
+          "payload": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["reason"]
+                },
+                {
+                  "required": ["outcome"]
+                }
+              ]
+            },
+            "properties": {
+              "status": {
+                "const": "pending"
+              },
+              "error_code": {
+                "const": "workflow_job_task_paused"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobCancelled"
+          },
+          "actor_type": {
+            "const": "user"
+          }
+        },
+        "required": ["event_type", "actor_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": ["reason"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "WorkflowJobCancelled"
+          },
+          "actor_type": {
+            "const": "system"
+          }
+        },
+        "required": ["event_type", "actor_type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "not": {
+              "required": ["reason"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ReleaseCandidateCancelled"
+          }
+        },
+        "required": ["event_type"]
+      },
+      "then": {
+        "required": ["task_id", "actor_type", "actor_id", "payload"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_type": {
+            "enum": ["system", "user"]
+          },
+          "actor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {
+            "type": "object",
+            "required": [
+              "candidate_id",
+              "approval_id",
+              "status",
+              "reason"
+            ],
+            "properties": {
+              "candidate_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "approval_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "const": "cancelled"
               },
               "reason": {
                 "type": ["string", "null"]

@@ -9,7 +9,7 @@ import time
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-import httpx
+import httpx2 as httpx
 from pydantic import SecretStr, ValidationError
 import pytest
 from sqlalchemy import func, select

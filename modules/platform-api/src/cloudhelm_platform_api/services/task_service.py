@@ -12,8 +12,14 @@ from cloudhelm_platform_api.repositories.agent_conversation_repository import (
 )
 from cloudhelm_platform_api.repositories.approval_repository import ApprovalRepository
 from cloudhelm_platform_api.repositories.project_repository import ProjectRepository
+from cloudhelm_platform_api.repositories.release_candidate_repository import (
+    ReleaseCandidateRepository,
+)
 from cloudhelm_platform_api.repositories.task_repository import TaskRepository
 from cloudhelm_platform_api.repositories.tool_call_repository import ToolCallRepository
+from cloudhelm_platform_api.repositories.workflow_job_repository import (
+    WorkflowJobRepository,
+)
 from cloudhelm_platform_api.schemas.common import (
     AgentRunStatus,
     ApprovalStatus,
@@ -39,6 +45,8 @@ class TaskService(BaseService):
         self.agent_runs = AgentRunRepository(session)
         self.approvals = ApprovalRepository(session)
         self.tool_calls = ToolCallRepository(session)
+        self.workflow_jobs = WorkflowJobRepository(session)
+        self.release_candidates = ReleaseCandidateRepository(session)
         self.events = EventService(session)
 
     def create_task(self, data: TaskCreate) -> TaskRead:
@@ -94,6 +102,9 @@ class TaskService(BaseService):
             raise ServiceError("invalid_task_transition", "当前任务状态不允许暂停。", 409)
         old_status = task.status
         task.status = TaskStatus.PAUSED.value
+        self.workflow_jobs.revoke_dispatch_reservations_for_task(
+            task_id=task.id
+        )
         self.events.record(
             "TaskPaused",
             "user",
@@ -121,6 +132,7 @@ class TaskService(BaseService):
         if previous_status == TaskStatus.WAITING_APPROVAL.value and not self.approvals.has_pending_by_task(task.id):
             previous_status = TaskStatus.RUNNING.value
         task.status = previous_status
+        self.workflow_jobs.wake_pending_for_task(task_id=task.id)
         self.events.record(
             "TaskResumed",
             "user",
@@ -139,6 +151,7 @@ class TaskService(BaseService):
             raise ServiceError("invalid_task_transition", "当前任务状态不允许取消。", 409)
         old_status = task.status
         task.status = TaskStatus.CANCELLED.value
+        self._cancel_workflow_jobs(task, actor_id, reason)
         cancelled_runs = self._cancel_agent_runs(task, actor_id, reason)
         cancelled_calls = self._cancel_tool_calls(task, actor_id, reason)
         cancelled_conversations = self._cancel_agent_conversations(
@@ -146,6 +159,7 @@ class TaskService(BaseService):
             actor_id,
             reason,
         )
+        self._cancel_release_candidate(task, actor_id, reason)
         expired_approvals = self._expire_approvals(task, actor_id, reason)
         self.events.record(
             "TaskCancelled",
@@ -165,6 +179,76 @@ class TaskService(BaseService):
         )
         self.commit()
         return TaskRead.model_validate(task)
+
+    def _cancel_workflow_jobs(
+        self,
+        task: Task,
+        actor_id: str,
+        reason: str | None,
+    ) -> None:
+        """在其他 Task 子资源前取消/请求取消 WorkflowJob。"""
+
+        jobs = self.workflow_jobs.request_cancel(task_id=task.id)
+        for job in jobs:
+            self.events.record(
+                (
+                    "WorkflowJobCancelled"
+                    if job.status == "cancelled"
+                    else "WorkflowJobCancelRequested"
+                ),
+                "user",
+                actor_id,
+                {
+                    "workflow_job_id": str(job.id),
+                    "job_type": job.job_type,
+                    "resource_type": job.resource_type,
+                    "resource_id": str(job.resource_id),
+                    "status": job.status,
+                    "attempt": job.attempt,
+                    "max_attempts": job.max_attempts,
+                    "error_code": job.error_code,
+                    "reason": reason,
+                },
+                task.id,
+            )
+
+    def _cancel_release_candidate(
+        self,
+        task: Task,
+        actor_id: str,
+        reason: str | None,
+    ) -> None:
+        """终态 Task 不保留 pending/approved Candidate。"""
+
+        candidate = self.release_candidates.get_active_by_task_for_update(
+            task.id
+        )
+        if candidate is None:
+            return
+        database_now = self.approvals.database_now()
+        candidate.status = "cancelled"
+        candidate.updated_at = max(
+            value
+            for value in (
+                database_now,
+                candidate.created_at,
+                candidate.updated_at,
+                candidate.approved_at,
+            )
+            if value is not None
+        )
+        self.events.record(
+            "ReleaseCandidateCancelled",
+            "user",
+            actor_id,
+            {
+                "candidate_id": str(candidate.id),
+                "approval_id": str(candidate.approval_id),
+                "status": candidate.status,
+                "reason": reason,
+            },
+            task.id,
+        )
 
     def _require_task(
         self,
@@ -258,10 +342,14 @@ class TaskService(BaseService):
             task.id,
             for_update=True,
         )
+        database_now = (
+            self.approvals.database_now() if approvals else None
+        )
         for approval in approvals:
             approval.status = ApprovalStatus.EXPIRED.value
             approval.decided_by = actor_id
-            approval.decided_at = utc_now()
+            assert database_now is not None
+            approval.decided_at = max(database_now, approval.created_at)
             self.events.record(
                 "ApprovalExpired",
                 "user",
