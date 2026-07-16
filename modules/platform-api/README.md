@@ -75,6 +75,13 @@ Invoke-RestMethod http://127.0.0.1:18080/health
 - `CLOUDHELM_AGENT_MAX_SUBAGENT_DEPTH` / `CLOUDHELM_AGENT_MAX_SUBAGENT_THREADS`：
   显式 child conversation 的深度和并发上限；默认 `1 / 6`，参考 Codex CLI
   只允许 root 创建直接 child。
+- `CLOUDHELM_REPOSITORY_PROFILES_FILE`：服务端受控 Gitea repository profile
+  UTF-8 JSON 文件；普通调用方只能提交 profile key。非敏感结构示例见
+  `repository-profiles.example.json`。
+- `CLOUDHELM_REPOSITORY_PROFILES`：可选的内联 repository profile JSON map；
+  与文件配置的 key 不得重复。
+- `CLOUDHELM_REPOSITORY_CREDENTIALS`：credential ref 到 repository credential
+  的服务端映射；真实值只在运行时注入，不进入 API、EventLog 或示例文件。
 - `CLOUDHELM_REMOTE_TARGET_PROFILES_FILE`：服务端受控 RemoteTarget profile
   UTF-8 JSON 文件；调用方只能引用 profile key。非敏感结构示例见
   `remote-target-profiles.example.json`。
@@ -193,6 +200,19 @@ heartbeat 六个 HMAC header 全部必填，nonce 由 PostgreSQL 唯一约束裁
 replay。认证与状态更新使用两个短事务，API/EventLog 不保存 secret、credential
 ref 或完整 endpoint。完整请求、响应、错误码和临时边界见
 `docs/08-api/07-environment-deployment-api.md`。
+
+## M7-2B1 RepositoryBinding 接口
+
+```text
+PUT /api/projects/{project_id}/repository-binding
+GET /api/projects/{project_id}/repository-binding
+```
+
+PUT 请求只接受 `profile_key`。服务端物化 Gitea repository identity、默认分支、
+workflow 和 release ref prefix，并在内部保存 clone URL 与 credential ref。
+完全相同的 active profile PUT 不更新时间、不写事件；配置漂移会按固定 UUID
+锁序使旧 active Candidate stale，并过期对应 pending Approval。GET 只读取数据库
+物化结果，即使 profile 文件暂时不可用也可返回历史绑定。
 
 ## 当前边界
 

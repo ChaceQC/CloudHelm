@@ -4,7 +4,7 @@
 
 ## 当前内容
 
-- `openapi/cloudhelm.openapi.yaml`：Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、逐请求 Provider usage、ToolCall、Tool Gateway、Approval、Orchestration、M6 本地开发闭环、Event Timeline，以及 M7-1 Environment、RemoteTarget 和 machine-auth heartbeat。
+- `openapi/cloudhelm.openapi.yaml`：Platform API 契约，覆盖 `/health`、Project、Task、Requirement、Technical Design、DevelopmentPlan、AgentRun、逐请求 Provider usage、ToolCall、Tool Gateway、Approval、Orchestration、M6 本地开发闭环、Event Timeline，以及 M7 Environment、RemoteTarget、machine-auth heartbeat 和 RepositoryBinding PUT/GET。
 - `openapi/cloudhelm-remote-agent.openapi.yaml`：M7-1 Remote Agent
   `/health`、`/version`、`/capabilities` 运行时契约；文件使用 JSON 语法保存，仍是
   有效 YAML，便于模块只用标准库执行精确匹配测试。

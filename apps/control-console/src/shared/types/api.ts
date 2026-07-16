@@ -1,5 +1,5 @@
 /**
- * CloudHelm M2-M6 API 类型。
+ * CloudHelm M2-M7-2B1 API 类型。
  *
  * 本文件手写映射 `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
  * 中当前控制台需要的 DTO。后续如接入 OpenAPI 类型生成器，应以该契约为
@@ -79,6 +79,26 @@ export interface Project {
   repo_url: string
   default_branch: string
   provider: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RepositoryBindingPutInput {
+  profile_key: string
+}
+
+export interface RepositoryBinding {
+  id: string
+  project_id: string
+  provider: 'gitea'
+  profile_key: string
+  repository_external_id: string
+  repository_owner: string
+  repository_name: string
+  default_branch: string
+  workflow_id: string
+  release_ref_prefix: string
+  status: 'active' | 'disabled'
   created_at: string
   updated_at: string
 }

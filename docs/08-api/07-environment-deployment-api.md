@@ -332,9 +332,20 @@ Content-Type: application/json
 - 只有 internal snapshot hash 变化或 binding 变为 disabled 时，旧
   `pending_approval|approved` Candidate 与 pending Approval 才同事务
   stale/expired。
-- PUT 先锁 Binding，再按 UUID 顺序锁 Candidate/Approval；Candidate POST 按
+- PUT 先取得 RepositoryBinding 配置 namespace 的 transaction-level advisory
+  lock，再锁 Binding 并按 UUID 顺序锁 Candidate/Approval；该短事务全局锁避免
+  两个 Project 并发交换 repository identity 时形成唯一索引死锁。Candidate POST 按
   `Task -> Binding -> PullRequestRecord -> existing Candidate` 加锁并在插入提交前
   持有 Binding `FOR UPDATE`，从数据库层串行化 PUT/POST。
+- 首次创建或真实配置变化写 Project 级
+  `RepositoryBindingConfigured(task_id=null)`。payload 只包含
+  `project_id`、`repository_binding_id`、公开 repository 字段、status、
+  `created`、`configuration_changed`、`stale_candidate_ids` 和
+  `expired_approval_ids`；不得包含 clone URL、credential ref、credential 内容
+  或 profile 文件路径。
+- 配置漂移使 pending Approval 过期时，为每个审批写任务级 `ApprovalExpired`，
+  actor 固定为 `system:release_candidate_freshness`，reason 固定为
+  `repository_binding_changed`。
 
 GET 使用同一 public response：
 

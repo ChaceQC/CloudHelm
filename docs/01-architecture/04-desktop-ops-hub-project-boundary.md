@@ -281,7 +281,8 @@ Agent 生成或修改的业务项目必须同时满足：
 - Platform API/PostgreSQL/Redis 当前已在 Ubuntu 24.04 WSL2 原生 Docker 中形成
   仓库开发基线，但尚无满足 M7 安装验收的正式 Ops Hub installation profile。
 - M7-1 Remote Agent heartbeat 已实现，但完整远端部署和常驻运维闭环未交付。
-- M7-2A migration/ORM 数据底座已完成往返与回归；M7-2B/C API、领域事务和
-  durable Workflow Engine 正在按 `PROJECT_PLAN.md` 继续实现。
+- M7-2A migration/ORM 数据底座和 M7-2B1 RepositoryProfile/Binding PUT/GET
+  已完成往返与回归；M7-2B2 Candidate/第一道审批、M7-2C durable Workflow
+  Engine 正在按 `PROJECT_PLAN.md` 继续实现。
 
 任何文档、答辩材料或完成判定都不得把上述目标架构描述为已实现。

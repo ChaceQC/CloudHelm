@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: CloudHelm Platform API
   description: CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增 Environment、RemoteTarget
-    和 machine-auth heartbeat 基础闭环。
+    和 machine-auth heartbeat 基础闭环；M7-2B1 新增服务端受控 RepositoryBinding PUT/GET。
   version: 0.5.1
 paths:
   /health:
@@ -189,6 +189,121 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProjectRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 状态冲突。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/projects/{project_id}/repository-binding:
+    put:
+      tags:
+      - repository-bindings
+      summary: 配置项目受控 RepositoryBinding
+      description: 按服务端 profile 创建或幂等更新项目仓库绑定。
+      operationId: put_repository_binding_api_projects__project_id__repository_binding_put
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepositoryBindingPut'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryBindingRead'
+        '400':
+          description: 业务请求错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: 远端 repository identity 已被其他 Project 占用。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 请求参数校验失败。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务端错误。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务端 profile 或 credential 配置不可用。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+      - repository-bindings
+      summary: 读取项目 RepositoryBinding
+      description: 读取数据库物化结果，不依赖当前 profile 文件。
+      operationId: get_repository_binding_api_projects__project_id__repository_binding_get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryBindingRead'
         '400':
           description: 业务请求错误。
           content:
@@ -5080,6 +5195,87 @@ components:
       - updated_at
       title: RemoteTargetRead
       description: 脱敏后的 RemoteTarget 响应。
+    RepositoryBindingPut:
+      properties:
+        profile_key:
+          type: string
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$
+          title: Profile Key
+          description: 服务端 RepositoryProfile key。
+      additionalProperties: false
+      type: object
+      required:
+      - profile_key
+      title: RepositoryBindingPut
+      description: 普通调用方只能选择服务端 repository profile。
+    RepositoryBindingRead:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        provider:
+          type: string
+          const: gitea
+          title: Provider
+        profile_key:
+          type: string
+          title: Profile Key
+        repository_external_id:
+          type: string
+          title: Repository External Id
+        repository_owner:
+          type: string
+          title: Repository Owner
+        repository_name:
+          type: string
+          title: Repository Name
+        default_branch:
+          type: string
+          title: Default Branch
+        workflow_id:
+          type: string
+          title: Workflow Id
+        release_ref_prefix:
+          type: string
+          title: Release Ref Prefix
+        status:
+          type: string
+          enum:
+          - active
+          - disabled
+          title: Status
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - project_id
+      - provider
+      - profile_key
+      - repository_external_id
+      - repository_owner
+      - repository_name
+      - default_branch
+      - workflow_id
+      - release_ref_prefix
+      - status
+      - created_at
+      - updated_at
+      title: RepositoryBindingRead
+      description: 不暴露 clone URL 或 credential 引用的仓库绑定响应。
     RequirementSpecCreate:
       properties:
         source_type:

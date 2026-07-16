@@ -252,9 +252,19 @@ Binding PUT 必须比较 old/new internal snapshot hash。完全相同的 profil
 物化字段和 active 状态是无副作用幂等命中，不更新 `updated_at`、不写事件；
 只有 internal snapshot hash 变化或 binding 变为 disabled 才视为漂移。
 
+`RepositoryBindingConfigured` 是 Project 级事件，`task_id=null`。payload 只保存
+`project_id`、`repository_binding_id`、公开 repository 字段、status、
+`created`、`configuration_changed` 及 stale/expired 资源 ID 列表；不保存
+clone URL、credential ref、credential 内容或 profile 文件路径。漂移过期
+pending Approval 时另写任务级 `ApprovalExpired`，actor 固定为
+`system:release_candidate_freshness`。
+
 Candidate POST 按 `Task -> Binding -> PullRequestRecord -> existing Candidate`
 加锁，并在生成 snapshot 到插入提交期间持有 Binding `FOR UPDATE`。Binding PUT
-先锁 Binding，再按 Candidate/Approval UUID 升序失效旧资源且不反向锁 Task。
+先取得 RepositoryBinding 配置 namespace 的 transaction-level advisory lock，
+再锁 Binding，并按 Candidate/Approval UUID 升序失效旧资源且不反向锁 Task。
+advisory lock 只串行化短事务中的 repository identity 变更，用于避免跨 Project
+identity swap 死锁。
 
 安全 snapshot JSON 精确包含：
 

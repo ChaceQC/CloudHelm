@@ -2,6 +2,97 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2B1 RepositoryProfile 与 Binding PUT/GET）
+
+### 已完成
+
+- 新增严格 `extra=forbid` 的 `RepositoryProfileConfig`，固定 Gitea provider、
+  HTTPS clone URL、default branch 和完整 `refs/heads/...` release ref 校验。
+- 新增服务端配置来源：
+  - `CLOUDHELM_REPOSITORY_PROFILES`
+  - `CLOUDHELM_REPOSITORY_PROFILES_FILE`
+  - `CLOUDHELM_REPOSITORY_CREDENTIALS`
+- 实现：
+  - `PUT /api/projects/{project_id}/repository-binding`
+  - `GET /api/projects/{project_id}/repository-binding`
+- PUT 请求只接受 `profile_key`；响应、OpenAPI、EventLog 和前端类型均不包含
+  clone URL、credential ref、credential 内容或 profile 文件路径。
+- 首次创建无 Binding 行时使用 Project `FOR UPDATE` 作为 mutex；并发相同 PUT
+  返回同一 Binding 和单条事件。
+- Repository identity 变更先取得 PostgreSQL transaction-level advisory
+  namespace lock；两个已绑定 Project 并发反向交换 identity 均稳定返回 409，
+  不形成唯一索引死锁或 500。
+- 复用 `stable_json_hash` 实现 public/internal snapshot；相同 active snapshot
+  保持 ID、时间和事件不变。
+- Binding 漂移时按 Candidate/Approval UUID 顺序加锁：
+  - `pending_approval|approved Candidate -> stale`
+  - `pending Approval -> expired`
+  - 已 approved Approval 与 published Candidate 保留历史终态。
+  - `decided_by=system:release_candidate_freshness`
+  - 决策时间使用 PostgreSQL `now()`。
+- 两类 repository identity 约束统一映射为
+  `409 repository_binding_conflict`，冲突更新完整回滚。
+- CORS 已加入 PUT；共享 OpenAPI、事件 schema、前端类型、README、`.env.example`
+  和非敏感 profile example 已同步。
+- 版本影响已记录：本切片新增兼容 API，纳入下一 minor `0.6.0`；当前仅为未发布
+  功能分支，没有创建 release/tag，开发包暂保持 `0.5.1`。
+
+### 进行中
+
+- M7-2B2：严格空对象 Candidate POST/GET、第一道 L2 Approval、
+  `release_candidate_reconcile` WorkflowJob 原子创建和专用审批锁序。
+
+### 阻塞与风险
+
+- M7-2B2 尚未完成，因此 Roadmap 只勾选 M7-2B1，不把整个 M7-2B 或 M7 标记完成。
+- 当前 `PullRequestRecordService.create` 仍需在查重、supersede 和 insert 前锁
+  Task；Candidate 读取最新版 open PR 前必须先完成该并发门禁。
+- 正式 Ops Hub installation、Workflow Engine、Gitea CI、Deployment Controller
+  和 Linux staging E2E 仍属于后续 M7 切片。
+
+### 下一步
+
+1. 为 PullRequestRecord create 补 Task-first 串行化和并发回归。
+2. 实现 Candidate snapshot/ref/request hash、201/200 幂等和 GET active-first。
+3. 原子创建 Candidate、L2 Approval、reconcile WorkflowJob 与领域事件。
+4. 实现 Candidate approve/reject 专用锁序、freshness、自批和 expiry 门禁。
+
+### 涉及文件
+
+- `modules/platform-api/src/cloudhelm_platform_api/core/repository_config.py`
+- `modules/platform-api/src/cloudhelm_platform_api/providers/repository_profile_provider.py`
+- `modules/platform-api/src/cloudhelm_platform_api/{api,repositories,schemas,services}/**repository_binding**`
+- `modules/platform-api/src/cloudhelm_platform_api/repositories/release_candidate_repository.py`
+- `modules/platform-api/tests/m7_repository_binding_fixture.py`
+- `modules/platform-api/tests/test_m7_{project_repository_binding_api,repository_profile,repository_binding_drift,repository_binding_concurrency}.py`
+- `modules/platform-api/repository-profiles.example.json`
+- `packages/shared-contracts/openapi/cloudhelm.openapi.yaml`
+- `packages/shared-contracts/schemas/events/task-event.schema.json`
+- `apps/control-console/src/shared/types/api.ts`
+- `.env.example`
+- `PROJECT_PLAN.md`
+- `README.md`
+- `docs/01-architecture/04-desktop-ops-hub-project-boundary.md`
+- `docs/03-modules/{modules/platform-api,packages/shared-contracts}.md`
+- `docs/07-data/{01-database-schema,tables/project_repository_bindings}.md`
+- `docs/08-api/07-environment-deployment-api.md`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md`
+
+### 验证
+
+- M7-2B1 RepositoryProfile/Binding/漂移/并发定向：`35 passed`。
+- M7-2B1 + M6/M7 共享契约定向：`46 passed`。
+- RepositoryBinding 并发文件连续执行 5 轮，每轮 `6 passed`。
+- Platform API 全量：`279 passed, 1 skipped`。
+- Control Console：`17 passed`，production build 通过。
+- `uv lock --check`、Python `compileall`、`alembic current`、
+  `alembic check`、`git diff --check` 通过。
+- WSL Ubuntu 24.04 原生 Docker Engine `29.1.3`、Compose `2.40.3`；
+  PostgreSQL `healthy`、Redis `PONG`。
+- 40 个本轮文本文件严格 UTF-8 解码通过且 BOM 为 0；新增 JSON 文件可解析，
+  15 个改动 Markdown 的相对链接缺失为 0。
+
 ## 2026-07-16（M1-M7 复核、WSL Ops Hub 基线与 M7-2A 数据底座）
 
 ### 已完成

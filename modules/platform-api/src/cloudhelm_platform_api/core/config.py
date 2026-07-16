@@ -19,6 +19,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from cloudhelm_platform_api.core.remote_target_config import (
     RemoteTargetProfileConfig,
 )
+from cloudhelm_platform_api.core.repository_config import (
+    RepositoryProfileConfig,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
 
@@ -208,6 +211,22 @@ class Settings(BaseSettings):
     remote_target_profiles: dict[str, RemoteTargetProfileConfig] = Field(
         default_factory=dict,
         description="直接由环境变量注入的服务端 RemoteTarget profile 映射。",
+    )
+    repository_profiles_file: str | None = Field(
+        default=None,
+        description=(
+            "M7 Repository profile UTF-8 JSON 文件；普通 API 只提交 profile_key。"
+        ),
+    )
+    repository_profiles: dict[str, RepositoryProfileConfig] = Field(
+        default_factory=dict,
+        description="直接由环境变量注入的服务端 Gitea repository profile 映射。",
+    )
+    repository_credentials: dict[str, SecretStr] = Field(
+        default_factory=dict,
+        description=(
+            "repository credential_ref 到凭据的服务端映射；永不写入响应或事件。"
+        ),
     )
     remote_agent_credentials: dict[str, SecretStr] = Field(
         default_factory=dict,

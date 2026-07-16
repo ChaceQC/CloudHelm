@@ -8,6 +8,8 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 from cloudhelm_platform_api.main import app
 from cloudhelm_platform_api.schemas.environment import (
     EnvironmentCreate,
@@ -35,6 +37,10 @@ M7_1_EVENT_TYPES = {
     "RemoteAgentOnline",
     "RemoteAgentOffline",
     "RemoteAgentRecovered",
+}
+M7_2B_EVENT_TYPES = {
+    "RepositoryBindingConfigured",
+    "ApprovalExpired",
 }
 MACHINE_HEADER_NAMES = {
     "X-CloudHelm-Target-Id",
@@ -102,7 +108,51 @@ def test_m7_event_types_are_unique_and_present_in_shared_contract() -> None:
 
     assert len(event_types) == len(set(event_types))
     assert M7_1_EVENT_TYPES.issubset(event_types)
-    assert "M2-M7-1" in schema["description"]
+    assert M7_2B_EVENT_TYPES.issubset(event_types)
+    assert "M2-M7-2B1" in schema["description"]
+
+
+def test_repository_binding_event_schema_rejects_internal_fields() -> None:
+    """Binding 事件 payload 使用精确 allowlist，契约层拒绝内部配置。"""
+
+    schema = _read_json(
+        CONTRACT_ROOT / "schemas/events/task-event.schema.json"
+    )
+    validator = Draft202012Validator(schema)
+    event = {
+        "id": "00000000-0000-0000-0000-000000000701",
+        "task_id": None,
+        "event_type": "RepositoryBindingConfigured",
+        "actor_type": "system",
+        "actor_id": "repository-profile",
+        "created_at": "2026-07-16T00:00:00Z",
+        "payload": {
+            "project_id": "00000000-0000-0000-0000-000000000001",
+            "repository_binding_id": (
+                "00000000-0000-0000-0000-000000000301"
+            ),
+            "profile_key": "demo-gitea-repository",
+            "provider": "gitea",
+            "repository_external_id": "42",
+            "repository_owner": "cloudhelm",
+            "repository_name": "sample-api",
+            "default_branch": "dev",
+            "workflow_id": ".gitea/workflows/ci.yml",
+            "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+            "status": "active",
+            "created": True,
+            "configuration_changed": False,
+            "stale_candidate_ids": [],
+            "expired_approval_ids": [],
+        },
+    }
+
+    assert validator.is_valid(event)
+    event["payload"]["clone_url"] = "https://internal.example.test/repo.git"
+    assert not validator.is_valid(event)
+    event["payload"].pop("clone_url")
+    event.pop("actor_id")
+    assert not validator.is_valid(event)
 
 
 def test_heartbeat_openapi_requires_headers_and_documents_errors() -> None:

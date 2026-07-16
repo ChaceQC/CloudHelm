@@ -109,6 +109,83 @@ M7_REMOTE_TARGET_PROFILES = {
         ],
     },
 }
+M7_REPOSITORY_CREDENTIALS = {
+    "test/repository/primary": "test-repository-primary-token",
+    "test/repository/rotated": "test-repository-rotated-token",
+    "test/repository/secondary": "test-repository-secondary-token",
+}
+M7_REPOSITORY_PROFILES = {
+    "test-primary": {
+        "provider": "gitea",
+        "repository_external_id": "repo-42",
+        "repository_owner": "CloudHelm",
+        "repository_name": "Sample-API",
+        "clone_url": "https://gitea.example.test/CloudHelm/Sample-API.git",
+        "default_branch": "dev",
+        "credential_ref": "test/repository/primary",
+        "workflow_id": ".gitea/workflows/ci.yml",
+        "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+    },
+    "test-primary-drift": {
+        "provider": "gitea",
+        "repository_external_id": "repo-42",
+        "repository_owner": "CloudHelm",
+        "repository_name": "Sample-API",
+        "clone_url": "https://gitea.example.test/CloudHelm/Sample-API.git",
+        "default_branch": "main",
+        "credential_ref": "test/repository/rotated",
+        "workflow_id": ".gitea/workflows/ci-v2.yml",
+        "release_ref_prefix": "refs/heads/cloudhelm/release-candidates",
+    },
+    "test-primary-secret-rotation": {
+        "provider": "gitea",
+        "repository_external_id": "repo-42",
+        "repository_owner": "CloudHelm",
+        "repository_name": "Sample-API",
+        "clone_url": "https://gitea.example.test/CloudHelm/Sample-API.git",
+        "default_branch": "dev",
+        "credential_ref": "test/repository/rotated",
+        "workflow_id": ".gitea/workflows/ci.yml",
+        "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+    },
+    "test-secondary": {
+        "provider": "gitea",
+        "repository_external_id": "repo-84",
+        "repository_owner": "CloudHelm",
+        "repository_name": "Secondary-API",
+        "clone_url": (
+            "https://gitea.example.test/CloudHelm/Secondary-API.git"
+        ),
+        "default_branch": "main",
+        "credential_ref": "test/repository/secondary",
+        "workflow_id": ".gitea/workflows/ci.yml",
+        "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+    },
+    "test-owner-case-conflict": {
+        "provider": "gitea",
+        "repository_external_id": "repo-999",
+        "repository_owner": "cloudhelm",
+        "repository_name": "sample-api",
+        "clone_url": "https://gitea.example.test/cloudhelm/sample-api.git",
+        "default_branch": "main",
+        "credential_ref": "test/repository/secondary",
+        "workflow_id": ".gitea/workflows/ci.yml",
+        "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+    },
+    "test-missing-credential": {
+        "provider": "gitea",
+        "repository_external_id": "repo-missing",
+        "repository_owner": "CloudHelm",
+        "repository_name": "Missing-Credential",
+        "clone_url": (
+            "https://gitea.example.test/CloudHelm/Missing-Credential.git"
+        ),
+        "default_branch": "main",
+        "credential_ref": "test/repository/missing",
+        "workflow_id": ".gitea/workflows/ci.yml",
+        "release_ref_prefix": "refs/heads/cloudhelm/candidates",
+    },
+}
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -141,6 +218,12 @@ def migrated_database() -> Generator[None, None, None]:
     )
     os.environ["CLOUDHELM_REMOTE_AGENT_CREDENTIALS"] = json.dumps(
         M7_REMOTE_AGENT_SECRETS
+    )
+    os.environ["CLOUDHELM_REPOSITORY_PROFILES"] = json.dumps(
+        M7_REPOSITORY_PROFILES
+    )
+    os.environ["CLOUDHELM_REPOSITORY_CREDENTIALS"] = json.dumps(
+        M7_REPOSITORY_CREDENTIALS
     )
     os.environ["CLOUDHELM_REMOTE_AGENT_TIMESTAMP_TOLERANCE_SECONDS"] = "300"
     os.environ["CLOUDHELM_REMOTE_AGENT_NONCE_TTL_SECONDS"] = "900"

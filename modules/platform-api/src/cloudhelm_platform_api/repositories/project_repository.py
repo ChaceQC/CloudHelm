@@ -22,10 +22,22 @@ class ProjectRepository:
         self.session.flush()
         return project
 
-    def get(self, project_id: UUID) -> Project | None:
-        """按 ID 读取 Project。"""
+    def get(
+        self,
+        project_id: UUID,
+        *,
+        for_update: bool = False,
+    ) -> Project | None:
+        """按 ID 读取 Project；首次创建子资源时可作为 mutex 加锁。"""
 
-        return self.session.get(Project, project_id)
+        if not for_update:
+            return self.session.get(Project, project_id)
+        return self.session.scalar(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
 
     def list(self, limit: int, cursor: str | None) -> tuple[list[Project], str | None]:
         """分页读取 Project。"""

@@ -81,8 +81,9 @@ profile-only Linux RemoteTarget 和 machine-auth heartbeat；尚未表示完整 
 
 `ProjectRepositoryBinding`、`ReleaseCandidate`、`WorkflowJob` 和资源型
 Approval 字段已由 `20260716_0008` 建立 migration 与 ORM 数据底座。该结论只表示
-M7-2A 数据结构已经进入实现与数据库门禁，不代表 RepositoryProfile、Binding API、
-Candidate 原子创建、审批服务或 durable worker 已交付；这些属于 M7-2B/C。
+M7-2A 数据结构已经进入实现与数据库门禁。M7-2B1 已进一步交付
+RepositoryProfile、Binding PUT/GET、幂等、漂移失效和并发门禁；Candidate 原子
+创建、审批服务或 durable worker 仍属于 M7-2B2/C。
 
 `CIRun`、`Deployment` 和 `ServiceInstance` 仍是 `0.6.0` 后续纵切的目标设计，
 必须随对应 migration、ORM、repository/service、黑盒/白盒测试和真实流程证据
@@ -1056,9 +1057,11 @@ failed，写 `workflow_job_attempts_exhausted`、数据库完成时间并清 lea
 enqueue。cancelled 必须写 `cancel_requested_at`。
 worker 必须按
 `Task -> WorkflowJob -> ProjectRepositoryBinding -> ReleaseCandidate -> Approval`
-锁序使用短事务；Binding PUT 只按
+锁序使用短事务；Binding PUT 先取得 RepositoryBinding 配置 namespace 的
+transaction-level advisory lock，再按
 `Binding -> Candidate(UUID 顺序) -> Approval(UUID 顺序)` 加锁且不反向获取
-Task。状态不明时不得盲目重放 push、CI 或部署。
+Task。advisory lock 只串行化短事务中的 repository identity 变更，避免跨 Project
+identity swap 死锁。状态不明时不得盲目重放 push、CI 或部署。
 
 #### environments
 

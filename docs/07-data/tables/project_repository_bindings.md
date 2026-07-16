@@ -61,8 +61,10 @@
 - Candidate POST 按 `Task -> Binding -> PullRequestRecord -> existing Candidate`
   加锁，并从生成 snapshot 到插入 Candidate 的整个短事务持有 Binding
   `FOR UPDATE`。
-- Binding PUT 先锁 Binding，再按 Candidate/Approval UUID 升序锁定并失效旧资源；
-  该事务不反向获取 Task。
+- Binding PUT 先取得 RepositoryBinding 配置 namespace 的 transaction-level
+  advisory lock，再锁 Binding，并按 Candidate/Approval UUID 升序锁定并失效旧
+  资源；该事务不反向获取 Task。advisory lock 用于避免跨 Project identity
+  swap 死锁。
 - PUT 先提交时 POST 使用新 snapshot；POST 先提交时 PUT 必须看到并失效刚插入的旧
   snapshot Candidate。
 

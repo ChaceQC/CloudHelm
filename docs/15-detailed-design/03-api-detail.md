@@ -639,10 +639,12 @@ host，必须经过服务端 profile/allowlist。RemoteTarget 注册只接受 pr
 - 只有 internal snapshot hash 变化或 binding 变为 disabled 时，旧
   `pending_approval|approved` Candidate 与 pending Approval 才在同一事务
   stale/expired；published 历史记录不改写。
-- PUT 先锁 Binding，再按 UUID 顺序锁 Candidate/Approval；Candidate POST 按
+- PUT 先取得 RepositoryBinding 配置 namespace 的 transaction-level advisory
+  lock，再锁 Binding 并按 UUID 顺序锁 Candidate/Approval；Candidate POST 按
   `Task -> Binding -> PullRequestRecord -> existing Candidate` 加锁并持有
   Binding `FOR UPDATE` 到事务提交，关闭 snapshot 读取与 Candidate 插入之间的
-  并发空窗。
+  并发空窗。advisory lock 只串行化短事务中的 repository identity 变更，避免
+  跨 Project identity swap 死锁。
 - `(provider, repository_external_id)` 与
   `(provider, lower(owner), lower(name))` 冲突返回 409。
 

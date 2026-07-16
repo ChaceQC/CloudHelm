@@ -31,6 +31,9 @@ from cloudhelm_platform_api.api.pull_request_records import (
 from cloudhelm_platform_api.api.requirements import router as requirement_router
 from cloudhelm_platform_api.api.remote_agents import router as remote_agent_router
 from cloudhelm_platform_api.api.remote_targets import router as remote_target_router
+from cloudhelm_platform_api.api.repository_bindings import (
+    router as repository_binding_router,
+)
 from cloudhelm_platform_api.api.tasks import router as task_router
 from cloudhelm_platform_api.api.tool_calls import router as tool_call_router
 from cloudhelm_platform_api.api.tool_gateway import router as tool_gateway_router
@@ -55,7 +58,8 @@ def create_app() -> FastAPI:
         description=(
             "CloudHelm 平台 API。M1-M6 提供数据库驱动的 Agent 编排、"
             "受控本地开发工具、Artifact 与本地等价 PR record；M7-1 新增"
-            " Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环。"
+            " Environment、RemoteTarget 和 machine-auth heartbeat 基础闭环；"
+            "M7-2B1 新增服务端受控 RepositoryBinding PUT/GET。"
         ),
         version=settings.version,
         responses={
@@ -88,7 +92,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=False,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT"],
         allow_headers=["*"],
     )
     app.add_middleware(
@@ -98,6 +102,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(project_router)
+    app.include_router(repository_binding_router)
     app.include_router(environment_router)
     app.include_router(remote_target_router)
     app.include_router(remote_agent_router)

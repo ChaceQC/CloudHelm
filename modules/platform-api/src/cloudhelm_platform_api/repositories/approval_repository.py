@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from cloudhelm_platform_api.models.approval import ApprovalRequest
@@ -99,3 +100,28 @@ class ApprovalRepository:
                 populate_existing=True
             )
         return list(self.session.scalars(statement))
+
+    def list_by_ids_for_update(
+        self,
+        approval_ids: list[UUID],
+    ) -> list[ApprovalRequest]:
+        """按 UUID 顺序锁定一组 Approval，避免漂移失效时形成锁序环。"""
+
+        if not approval_ids:
+            return []
+        return list(
+            self.session.scalars(
+                select(ApprovalRequest)
+                .where(ApprovalRequest.id.in_(approval_ids))
+                .order_by(ApprovalRequest.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        )
+
+    def database_now(self) -> datetime:
+        """读取 PostgreSQL 事务时间，供资源审批过期与数据库约束统一。"""
+
+        value = self.session.scalar(select(func.now()))
+        assert value is not None
+        return value

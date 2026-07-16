@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "demo-gitea-repository": {
+      "provider": "gitea",
+      "repository_external_id": "42",
+      "repository_owner": "cloudhelm",
+      "repository_name": "sample-api",
+      "clone_url": "https://gitea.example.test/cloudhelm/sample-api.git",
+      "default_branch": "dev",
+      "credential_ref": "secret/cloudhelm/gitea/sample-api",
+      "workflow_id": ".gitea/workflows/ci.yml",
+      "release_ref_prefix": "refs/heads/cloudhelm/candidates"
+    }
+  }
+}
