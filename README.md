@@ -86,13 +86,29 @@ $env:PYTHONIOENCODING='utf-8'
 $OutputEncoding=[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new()
 ```
 
-以下 PostgreSQL/Docker 命令只用于 **CloudHelm 仓库贡献者开发与集成测试**，
-不是最终 Desktop 用户的安装前置条件。先启动本地 PostgreSQL：
+以下 PostgreSQL/Redis 命令只用于 **CloudHelm 仓库贡献者开发与集成测试**，
+不是最终 Desktop 用户的安装前置条件。Windows 开发机统一使用 Ubuntu 24.04
+WSL2 内的原生 Docker Engine/Compose，不依赖 Docker Desktop。先保持 WSL 运行
+并启动依赖：
+
+1. 先按
+   [`docs/12-deployment/05-ops-hub-installation.md`](docs/12-deployment/05-ops-hub-installation.md)
+   执行 WSL/Docker 预检和可重复执行的单 keepalive 启动。
+2. 再执行：
 
 ```powershell
-docker compose -f infra/docker-compose.dev.yml up -d postgres
-docker compose -f infra/docker-compose.dev.yml ps
+wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
+cd '/mnt/d/graduation project'
+docker compose -f infra/docker-compose.dev.yml \
+  --profile optional up -d postgres redis
+docker compose -f infra/docker-compose.dev.yml \
+  --profile optional ps
+"@
 ```
+
+当前开发机发行版数据位于 `D:\WSL\Ubuntu-24.04`。该位置仅是本地环境记录；
+完整 WSL/Ops Hub 开发说明见
+`docs/12-deployment/05-ops-hub-installation.md`。
 
 再迁移数据库并运行测试：
 

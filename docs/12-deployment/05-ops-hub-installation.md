@@ -16,6 +16,190 @@
 
 该 profile 不是正式产品完成判定。
 
+### Windows 开发机的 WSL Linux 依赖基线
+
+Windows 仓库开发时，Ops Hub 的 Linux 行为统一在 Ubuntu 24.04 WSL2 中开发和
+测试，不依赖 Docker Desktop。当前验证环境为：
+
+```text
+发行版：Ubuntu-24.04
+WSL 版本：WSL2
+发行版数据：D:\WSL\Ubuntu-24.04
+Linux 用户：cloudhelm
+容器运行时：Ubuntu 内原生 Docker Engine + Docker Compose v2
+仓库挂载：/mnt/d/graduation project
+```
+
+该路径是当前开发机记录，不是产品硬编码。其他开发者可以使用不同磁盘目录。
+WSL 原生 Docker named volume 默认位于同一发行版 VHD 的 `/var/lib/docker`；
+隔离要求是使用不同 Compose project、named volume、network、credential 和
+卸载入口，不能把“同一 VHD”误写成数据混用。若验收需要物理磁盘隔离，必须显式
+配置独立 bind mount、独立 VHD 或独立 Linux 主机。
+
+首次启动和每次环境变更后先执行预检，验证发行版、D 盘 VHD、普通用户 Docker
+权限、daemon、Compose 和仓库挂载，而不是只根据历史容器状态判断环境可用：
+
+```powershell
+$Distro = 'Ubuntu-24.04'
+$LinuxUser = 'cloudhelm'
+$WslVhd = 'D:\WSL\Ubuntu-24.04\ext4.vhdx'
+
+wsl.exe --status
+wsl.exe --list --verbose
+
+if (-not (Test-Path -LiteralPath $WslVhd)) {
+  throw "WSL VHD not found: $WslVhd"
+}
+
+wsl.exe -d $Distro -u $LinuxUser -- bash -lc @'
+set -euo pipefail
+grep -qi 'wsl2' /proc/sys/kernel/osrelease
+test -d '/mnt/d/graduation project'
+id -nG | grep -qw docker
+systemctl is-active --quiet docker
+docker info >/dev/null
+docker compose version
+docker compose \
+  -f '/mnt/d/graduation project/infra/docker-compose.dev.yml' \
+  config --quiet
+'@
+
+if ($LASTEXITCODE -ne 0) {
+  throw 'WSL/Docker preflight failed.'
+}
+```
+
+WSL 在没有前台 Linux 进程时可能进入 `Stopped`，导致容器端口随之消失。开发
+测试前用 Windows PowerShell 保证只存在一个隐藏 keepalive：
+
+```powershell
+$Distro = 'Ubuntu-24.04'
+$LinuxUser = 'cloudhelm'
+
+function Get-CloudHelmWslKeepaliveClient {
+  $Matching = @(
+    Get-CimInstance Win32_Process -Filter "Name='wsl.exe'" |
+      Where-Object {
+        $_.CommandLine -like "*-d $Distro*" -and
+        $_.CommandLine -like "*-u $LinuxUser*" -and
+        $_.CommandLine -like '*sleep infinity*'
+      }
+  )
+  $MatchingIds = @(
+    $Matching | ForEach-Object { [int]$_.ProcessId }
+  )
+
+  # 一次 wsl.exe 调用会生成 parent/child 两个同命令行进程；
+  # 这里只返回没有匹配 parent 的根 client，避免把一次启动误计为两个。
+  $Matching |
+    Where-Object {
+      $MatchingIds -notcontains [int]$_.ParentProcessId
+    }
+}
+
+$KeepaliveClients = @(Get-CloudHelmWslKeepaliveClient)
+
+if ($KeepaliveClients.Count -eq 0) {
+  Start-Process `
+    -FilePath "$env:SystemRoot\System32\wsl.exe" `
+    -ArgumentList @(
+      '-d', $Distro,
+      '-u', $LinuxUser,
+      '--', 'env', 'CLOUDHELM_WSL_KEEPALIVE=1',
+      'sleep', 'infinity'
+    ) `
+    -WindowStyle Hidden
+} elseif ($KeepaliveClients.Count -gt 1) {
+  $KeepaliveClients |
+    Sort-Object CreationDate |
+    Select-Object -Skip 1 |
+    ForEach-Object {
+      Stop-Process -Id $_.ProcessId -ErrorAction Stop
+    }
+}
+
+for ($Attempt = 1; $Attempt -le 20; $Attempt++) {
+  Start-Sleep -Milliseconds 500
+  $KeepaliveClients = @(Get-CloudHelmWslKeepaliveClient)
+  if ($KeepaliveClients.Count -eq 1) {
+    break
+  }
+}
+
+if ($KeepaliveClients.Count -ne 1) {
+  throw (
+    'Expected one keepalive client, found ' +
+    $KeepaliveClients.Count
+  )
+}
+```
+
+随后只在 WSL 原生 Docker 中启动仓库依赖：
+
+```powershell
+wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
+cd '/mnt/d/graduation project'
+docker compose -f infra/docker-compose.dev.yml \
+  --profile optional up -d postgres redis
+docker compose -f infra/docker-compose.dev.yml \
+  --profile optional ps
+docker exec cloudhelm-postgres-dev \
+  pg_isready -U cloudhelm -d cloudhelm
+docker exec cloudhelm-redis-dev redis-cli ping
+"@
+
+Start-Sleep -Seconds 60
+
+if (
+  -not (
+    Test-NetConnection `
+      127.0.0.1 `
+      -Port 15432 `
+      -InformationLevel Quiet
+  )
+) {
+  throw 'PostgreSQL port 15432 is not reachable from Windows.'
+}
+```
+
+通过标准：
+
+- `Ubuntu-24.04` 状态为 `Running`。
+- PostgreSQL health 为 `healthy`。
+- Redis 返回 `PONG`。
+- Windows 侧 Platform API 测试可通过 `127.0.0.1:15432` 访问 PostgreSQL。
+- WSL 停止、容器重启和数据卷位置都必须记录，不使用历史通过数替代当前验证。
+
+开发测试结束时可以只停止 CloudHelm keepalive，不影响其他发行版会话：
+
+```powershell
+$KeepaliveClients = @(Get-CloudHelmWslKeepaliveClient)
+$KeepaliveClients | ForEach-Object {
+  Stop-Process -Id $_.ProcessId -ErrorAction Stop
+}
+
+for ($Attempt = 1; $Attempt -le 20; $Attempt++) {
+  Start-Sleep -Milliseconds 500
+  if (@(Get-CloudHelmWslKeepaliveClient).Count -eq 0) {
+    break
+  }
+}
+
+if (@(Get-CloudHelmWslKeepaliveClient).Count -ne 0) {
+  throw 'CloudHelm WSL keepalive is still running.'
+}
+```
+
+需要同时停止整个发行版时再执行：
+
+```powershell
+wsl.exe --terminate Ubuntu-24.04
+```
+
+`infra/docker-compose.dev.yml` 仍只是仓库开发依赖，不等于正式 `ops-hub`
+installation。正式 M7 安装验收继续要求独立 Linux VM/主机、TLS ingress、
+服务凭据、备份和常驻 worker 证据。
+
 ### `ops-hub`
 
 常在线 Linux 运维控制面：

@@ -53,11 +53,16 @@ Local Runtime 与 Desktop SQLite 进入 M9，Windows/Linux 真实安装包与干
 ## M2 本地数据库与 API 命令
 
 M2 开始需要本地 PostgreSQL。开发环境使用 `infra/docker-compose.dev.yml`，
-示例凭据只用于本地开发，不代表真实服务器凭据。
+示例凭据只用于本地开发，不代表真实服务器凭据。Windows 开发机先按
+[Ops Hub 常驻安装与 Remote Target Bootstrap](05-ops-hub-installation.md)
+完成 WSL/Docker 预检和单 keepalive，再执行：
 
 ```powershell
+wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
+cd '/mnt/d/graduation project'
 docker compose -f infra/docker-compose.dev.yml up -d postgres
 docker compose -f infra/docker-compose.dev.yml ps
+"@
 cd modules/platform-api
 $env:CLOUDHELM_DATABASE_URL='postgresql+psycopg://cloudhelm:cloudhelm_dev@127.0.0.1:15432/cloudhelm'
 uv run alembic upgrade head
@@ -94,7 +99,11 @@ Remove-Item Env:CLOUDHELM_TEST_ALLOW_SCHEMA_RESET
 M2 的 Redis 服务仅通过 Compose profile 预留：
 
 ```powershell
-docker compose -f infra/docker-compose.dev.yml --profile optional up -d redis
+wsl -d Ubuntu-24.04 -u cloudhelm -- bash -lc @"
+cd '/mnt/d/graduation project'
+docker compose -f infra/docker-compose.dev.yml \
+  --profile optional up -d redis
+"@
 ```
 
 当前生产代码路径未使用 Redis。
