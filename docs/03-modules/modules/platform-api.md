@@ -3,7 +3,7 @@
 > 来源：[设计书 7.1-7.2](../../../云舵 CloudHelm 毕设设计书.md)  
 > 层级：`modules/platform-api`
 
-## M2-M7-2C 实现状态
+## M2-M7-2D 实现状态
 
 `modules/platform-api` `0.5.1` 已从 M1 `/health` 扩展为真实数据库 API 和
 本地开发工作流：
@@ -24,6 +24,11 @@
 - M7-2B2 已新增严格空对象的 Candidate POST、active-first Candidate GET、
   第一道 L2 Approval approve/reject、PR/Binding/request freshness、自批门禁、
   原子 `release_candidate_reconcile` WorkflowJob 和精确事件。
+- M7-2C 已交付 PostgreSQL 权威 dispatcher/worker、lease/heartbeat、retry、
+  Redis 补投、stale reclaim 与纯数据库 reconcile handler。
+- M7-2D 已新增 CIRun、Deployment、ServiceInstance migration/ORM/repository、
+  第二道 L3 Approval CHECK、受控健康证据、真实行锁/部分唯一并发门禁，以及
+  含 `allOf/if/then` 生命周期的严格共享 Record 契约。
 - 远端 push、真实 Gitea CI、ReleasePlan、Deployment Controller、实际 Compose
   部署和监控仍在后续 M7-M8。
 

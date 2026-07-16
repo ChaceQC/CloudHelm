@@ -283,7 +283,8 @@ Agent 生成或修改的业务项目必须同时满足：
 - M7-1 Remote Agent heartbeat 已实现，但完整远端部署和常驻运维闭环未交付。
 - M7-2A migration/ORM 数据底座、M7-2B1 RepositoryProfile/Binding PUT/GET、
   M7-2B2 Candidate/第一道审批/reconcile WorkflowJob 原子创建和 M7-2C durable
-  Workflow Engine 已完成；当前执行指针是 M7-2D CIRun、Deployment、
-  ServiceInstance 数据与 migration。
+  Workflow Engine、M7-2D CIRun/Deployment/ServiceInstance 数据与 migration
+  已完成；当前执行指针是 M7-2E 受控 candidate ref、精确 SHA 回读、唯一
+  Gitea `workflow_dispatch` 与 CIRun run identity。
 
 任何文档、答辩材料或完成判定都不得把上述目标架构描述为已实现。

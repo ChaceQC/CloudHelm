@@ -87,10 +87,11 @@ Candidate 原子创建、第一道审批 approve/reject、freshness 门禁、pen
 `release_candidate_reconcile` WorkflowJob 和精确事件；M7-2C 已进一步交付
 durable dispatcher/worker、lease/heartbeat、retry、Redis 补投和 stale reclaim。
 
-`CIRun`、`Deployment` 和 `ServiceInstance` 仍是 `0.6.0` 后续纵切的目标设计，
-必须随对应 migration、ORM、repository/service、黑盒/白盒测试和真实流程证据
-完成后，才能逐项写成已实现。M7 不创建 production、Kubernetes target 或
-`remote_sessions`。
+`CIRun`、`Deployment` 和 `ServiceInstance` 已由 `20260716_0009` 建立 migration、
+ORM、repository、严格 Pydantic/JSON Schema 与真实 PostgreSQL 门禁。该结论只
+表示 M7-2D 数据底座完成，不表示 candidate ref、Gitea CI、ReleasePlan、
+Deployment API/worker、Controller 或 Remote Agent operation 已交付。M7 不创建
+production、Kubernetes target 或 `remote_sessions`。
 
 M7-2 数据底座固定以下迁移语义：repository 字段统一使用
 `repository_external_id`；candidate 保存安全 binding snapshot JSON 与覆盖内部
@@ -828,7 +829,9 @@ CREATE TABLE ci_runs (
 action/status、head SHA 和 provider update time。状态固定为
 `triggered/running/passed/failed/cancelled`；passed 必须同时绑定 manifest、
 image index digest、platform manifest digest、started/finished 和与 commit 一致的
-provider head SHA，其他状态不得伪造 passed 证据。
+provider head SHA，其他状态不得伪造 passed 证据。`external_run_id` 仅在
+`triggered` 的 provider run 尚未关联窗口可空，`running/passed` 必须具有真实
+run identity；最后 event 四字段必须全空或全有。
 
 `workflow_revision` 保存 Gitea workflow 的稳定有界 revision 文本，不假设它一定是
 commit SHA。`release_candidate_id` 唯一；非空
@@ -1224,10 +1227,18 @@ M7 `deployments.status` 不包含 `restarting` 或 `rolled_back`。rollback requ
 failed/rollback_requested/cancelled`。从 `pending_approval` 起绑定 Approval，
 从 `queued` 起保存 approved actor，运行态必须绑定 operation 与 started time，
 健康终态必须保存 JSON object health summary，failed 必须保存稳定 failure code。
+`rollback_requested` 还必须具有 L3 Approval、approved actor、operation、
+started/finished、health summary、另一条历史 healthy Deployment 和 rollback
+request Artifact，且禁止自引用。
+
+`image_ref` 只允许一个 digest 分隔 `@`，拒绝 URL scheme/userinfo；健康对象最多
+32 个小写受控 key，value 只允许最长 512 字符 string、number、boolean 或 null，
+并拒绝凭据、敏感字段和 raw logs/stdout/stderr/log。
 
 Deployment Approval 的数据库组合固定为
 `approve_deployment + deployment + L3 + requested_by_agent_run_id`；其他 action
-不得冒充 deployment resource。ReleasePlan 内容 hash 继续使用不可变
+不得冒充 deployment resource，两类资源审批 action 也不得省略 resource identity
+后借 SQL NULL 绕过。ReleasePlan 内容 hash 继续使用不可变
 `artifacts.sha256`，本表不复制可漂移的第二份 plan hash。
 
 #### service_instances
@@ -1256,8 +1267,10 @@ CREATE TABLE service_instances (
 
 M7 `runtime_type` 固定为 `docker_compose`，status 固定为
 `starting/running/healthy/unhealthy/stopped/failed`，不增加 `unknown`。healthy
-或 unhealthy 必须同时保存 JSON object health result 与 check time。Environment、
-RemoteTarget 和 digest 与父 Deployment 的一致性由后续 service 在锁内重验。
+或 unhealthy 必须同时保存 JSON object health result 与 check time，failed 必须
+保存稳定 last error code，health URL 不接受 userinfo。健康对象沿用 Deployment
+的受控 key/scalar 和敏感字段拒绝规则。Environment、RemoteTarget 和 digest 与
+父 Deployment 的一致性由后续 service 在锁内重验。
 
 #### project_alerts（M8）
 

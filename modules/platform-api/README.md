@@ -1,6 +1,6 @@
 # modules/platform-api
 
-CloudHelm 平台 API 服务。M7-2C 使用 FastAPI + SQLAlchemy + Alembic +
+CloudHelm 平台 API 服务。M7-2D 使用 FastAPI + SQLAlchemy + Alembic +
 PostgreSQL 提供真实数据库驱动的 Agent 编排、Tool Gateway、本地开发单步流程、
 Artifact、本地等价 PR record，以及 Environment、RemoteTarget 和
 machine-auth heartbeat 基础闭环、受控 RepositoryBinding、ReleaseCandidate
@@ -8,6 +8,9 @@ machine-auth heartbeat 基础闭环、受控 RepositoryBinding、ReleaseCandidat
 Platform API 还提供 WorkflowJob 的 PostgreSQL repository、严格 DTO、
 `release_candidate_reconcile` 事务服务，以及 Task pause/resume/cancel 联动；
 Celery 进程由独立 `modules/workflow-engine` 承载，Platform API 不反向依赖它。
+`20260716_0009` 还建立 CIRun、Deployment、ServiceInstance、第二道 L3
+Deployment Approval 的 migration、ORM、repository 与严格 Record 契约；本切片
+不新增 CI/部署 HTTP API、事件或远端副作用。
 
 ## 命令
 
@@ -262,6 +265,24 @@ POST /api/approvals/{approval_id}/reject
 - `release_candidate_reconcile` 原子写 Candidate/Approval、WorkflowJob 终态和
   EventLog；Redis/Celery message 只包含 `workflow_job_id`。
 
+## M7-2D CI / Deployment data foundation
+
+- `ci_runs` 唯一绑定 ReleaseCandidate，记录固定 Gitea workflow、完整 candidate
+  ref、commit、最后一次 provider 幂等线索和 passed 不可变制品证据；
+  `running/passed` 必须具有真实 external run identity。
+- `deployments` 绑定 CIRun、ReleasePlan Artifact、Environment、RemoteTarget、
+  第二道 L3 Approval、不可变 digest、Remote Agent operation 和健康/失败摘要；
+  rollback request 必须具有完整审批、operation、时间、health 与历史引用证据。
+- `service_instances` 固定 `docker_compose` runtime，记录 Deployment 下服务、
+  OCI digest、状态和成对健康证据。
+- 三个 repository 只执行 create/get/稳定分页/行锁，不写状态机、事件、审批或
+  外部副作用。
+- 三个 Pydantic Record 与 Draft 2020-12 共享 JSON Schema 的字段和可表达
+  生命周期精确一致；健康对象只接受受控 scalar，拒绝凭据、敏感 key、userinfo、
+  多重 `@` 和 raw logs/stdout/stderr/log。
+- WSL PostgreSQL 已覆盖 `75 passed` 的定向约束/仓储/真实行锁/并发/契约/
+  migration 测试，以及 Platform API 全量 `407 passed, 1 skipped`。
+
 ## 当前边界
 
 M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branch/commit 和
@@ -269,8 +290,9 @@ M6 提供受控 sample workspace 的真实文件、测试、安全扫描、branc
 具备命令数组、环境白名单、超时、进程树清理和有界输出，但不具备 Docker 的
 CPU、内存、PID、只读挂载与网络隔离；不执行 push、远端 SSH、部署或监控操作。
 M7-2C 已提供 Celery dispatch、claim、lease/heartbeat、retry、stale reclaim
-和真实纯数据库 reconcile handler。candidate ref、Gitea CI、CIRun、
-Deployment、Deployment Controller 与远端 Compose operation 仍未实现。
+和真实纯数据库 reconcile handler。M7-2D 已提供 CIRun/Deployment/
+ServiceInstance 数据底座；candidate ref、真实 Gitea CI、Deployment Controller
+与远端 Compose operation 仍未实现。
 `/api/tasks/{task_id}/events/stream` 基于真实 `event_logs` 回放当前事件。
 M7-1 新环境/心跳事件的 `task_id=null`，尚无项目/环境查询 API 与实时 SSE。
 离线状态由 target list 或下一次 heartbeat 收敛，周期 worker 留到后续 M7。

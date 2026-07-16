@@ -258,6 +258,9 @@ def clean_business_tables(migrated_database: None) -> Generator[None, None, None
             text(
                 """
                 TRUNCATE TABLE
+                  service_instances,
+                  deployments,
+                  ci_runs,
                   workflow_jobs,
                   release_candidates,
                   project_repository_bindings,

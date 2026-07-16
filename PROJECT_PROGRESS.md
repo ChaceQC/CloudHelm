@@ -2,6 +2,103 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2D CI/部署数据底座实现与评审闭环）
+
+### 已完成
+
+- 完成 `20260716_0009`：
+  - 创建 `ci_runs`、`deployments`、`service_instances`。
+  - 增加第二道 deployment Approval 组合门禁与资源 action 非空门禁。
+  - 保持 `20260716_0008` 历史 migration 不变。
+- 完成三表 SQLAlchemy ORM、只负责持久化/查询/稳定分页/行锁的 repository、
+  严格 Pydantic Record 和 Draft 2020-12 共享 JSON Schema。
+- 根据独立评审完成缺陷闭环：
+  - 修复 provider event 半组字段和 failed Deployment 空 `failure_code` 的 SQL
+    三值逻辑绕过。
+  - `running/passed` CIRun 必须具有 `external_run_id`。
+  - `rollback_requested` 必须具有 L3 Approval 投影、approved actor、remote
+    operation、started/finished、health summary 和两项回滚引用；禁止自引用，
+    测试使用历史 healthy Deployment。
+  - OCI `image_ref` 拒绝 URL scheme、userinfo 和多重 `@`；health URL 拒绝
+    userinfo。
+  - Deployment/Service 健康对象最多 32 个小写受控 key，value 只允许最长 512
+    字符 string、number、boolean 或 null，并拒绝凭据、敏感字段和
+    raw logs/stdout/stderr/log。
+  - Pydantic 与共享 JSON Schema 同步加入 `allOf/if/then` 生命周期条件。
+- 补齐测试：
+  - JSONB literal null、SQL 三值逻辑、敏感 health key、嵌套/超长健康值。
+  - migration 字段类型、nullable、server default、索引 unique/predicate/列顺序
+    与完整 FK delete rule。
+  - provider run、Deployment Approval、Remote operation 三个部分唯一索引竞争。
+  - 两个真实 PostgreSQL Session 的 `FOR UPDATE` 锁等待。
+  - `ServiceInstanceRepository.create_many()` 冲突后整批回滚。
+  - 从合法 Record 注入敏感额外字段，并同时验证 Pydantic 与 JSON Schema 拒绝。
+- 同步总设计书、数据库总表、三张逐表文档、模块/README、测试矩阵、M7 细化设计
+  和 Roadmap；版本继续保持 `0.5.1`。
+
+### 进行中
+
+- M7-2D 已满足实现与验证完成判定，正在执行 Git 复查、提交和 push 收口。
+- 下一执行切片进入 M7-2E：受控 candidate ref 发布、`git ls-remote --refs`
+  精确 SHA 回读、唯一 Gitea `workflow_dispatch` 和 CIRun run identity。
+
+### 阻塞与风险
+
+- M7-2D 仍只是权威数据底座，不包含 candidate ref push、真实 Gitea CI、
+  ReleasePlan、第二道审批 API、Deployment Controller、Remote Agent operation
+  或生产事件。
+- 历史 healthy rollback candidate、Approval 状态/消费、父子 Task/Project/
+  Environment/Target/digest 一致性属于跨行规则，后续 service 必须在规定锁序内
+  重验，不能只依赖单行 CHECK。
+- Platform API 全量仍有 2 条既有 Pydantic alias warning；本切片未改变其来源，
+  后续单独清理。
+
+### 下一步
+
+1. 复查 M7-2D `git diff --stat`、关键 migration/ORM/schema/test diff、UTF-8、
+   Markdown 链接、JSON 和敏感信息。
+2. 提交并立即 push 当前 `feature/m7-remote-deploy-closure`。
+3. 按新的 `PROJECT_PLAN.md` 冻结 M7-2E external side-effect handler、payload/
+   result、凭据和崩溃恢复契约。
+4. 在 WSL 建立隔离 Gitea 测试 fixture，实现受控 ref、精确 SHA 回读、唯一
+   workflow dispatch 和 CIRun identity 收敛。
+
+### 涉及文件
+
+- `modules/platform-api/migrations/versions/20260716_0009_create_m7_ci_deployment_data.py`
+- `modules/platform-api/src/cloudhelm_platform_api/models/`
+- `modules/platform-api/src/cloudhelm_platform_api/repositories/`
+- `modules/platform-api/src/cloudhelm_platform_api/schemas/`
+- `modules/platform-api/tests/test_m7_ci_deployment_*.py`
+- `modules/platform-api/tests/test_database_migration.py`
+- `packages/shared-contracts/schemas/ci/ci-run.schema.json`
+- `packages/shared-contracts/schemas/deployment/*.schema.json`
+- `云舵 CloudHelm 毕设设计书.md`
+- `docs/01-architecture/04-desktop-ops-hub-project-boundary.md`
+- `docs/03-modules/modules/platform-api.md`
+- `docs/07-data/`
+- `docs/14-roadmap/03-implementation-milestone-flow.md`
+- `docs/15-detailed-design/`
+- `README.md`
+- `modules/platform-api/README.md`
+- `packages/shared-contracts/README.md`
+
+### 验证
+
+- WSL Ops Hub：PostgreSQL `accepting connections`，Redis `PONG`。
+- 修改未提交的 `0009` 后执行开发库
+  `downgrade 20260716_0008 -> upgrade head -> alembic check`，结果通过；
+  `alembic check` 为 `No new upgrade operations detected`。
+- M7-2D 定向测试：`75 passed`。
+- Platform API 全量：`407 passed, 1 skipped, 2 warnings`。
+- Workflow Engine 非 integration 回归：`51 passed, 2 deselected`。
+- 独立临时数据库往返：
+  `0008 -> head -> 0008 -> head/check` 通过。
+- 初次开发库 downgrade 因新补充 constraint 尚未存在而失败；downgrade 对该新增
+  constraint 使用 `if_exists` 后重试通过。
+- 定向回归首次发现 2 个测试断言问题：Service JSON literal null 先命中成对健康
+  CHECK、SQLAlchemy Result 未调用 `.all()`；修正测试构造后回归为 `75 passed`。
+
 ## 2026-07-16（M7-2D CI/部署数据契约冻结）
 
 ### 已完成

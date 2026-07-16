@@ -200,10 +200,10 @@ M7-2B2 已实现 Candidate、第一道 L2 Approval 与
 freshness、自批和并发门禁。M7-2C 已实现 durable dispatcher/worker、
 claim/lease/heartbeat、safe retry、Redis 补投、stale reclaim 与纯数据库
 reconcile handler。
-M7-2D 已冻结 `ci_runs`、`deployments` 和 `service_instances` 的字段、状态、
-单行不变量、唯一键、锁入口和共享 record 契约；只有 `20260716_0009`、
-ORM/repository/schema 及真实 PostgreSQL 测试全部落地后，才可标记该数据底座
-完成。即使 M7-2D 完成，也不代表 candidate ref、Gitea CI 或远端部署闭环完成。
+M7-2D 已通过 `20260716_0009` 落地 `ci_runs`、`deployments` 和
+`service_instances` 的字段、状态、单行不变量、唯一键、锁入口和共享 record
+契约，并完成独立数据库 migration 往返、约束、仓储、分页和并发竞争测试。
+该结论只表示数据底座完成，不代表 candidate ref、Gitea CI 或远端部署闭环完成。
 
 ## 1. 核心 ER 关系
 
@@ -373,7 +373,8 @@ cancelled
 
 `CIRun` 唯一绑定 ReleaseCandidate，并保存 Task、Project、PullRequestRecord、
 repository external id、固定 workflow、完整 candidate ref 和 commit。provider
-固定为 `gitea`；`external_run_id` 在 dispatch 已接受但 Gitea run 尚未关联时可空。
+固定为 `gitea`；`external_run_id` 仅在 `triggered` 且 dispatch 已接受但 Gitea
+run 尚未关联的窗口可空，`running/passed` 必须具有真实 run identity。
 
 `passed` 必须同时具有 Artifact manifest、image index digest、platform manifest
 digest、started/finished 和与 commit 相同的 provider head SHA；其他状态不得携带
@@ -416,8 +417,9 @@ Deployment 状态证据固定为：
 - `deploying/verifying` 必须绑定 Remote Agent operation 和 started time。
 - `healthy/unhealthy` 必须再有 finished time 与 JSON object health summary。
 - `failed` 必须有 finished time 与稳定 failure code。
-- `rollback_requested` 必须同时绑定另一条历史 Deployment 和 rollback request
-  Artifact，且不能自引用。
+- `rollback_requested` 必须同时具有第二道 L3 Approval、approved actor、Remote
+  Agent operation、started/finished、JSON object health summary，并绑定另一条
+  历史 healthy Deployment 和 rollback request Artifact，且不能自引用。
 - `cancelled` 若已开始 operation，则必须保存 finished time。
 
 Deployment Approval 数据库组合固定为：
@@ -430,8 +432,8 @@ requested_by_agent_run_id IS NOT NULL
 ```
 
 其他 action 不能使用 deployment resource；现有 release candidate L2 组合继续
-有效。ReleasePlan hash 使用不可变 `artifacts.sha256`，本表不复制第二份 plan
-content hash。
+有效。两类资源 action 都不得省略 resource identity 后借 SQL NULL 绕过。ReleasePlan
+hash 使用不可变 `artifacts.sha256`，本表不复制第二份 plan content hash。
 
 ### service_instances.status
 
@@ -447,7 +449,10 @@ failed
 M7 runtime type 固定为 `docker_compose`，不增加 `unknown`。service name 与
 Compose project 使用受控 slug；image identity 使用 SHA-256 OCI digest。
 `healthy/unhealthy` 必须同时有 JSON object health result 和 last health check。
-`(deployment_id, service_name)` 唯一。
+`failed` 必须有稳定 last error code。Deployment image ref 只允许一个 digest
+分隔 `@`，health URL 不接受 userinfo；两类健康对象最多 32 个小写受控 key，
+value 仅为最长 512 字符 string、number、boolean 或 null，并拒绝凭据、敏感字段和
+raw logs/stdout/stderr/log。`(deployment_id, service_name)` 唯一。
 
 Environment、RemoteTarget、Task/Project、commit 与 digest 的跨表相等关系不放入
 CHECK；后续 service 按 `Task -> CIRun/Deployment -> ServiceInstance/Approval`

@@ -77,6 +77,32 @@ class ApprovalRequest(UUIDPrimaryKeyMixin, Base):
             name="ck_approval_requests_release_candidate",
         ),
         CheckConstraint(
+            """
+            (
+              action = 'approve_deployment'
+              AND resource_type IS NOT NULL
+              AND resource_type = 'deployment'
+              AND risk_level = 'L3'
+              AND requested_by_agent_run_id IS NOT NULL
+            )
+            OR (
+              action <> 'approve_deployment'
+              AND resource_type IS DISTINCT FROM 'deployment'
+            )
+            """,
+            name="ck_approval_requests_deployment",
+        ),
+        CheckConstraint(
+            """
+            action NOT IN (
+              'approve_release_candidate',
+              'approve_deployment'
+            )
+            OR resource_type IS NOT NULL
+            """,
+            name="ck_approval_requests_m7_resource_action_group",
+        ),
+        CheckConstraint(
             "expires_at IS NULL OR expires_at > created_at",
             name="ck_approval_requests_expiry",
         ),

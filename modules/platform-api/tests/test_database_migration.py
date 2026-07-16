@@ -752,6 +752,547 @@ def test_m7_candidate_prevents_deleting_source_pull_request() -> None:
         session.rollback()
 
 
+def test_m7_ci_deployment_migration_contract() -> None:
+    """M7-2D 三表、Approval CHECK、索引和删除规则必须精确落库。"""
+
+    expected_columns = {
+        "ci_runs": {
+            "task_id",
+            "project_id",
+            "pull_request_record_id",
+            "release_candidate_id",
+            "provider",
+            "repository_external_id",
+            "external_run_id",
+            "external_job_id",
+            "workflow_id",
+            "workflow_revision",
+            "source_ref",
+            "commit_sha",
+            "status",
+            "idempotency_key",
+            "last_event_action",
+            "last_event_status",
+            "last_delivery_id",
+            "provider_head_sha",
+            "provider_updated_at",
+            "artifact_manifest_id",
+            "image_index_digest",
+            "platform_manifest_digest",
+            "started_at",
+            "finished_at",
+            "id",
+            "created_at",
+            "updated_at",
+        },
+        "deployments": {
+            "task_id",
+            "project_id",
+            "environment_id",
+            "remote_target_id",
+            "ci_run_id",
+            "release_plan_artifact_id",
+            "commit_sha",
+            "image_ref",
+            "image_digest",
+            "platform_manifest_digest",
+            "release_version",
+            "request_hash",
+            "approval_id",
+            "remote_operation_id",
+            "status",
+            "health_summary_json",
+            "failure_code",
+            "failure_summary",
+            "requested_by_actor",
+            "approved_by_actor",
+            "dispatched_by_agent_run_id",
+            "idempotency_key",
+            "started_at",
+            "finished_at",
+            "rollback_candidate_id",
+            "rollback_request_artifact_id",
+            "id",
+            "created_at",
+            "updated_at",
+        },
+        "service_instances": {
+            "deployment_id",
+            "environment_id",
+            "remote_target_id",
+            "service_name",
+            "compose_project",
+            "runtime_type",
+            "runtime_ref",
+            "image_digest",
+            "status",
+            "health_url",
+            "health_result_json",
+            "last_health_check_at",
+            "last_error_code",
+            "id",
+            "created_at",
+            "updated_at",
+        },
+    }
+    expected_constraints = {
+        "ck_approval_requests_deployment",
+        "ck_approval_requests_m7_resource_action_group",
+        "ck_ci_runs_provider",
+        "ck_ci_runs_status",
+        "ck_ci_runs_repository_identity",
+        "ck_ci_runs_external_identity",
+        "ck_ci_runs_workflow_identity",
+        "ck_ci_runs_workflow_revision",
+        "ck_ci_runs_source_ref",
+        "ck_ci_runs_commit_sha",
+        "ck_ci_runs_provider_head_sha",
+        "ck_ci_runs_digests",
+        "ck_ci_runs_idempotency_key",
+        "ck_ci_runs_provider_event_group",
+        "ck_ci_runs_lifecycle",
+        "ck_ci_runs_time_order",
+        "uq_ci_runs_release_candidate",
+        "uq_ci_runs_task_idempotency",
+        "ck_deployments_status",
+        "ck_deployments_commit_sha",
+        "ck_deployments_image_ref",
+        "ck_deployments_digests",
+        "ck_deployments_release_version",
+        "ck_deployments_request_hash",
+        "ck_deployments_idempotency_key",
+        "ck_deployments_health_summary_object",
+        "ck_deployments_health_summary_safe",
+        "ck_deployments_failure_evidence",
+        "ck_deployments_approval_lifecycle",
+        "ck_deployments_operation_lifecycle",
+        "ck_deployments_health_lifecycle",
+        "ck_deployments_rollback",
+        "ck_deployments_actor_fields",
+        "ck_deployments_time_order",
+        "uq_deployments_task_idempotency",
+        "uq_deployments_environment_release_version",
+        "ck_service_instances_runtime_type",
+        "ck_service_instances_status",
+        "ck_service_instances_slugs",
+        "ck_service_instances_runtime_ref",
+        "ck_service_instances_image_digest",
+        "ck_service_instances_health_url",
+        "ck_service_instances_health_result_object",
+        "ck_service_instances_health_result_safe",
+        "ck_service_instances_health_lifecycle",
+        "ck_service_instances_error_code",
+        "ck_service_instances_time_order",
+        "uq_service_instances_deployment_service",
+    }
+    expected_indexes = {
+        "ux_ci_runs_provider_repository_run",
+        "ix_ci_runs_task_created",
+        "ix_ci_runs_project_created",
+        "ux_deployments_approval",
+        "ux_deployments_remote_target_operation",
+        "ix_deployments_task_created",
+        "ix_deployments_project_created",
+        "ix_deployments_environment_created",
+        "ix_service_instances_environment_status_created",
+        "ix_service_instances_remote_target_status_created",
+    }
+    expected_delete_rules = {
+        ("ci_runs", "ci_runs_task_id_fkey"): "c",
+        ("ci_runs", "ci_runs_project_id_fkey"): "c",
+        ("ci_runs", "ci_runs_pull_request_record_id_fkey"): "a",
+        ("ci_runs", "ci_runs_release_candidate_id_fkey"): "a",
+        ("ci_runs", "ci_runs_artifact_manifest_id_fkey"): "a",
+        ("deployments", "deployments_task_id_fkey"): "c",
+        ("deployments", "deployments_project_id_fkey"): "c",
+        ("deployments", "deployments_environment_id_fkey"): "a",
+        ("deployments", "deployments_remote_target_id_fkey"): "a",
+        ("deployments", "deployments_ci_run_id_fkey"): "a",
+        (
+            "deployments",
+            "deployments_release_plan_artifact_id_fkey",
+        ): "a",
+        ("deployments", "deployments_approval_id_fkey"): "a",
+        (
+            "deployments",
+            "deployments_dispatched_by_agent_run_id_fkey",
+        ): "n",
+        (
+            "deployments",
+            "deployments_rollback_candidate_id_fkey",
+        ): "a",
+        (
+            "deployments",
+            "deployments_rollback_request_artifact_id_fkey",
+        ): "a",
+        (
+            "service_instances",
+            "service_instances_deployment_id_fkey",
+        ): "c",
+        (
+            "service_instances",
+            "service_instances_environment_id_fkey",
+        ): "a",
+        (
+            "service_instances",
+            "service_instances_remote_target_id_fkey",
+        ): "a",
+    }
+    expected_nullable = {
+        "ci_runs": {
+            "external_run_id",
+            "external_job_id",
+            "last_event_action",
+            "last_event_status",
+            "last_delivery_id",
+            "provider_head_sha",
+            "provider_updated_at",
+            "artifact_manifest_id",
+            "image_index_digest",
+            "platform_manifest_digest",
+            "started_at",
+            "finished_at",
+        },
+        "deployments": {
+            "approval_id",
+            "remote_operation_id",
+            "health_summary_json",
+            "failure_code",
+            "failure_summary",
+            "approved_by_actor",
+            "dispatched_by_agent_run_id",
+            "started_at",
+            "finished_at",
+            "rollback_candidate_id",
+            "rollback_request_artifact_id",
+        },
+        "service_instances": {
+            "runtime_ref",
+            "health_url",
+            "health_result_json",
+            "last_health_check_at",
+            "last_error_code",
+        },
+    }
+    expected_types = {
+        "uuid": {
+            ("ci_runs", column)
+            for column in {
+                "task_id",
+                "project_id",
+                "pull_request_record_id",
+                "release_candidate_id",
+                "artifact_manifest_id",
+                "id",
+            }
+        }
+        | {
+            ("deployments", column)
+            for column in {
+                "task_id",
+                "project_id",
+                "environment_id",
+                "remote_target_id",
+                "ci_run_id",
+                "release_plan_artifact_id",
+                "approval_id",
+                "dispatched_by_agent_run_id",
+                "rollback_candidate_id",
+                "rollback_request_artifact_id",
+                "id",
+            }
+        }
+        | {
+            ("service_instances", column)
+            for column in {
+                "deployment_id",
+                "environment_id",
+                "remote_target_id",
+                "id",
+            }
+        },
+        "text": {
+            ("ci_runs", column)
+            for column in {
+                "provider",
+                "repository_external_id",
+                "external_run_id",
+                "external_job_id",
+                "workflow_id",
+                "workflow_revision",
+                "source_ref",
+                "commit_sha",
+                "status",
+                "idempotency_key",
+                "last_event_action",
+                "last_event_status",
+                "last_delivery_id",
+                "provider_head_sha",
+                "image_index_digest",
+                "platform_manifest_digest",
+            }
+        }
+        | {
+            ("deployments", column)
+            for column in {
+                "commit_sha",
+                "image_ref",
+                "image_digest",
+                "platform_manifest_digest",
+                "release_version",
+                "request_hash",
+                "remote_operation_id",
+                "status",
+                "failure_code",
+                "failure_summary",
+                "requested_by_actor",
+                "approved_by_actor",
+                "idempotency_key",
+            }
+        }
+        | {
+            ("service_instances", column)
+            for column in {
+                "service_name",
+                "compose_project",
+                "runtime_type",
+                "runtime_ref",
+                "image_digest",
+                "status",
+                "health_url",
+                "last_error_code",
+            }
+        },
+        "timestamp with time zone": {
+            ("ci_runs", column)
+            for column in {
+                "provider_updated_at",
+                "started_at",
+                "finished_at",
+                "created_at",
+                "updated_at",
+            }
+        }
+        | {
+            ("deployments", column)
+            for column in {
+                "started_at",
+                "finished_at",
+                "created_at",
+                "updated_at",
+            }
+        }
+        | {
+            ("service_instances", column)
+            for column in {
+                "last_health_check_at",
+                "created_at",
+                "updated_at",
+            }
+        },
+        "jsonb": {
+            ("deployments", "health_summary_json"),
+            ("service_instances", "health_result_json"),
+        },
+    }
+    expected_server_defaults = {
+        ("ci_runs", "provider"): "'gitea'::text",
+        ("ci_runs", "status"): "'triggered'::text",
+        ("ci_runs", "created_at"): "now()",
+        ("ci_runs", "updated_at"): "now()",
+        ("deployments", "status"): "'planned'::text",
+        ("deployments", "created_at"): "now()",
+        ("deployments", "updated_at"): "now()",
+        ("service_instances", "runtime_type"): "'docker_compose'::text",
+        ("service_instances", "status"): "'starting'::text",
+        ("service_instances", "created_at"): "now()",
+        ("service_instances", "updated_at"): "now()",
+    }
+    expected_index_contracts = {
+        "ux_ci_runs_provider_repository_run": (
+            True,
+            "(external_run_id IS NOT NULL)",
+            "(provider, repository_external_id, external_run_id)",
+        ),
+        "ix_ci_runs_task_created": (
+            False,
+            None,
+            "(task_id, created_at DESC, id DESC)",
+        ),
+        "ix_ci_runs_project_created": (
+            False,
+            None,
+            "(project_id, created_at DESC, id DESC)",
+        ),
+        "ux_deployments_approval": (
+            True,
+            "(approval_id IS NOT NULL)",
+            "(approval_id)",
+        ),
+        "ux_deployments_remote_target_operation": (
+            True,
+            "(remote_operation_id IS NOT NULL)",
+            "(remote_target_id, remote_operation_id)",
+        ),
+        "ix_deployments_task_created": (
+            False,
+            None,
+            "(task_id, created_at DESC, id DESC)",
+        ),
+        "ix_deployments_project_created": (
+            False,
+            None,
+            "(project_id, created_at DESC, id DESC)",
+        ),
+        "ix_deployments_environment_created": (
+            False,
+            None,
+            "(environment_id, created_at DESC, id DESC)",
+        ),
+        "ix_service_instances_environment_status_created": (
+            False,
+            None,
+            "(environment_id, status, created_at DESC, id DESC)",
+        ),
+        "ix_service_instances_remote_target_status_created": (
+            False,
+            None,
+            "(remote_target_id, status, created_at DESC, id DESC)",
+        ),
+    }
+
+    with get_engine().connect() as connection:
+        column_metadata = {}
+        for table_name, expected in expected_columns.items():
+            rows = list(
+                connection.execute(
+                    text(
+                        """
+                        SELECT
+                            column_name,
+                            data_type,
+                            is_nullable,
+                            column_default
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = :table_name
+                        """
+                    ),
+                    {"table_name": table_name},
+                )
+            )
+            columns = {
+                row.column_name
+                for row in rows
+            }
+            column_metadata.update(
+                {
+                    (table_name, row.column_name): row
+                    for row in rows
+                }
+            )
+            assert columns == expected
+
+        constraints = {
+            row.conname
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE connamespace = 'public'::regnamespace
+                    """
+                )
+            )
+        }
+        index_contracts = {
+            row.index_name: row
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT
+                        index_relation.relname AS index_name,
+                        index_record.indisunique,
+                        pg_get_expr(
+                            index_record.indpred,
+                            index_record.indrelid
+                        ) AS predicate,
+                        pg_get_indexdef(index_record.indexrelid)
+                            AS index_definition
+                    FROM pg_index AS index_record
+                    JOIN pg_class AS index_relation
+                      ON index_relation.oid = index_record.indexrelid
+                    JOIN pg_class AS table_relation
+                      ON table_relation.oid = index_record.indrelid
+                    WHERE table_relation.relnamespace
+                      = 'public'::regnamespace
+                      AND table_relation.relname IN (
+                        'ci_runs',
+                        'deployments',
+                        'service_instances'
+                      )
+                    """
+                )
+            )
+        }
+        indexes = set(index_contracts)
+        delete_rules = {
+            (row.table_name, row.constraint_name): row.confdeltype
+            for row in connection.execute(
+                text(
+                    """
+                    SELECT
+                        relation.relname AS table_name,
+                        constraint_record.conname AS constraint_name,
+                        constraint_record.confdeltype
+                    FROM pg_constraint AS constraint_record
+                    JOIN pg_class AS relation
+                      ON relation.oid = constraint_record.conrelid
+                    WHERE constraint_record.contype = 'f'
+                      AND constraint_record.connamespace
+                        = 'public'::regnamespace
+                    """
+                )
+            )
+        }
+
+    for table_name, columns in expected_columns.items():
+        nullable = {
+            column_name
+            for column_name in columns
+            if column_metadata[(table_name, column_name)].is_nullable
+            == "YES"
+        }
+        assert nullable == expected_nullable[table_name]
+
+    expected_type_by_column = {
+        identity: data_type
+        for data_type, identities in expected_types.items()
+        for identity in identities
+    }
+    assert set(expected_type_by_column) == {
+        (table_name, column_name)
+        for table_name, columns in expected_columns.items()
+        for column_name in columns
+    }
+    for identity, expected_type in expected_type_by_column.items():
+        assert column_metadata[identity].data_type == expected_type
+
+    for identity, row in column_metadata.items():
+        assert row.column_default == expected_server_defaults.get(identity)
+
+    assert expected_constraints.issubset(constraints)
+    assert expected_indexes.issubset(indexes)
+    for index_name, expected in expected_index_contracts.items():
+        unique, predicate, definition_fragment = expected
+        row = index_contracts[index_name]
+        assert row.indisunique is unique
+        assert row.predicate == predicate
+        assert definition_fragment in row.index_definition
+    for identity, delete_rule in expected_delete_rules.items():
+        assert delete_rules[identity] == delete_rule
+
+
 def test_test_database_guard_rejects_development_database(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

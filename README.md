@@ -1,10 +1,11 @@
 # 云舵 CloudHelm
 
 CloudHelm 是面向毕业设计演示的多 Agent DevOps 系统。本仓库已完成
-**M1-M6**，并完成 M7-0/M7-1 与 M7-2A/B1/B2/C 已交付切片，包括
+**M1-M6**，并完成 M7-0/M7-1 与 M7-2A/B1/B2/C/D 已交付切片，包括
 **Environment + RemoteTarget + machine-auth heartbeat**、数据底座、
 RepositoryBinding PUT/GET，以及 ReleaseCandidate、第一道审批和 reconcile
-WorkflowJob 原子创建与 durable 自动执行。当前已实现系统在已审批
+WorkflowJob 原子创建与 durable 自动执行，以及 CIRun、Deployment、
+ServiceInstance 数据底座。当前已实现系统在已审批
 DevelopmentPlan 基础上，由 Scaffold、Coder、Tester、Reviewer、Security 经统一
 Tool Gateway 真实修改受控 sample repo、运行 pytest 与安全扫描、创建本地
 branch/commit，并持久化 Artifact 和 `provider=local` 的 PR record。
@@ -17,7 +18,8 @@ branch/commit，并持久化 Artifact 和 `provider=local` 的 PR record。
 > 严格接受 `{}` 并原子创建第一道 L2 Approval 和无外部副作用的 reconcile
 > WorkflowJob，GET 执行 active-first 查询。服务端 dispatcher/worker 可在
 > Desktop `run-next` 之外完成 claim、lease、heartbeat、retry 与 stale reclaim。
-> 真实 Gitea CI、远端部署和监控仍未交付。
+> `20260716_0009` 已建立 CI/部署三表和第二道 L3 Approval 数据门禁；真实
+> candidate ref 发布、Gitea CI、远端部署和监控仍未交付。
 
 正式产品目标已经调整为：
 
@@ -296,6 +298,9 @@ FastAPI OpenAPI 与共享 YAML 反序列化后必须精确一致。Agent 输出 
 schema 约束 Environment、RemoteTarget 与 heartbeat request/ack。当前事件 schema
 还精确约束 `WorkflowJobQueued`、`ReleaseCandidateApprovalRequested`、
 `ReleaseCandidateApproved` 和 `ReleaseCandidateRejected` 的 B2 payload。
+M7-2D 另提供 CIRun、Deployment、ServiceInstance 的完整 Record JSON Schema；
+所有可空字段仍为 required，额外字段默认拒绝，并使用 `allOf/if/then` 对齐
+run identity、Approval、operation、health、failure 和 rollback 生命周期。
 
 ## M6 sample repo
 
@@ -373,8 +378,8 @@ VITE_CLOUDHELM_API_BASE_URL=http://127.0.0.1:18080
 
 ## 当前未实现能力
 
-当前尚未实现 CIRun/Deployment/ServiceInstance、Release / Deploy / SRE Agent、
-真实远端 PR、Gitea CI、远端 Compose deployment、监控告警或完整桌面端壳。也
+当前尚未实现 Release / Deploy / SRE Agent、真实远端 PR、candidate ref 发布、
+Gitea CI、远端 Compose deployment、监控告警或完整桌面端壳。也
 尚未实现用户登录/RBAC、Local Runtime、正式 Ops Hub 安装/备份、project/env
 adapter schema、通用 renderer、Desktop 离线 sequence 同步和 Windows/Linux
 安装包。Sandbox 当前使用本地受控目录 + subprocess 超时，没有 Docker 的 CPU、

@@ -332,7 +332,9 @@ published 只有在 `git ls-remote --refs` 返回的完整 SHA 与本地 commit 
 
 ### 5.3 CIRun
 
-- provider 固定 `gitea`，保存 repository external id、可空 external run/job id。
+- provider 固定 `gitea`，保存 repository external id、external run/job id；只有
+  `triggered` 的 provider run 尚未关联窗口允许 run id 为空，`running/passed`
+  必须具有真实 run identity。
 - 精确绑定 PullRequestRecord、ReleaseCandidate、Task、Project。
 - 保存受控 workflow id、有界 opaque workflow revision、完整 source ref 和
   40/64 位小写 commit SHA。
@@ -446,7 +448,8 @@ failed + `release_candidate_approval_state_invalid`。
 - Task、Project、Environment、RemoteTarget、CIRun。
 - ReleasePlan Artifact、第二道 L3 Approval。
 - release version、commit、image ref、image digest、platform manifest digest 和
-  request hash。
+  request hash；image ref 只允许一个 digest 分隔 `@`，拒绝 URL scheme、
+  userinfo 和多重 `@`。
 - remote operation id、status、JSON object health summary、稳定 failure
   code/有界脱敏 summary。
 - requested/approved actor 与 dispatched AgentRun。
@@ -465,11 +468,14 @@ deploying          -> approval + actor + operation + started
 verifying          -> approval + actor + operation + started
 healthy/unhealthy  -> operation + started + finished + health object
 failed             -> finished + stable failure code
-rollback_requested -> historical candidate + rollback request Artifact
+rollback_requested -> approval + actor + operation + times + health
+                      + historical candidate + rollback request Artifact
 cancelled          -> terminal; finished required if operation started
 ```
 
-Approval 必须双向满足
+其中 `rollback_requested` 还必须具有 L3 Approval、approved actor、operation、
+started/finished、health object，历史 candidate 必须由后续 service 锁内重验为
+另一条 healthy Deployment。Approval 必须双向满足
 `approve_deployment + deployment + L3 + requested_by_agent_run_id`。
 
 ### 5.8 ServiceInstance
@@ -482,7 +488,11 @@ Approval 必须双向满足
 - health URL、JSON object health result、last check 和稳定 last error code。
 - Deployment/service name 唯一。
 
-healthy/unhealthy 必须同时具有 health result 和 last check。父 Deployment 的
+healthy/unhealthy 必须同时具有 health result 和 last check，failed 必须具有
+last error code；health URL 不接受 userinfo。Deployment health summary 与
+ServiceInstance health result 最多 32 个小写受控 key，value 仅允许最长 512
+字符 string、number、boolean 或 null，并拒绝凭据、敏感字段和
+raw logs/stdout/stderr/log。父 Deployment 的
 Environment、Target 与 digest 一致性由后续 service 在锁内重验，repository 不
 承担状态机或跨表业务判断。
 
@@ -1070,14 +1080,18 @@ SSE 使用数据库 EventLog tailing：
 
 ### M7-2D：CI 与部署数据底座
 
-- 字段、状态、约束、唯一键、FK 删除规则、索引和锁序已冻结。
-- 实现 CIRun、Deployment、ServiceInstance 的 PostgreSQL migration、ORM、
+- 已完成字段、状态、约束、唯一键、FK 删除规则、索引和锁序冻结。
+- 已实现 CIRun、Deployment、ServiceInstance 的 PostgreSQL migration、ORM、
   repository、严格 Pydantic Record 与 Draft 2020-12 共享 JSON Schema。
-- 为 deployment Approval 增加独立
+- 已为 deployment Approval 增加独立
   `ck_approval_requests_deployment`；不修改 `20260716_0008` 历史 migration，
   原 release candidate L2 CHECK 保持有效。
-- 数据库测试覆盖合法状态、精确负约束、FK/唯一键、稳定分页、行锁和并发唯一
-  竞争；migration 往返与 Platform API 全量回归统一在 WSL PostgreSQL 执行。
+- WSL PostgreSQL 已覆盖合法状态、SQL 三值逻辑、JSON literal null、受控健康
+  对象、userinfo/多重 `@`、FK/部分唯一键、稳定分页、真实 `FOR UPDATE` 锁竞争、
+  `create_many` 整批回滚和七组并发唯一竞争；Pydantic 与共享 JSON Schema 均
+  具备相同的可表达生命周期条件。独立临时库完成
+  `0008 -> head -> 0008 -> head/check`，
+  Platform API 全量为 `407 passed, 1 skipped`。
 - 本切片不发布 candidate ref、不触发 Gitea CI、不创建部署 API/事件，也不调用
   Deployment Controller 或 Remote Agent。
 

@@ -23,7 +23,7 @@ M7-2D 只建立数据库、ORM、repository 和共享数据契约，不发布 ca
 |`release_candidate_id`|UUID|否|唯一 ReleaseCandidate。|
 |`provider`|TEXT|否|M7 固定为 `gitea`。|
 |`repository_external_id`|TEXT|否|Gitea 仓库稳定外部 ID。|
-|`external_run_id`|TEXT|是|provider run ID；dispatch 已接受但尚未关联 run 时可空。|
+|`external_run_id`|TEXT|是|provider run ID；仅 `triggered` 的 dispatch 已接受但尚未关联 run 窗口可空。|
 |`external_job_id`|TEXT|是|provider job ID。|
 |`workflow_id`|TEXT|否|服务端受控 workflow 标识。|
 |`workflow_revision`|TEXT|否|workflow 定义版本或内容摘要。|
@@ -49,8 +49,8 @@ M7-2D 只建立数据库、ORM、repository 和共享数据契约，不发布 ca
 |状态|必须字段|禁止伪造|
 |---|---|---|
 |`triggered`|基础身份|不得写 passed 证据或完成时间。|
-|`running`|`started_at`|不得写 passed 证据或完成时间。|
-|`passed`|`started_at`、`finished_at`、`provider_head_sha`、manifest Artifact、两类 digest|所有不可变证据必须同时存在。|
+|`running`|`external_run_id`、`started_at`|不得写 passed 证据或完成时间。|
+|`passed`|`external_run_id`、`started_at`、`finished_at`、`provider_head_sha`、manifest Artifact、两类 digest|所有不可变证据必须同时存在。|
 |`failed` / `cancelled`|`finished_at`；`started_at` 可空|不得携带 manifest/digest passed 证据。|
 
 `last_event_action`、`last_event_status`、`last_delivery_id` 和

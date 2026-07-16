@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/deployment/service-instance.schema.json",
+  "title": "CloudHelm ServiceInstance Record Contract",
+  "description": "M7-2D Docker Compose 服务实例与最近健康证据。",
+  "$defs": {
+    "ServiceInstanceRecord": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "health_result_json": {
+                  "type": "null"
+                },
+                "last_health_check_at": {
+                  "type": "null"
+                }
+              }
+            },
+            {
+              "properties": {
+                "health_result_json": {
+                  "not": {
+                    "type": "null"
+                  }
+                },
+                "last_health_check_at": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "healthy",
+                  "unhealthy"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "health_result_json": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "last_health_check_at": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "last_error_code": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "可跨模块传递的完整 ServiceInstance 数据记录。",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "deployment_id": {
+          "format": "uuid",
+          "title": "Deployment Id",
+          "type": "string"
+        },
+        "environment_id": {
+          "format": "uuid",
+          "title": "Environment Id",
+          "type": "string"
+        },
+        "remote_target_id": {
+          "format": "uuid",
+          "title": "Remote Target Id",
+          "type": "string"
+        },
+        "service_name": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+          "title": "Service Name",
+          "type": "string"
+        },
+        "compose_project": {
+          "maxLength": 63,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+          "title": "Compose Project",
+          "type": "string"
+        },
+        "runtime_type": {
+          "const": "docker_compose",
+          "title": "Runtime Type",
+          "type": "string"
+        },
+        "runtime_ref": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runtime Ref"
+        },
+        "image_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Image Digest",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "starting",
+            "running",
+            "healthy",
+            "unhealthy",
+            "stopped",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "health_url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2048,
+              "minLength": 1,
+              "not": {
+                "pattern": "^https?://[^/?#]*@"
+              },
+              "pattern": "^https?://[^\\s]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Health Url"
+        },
+        "health_result_json": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxProperties": 32,
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1,
+                "not": {
+                  "pattern": "(^|_)(token|tokens|secret|secrets|credential|credentials|password|passwords|cookie|cookies|authorization|raw_logs|stdout|stderr|log|logs)(_|$)"
+                },
+                "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Health Result Json"
+        },
+        "last_health_check_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Health Check At"
+        },
+        "last_error_code": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Error Code"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "deployment_id",
+        "environment_id",
+        "remote_target_id",
+        "service_name",
+        "compose_project",
+        "runtime_type",
+        "runtime_ref",
+        "image_digest",
+        "status",
+        "health_url",
+        "health_result_json",
+        "last_health_check_at",
+        "last_error_code",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "ServiceInstanceRecord",
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ServiceInstanceRecord"
+    }
+  ]
+}

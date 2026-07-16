@@ -1,0 +1,691 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/deployment/deployment.schema.json",
+  "title": "CloudHelm Deployment Record Contract",
+  "description": "M7-2D 受第二道 L3 Approval 约束的远端部署权威记录。",
+  "$defs": {
+    "DeploymentRecord": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "planned"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approval_id": {
+                "type": "null"
+              },
+              "approved_by_actor": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "pending_approval"
+              }
+            }
+          },
+          "then": {
+            "allOf": [
+              {
+                "properties": {
+                  "approval_id": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "approved_by_actor": {
+                    "type": "null"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "queued",
+                  "deploying",
+                  "verifying",
+                  "healthy",
+                  "unhealthy",
+                  "rollback_requested"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approval_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "approved_by_actor": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "approved_by_actor": {
+                    "type": "null"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "approval_id": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "planned",
+                  "pending_approval",
+                  "queued"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "remote_operation_id": {
+                "type": "null"
+              },
+              "started_at": {
+                "type": "null"
+              },
+              "finished_at": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "deploying",
+                  "verifying"
+                ]
+              }
+            }
+          },
+          "then": {
+            "allOf": [
+              {
+                "properties": {
+                  "remote_operation_id": {
+                    "not": {
+                      "type": "null"
+                    }
+                  },
+                  "started_at": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "finished_at": {
+                    "type": "null"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "healthy",
+                  "unhealthy",
+                  "rollback_requested"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "remote_operation_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "started_at": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "finished_at": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "health_summary_json": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "allOf": [
+              {
+                "properties": {
+                  "finished_at": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "remote_operation_id": {
+                        "type": "null"
+                      },
+                      "started_at": {
+                        "type": "null"
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "remote_operation_id": {
+                        "not": {
+                          "type": "null"
+                        }
+                      },
+                      "started_at": {
+                        "not": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failure_code": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "planned",
+                  "pending_approval",
+                  "queued",
+                  "deploying",
+                  "verifying",
+                  "healthy",
+                  "unhealthy",
+                  "rollback_requested",
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failure_code": {
+                "type": "null"
+              },
+              "failure_summary": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "rollback_requested"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rollback_candidate_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "rollback_request_artifact_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "planned",
+                  "pending_approval",
+                  "queued",
+                  "deploying",
+                  "verifying",
+                  "healthy",
+                  "unhealthy",
+                  "failed",
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rollback_candidate_id": {
+                "type": "null"
+              },
+              "rollback_request_artifact_id": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "description": "可跨模块传递的完整 Deployment 数据记录。",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "project_id": {
+          "format": "uuid",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "environment_id": {
+          "format": "uuid",
+          "title": "Environment Id",
+          "type": "string"
+        },
+        "remote_target_id": {
+          "format": "uuid",
+          "title": "Remote Target Id",
+          "type": "string"
+        },
+        "ci_run_id": {
+          "format": "uuid",
+          "title": "Ci Run Id",
+          "type": "string"
+        },
+        "release_plan_artifact_id": {
+          "format": "uuid",
+          "title": "Release Plan Artifact Id",
+          "type": "string"
+        },
+        "commit_sha": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "title": "Commit Sha",
+          "type": "string"
+        },
+        "image_ref": {
+          "maxLength": 512,
+          "minLength": 1,
+          "not": {
+            "pattern": "^[A-Za-z][A-Za-z0-9+.-]*://"
+          },
+          "pattern": "^[^\\s@?#\\\\]+@sha256:[0-9a-f]{64}$",
+          "title": "Image Ref",
+          "type": "string"
+        },
+        "image_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Image Digest",
+          "type": "string"
+        },
+        "platform_manifest_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Platform Manifest Digest",
+          "type": "string"
+        },
+        "release_version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "title": "Release Version",
+          "type": "string"
+        },
+        "request_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Hash",
+          "type": "string"
+        },
+        "approval_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approval Id"
+        },
+        "remote_operation_id": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Remote Operation Id"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "pending_approval",
+            "queued",
+            "deploying",
+            "verifying",
+            "healthy",
+            "unhealthy",
+            "failed",
+            "rollback_requested",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "health_summary_json": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxProperties": 32,
+              "propertyNames": {
+                "maxLength": 64,
+                "minLength": 1,
+                "not": {
+                  "pattern": "(^|_)(token|tokens|secret|secrets|credential|credentials|password|passwords|cookie|cookies|authorization|raw_logs|stdout|stderr|log|logs)(_|$)"
+                },
+                "pattern": "^[a-z][a-z0-9_]{0,63}$",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Health Summary Json"
+        },
+        "failure_code": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "pattern": "^[a-z][a-z0-9_]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failure Code"
+        },
+        "failure_summary": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Failure Summary"
+        },
+        "requested_by_actor": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Requested By Actor",
+          "type": "string"
+        },
+        "approved_by_actor": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approved By Actor"
+        },
+        "dispatched_by_agent_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Dispatched By Agent Run Id"
+        },
+        "idempotency_key": {
+          "maxLength": 180,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Finished At"
+        },
+        "rollback_candidate_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rollback Candidate Id"
+        },
+        "rollback_request_artifact_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rollback Request Artifact Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "project_id",
+        "environment_id",
+        "remote_target_id",
+        "ci_run_id",
+        "release_plan_artifact_id",
+        "commit_sha",
+        "image_ref",
+        "image_digest",
+        "platform_manifest_digest",
+        "release_version",
+        "request_hash",
+        "approval_id",
+        "remote_operation_id",
+        "status",
+        "health_summary_json",
+        "failure_code",
+        "failure_summary",
+        "requested_by_actor",
+        "approved_by_actor",
+        "dispatched_by_agent_run_id",
+        "idempotency_key",
+        "started_at",
+        "finished_at",
+        "rollback_candidate_id",
+        "rollback_request_artifact_id",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "DeploymentRecord",
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/DeploymentRecord"
+    }
+  ]
+}

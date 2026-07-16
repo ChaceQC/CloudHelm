@@ -12,6 +12,13 @@
 - `schemas/workflow/workflow-job.schema.json`：严格 broker message、
   `release_candidate_reconcile` payload/result 和 PostgreSQL WorkflowJob 读取
   契约；所有对象拒绝额外字段，broker 只允许 `workflow_job_id`。
+- `schemas/ci/ci-run.schema.json`：M7-2D CIRun 完整 Record，绑定 Gitea
+  workflow、candidate ref、commit、provider 幂等线索、run identity 和不可变
+  制品证据；使用 `allOf/if/then` 表达可验证生命周期。
+- `schemas/deployment/*.schema.json`：M7-2D Deployment 与 ServiceInstance 完整
+  Record，约束 L3 Approval 投影、digest、operation、rollback、健康/失败证据和
+  固定 `docker_compose` runtime；健康对象只允许小写受控 key 与 scalar value，
+  拒绝凭据、敏感字段和原始日志。
 - `schemas/agents/agent-common.schema.json`：八类普通 Agent 共用的稳定传输
   前缀，约束 schema 版本、角色、状态、摘要、证据引用、风险、阻塞项和
   ToolCall 摘要。

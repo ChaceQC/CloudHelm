@@ -1,0 +1,531 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloudhelm.local/schemas/ci/ci-run.schema.json",
+  "title": "CloudHelm CIRun Record Contract",
+  "description": "M7-2D Gitea CI 权威记录；不包含 token、credential、raw logs 或 webhook 原文。",
+  "$defs": {
+    "CIRunRecord": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "last_event_action": {
+                  "type": "null"
+                },
+                "last_event_status": {
+                  "type": "null"
+                },
+                "last_delivery_id": {
+                  "type": "null"
+                },
+                "provider_updated_at": {
+                  "type": "null"
+                }
+              }
+            },
+            {
+              "properties": {
+                "last_event_action": {
+                  "not": {
+                    "type": "null"
+                  }
+                },
+                "last_event_status": {
+                  "not": {
+                    "type": "null"
+                  }
+                },
+                "last_delivery_id": {
+                  "not": {
+                    "type": "null"
+                  }
+                },
+                "provider_updated_at": {
+                  "not": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "if": {
+            "properties": {
+              "external_job_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "external_run_id": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "triggered"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "started_at": {
+                "type": "null"
+              },
+              "finished_at": {
+                "type": "null"
+              },
+              "artifact_manifest_id": {
+                "type": "null"
+              },
+              "image_index_digest": {
+                "type": "null"
+              },
+              "platform_manifest_digest": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "running"
+              }
+            }
+          },
+          "then": {
+            "allOf": [
+              {
+                "properties": {
+                  "external_run_id": {
+                    "not": {
+                      "type": "null"
+                    }
+                  },
+                  "started_at": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "finished_at": {
+                    "type": "null"
+                  },
+                  "artifact_manifest_id": {
+                    "type": "null"
+                  },
+                  "image_index_digest": {
+                    "type": "null"
+                  },
+                  "platform_manifest_digest": {
+                    "type": "null"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "passed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "external_run_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "started_at": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "finished_at": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "provider_head_sha": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "artifact_manifest_id": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "image_index_digest": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "platform_manifest_digest": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "allOf": [
+              {
+                "properties": {
+                  "finished_at": {
+                    "not": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "artifact_manifest_id": {
+                    "type": "null"
+                  },
+                  "image_index_digest": {
+                    "type": "null"
+                  },
+                  "platform_manifest_digest": {
+                    "type": "null"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "description": "可跨模块传递的完整 CIRun 数据记录。",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "project_id": {
+          "format": "uuid",
+          "title": "Project Id",
+          "type": "string"
+        },
+        "pull_request_record_id": {
+          "format": "uuid",
+          "title": "Pull Request Record Id",
+          "type": "string"
+        },
+        "release_candidate_id": {
+          "format": "uuid",
+          "title": "Release Candidate Id",
+          "type": "string"
+        },
+        "provider": {
+          "const": "gitea",
+          "title": "Provider",
+          "type": "string"
+        },
+        "repository_external_id": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Repository External Id",
+          "type": "string"
+        },
+        "external_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "External Run Id"
+        },
+        "external_job_id": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "External Job Id"
+        },
+        "workflow_id": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Workflow Id",
+          "type": "string"
+        },
+        "workflow_revision": {
+          "maxLength": 255,
+          "minLength": 1,
+          "title": "Workflow Revision",
+          "type": "string"
+        },
+        "source_ref": {
+          "allOf": [
+            {
+              "not": {
+                "pattern": "\\.\\.|//|@\\{"
+              }
+            },
+            {
+              "not": {
+                "pattern": "(^|/)\\."
+              }
+            },
+            {
+              "not": {
+                "pattern": "\\.lock(/|$)"
+              }
+            },
+            {
+              "not": {
+                "pattern": "[./]$"
+              }
+            }
+          ],
+          "maxLength": 512,
+          "minLength": 12,
+          "pattern": "^refs/heads/[^\\s~^:?*\\[\\\\]+$",
+          "title": "Source Ref",
+          "type": "string"
+        },
+        "commit_sha": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "title": "Commit Sha",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "triggered",
+            "running",
+            "passed",
+            "failed",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "maxLength": 180,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "last_event_action": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Event Action"
+        },
+        "last_event_status": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Event Status"
+        },
+        "last_delivery_id": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Delivery Id"
+        },
+        "provider_head_sha": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Head Sha"
+        },
+        "provider_updated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Provider Updated At"
+        },
+        "artifact_manifest_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Artifact Manifest Id"
+        },
+        "image_index_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Image Index Digest"
+        },
+        "platform_manifest_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Platform Manifest Digest"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Finished At"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "project_id",
+        "pull_request_record_id",
+        "release_candidate_id",
+        "provider",
+        "repository_external_id",
+        "external_run_id",
+        "external_job_id",
+        "workflow_id",
+        "workflow_revision",
+        "source_ref",
+        "commit_sha",
+        "status",
+        "idempotency_key",
+        "last_event_action",
+        "last_event_status",
+        "last_delivery_id",
+        "provider_head_sha",
+        "provider_updated_at",
+        "artifact_manifest_id",
+        "image_index_digest",
+        "platform_manifest_digest",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "CIRunRecord",
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/CIRunRecord"
+    }
+  ]
+}

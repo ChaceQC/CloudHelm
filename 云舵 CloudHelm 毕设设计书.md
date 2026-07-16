@@ -1734,7 +1734,9 @@ CREATE TABLE ci_runs (
 M7 CI 只允许服务端对固定 workflow 和精确 candidate ref 发起唯一
 `workflow_dispatch`。状态固定为 `triggered/running/passed/failed/cancelled`；
 passed 必须绑定 manifest、两类不可变 digest、开始/完成时间和与 commit 相同的
-provider head SHA。CI 不执行 SSH、Compose、Remote Agent、restart 或部署命令。
+provider head SHA。`external_run_id` 仅在 `triggered` 的 provider run 尚未关联
+窗口可空，`running/passed` 必须具有真实 run identity；provider event 四字段必须
+全空或全有。CI 不执行 SSH、Compose、Remote Agent、restart 或部署命令。
 
 #### deployments
 
@@ -1746,6 +1748,7 @@ CREATE TABLE deployments (
     environment_id UUID NOT NULL REFERENCES environments(id),
     remote_target_id UUID NOT NULL REFERENCES remote_targets(id),
     ci_run_id UUID NOT NULL REFERENCES ci_runs(id),
+    release_plan_artifact_id UUID NOT NULL REFERENCES artifacts(id),
     commit_sha TEXT NOT NULL,
     image_ref TEXT NOT NULL,
     image_digest TEXT NOT NULL,
@@ -1777,8 +1780,13 @@ Deployment 状态固定为
 `planned/pending_approval/queued/deploying/verifying/healthy/unhealthy/failed/
 rollback_requested/cancelled`。`approval_id` 记录第二道 L3 deployment Approval，
 数据库双向绑定 `approve_deployment + deployment + L3`；审批事务不直接触发远端
-副作用。M7 健康失败只保存有界脱敏 failure 和 rollback candidate/request，不自动
-restart 或 rollback。
+副作用。`rollback_requested` 必须具有 Approval、approved actor、operation、
+started/finished、health summary、另一条历史 healthy Deployment 和 rollback
+request Artifact，且禁止自引用。`image_ref` 只允许一个 digest 分隔 `@`，拒绝
+URL scheme/userinfo；健康对象最多 32 个小写受控 key，value 只允许最长 512 字符
+string、number、boolean 或 null，并拒绝凭据、敏感字段和
+raw logs/stdout/stderr/log。M7 健康失败只保存有界脱敏 failure 和 rollback
+candidate/request，不自动 restart 或 rollback。
 
 #### service_instances
 
@@ -1806,9 +1814,11 @@ CREATE TABLE service_instances (
 
 ServiceInstance 状态固定为
 `starting/running/healthy/unhealthy/stopped/failed`，M7 不增加 `unknown`；
-healthy/unhealthy 必须有结构化健康结果和检查时间。runtime 固定为
-`docker_compose`。Environment、RemoteTarget 和 digest 与父 Deployment 的一致性
-由后续 service 在同一事务和锁序中重验。
+healthy/unhealthy 必须有结构化健康结果和检查时间，failed 必须有稳定
+last error code，health URL 不接受 userinfo。健康对象沿用 Deployment 的受控
+key/scalar 与敏感字段拒绝规则。runtime 固定为 `docker_compose`。Environment、
+RemoteTarget 和 digest 与父 Deployment 的一致性由后续 service 在同一事务和
+锁序中重验。
 
 #### project_alerts
 
