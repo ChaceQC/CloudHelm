@@ -2,6 +2,76 @@
 
 本文件记录 CloudHelm 每次设计、实现、测试、部署和范围调整的进度。每完成一个可验证小步后必须更新。
 
+## 2026-07-16（M7-2D CI/部署数据契约冻结）
+
+### 已完成
+
+- 按 `PROJECT_PLAN.md` 先完成 M7-2D 文档契约冻结，尚未把数据表计划写成已交付：
+  - CIRun 状态固定为
+    `triggered/running/passed/failed/cancelled`，provider 固定 `gitea`。
+  - ServiceInstance 状态固定为
+    `starting/running/healthy/unhealthy/stopped/failed`，不增加 `unknown`，
+    runtime 固定 `docker_compose`。
+  - Deployment 失败证据统一使用 `failure_code/failure_summary`，并保留有界脱敏
+    `health_summary_json`。
+  - `workflow_revision` 定义为 1-255 字符有界 opaque revision，不误假设为
+    Gitea commit SHA。
+- 冻结三表完整字段、状态证据、SHA/digest/ref/slug/JSON 约束、唯一键、部分唯一
+  索引、FK 删除规则、稳定分页和跨表锁内重验边界。
+- Deployment Approval 采用独立
+  `ck_approval_requests_deployment`，双向绑定
+  `approve_deployment + deployment + L3 + requested_by_agent_run_id`；
+  不修改历史 `20260716_0008`，现有 release candidate L2 CHECK 保持有效。
+- 新增 `docs/07-data/tables/ci_runs.md`，重写旧
+  `deployments.md`、`service_instances.md`，清除 `image_tag/deployed_by/
+  rollback_from` 等漂移字段。
+- 同步总设计书、数据库总表、数据索引和 M7/Data 细化设计；明确 M7-2D 不发布
+  candidate ref、不触发 Gitea CI、不新增部署 API/事件，也不调用 Controller 或
+  Remote Agent。
+- 三个只读设计子任务分别核验 migration/约束、ORM/repository/契约和测试矩阵，
+  工作树写入仍由主线程串行完成。
+
+### 进行中
+
+- 编写 `20260716_0009` migration、三表 ORM、repository、严格 Pydantic Record
+  和 Draft 2020-12 共享 JSON Schema。
+
+### 阻塞与风险
+
+- Task/Project、Environment/RemoteTarget、父子 commit/digest 等跨表相等关系不能
+  由单行 CHECK 完成；M7-2D 只提供精确查询与锁入口，后续 service 必须按
+  `Task -> CIRun/Deployment -> ServiceInstance/Approval` 锁序重验。
+- M7-2D 完成后仍只是数据底座；candidate ref、真实 Gitea CI、ReleasePlan、
+  第二道审批 service/API 和远端 operation 仍需后续纵切。
+
+### 下一步
+
+1. 新增 `20260716_0009_create_m7_ci_deployment_data.py`。
+2. 新增 CIRun、Deployment、ServiceInstance ORM 并注册 Alembic metadata。
+3. 新增三个只负责持久化、查询、稳定分页和行锁的 repository。
+4. 新增三个内部 Record DTO 与共享 JSON Schema。
+5. 在 WSL PostgreSQL 执行正负约束、并发、migration 往返和 Platform API 回归。
+
+### 涉及文件
+
+- `云舵 CloudHelm 毕设设计书.md`
+- `docs/07-data/01-database-schema.md`
+- `docs/07-data/README.md`
+- `docs/07-data/tables/ci_runs.md`
+- `docs/07-data/tables/deployments.md`
+- `docs/07-data/tables/service_instances.md`
+- `docs/15-detailed-design/04-data-detail.md`
+- `docs/15-detailed-design/09-m7-ci-remote-deployment-flow.md`
+- `docs/README.md`
+- `PROJECT_PROGRESS.md`
+
+### 验证
+
+- `git diff --check` 通过。
+- Git 纳入范围共 `737` 个文件，严格 UTF-8 解码错误 `0`、BOM `0`。
+- Markdown `205` 个、相对链接 `483` 条，缺失 `0`。
+- 已复查文档 diff，确认没有新增未来 HTTP path、生产事件或外部副作用实现声明。
+
 ## 2026-07-16（M7-2C durable Workflow Engine 完成并进入 M7-2D）
 
 ### 已完成

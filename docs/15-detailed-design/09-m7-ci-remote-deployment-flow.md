@@ -332,12 +332,20 @@ published 只有在 `git ls-remote --refs` 返回的完整 SHA 与本地 commit 
 
 ### 5.3 CIRun
 
-- provider、external run id、repository、source ref、commit。
-- PullRequestRecord、ReleaseCandidate、Task、Project。
-- workflow revision、status、started/finished time。
-- artifact manifest Artifact。
-- event action/status、provider updated time、head SHA。
-- provider/run id 和 Task/idempotency key 唯一。
+- provider 固定 `gitea`，保存 repository external id、可空 external run/job id。
+- 精确绑定 PullRequestRecord、ReleaseCandidate、Task、Project。
+- 保存受控 workflow id、有界 opaque workflow revision、完整 source ref 和
+  40/64 位小写 commit SHA。
+- status 固定为 `triggered/running/passed/failed/cancelled`。
+- provider event action/status、delivery id、updated time 和 head SHA 只保存最后
+  一次安全幂等线索。
+- passed 必须具有 artifact manifest Artifact、image index digest、platform
+  manifest digest、started/finished，并且 provider head SHA 等于 commit。
+- `release_candidate_id`、Task/idempotency key 唯一；非空
+  provider/repository/run id 使用部分唯一索引。
+- Task/Project 列表按 `created_at DESC,id DESC` 稳定分页。
+
+本表不保存 token、credential、clone URL、原始 CI 日志或 webhook 原文。
 
 ### 5.4 WorkflowJob
 
@@ -436,18 +444,47 @@ failed + `release_candidate_approval_state_invalid`。
 ### 5.7 Deployment
 
 - Task、Project、Environment、RemoteTarget、CIRun。
-- ReleasePlan Artifact、Approval。
-- release version、commit、image ref/digest、request hash。
-- remote operation id、status、health summary、failure、rollback candidate。
-- requested/approved/dispatched actor。
-- Task/idempotency key、Environment/release version 唯一。
+- ReleasePlan Artifact、第二道 L3 Approval。
+- release version、commit、image ref、image digest、platform manifest digest 和
+  request hash。
+- remote operation id、status、JSON object health summary、稳定 failure
+  code/有界脱敏 summary。
+- requested/approved actor 与 dispatched AgentRun。
+- rollback candidate 与 rollback request Artifact 只记录请求，不执行回滚。
+- Task/idempotency key、Environment/release version 唯一；非空 Approval 和
+  RemoteTarget/operation 分别唯一。
+- Task/Project/Environment 列表按 `created_at DESC,id DESC` 稳定分页。
+
+状态证据：
+
+```text
+planned            -> no approval
+pending_approval   -> approval
+queued             -> approval + approved actor
+deploying          -> approval + actor + operation + started
+verifying          -> approval + actor + operation + started
+healthy/unhealthy  -> operation + started + finished + health object
+failed             -> finished + stable failure code
+rollback_requested -> historical candidate + rollback request Artifact
+cancelled          -> terminal; finished required if operation started
+```
+
+Approval 必须双向满足
+`approve_deployment + deployment + L3 + requested_by_agent_run_id`。
 
 ### 5.8 ServiceInstance
 
 - Deployment、Environment、RemoteTarget。
 - service name、Compose project。
-- runtime type/ref、status、health URL/result。
+- runtime type 固定 `docker_compose`；保存 runtime ref 与 OCI digest。
+- status 固定 `starting/running/healthy/unhealthy/stopped/failed`，不增加
+  `unknown`。
+- health URL、JSON object health result、last check 和稳定 last error code。
 - Deployment/service name 唯一。
+
+healthy/unhealthy 必须同时具有 health result 和 last check。父 Deployment 的
+Environment、Target 与 digest 一致性由后续 service 在锁内重验，repository 不
+承担状态机或跨表业务判断。
 
 ## 6. 状态机
 
@@ -1033,8 +1070,14 @@ SSE 使用数据库 EventLog tailing：
 
 ### M7-2D：CI 与部署数据底座
 
-- 规划实现 CIRun、Deployment、ServiceInstance 的 PostgreSQL migration、ORM、
-  repository 和严格共享数据契约。
+- 字段、状态、约束、唯一键、FK 删除规则、索引和锁序已冻结。
+- 实现 CIRun、Deployment、ServiceInstance 的 PostgreSQL migration、ORM、
+  repository、严格 Pydantic Record 与 Draft 2020-12 共享 JSON Schema。
+- 为 deployment Approval 增加独立
+  `ck_approval_requests_deployment`；不修改 `20260716_0008` 历史 migration，
+  原 release candidate L2 CHECK 保持有效。
+- 数据库测试覆盖合法状态、精确负约束、FK/唯一键、稳定分页、行锁和并发唯一
+  竞争；migration 往返与 Platform API 全量回归统一在 WSL PostgreSQL 执行。
 - 本切片不发布 candidate ref、不触发 Gitea CI、不创建部署 API/事件，也不调用
   Deployment Controller 或 Remote Agent。
 

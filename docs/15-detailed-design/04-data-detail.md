@@ -200,8 +200,10 @@ M7-2B2 已实现 Candidate、第一道 L2 Approval 与
 freshness、自批和并发门禁。M7-2C 已实现 durable dispatcher/worker、
 claim/lease/heartbeat、safe retry、Redis 补投、stale reclaim 与纯数据库
 reconcile handler。
-`ci_runs`、`deployments` 和 `service_instances` 仍属于后续 M7 纵切，不能因 M7-1
-四张基础表或 M7-2A 三张数据表已落地而标记完整 M7 完成。
+M7-2D 已冻结 `ci_runs`、`deployments` 和 `service_instances` 的字段、状态、
+单行不变量、唯一键、锁入口和共享 record 契约；只有 `20260716_0009`、
+ORM/repository/schema 及真实 PostgreSQL 测试全部落地后，才可标记该数据底座
+完成。即使 M7-2D 完成，也不代表 candidate ref、Gitea CI 或远端部署闭环完成。
 
 ## 1. 核心 ER 关系
 
@@ -359,6 +361,35 @@ rejected 后重复 POST 返回原记录；重新申请必须产生新 PR 或新 
 每 Task 的部分唯一索引只包含 `pending_approval|approved`，published 保留为历史
 发布终态。
 
+### ci_runs.status
+
+```text
+triggered
+running
+passed
+failed
+cancelled
+```
+
+`CIRun` 唯一绑定 ReleaseCandidate，并保存 Task、Project、PullRequestRecord、
+repository external id、固定 workflow、完整 candidate ref 和 commit。provider
+固定为 `gitea`；`external_run_id` 在 dispatch 已接受但 Gitea run 尚未关联时可空。
+
+`passed` 必须同时具有 Artifact manifest、image index digest、platform manifest
+digest、started/finished 和与 commit 相同的 provider head SHA；其他状态不得携带
+这组三项成功制品证据。最后一次 event action/status/delivery/provider time 必须
+全空或全有，仅用于安全幂等比较，不替代完整 EventLog 审计。
+
+唯一身份和查询顺序固定为：
+
+```text
+release_candidate_id UNIQUE
+(task_id, idempotency_key) UNIQUE
+(provider, repository_external_id, external_run_id) UNIQUE
+  WHERE external_run_id IS NOT NULL
+list order = created_at DESC, id DESC
+```
+
 ### deployments.status
 
 ```text
@@ -376,6 +407,52 @@ cancelled
 
 M7 不自动写 `rolled_back`；rollback request 只保存 candidate/plan，后续执行必须
 创建新的 Deployment 和独立审批。
+
+Deployment 状态证据固定为：
+
+- `planned` 不绑定 Approval。
+- `pending_approval` 必须绑定 Approval，批准人为空。
+- `queued` 起必须绑定 Approval 和 approved actor。
+- `deploying/verifying` 必须绑定 Remote Agent operation 和 started time。
+- `healthy/unhealthy` 必须再有 finished time 与 JSON object health summary。
+- `failed` 必须有 finished time 与稳定 failure code。
+- `rollback_requested` 必须同时绑定另一条历史 Deployment 和 rollback request
+  Artifact，且不能自引用。
+- `cancelled` 若已开始 operation，则必须保存 finished time。
+
+Deployment Approval 数据库组合固定为：
+
+```text
+action=approve_deployment
+resource_type=deployment
+risk_level=L3
+requested_by_agent_run_id IS NOT NULL
+```
+
+其他 action 不能使用 deployment resource；现有 release candidate L2 组合继续
+有效。ReleasePlan hash 使用不可变 `artifacts.sha256`，本表不复制第二份 plan
+content hash。
+
+### service_instances.status
+
+```text
+starting
+running
+healthy
+unhealthy
+stopped
+failed
+```
+
+M7 runtime type 固定为 `docker_compose`，不增加 `unknown`。service name 与
+Compose project 使用受控 slug；image identity 使用 SHA-256 OCI digest。
+`healthy/unhealthy` 必须同时有 JSON object health result 和 last health check。
+`(deployment_id, service_name)` 唯一。
+
+Environment、RemoteTarget、Task/Project、commit 与 digest 的跨表相等关系不放入
+CHECK；后续 service 按 `Task -> CIRun/Deployment -> ServiceInstance/Approval`
+锁序在同一事务重验。M7-2D repository 只提供精确查询、分页和行锁，不推进状态、
+不写事件、不调用外部系统。
 
 ### workflow_jobs.status
 

@@ -792,29 +792,47 @@ Candidate 唯一身份为 `(pull_request_record_id, binding_snapshot_sha256)`；
 CREATE TABLE ci_runs (
     id UUID PRIMARY KEY,
     task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    project_id UUID NOT NULL REFERENCES projects(id),
-    release_candidate_id UUID NOT NULL UNIQUE REFERENCES release_candidates(id),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    pull_request_record_id UUID NOT NULL
+      REFERENCES pull_request_records(id) ON DELETE NO ACTION,
+    release_candidate_id UUID NOT NULL UNIQUE
+      REFERENCES release_candidates(id) ON DELETE NO ACTION,
     provider TEXT NOT NULL DEFAULT 'gitea',
-    external_run_id TEXT NOT NULL,
+    repository_external_id TEXT NOT NULL,
+    external_run_id TEXT,
     external_job_id TEXT,
     workflow_id TEXT NOT NULL,
     workflow_revision TEXT NOT NULL,
     source_ref TEXT NOT NULL,
     commit_sha TEXT NOT NULL,
-    status TEXT NOT NULL,
-    artifact_manifest_id UUID REFERENCES artifacts(id),
+    status TEXT NOT NULL DEFAULT 'triggered',
+    idempotency_key TEXT NOT NULL,
+    last_event_action TEXT,
+    last_event_status TEXT,
+    last_delivery_id TEXT,
+    provider_head_sha TEXT,
+    provider_updated_at TIMESTAMPTZ,
+    artifact_manifest_id UUID REFERENCES artifacts(id) ON DELETE NO ACTION,
     image_index_digest TEXT,
     platform_manifest_digest TEXT,
-    provider_updated_at TIMESTAMPTZ,
     started_at TIMESTAMPTZ,
     finished_at TIMESTAMPTZ,
-    UNIQUE (provider, external_run_id)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (task_id, idempotency_key)
 );
 ```
 
 `ci_runs` 只接收唯一 `workflow_dispatch` 对应的 run/job 状态。Webhook delivery id
 只用于 delivery attempt 去重，业务幂等还必须校验 repository、run/job、
-action/status、head SHA 和 provider update time。
+action/status、head SHA 和 provider update time。状态固定为
+`triggered/running/passed/failed/cancelled`；passed 必须同时绑定 manifest、
+image index digest、platform manifest digest、started/finished 和与 commit 一致的
+provider head SHA，其他状态不得伪造 passed 证据。
+
+`workflow_revision` 保存 Gitea workflow 的稳定有界 revision 文本，不假设它一定是
+commit SHA。`release_candidate_id` 唯一；非空
+`(provider, repository_external_id, external_run_id)` 使用部分唯一索引。
 
 #### workflow_jobs（M7）
 
@@ -1183,7 +1201,10 @@ CREATE TABLE deployments (
     request_hash TEXT NOT NULL,
     approval_id UUID REFERENCES approval_requests(id),
     remote_operation_id TEXT,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned',
+    health_summary_json JSONB,
+    failure_code TEXT,
+    failure_summary TEXT,
     requested_by_actor TEXT NOT NULL,
     approved_by_actor TEXT,
     dispatched_by_agent_run_id UUID REFERENCES agent_runs(id),
@@ -1199,6 +1220,15 @@ CREATE TABLE deployments (
 
 M7 `deployments.status` 不包含 `restarting` 或 `rolled_back`。rollback request
 只保存 candidate/plan；后续如实现执行，必须创建新的 Deployment 和独立审批。
+状态固定为 `planned/pending_approval/queued/deploying/verifying/healthy/unhealthy/
+failed/rollback_requested/cancelled`。从 `pending_approval` 起绑定 Approval，
+从 `queued` 起保存 approved actor，运行态必须绑定 operation 与 started time，
+健康终态必须保存 JSON object health summary，failed 必须保存稳定 failure code。
+
+Deployment Approval 的数据库组合固定为
+`approve_deployment + deployment + L3 + requested_by_agent_run_id`；其他 action
+不得冒充 deployment resource。ReleasePlan 内容 hash 继续使用不可变
+`artifacts.sha256`，本表不复制可漂移的第二份 plan hash。
 
 #### service_instances
 
@@ -1213,13 +1243,21 @@ CREATE TABLE service_instances (
     runtime_type TEXT NOT NULL,
     runtime_ref TEXT,
     image_digest TEXT NOT NULL,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'starting',
     health_url TEXT,
+    health_result_json JSONB,
     last_health_check_at TIMESTAMPTZ,
+    last_error_code TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (deployment_id, service_name)
 );
 ```
+
+M7 `runtime_type` 固定为 `docker_compose`，status 固定为
+`starting/running/healthy/unhealthy/stopped/failed`，不增加 `unknown`。healthy
+或 unhealthy 必须同时保存 JSON object health result 与 check time。Environment、
+RemoteTarget 和 digest 与父 Deployment 的一致性由后续 service 在锁内重验。
 
 #### project_alerts（M8）
 

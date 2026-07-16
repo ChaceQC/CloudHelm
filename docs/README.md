@@ -127,13 +127,18 @@
 - [07-data/tables/agent_runs.md](07-data/tables/agent_runs.md)
 - [07-data/tables/approval_requests.md](07-data/tables/approval_requests.md)
 - [07-data/tables/artifacts.md](07-data/tables/artifacts.md)
+- [07-data/tables/ci_runs.md](07-data/tables/ci_runs.md)
 - [07-data/tables/development_plans.md](07-data/tables/development_plans.md)
 - [07-data/tables/deployments.md](07-data/tables/deployments.md)
 - [07-data/tables/environments.md](07-data/tables/environments.md)
 - [07-data/tables/event_logs.md](07-data/tables/event_logs.md)
 - [07-data/tables/project_alerts.md](07-data/tables/project_alerts.md)
 - [07-data/tables/projects.md](07-data/tables/projects.md)
+- [07-data/tables/project_repository_bindings.md](07-data/tables/project_repository_bindings.md)
 - [07-data/tables/pull_request_records.md](07-data/tables/pull_request_records.md)
+- [07-data/tables/release_candidates.md](07-data/tables/release_candidates.md)
+- [07-data/tables/remote_agent_credentials.md](07-data/tables/remote_agent_credentials.md)
+- [07-data/tables/remote_agent_replay_nonces.md](07-data/tables/remote_agent_replay_nonces.md)
 - [07-data/tables/remote_sessions.md](07-data/tables/remote_sessions.md)
 - [07-data/tables/remote_targets.md](07-data/tables/remote_targets.md)
 - [07-data/tables/requirement_specs.md](07-data/tables/requirement_specs.md)
@@ -141,6 +146,7 @@
 - [07-data/tables/tasks.md](07-data/tables/tasks.md)
 - [07-data/tables/technical_designs.md](07-data/tables/technical_designs.md)
 - [07-data/tables/tool_calls.md](07-data/tables/tool_calls.md)
+- [07-data/tables/workflow_jobs.md](07-data/tables/workflow_jobs.md)
 
 ### API 文档
 

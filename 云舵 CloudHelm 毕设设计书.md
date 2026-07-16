@@ -1696,6 +1696,46 @@ CREATE TABLE remote_targets (
 API 不返回 `credential_ref`，`agent_endpoint` 只返回脱敏展示值。SSH、K8s
 context 和 namespace 不进入 M7 `remote_targets` 生产模型。
 
+#### ci_runs
+
+```sql
+CREATE TABLE ci_runs (
+    id UUID PRIMARY KEY,
+    task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    pull_request_record_id UUID NOT NULL REFERENCES pull_request_records(id),
+    release_candidate_id UUID NOT NULL UNIQUE REFERENCES release_candidates(id),
+    provider TEXT NOT NULL DEFAULT 'gitea',
+    repository_external_id TEXT NOT NULL,
+    external_run_id TEXT,
+    external_job_id TEXT,
+    workflow_id TEXT NOT NULL,
+    workflow_revision TEXT NOT NULL,
+    source_ref TEXT NOT NULL,
+    commit_sha TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'triggered',
+    idempotency_key TEXT NOT NULL,
+    last_event_action TEXT,
+    last_event_status TEXT,
+    last_delivery_id TEXT,
+    provider_head_sha TEXT,
+    provider_updated_at TIMESTAMPTZ,
+    artifact_manifest_id UUID REFERENCES artifacts(id),
+    image_index_digest TEXT,
+    platform_manifest_digest TEXT,
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (task_id, idempotency_key)
+);
+```
+
+M7 CI 只允许服务端对固定 workflow 和精确 candidate ref 发起唯一
+`workflow_dispatch`。状态固定为 `triggered/running/passed/failed/cancelled`；
+passed 必须绑定 manifest、两类不可变 digest、开始/完成时间和与 commit 相同的
+provider head SHA。CI 不执行 SSH、Compose、Remote Agent、restart 或部署命令。
+
 #### deployments
 
 ```sql
@@ -1709,22 +1749,36 @@ CREATE TABLE deployments (
     commit_sha TEXT NOT NULL,
     image_ref TEXT NOT NULL,
     image_digest TEXT NOT NULL,
+    platform_manifest_digest TEXT NOT NULL,
     release_version TEXT NOT NULL,
     request_hash TEXT NOT NULL,
     approval_id UUID REFERENCES approval_requests(id),
     remote_operation_id TEXT,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned',
+    health_summary_json JSONB,
+    failure_code TEXT,
+    failure_summary TEXT,
     requested_by_actor TEXT NOT NULL,
     approved_by_actor TEXT,
     dispatched_by_agent_run_id UUID REFERENCES agent_runs(id),
     idempotency_key TEXT NOT NULL,
-    started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at TIMESTAMPTZ,
     finished_at TIMESTAMPTZ,
-    rollback_from UUID REFERENCES deployments(id),
+    rollback_candidate_id UUID REFERENCES deployments(id),
+    rollback_request_artifact_id UUID REFERENCES artifacts(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (task_id, idempotency_key),
     UNIQUE (environment_id, release_version)
 );
 ```
+
+Deployment 状态固定为
+`planned/pending_approval/queued/deploying/verifying/healthy/unhealthy/failed/
+rollback_requested/cancelled`。`approval_id` 记录第二道 L3 deployment Approval，
+数据库双向绑定 `approve_deployment + deployment + L3`；审批事务不直接触发远端
+副作用。M7 健康失败只保存有界脱敏 failure 和 rollback candidate/request，不自动
+restart 或 rollback。
 
 #### service_instances
 
@@ -1733,15 +1787,28 @@ CREATE TABLE service_instances (
     id UUID PRIMARY KEY,
     deployment_id UUID NOT NULL REFERENCES deployments(id),
     environment_id UUID NOT NULL REFERENCES environments(id),
+    remote_target_id UUID NOT NULL REFERENCES remote_targets(id),
     service_name TEXT NOT NULL,
-    runtime_type TEXT NOT NULL,
+    compose_project TEXT NOT NULL,
+    runtime_type TEXT NOT NULL DEFAULT 'docker_compose',
     runtime_ref TEXT,
-    status TEXT NOT NULL,
+    image_digest TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'starting',
     health_url TEXT,
+    health_result_json JSONB,
     last_health_check_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    last_error_code TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (deployment_id, service_name)
 );
 ```
+
+ServiceInstance 状态固定为
+`starting/running/healthy/unhealthy/stopped/failed`，M7 不增加 `unknown`；
+healthy/unhealthy 必须有结构化健康结果和检查时间。runtime 固定为
+`docker_compose`。Environment、RemoteTarget 和 digest 与父 Deployment 的一致性
+由后续 service 在同一事务和锁序中重验。
 
 #### project_alerts
 

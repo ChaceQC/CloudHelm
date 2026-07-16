@@ -15,6 +15,7 @@
 - [tables/agent_runs.md](tables/agent_runs.md)
 - [tables/approval_requests.md](tables/approval_requests.md)
 - [tables/artifacts.md](tables/artifacts.md)
+- [tables/ci_runs.md](tables/ci_runs.md)
 - [tables/development_plans.md](tables/development_plans.md)
 - [tables/deployments.md](tables/deployments.md)
 - [tables/environments.md](tables/environments.md)
