@@ -84,14 +84,36 @@ jobs:
           import pathlib
           from packages.contracts.p0.runtime_contracts import P0RuntimeContracts
 
-          for path in pathlib.Path("scripts/p0").glob("*.py"):
-              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+          for directory in ("scripts/p0", "integrations", "examples/standalone-project/backend/app", "examples/standalone-project/backend/migrations", "docs/acceptance/reference/r1"):
+              for path in pathlib.Path(directory).rglob("*.py"):
+                  ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
           schema = P0RuntimeContracts.model_json_schema()
           assert {"RuntimeInput", "TurnResult", "AcceptedReceipt"}.issubset(schema["$defs"])
           for path in pathlib.Path("packages/contracts/p0").glob("*.json"):
               json.loads(path.read_text(encoding="utf-8"))
-          print("P0 源码语法、锁定依赖和契约导入检查通过；未运行模型、数据库或容器实验。")
+          import sys
+          sys.path.insert(0, "examples/standalone-project/backend")
+          from app.main import create_app
+          frozen_api = json.loads(pathlib.Path("examples/standalone-project/backend/openapi.json").read_text(encoding="utf-8"))
+          assert create_app(None).openapi() == frozen_api
+          print("P0/参照源码语法、锁定依赖、契约导入与OpenAPI一致性检查通过；未运行模型、数据库或容器实验。")
           PY
+
+      - name: 检查参照后端依赖锁
+        run: uv lock --check --directory examples/standalone-project/backend
+
+      - name: 安装参照构建用 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.2"
+          cache: npm
+          cache-dependency-path: examples/standalone-project/frontend/package-lock.json
+
+      - name: 构建参照前端
+        working-directory: examples/standalone-project/frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
 
       - name: 检查提交差异格式
         run: git show --format= --check HEAD -- . ':!docs/archive/**'

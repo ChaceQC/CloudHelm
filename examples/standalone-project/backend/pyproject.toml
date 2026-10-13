@@ -1,0 +1,16 @@
+[project]
+name = "cloudhelm-reference-notes-backend"
+version = "0.0.0"
+description = "Isolated FastAPI and PostgreSQL reference for CloudHelm P0.2"
+requires-python = "==3.12.*"
+dependencies = [
+  "alembic==1.20.0",
+  "fastapi==0.143.0",
+  "psycopg[binary]==3.3.6",
+  "pydantic==2.14.1",
+  "sqlalchemy==2.1.4",
+  "uvicorn>=0.30,<1",
+]
+
+[tool.uv]
+package = false

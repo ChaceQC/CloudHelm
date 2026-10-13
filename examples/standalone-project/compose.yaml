@@ -1,0 +1,54 @@
+name: cloudhelm-reference
+services:
+  postgres:
+    image: postgres:16.13@sha256:5d143123fdf80462d1778cd4f24b9f7ca13c87174bca19141fb194c5a1ebca59
+    environment:
+      POSTGRES_DB: reference_notes
+      POSTGRES_USER: reference_notes
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - reference_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reference_notes -d reference_notes"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+    mem_limit: 256m
+    cpus: 0.5
+  backend:
+    image: cloudhelm-reference-backend:p0.2-r1
+    build:
+      context: ./backend
+      args:
+        PYTHON_BASE_IMAGE: python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2
+    environment:
+      DATABASE_URL: postgresql+psycopg://reference_notes@postgres:5432/reference_notes
+    dns_opt: ["timeout:1", "attempts:1"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    cpus: 0.75
+  frontend:
+    image: cloudhelm-reference-frontend:p0.2-r1
+    build:
+      context: ./frontend
+      args:
+        NODE_IMAGE: node:22.23.2-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9
+        NGINX_IMAGE: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "127.0.0.1:58080:80"
+    mem_limit: 128m
+    cpus: 0.25
+volumes:
+  reference_db:

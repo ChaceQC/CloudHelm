@@ -49,6 +49,10 @@ uv run --frozen python scripts/p0/input_manifest.py
 
 ## 3. 获准的真实模型探测
 
+本轮新增的当前门禁/费用、安全检查点和等待续接方法分别为 `check_admission.py`、`check_checkpoint.py`、`check_continuation.py`，均在同一 WSL 隔离数据库执行；具体命令和有限支持见 [A01 报告](../acceptance/p0/A01.md)。正式产品入口仍须经过 [受支持薄适配决定](../decisions/p0/admitted-runtime.md) 和 P0.3/P1 门禁。
+
+`uv run --frozen python scripts/p0/probe_admitted_stream.py --live` 为固定 SDK-A01-C1 的 4 次获准供应商流输入，已执行；同输入再启动由本地 journal 拒绝收费重放。`connect_live_continuation.py` 查询该输入的原 Operation 并接到同库等待/新 Run，新增供应商请求为 0。查询/费用 journal、未知记录和恢复引用不能为重跑而删除；环境重建后缺少原对象时该查询应失败，不能补造成功。
+
 当前任务已由用户授权读取当前 Codex 自定义 Responses 服务配置，仅使用 `gpt-6-luna`、reasoning `max`。配置路径由本机调用提供，不进入公开版本控制。凭据只在获准请求步骤内解析，禁止打印配置、环境变量值、HTTP Authorization、完整异常或响应正文。
 
 默认入口不发送收费模型请求；`--fault-check` 只验证本地故障输入。本任务的非流式真实批次已执行，固定 C2 journal 记录 6 条预留；再次调用同一 `--live` 批次会在 HTTP 前阻断重放，不应删除 journal 绕过界限。实际每次输出上限为 512 tokens，首轮 12 次加 C2 的 6 次均为非流式；这些是主会话制定的探测界限，不是用户提供的金额限额。

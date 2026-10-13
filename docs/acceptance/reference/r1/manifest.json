@@ -1,0 +1,45 @@
+{
+  "method_revision": "reference-http-r1.1",
+  "requirement_revision": "reference-requirements-r1",
+  "source": "Independently authored by the acceptance agent from the fixed requirement document; no candidate source was used.",
+  "assets": [
+    "README.md",
+    "manifest.json",
+    "verify_http.py"
+  ],
+  "method": {
+    "interface": "HTTP only, using the Python standard library",
+    "command": "python3 docs/acceptance/reference/r1/verify_http.py --base-url http://127.0.0.1:<port> [--phase baseline|seed|verify-persisted|not-ready]",
+    "default_phase": "baseline",
+    "failure_behavior": "Nonzero exit and JSON case names; no response body or exception text is printed.",
+    "secret_output_policy": "Returned response bodies are screened for credential-shaped literals and never printed."
+  },
+  "coverage": {
+    "included": [
+      "REF-02: required note routes, create 201, delete 204, missing-resource 404, CRUD and PATCH field rules",
+      "REF-03: server integer ID, title trim and 1/120/121/blank boundaries, body default and 4000/4001 boundaries, UTC ISO 8601 timestamps",
+      "REF-04: list array sorted by ID and API-process restart persistence workflow against the same disposable database",
+      "REF-06: healthy health/ready status plus health 200 and ready 503 under operator-prepared unavailable database or migration state",
+      "REF-01 limited observation: root HTML and same-origin JavaScript bundle return successfully over HTTP"
+    ],
+    "excluded": [
+      "REF-01 UI interaction, visible error usability, and Tauri/WebView native acceptance",
+      "REF-05 Alembic graph, table structure, and migration behavior beyond observed readiness status",
+      "REF-07 dependency locks, Compose topology, health checks, and build/runtime configuration separation",
+      "Proof that an API process restart occurred or a prepared not-ready result corresponds to a particular fault; operator must bind results to setup evidence",
+      "Exhaustive proof that no secret can appear in any output; the HTTP body scan only checks listed credential-shaped patterns"
+    ]
+  },
+  "roles": {
+    "acceptance_asset_author": "Independent acceptance agent",
+    "candidate_implementation": "Separate development task",
+    "environment_setup_and_result_binding": "Project owner or authorized operator",
+    "human_acceptance_and_independent_machine_delivery": "Project owner; not supplied by this manifest"
+  },
+  "result_binding": {
+    "record_location": "../validation-r1.md",
+    "input_set_location": "../input-set-r1.json",
+    "operator_records_outside_method_manifest": true,
+    "human_acceptance": null
+  }
+}
