@@ -34,6 +34,7 @@ jobs:
           required = (
               "AGENTS.md",
               "README.md",
+              "PROJECT_PLAN.md",
               "PROJECT_PROGRESS.md",
               ".gitignore",
               ".gitattributes",
