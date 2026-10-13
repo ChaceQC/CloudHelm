@@ -1,0 +1,36 @@
+# Normalize ordinary text files to LF while allowing Git to detect binary content.
+* text=auto eol=lf
+
+# Keep editable diagrams as text; images and packaged media stay binary.
+*.svg text eol=lf
+*.drawio text eol=lf
+*.png -text -diff -merge
+*.jpg -text -diff -merge
+*.jpeg -text -diff -merge
+*.gif -text -diff -merge
+*.webp -text -diff -merge
+*.ico -text -diff -merge
+*.bmp -text -diff -merge
+*.tif -text -diff -merge
+*.tiff -text -diff -merge
+*.avif -text -diff -merge
+*.pdf -text -diff -merge
+*.doc -text -diff -merge
+*.docx -text -diff -merge
+*.xls -text -diff -merge
+*.xlsx -text -diff -merge
+*.ppt -text -diff -merge
+*.pptx -text -diff -merge
+*.zip -text -diff -merge
+*.7z -text -diff -merge
+*.gz -text -diff -merge
+*.mp3 -text -diff -merge
+*.wav -text -diff -merge
+*.flac -text -diff -merge
+*.aac -text -diff -merge
+*.mp4 -text -diff -merge
+*.mov -text -diff -merge
+*.webm -text -diff -merge
+
+# Historical design snapshots are byte-preserving sources with SHA-256 manifests.
+docs/archive/** -text

@@ -1,0 +1,47 @@
+{
+  "version": "v4.5",
+  "backupDate": "2026-10-13",
+  "purpose": "修改计划书并升级到 v4.6 前的原始文件备份",
+  "files": [
+    {
+      "path": "云舵 CloudHelm 毕设设计书 v4.5.md",
+      "bytes": 23814,
+      "sha256": "496cb3a11c0e797ae2878d3bfbc9cd52b25150a2ae4e355267523b96f71fe289"
+    },
+    {
+      "path": "docs/design/README.md",
+      "bytes": 8093,
+      "sha256": "3d440687f0cb198fe9ce71a60ec8cb2d7b1ac7c161a4e98055b3ea0f0d5ff479"
+    },
+    {
+      "path": "docs/design/01-domain-collaboration.md",
+      "bytes": 28680,
+      "sha256": "305c0fbaa108178ef214a69a58e80034a6e28eb27ee934902266dd82e639c806"
+    },
+    {
+      "path": "docs/design/02-execution-recovery.md",
+      "bytes": 27421,
+      "sha256": "4f853864f4cff6abeaee6e8414d3bb26cadb7cf4ceff5d5bb8ee1986da2b646a"
+    },
+    {
+      "path": "docs/design/03-workspace-build-resources.md",
+      "bytes": 28974,
+      "sha256": "dc2d7591bc6a57fa42c865c20dac33bd60ef5f9735bfbc0734f79d94dd044764"
+    },
+    {
+      "path": "docs/design/04-release-deployment.md",
+      "bytes": 27445,
+      "sha256": "f64c0daade22ca5e3cb395b9400db11e0712ca0a996886d6233576936712c9fc"
+    },
+    {
+      "path": "docs/design/05-security-sync-operations.md",
+      "bytes": 33896,
+      "sha256": "de3e607d3c8bc84e0f96ca87bee078fc584364ab4ee0cbdfd03d307df1ed3df1"
+    },
+    {
+      "path": "docs/design/06-implementation-validation.md",
+      "bytes": 31402,
+      "sha256": "4356633bdad291170cb3de3e91e1ba93be6311764828a2256ffd413630d5ffed"
+    }
+  ]
+}

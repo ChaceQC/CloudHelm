@@ -1,0 +1,62 @@
+{
+  "version": "v4.6",
+  "backupDate": "2026-10-13",
+  "purpose": "根据分项审阅修订为 v4.7 前的原始文档及架构图逐字节备份",
+  "files": [
+    {
+      "path": "云舵 CloudHelm 毕设设计书 v4.6.md",
+      "bytes": 28645,
+      "sha256": "f35def146433cecfb1044182ddbc3b3b49a7eb3d13cfe0a60d710469c2044e34"
+    },
+    {
+      "path": "docs/design/01-domain-collaboration.md",
+      "bytes": 34116,
+      "sha256": "06db8071dfa48b94365fdd217054ebca0bbcf92ffa8c549816324e7cb1fcb8eb"
+    },
+    {
+      "path": "docs/design/02-execution-recovery.md",
+      "bytes": 37229,
+      "sha256": "9293879af66e6f657254faadc72248deda85c2e4b0be4169e8d7adc17be3cac1"
+    },
+    {
+      "path": "docs/design/03-workspace-build-resources.md",
+      "bytes": 40471,
+      "sha256": "f3c411d97799d8502a3b34c21fa288ac2677e82e187f1f4dc1cbd56cfa64a65e"
+    },
+    {
+      "path": "docs/design/04-release-deployment.md",
+      "bytes": 33732,
+      "sha256": "c76dc795385e724c6df225fd3140b66536a0620728074eb4bcf6de533d949c1b"
+    },
+    {
+      "path": "docs/design/05-security-sync-operations.md",
+      "bytes": 41739,
+      "sha256": "9faf9604186bef01b2424978a7e55f7694b56c5d8cbd3d0b791f8be6b347b516"
+    },
+    {
+      "path": "docs/design/06-implementation-validation.md",
+      "bytes": 52891,
+      "sha256": "4a56d20b34a4ee577f54b747ea9a16062cb14af23236f2e6275e0b833fb14e4a"
+    },
+    {
+      "path": "docs/design/README.md",
+      "bytes": 11320,
+      "sha256": "a7a510eb0de1ebb6b929f220f641e68ef542b76224982f7e8c76228b76217a93"
+    },
+    {
+      "path": "docs/architecture/CloudHelm-architecture.drawio",
+      "bytes": 25458,
+      "sha256": "7efa38dfbb1ce2092f18932833d52b1d6963732ede3f71f16bb478767eb4fc1f"
+    },
+    {
+      "path": "docs/architecture/CloudHelm-architecture.png",
+      "bytes": 463130,
+      "sha256": "56731e680de1353acd9dae43bba9da96157b1d2af2e75658b4645d75b163e77c"
+    },
+    {
+      "path": "docs/architecture/CloudHelm-architecture.svg",
+      "bytes": 20967,
+      "sha256": "07ecd33d4752615b39a398b6d814bb08ff3ff9a08de7518538c490cdcb6c0680"
+    }
+  ]
+}
