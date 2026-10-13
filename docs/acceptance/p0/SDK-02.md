@@ -116,6 +116,8 @@ py_compile、默认诊断及本地故障检查通过。默认诊断报告 live=d
 
 ## 阻塞入口、责任角色与复核点
 
+用户随后确认 s2a 请求记录可见，并指出原请求显示同步；该观察与原 18 次 Agent.run 非流式调用一致。C3 实际 stream=true/SSE 证据及持久 response/request ID 已单列，未把先前非流式请求改写成流式通过。
+
 - 阻塞入口：CloudHelm Runtime 中要求 D01 持久 ModelRequestRecord 和当前业务门禁的真实模型调用、SDK 重试、压缩和恢复路径。当前 SQLite 仅为忽略目录中的 P0 诊断 journal，不是产品存储、业务预算服务或 DBOS 持久调度。
 - 阻塞原因：首轮 12 次真实请求都发生在 SQLite journal 实现前，不能追认发送前持久登记；C2 和 C3 均有真实出站前可见证据。真实金额准入仍缺少价格/费用证据，且产品级当前业务权限、持久 DBOS workflow/checkpoint 组合未由本卡证明。流式工具回调和断流没有在 C3 中实测。
 - 解决责任：Runtime/预算负责人接入当前业务权限、持久请求记录和费用预留；workflow/DBOS 负责人验证官方 DBOS 接入下的检查点恢复；独立验收负责人复核证据及支持范围。
