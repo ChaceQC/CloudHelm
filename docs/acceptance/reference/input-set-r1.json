@@ -1,0 +1,152 @@
+{
+  "revision": "p0-reference-input-set-r1",
+  "source_commit": "6dd8b605a5cc4b7b641cc0f9b4f2633614c6e757",
+  "frozen_utc": "2026-10-13T08:21:42+00:00",
+  "scope": "public source, locks and independent method; runtime state and credentials excluded",
+  "files": [
+    {
+      "path": "docs/acceptance/reference/r1/README.md",
+      "sha256": "d6f93dc9c2968d4a47d38389de65a8d1a79198cc1f77793986e76bfca5fe38c0"
+    },
+    {
+      "path": "docs/acceptance/reference/r1/manifest.json",
+      "sha256": "c5585be542e413e8cc5070309f70b128e2a730bb3de3f8b8a4a4d96feee1007f"
+    },
+    {
+      "path": "docs/acceptance/reference/r1/verify_http.py",
+      "sha256": "6eb53339ad6c61d09364eae8a01d3f0e27f9850e7fad8e983719945a552561e4"
+    },
+    {
+      "path": "docs/implementation/reference-requirements-r1.md",
+      "sha256": "39b2a4df992f969b219ab82eebfd3f675d11f0c9e9fc5c8021bc2486fe0bd489"
+    },
+    {
+      "path": "examples/standalone-project/README.md",
+      "sha256": "250e64714e82e79cf5353c10212a2f0c0f1d1dd23218f463692839af5fad5224"
+    },
+    {
+      "path": "examples/standalone-project/backend/.dockerignore",
+      "sha256": "08bc12907214f2b0272a6e82f035e3cbbaf7ac16defb4ab4a95302545308d317"
+    },
+    {
+      "path": "examples/standalone-project/backend/.python-version",
+      "sha256": "aa0d6581054e6e4ff3f91839deca7a854ad37221b8784d060b42d0f847ff1a3b"
+    },
+    {
+      "path": "examples/standalone-project/backend/Dockerfile",
+      "sha256": "b28e48358b722b5bf6bc3e05040e250c44c49c6e9d1d86bde2b6add1fb17cbdf"
+    },
+    {
+      "path": "examples/standalone-project/backend/README.md",
+      "sha256": "22fd4c90f4234043320804eb18480b9e6ddef28acaeda82a66ca939e232e5688"
+    },
+    {
+      "path": "examples/standalone-project/backend/alembic.ini",
+      "sha256": "6c18a6befe7a7b2d6866587cd2080a3bff803f82a80d1bdaa66bffe759405036"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/__init__.py",
+      "sha256": "ad9e6e2a816f005ad862273c5941cb2fd261ca83bf7a406d54d27dcac7794e60"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/database.py",
+      "sha256": "51d5a1d46dc61dcc8af8fe6c0c06d7bb5232b231fdb0945393af32858840549c"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/main.py",
+      "sha256": "437085b28750bc19b50908cd8d51bd32584438388c89c57ecbe39db9cfabded3"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/models.py",
+      "sha256": "de5d75aee0093e812fb5eb081ec6637407a2d1f4a193df0973a4f67b923fbfec"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/readiness.py",
+      "sha256": "37174dd7105c56aa1638503ea00f55e14ed5c54dd24c08b8924e3f1b0a3e2de4"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/routes.py",
+      "sha256": "79416f4e1932568abc1819d32176ea8abd4f360a648d3243795f9722d1fca197"
+    },
+    {
+      "path": "examples/standalone-project/backend/app/schemas.py",
+      "sha256": "51b4cf3230790f2e18fa6058bc4cff143d6f679e7c1fa63b987937d271e55fa7"
+    },
+    {
+      "path": "examples/standalone-project/backend/migrations/env.py",
+      "sha256": "b051c59170abf1450caf51aa170b533b590d317d9f447263c08705ec1d1a58d8"
+    },
+    {
+      "path": "examples/standalone-project/backend/migrations/versions/0001_create_notes.py",
+      "sha256": "7698b5b5f6554bd89026d808bab8a0acfa07ba02b25a9e28cf65483bf6ef0c6f"
+    },
+    {
+      "path": "examples/standalone-project/backend/migrations/versions/0002_add_updated_at_index.py",
+      "sha256": "5b2961617293966d5b39427ab3a57ddc6bc96ed0ee31d94d997ba07779399f5f"
+    },
+    {
+      "path": "examples/standalone-project/backend/openapi.json",
+      "sha256": "05d0a9a87378219d08f3f5a696199271fac9191eb5daf2b52a1a7626302d91e2"
+    },
+    {
+      "path": "examples/standalone-project/backend/pyproject.toml",
+      "sha256": "b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148"
+    },
+    {
+      "path": "examples/standalone-project/backend/uv.lock",
+      "sha256": "ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2"
+    },
+    {
+      "path": "examples/standalone-project/compose.yaml",
+      "sha256": "3a5fcea0d2885144e06e3040b25d0d2c8aa0679dec10f0406657622c483e8132"
+    },
+    {
+      "path": "examples/standalone-project/frontend/.dockerignore",
+      "sha256": "80d80bd24d6f35ad894790ce2a9a23784ccfd69e84eb41d383c3c990dfc5c9b4"
+    },
+    {
+      "path": "examples/standalone-project/frontend/Dockerfile",
+      "sha256": "33fab9b0b86547f6b5c049e66c767ce1d583215c2aea2fcad52245fffeb5087a"
+    },
+    {
+      "path": "examples/standalone-project/frontend/index.html",
+      "sha256": "c271448b2dabaaf6629267df4ee9bc3ae09f152eba1a66cbbce38562e02b7fd6"
+    },
+    {
+      "path": "examples/standalone-project/frontend/nginx.conf",
+      "sha256": "c10536d9fbf7a62c84b730aa9133ea1a35b6b05c5e595b3c9e0ef46616b6ee44"
+    },
+    {
+      "path": "examples/standalone-project/frontend/package-lock.json",
+      "sha256": "21b2a52e6e77526a24821f558a7a34b7b02766a0917c5a95d980f879c88e4ad4"
+    },
+    {
+      "path": "examples/standalone-project/frontend/package.json",
+      "sha256": "a31617b5724f31eb9089b347389504bbec7e60cbceab543615283a79cca68858"
+    },
+    {
+      "path": "examples/standalone-project/frontend/src/App.tsx",
+      "sha256": "a09b7c6a490e320db40b7bbad060344d6a933e40e18c3f871ddc6c405a95f60b"
+    },
+    {
+      "path": "examples/standalone-project/frontend/src/api.ts",
+      "sha256": "d6a8755643957615dd888f617f6587394909633f3adcca38b7ef89e91808d779"
+    },
+    {
+      "path": "examples/standalone-project/frontend/src/main.tsx",
+      "sha256": "ccbefe7be6c69706a1bb01c4c3f20492eb002435af6ba7e5a6d45f7c6aa3a140"
+    },
+    {
+      "path": "examples/standalone-project/frontend/src/styles.css",
+      "sha256": "5f6d7e79cf6550f595d6179b0990193cc026050e58fe0189bf54deff71d21b2e"
+    },
+    {
+      "path": "examples/standalone-project/frontend/tsconfig.json",
+      "sha256": "298c25324471c522cdf5463f26e2783c5ede55105bf81da617cb118d3defba16"
+    },
+    {
+      "path": "examples/standalone-project/frontend/vite.config.ts",
+      "sha256": "2cff497995117c948c679934559687393fd8c7df9fae5b9807a0325a195d3bdb"
+    }
+  ]
+}
