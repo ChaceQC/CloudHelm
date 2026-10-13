@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:cloudhelm:p0:experimental:remote-plan",
+  "title": "CloudHelm P0 experimental Remote Plan envelope",
+  "description": "An isolated seam probe contract draft. It is not a product protocol release or a P0.3 decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "operation_id",
+    "plan_digest",
+    "release",
+    "environment_config_revision",
+    "target",
+    "executor",
+    "generation",
+    "steps"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "cloudhelm.p0.experimental"
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "plan_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_id", "release_digest"],
+      "properties": {
+        "release_id": {"type": "string", "minLength": 1},
+        "release_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "environment_config_revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision_id", "revision_digest"],
+      "properties": {
+        "revision_id": {"type": "string", "minLength": 1},
+        "revision_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_id", "environment_revision"],
+      "properties": {
+        "target_id": {"type": "string", "minLength": 1},
+        "environment_revision": {"type": "string", "minLength": 1}
+      }
+    },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executor_id"],
+      "properties": {
+        "executor_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["step_id", "step_type", "input_digest", "depends_on"],
+        "properties": {
+          "step_id": {"type": "string", "minLength": 1},
+          "step_type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Free-form in this draft; supported production types remain undecided until P0.3/P1."
+          },
+          "input_digest": {"$ref": "#/$defs/digest"},
+          "depends_on": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

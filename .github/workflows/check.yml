@@ -36,6 +36,9 @@ jobs:
               "README.md",
               "PROJECT_PLAN.md",
               "PROJECT_PROGRESS.md",
+              "pyproject.toml",
+              "uv.lock",
+              ".python-version",
               ".gitignore",
               ".gitattributes",
               "云舵 CloudHelm 毕设设计书 v4.7.md",
@@ -48,7 +51,7 @@ jobs:
               raise SystemExit("缺少必需文件：" + ", ".join(missing))
 
           tracked = subprocess.check_output(["git", "ls-files", "-z"]).decode("utf-8").split("\0")
-          text_suffixes = {".md", ".yml", ".yaml", ".json", ".toml", ".svg", ".drawio", ".py", ".ts", ".tsx", ".js", ".jsx", ".rs"}
+          text_suffixes = {".md", ".yml", ".yaml", ".json", ".toml", ".lock", ".svg", ".drawio", ".py", ".ts", ".tsx", ".js", ".jsx", ".rs"}
           env_templates = {".env.example", ".env.sample", ".env.template", ".env.schema"}
           forbidden_parts = {".thesis-work", ".venv", "node_modules", "__pycache__"}
           for name in filter(None, tracked):
@@ -64,6 +67,30 @@ jobs:
 
           subprocess.run(["git", "check-ignore", "--quiet", ".thesis-work/ignore-check"], check=True)
           print("仓库结构、UTF-8 文本及 .thesis-work 忽略规则检查通过。")
+          PY
+
+      - name: 安装已锁定的隔离接缝依赖
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          version: "0.11.29"
+          enable-cache: true
+
+      - name: 检查 P0 源码与契约导入
+        run: |
+          uv sync --locked
+          uv run --frozen python - <<'PY'
+          import ast
+          import json
+          import pathlib
+          from packages.contracts.p0.runtime_contracts import P0RuntimeContracts
+
+          for path in pathlib.Path("scripts/p0").glob("*.py"):
+              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+          schema = P0RuntimeContracts.model_json_schema()
+          assert {"RuntimeInput", "TurnResult", "AcceptedReceipt"}.issubset(schema["$defs"])
+          for path in pathlib.Path("packages/contracts/p0").glob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
+          print("P0 源码语法、锁定依赖和契约导入检查通过；未运行模型、数据库或容器实验。")
           PY
 
       - name: 检查提交差异格式

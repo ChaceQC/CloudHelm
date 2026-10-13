@@ -1,0 +1,70 @@
+# P0 隔离接缝使用说明
+
+该工程供开发者复现 P0.1 接缝实验，不是业务 Hub/Runner/Remote Agent 或 Desktop。以 [组件基线](../decisions/p0/component-baseline.md) 的版本和 [六卡及接缝报告](../acceptance/p0/seam-summary.md) 的支持范围为准。
+
+## 1. 安装和启动
+
+本机使用 WSL Ubuntu-24.04，仓库在 `/mnt/e/Project/CloudHelm`。从 Windows 启动一个验证期间保持运行的 WSL 终端，或执行 `wsl.exe -d Ubuntu-24.04 --exec /bin/sleep infinity` 保活。所有依赖、SDK、数据库和 Docker 命令在 WSL 内执行。
+
+```bash
+cd /mnt/e/Project/CloudHelm
+export LANG=C.UTF-8
+uv sync --locked
+docker compose -f infra/p0/compose.yaml up -d --wait
+uv run --frozen python scripts/p0/diagnostics.py
+```
+
+`.python-version` 固定 Python 3.12.13；`uv.lock` 固定整个依赖图，避免复现时重新选择间接依赖。uv 的跨盘 hardlink 回退 copy 提示不影响解析结果；如需消除提示可在本次命令使用 `UV_LINK_MODE=copy`，不修改系统环境。
+
+临时 PostgreSQL 限 `127.0.0.1:55432`，无密码 trust、tmpfs 数据、256MiB 内存和 1 vCPU。这是隔离实验数据库，不放真实用户、生产数据或凭据。探测只使用各自的专用业务/DBOS schema；各卡列出它们的实际名字和重置范围。所有脚本使用固定实验输入，不自动连接其他数据库或清理其他项目资源。
+
+## 2. 按需要复现
+
+只运行需要重新取证的卡；输入、代码、依赖、环境或风险没有变化时，不重复执行已取得的实验。
+
+```bash
+# 事务、事件、绑定和 DBOS 公有接口原子入队
+uv run --frozen python scripts/p0/transaction_probe.py
+
+# Gateway 副作用去重、合法历史和延迟结果
+uv run --frozen python scripts/p0/probe_protocol.py
+
+# 检查点、真实 worker 崩溃恢复与控制响应
+uv run --frozen python scripts/p0/probe_recovery.py
+
+# 实际 Compose 归一化和受限参数映射
+uv run --frozen python scripts/p0/compose_probe.py
+
+# 远端计划、许可和本地账本；仅本机隔离操作
+uv run --frozen python scripts/p0/remote_probe.py --local-seam
+
+# 默认不收费的模型边界检查
+uv run --frozen python scripts/p0/probe_model.py
+
+# 打印当前公共输入哈希，不读取机器配置
+uv run --frozen python scripts/p0/input_manifest.py
+```
+
+探测有意使用短固定场景。模型槽满的控制实验、同机计划许可和 Compose 解析均不代替供应商容量、独立 Linux 交付、TLS 身份、可信时钟误差或 Desktop 原生验收。
+
+## 3. 获准的真实模型探测
+
+当前任务已由用户授权读取当前 Codex 自定义 Responses 服务配置，仅使用 `gpt-6-luna`、reasoning `max`。配置路径由本机调用提供，不进入公开版本控制。凭据只在获准请求步骤内解析，禁止打印配置、环境变量值、HTTP Authorization、完整异常或响应正文。
+
+默认入口不发送收费模型请求；`--fault-check` 只验证本地故障输入。本任务的非流式真实批次已执行，固定 C2 journal 记录 6 条预留；再次调用同一 `--live` 批次会在 HTTP 前阻断重放，不应删除 journal 绕过界限。实际每次输出上限为 512 tokens，首轮 12 次加 C2 的 6 次均为非流式；这些是主会话制定的探测界限，不是用户提供的金额限额。
+
+真实供应商流式入口使用单独的 `--live-stream` 固定批次，要求实际 `stream=true`、SSE 事件及完成 usage，不能以异步 Python 调用代替流式证据。已执行批次及其 journal 不反复发送；新增输入/批次须有对应服务、模型、用途和预算授权。具体版本、请求计数和覆盖限制见 [SDK-02](../acceptance/p0/SDK-02.md)。价格、金额或 usage 缺失保留 unknown/null，不用 token 数估算成已知费用。
+
+## 4. 故障处置和清理
+
+若数据库不可达，先看本项目容器状态并确认 WSL 仍存活，随后只重启本项目 PostgreSQL。不要把 WSL 自动关闭、端口冲突或依赖未安装当成接缝失败通过记录。worker 故障注入只针对探测自身创建的 PID；不终止其他项目进程。
+
+```bash
+docker compose -f infra/p0/compose.yaml ps
+docker compose -f infra/p0/compose.yaml up -d --wait postgres
+
+# 结束本轮数据库探测，删除本项目临时容器和网络
+docker compose -f infra/p0/compose.yaml down
+```
+
+关闭临时数据库会删除 tmpfs 运行数据；重跑时重新建立本轮专属 schema，既有卡片事实和公共输入哈希保留。版本推进后按 AGENTS.md 清理本项目已替代且无当前任务/验证/回滚引用的旧开发镜像；先核对具体标签和摘要，不使用全局 prune。固定基础镜像可供同版本实验复现，不将它误认成早期 CloudHelm 开发镜像。
