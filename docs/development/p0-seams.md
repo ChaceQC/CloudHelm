@@ -53,6 +53,27 @@ uv run --frozen python scripts/p0/input_manifest.py
 
 `uv run --frozen python scripts/p0/probe_admitted_stream.py --live` 为固定 SDK-A01-C1 的 4 次获准供应商流输入，已执行；同输入再启动由本地 journal 拒绝收费重放。`connect_live_continuation.py` 查询该输入的原 Operation 并接到同库等待/新 Run，新增供应商请求为 0。查询/费用 journal、未知记录和恢复引用不能为重跑而删除；环境重建后缺少原对象时该查询应失败，不能补造成功。
 
+2026-10-14 的 P0.1-A02 更新了断流方法；旧 `--live` 命令不会隐式开启新输入，严格 r2 必须显式给出 `--live-revision r2`。恢复使用独立固定批次：四个场景分别保留一条本地尝试，其中仅 allow 允许一条真实 HTTP；取消、撤权和 unknown 占账导致预算不足必须零 HTTP。原 r1 journal 与未知记录保持原身份，不删除以绕过上限。方法和实际支持范围见 [A02](../acceptance/p0/A02.md)。
+
+```bash
+# 不收费：断流判定方法的定向拒绝检查
+uv run --locked --offline python scripts/p0/check_stream_assertions.py
+
+# 不连接供应商：真实 SDK 路径 + 固定 HTTP 夹具 + 隔离 PostgreSQL 门禁
+uv run --locked --offline python scripts/p0/check_admitted_paths.py
+
+# 消费瞬态输入后的成功/异常检查点；需要上述隔离 PostgreSQL
+uv run --locked --offline python scripts/p0/check_checkpoint.py
+
+# 固定授权输入：自身 worker 崩溃恢复后，最多 1 条真实新模型请求
+uv run --locked --offline python scripts/p0/probe_admitted_recovery.py --live
+
+# 新固定 r2 流输入：最多 4 条真实请求；既有批次拒绝重放
+uv run --locked --offline python scripts/p0/probe_admitted_stream.py --live --live-revision r2
+```
+
+恢复脚本只杀自身创建的 worker，并确认退出后重新启动；不结束其他 worker 或 WSL。SDK 路径夹具的 usage 不作为供应商证据；受控摘要 Agent 的压缩请求和后续请求均经过同一门禁，不宣称 SDK 内建自动压缩能力。DBOS 3.2.0 公共 step 查询不提供输入内容，检查点方法只把仅引用的 step 入参签名作为静态约束。临时数据库清理前保留脱敏运行结果、账本快照与仍需核对的 unknown 引用。
+
 当前任务已由用户授权读取当前 Codex 自定义 Responses 服务配置，仅使用 `gpt-6-luna`、reasoning `max`。配置路径由本机调用提供，不进入公开版本控制。凭据只在获准请求步骤内解析，禁止打印配置、环境变量值、HTTP Authorization、完整异常或响应正文。
 
 默认入口不发送收费模型请求；`--fault-check` 只验证本地故障输入。本任务的非流式真实批次已执行，固定 C2 journal 记录 6 条预留；再次调用同一 `--live` 批次会在 HTTP 前阻断重放，不应删除 journal 绕过界限。实际每次输出上限为 512 tokens，首轮 12 次加 C2 的 6 次均为非流式；这些是主会话制定的探测界限，不是用户提供的金额限额。

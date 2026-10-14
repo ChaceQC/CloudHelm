@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,13 +21,24 @@ A01 = {
     "scripts/p0/freeze_inputs.py",
     "infra/p0/compose.yaml", "packages/contracts/p0/official-model-prices-r1.json",
 }
+A02 = A01 | {
+    "scripts/p0/admitted_path_fixtures.py",
+    "scripts/p0/admitted_recovery_workflows.py",
+    "scripts/p0/probe_admitted_recovery.py",
+    "scripts/p0/check_admitted_paths.py",
+    "scripts/p0/check_stream_assertions.py",
+}
 
 
-def manifest(kind: str) -> dict:
+def manifest(kind: str, revision: str = "r1") -> dict:
+    if not re.fullmatch(r"r[1-9][0-9]*", revision):
+        raise ValueError("InputSet revision must be r followed by a positive integer")
+    if kind != "a02" and revision != "r1":
+        raise ValueError("historical InputSet kinds retain their r1 revision")
     public = subprocess.check_output(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=ROOT,
     ).decode("utf-8").split("\0")
-    names = COMMON | A01 if kind == "a01" else {
+    names = COMMON | (A01 if kind == "a01" else A02) if kind in {"a01", "a02"} else {
         name for name in public if name.startswith("examples/standalone-project/")
         or name.startswith("docs/acceptance/reference/r1/")
     } | {"docs/implementation/reference-requirements-r1.md"}
@@ -39,7 +51,7 @@ def manifest(kind: str) -> dict:
             raise ValueError(f"public input differs from source commit: {name}")
         files.append({"path": name, "sha256": hashlib.sha256(data).hexdigest()})
     return {
-        "revision": "p0-a01-input-set-r1" if kind == "a01" else "p0-reference-input-set-r1",
+        "revision": f"p0-{kind}-input-set-{revision}" if kind in {"a01", "a02"} else "p0-reference-input-set-r1",
         "source_commit": source_commit,
         "frozen_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "scope": "public source, locks and independent method; runtime state and credentials excluded",
@@ -49,5 +61,7 @@ def manifest(kind: str) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("kind", choices=("a01", "reference"))
-    print(json.dumps(manifest(parser.parse_args().kind), ensure_ascii=False, indent=2))
+    parser.add_argument("kind", choices=("a01", "a02", "reference"))
+    parser.add_argument("--revision", default="r1")
+    args = parser.parse_args()
+    print(json.dumps(manifest(args.kind, args.revision), ensure_ascii=False, indent=2))

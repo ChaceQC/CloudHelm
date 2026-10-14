@@ -1,13 +1,13 @@
 # CloudHelm 项目执行计划
 
-> 计划修订：5
+> 计划修订：6
 > 建立日期：2026-10-13（Asia/Shanghai）
 > 设计依据：总体设计 v4.7；详细设计索引/D03 v4.7.1，D01/D02/D04～D06 v4.7.0
 > 计划性质：完整产品 P0～P6 的实施分解；开放工作包以当前入口为准，实际执行结果在进度和验收资产记录。
 
 ## 1. 当前入口与计划边界
 
-当前阶段为 **P0**。本轮 **P0.1-A01 所选接缝薄适配与 P0.2-01～04 参照/规格冻结已完成**；费用依据供应商 usage 和版本化官方模型价格计算。源码固定于 `6dd8b605a5cc4b7b641cc0f9b4f2633614c6e757`，A01 与参照分别绑定20/36个公开输入，产物见 [接缝汇总](docs/acceptance/p0/seam-summary.md) 和 [首条规格](docs/implementation/reference-chain.md)。下一待开放工作包为 P0.3-01～03；P0统一出口和P1～P6未放行，不把所选有限接缝或参照本机通过写成产品验收。
+当前阶段为 **P0**。**P0.1 所选薄适配已交付，完整退出条件待补齐；P0.2-01～04 参照资产、规格与输入冻结已完成**。当前开放 `P0.1-A02` 补齐恢复新模型请求准入、消费瞬态输入后的失败检查点及断流断言，详见下方切片；不得把旧 A01 结果重取写成 worker 恢复新请求证据。历史源码固定于 `6dd8b605a5cc4b7b641cc0f9b4f2633614c6e757`，A01 与参照分别绑定20/36个公开输入，产物见 [接缝汇总](docs/acceptance/p0/seam-summary.md) 和 [首条规格](docs/implementation/reference-chain.md)。P0.3-01～03 尚待开放；P0统一出口和P1～P6未放行。
 
 本计划保留多 Agent 协作、独立机器交付、持续运维和 Windows/Linux Desktop 的完整目标。P1 是实施过程中的最小闭环，不是将完整产品缩减为 MVP。尚无 CloudHelm 产品业务源码、产品软件版本或产品启动命令；P0 薄适配及全栈参照的源码与输入已固定。接缝命令见 [使用说明](docs/development/p0-seams.md)，参照入口见 [首条链路规格](docs/implementation/reference-chain.md)。
 
@@ -120,6 +120,20 @@ P0.1 隔离资产已落地；逐能力结果和完整出口未满足项见接缝
 |P0.2-03～04 拓扑与检查点|实际 WSL 诊断、D06 §2.1 和固定参照|topology、support-matrix、reference-chain|实际值/设计值/待核验分列；九个检查点有完成、失败保留及重试授权|
 
 A01 当前有限支持决定和实际结果见 [薄适配决定](docs/decisions/p0/admitted-runtime.md) 与 [A01 证据](docs/acceptance/p0/A01.md)：当前权限/金额门禁、供应商副作用流、安全引用和实际 Operation 的等待续接已有证据。[A01 InputSet](docs/acceptance/p0/input-set-a01-r1.json)已绑定源码commit。原六卡的历史候选不改写；默认未经裁剪 DBOS 包装保持拒绝，产品权限域、物理资源、跨版本恢复等仍消费 P0.3/P1/P4 门禁。
+
+#### P0.1-A02 审查缺口修复
+
+触发：基于 `dev / 009863b` 的三项审查。范围限 P0.1-02/-05/-06 的验证方法和组合证据；不重跑 P0.2，不改变权威设计、安全不变量或产品阶段。新增及剩余估算待估。主会话先冻结修复方法，再以最终集成候选取得新证据；历史 InputSet 和旧六卡保留。
+
+|切片|输入与负责文件|交付物|退出条件|
+|---|---|---|---|
+|P0.1-A02a1 恢复工作流|A01 门禁、安全引用与 SDK；仅新 `scripts/p0/admitted_recovery_workflows.py`|有限屏障、当前权限/金额门禁下的新模型 step、worker 入口|持久参数只含引用/场景；逐次预登记；返回安全有限事实；拒绝前不发送；不承担杀进程/报告集成|
+|P0.1-A02a2 恢复调度核对|A02a1 的固定接口、DBOS 公共恢复 API；仅新 `scripts/p0/probe_admitted_recovery.py`|自身 worker SIGKILL/同身份恢复及允许/取消/撤权/预算四场景|原 Run/workflow 恢复；实际新请求前两本账可见；拒绝场景零 HTTP；原未知占账保留，结果重取不新增请求；不承担 SDK/工作流实现|
+|P0.1-A02b SDK 二次出站|PydanticAI/OpenAI 固定版本、A01 当前门禁；新 `scripts/p0/check_admitted_paths.py` 及仅供该方法的响应夹具|确定性校验修复、SDK 自动重试、历史处理/压缩路径|真实 SDK 触发后续请求；在后续发送前改变权限/预算，逐路径记录准入/拒绝与 HTTP 数；夹具证据明确不冒充供应商运行|
+|P0.1-A02c 失败检查点|`scripts/p0/check_checkpoint.py`|消费 canary/25 MiB 后注入含敏感合成内容的底层异常，再以安全码越过持久边界|成功/失败均确已消费输入；DBOS 公共 input/output/error 和引用表仅含允许内容；异常链不携带合成内容|
+|P0.1-A02d 严格断流|`scripts/p0/probe_admitted_stream.py`、`integrations/seam_stream.py`、新定向断言检查|明确注入点及严格通过函数，隔离的拒绝样例|ReadError、第二次 HTTP 200、两次请求、未完成流、缺失 usage、unknown 占账及唯一 Operation/effect 必须同时成立；普通异常/完整流/错误请求数判失败|
+
+主会话负责计划/进度、InputSet、使用及决定/验收文档、隔离数据库和最终集成验证、开发分支提交推送；五项开发小任务使用 `gpt-6-luna / max`，不编辑彼此负责文件，不运行旧收费批次或重置旧 journal。
 
 ### P0.2 参照项目、固定输入与 Linux 拓扑
 
