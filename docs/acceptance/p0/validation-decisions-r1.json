@@ -1,0 +1,122 @@
+{
+  "check_count": 83,
+  "environment": {
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "pydantic": "2.14.1",
+    "python": "3.12.13",
+    "rfc8785": "0.1.4",
+    "system": "Linux"
+  },
+  "group_count": 7,
+  "groups": {
+    "core": {
+      "accepted_is_not_success": true,
+      "audit_requires_utc": true,
+      "changed_input_invalidates_digest": true,
+      "configuration_and_execution_state_bind_separately": true,
+      "crash_identity_preserved": true,
+      "duplicate_input_rejected": true,
+      "emergency_disabled": true,
+      "environment_rejects_raw_secrets": true,
+      "recovery_operation_is_distinct": true,
+      "reference_order_stable": true,
+      "release_rejects_environment_values": true,
+      "secret_is_reference_only": true,
+      "secret_plaintext_hash_rejected": true,
+      "unknown_evidence_preserved": true,
+      "wait_cannot_reuse_run": true,
+      "wait_identity_changes": true,
+      "wait_requires_condition": true
+    },
+    "identity": {
+      "agent_human_and_delegation_boundaries": true,
+      "current_permission_before_idempotency": true,
+      "identity_digest_and_scope_conflicts": true,
+      "invalid_numbers_duplicates_and_secret_shape_rejected": true,
+      "jcs_defaults_and_meaningful_changes": true,
+      "protocol_revision_and_emergency_boundary": true,
+      "replay_before_object_version_check": true,
+      "shared_engineering_reference_boundary": true
+    },
+    "migrations": {
+      "absence_is_not_unstarted": true,
+      "actual_head_and_postchecks_required": true,
+      "current_retry_gate_required": true,
+      "five_authoritative_results": true,
+      "only_verified_unstarted_can_retry": true,
+      "original_operation_step_digest_required": true,
+      "unknown_never_implies_success": true,
+      "unsupported_modes_rejected": true
+    },
+    "permits": {
+      "current_control_authorization_reconciliation_and_online_gates": true,
+      "epoch_reboot_pause_and_lost_trust_close_old_grant": true,
+      "expiry_equality_both_boundaries_and_domain": true,
+      "finite_step_types_duration_and_stop_boundaries": true,
+      "original_grant_and_first_anchor_never_renew": true,
+      "round_trip_aging_and_error_evidence_limits": true,
+      "valid_accept_and_start": true
+    },
+    "preview": {
+      "bounded_public_schema": true,
+      "control_gap_cleanup_and_restart_fail_closed": true,
+      "current_binding_and_expiry_gates": true,
+      "fixed_deadline_late_and_unknown_timing": true,
+      "missing_live_connections_and_proxy_boots_remain_pending": true,
+      "raw_port_family_and_instance_allowlist": true,
+      "single_exchange_lost_response_and_bound_session": true,
+      "ticket_url_locations_and_get_rejected": true,
+      "unknown_unverified_and_mismatched_clients_rejected": true
+    },
+    "resources": {
+      "4gib_accounted_5gib_hard_limit_rejected": true,
+      "4gib_valid_vector_admitted": true,
+      "7gib_transfer_still_blocks_reallocation": true,
+      "all_four_outstanding_states_count_across_runners": true,
+      "in_place_adjustment_rejected": true,
+      "measured_total_caps_budget": true,
+      "pending_hold_bound_to_admission_snapshot": true,
+      "retention_transfer_cannot_double_count_source": true,
+      "stale_and_second_pending_adjustment_rejected": true,
+      "stopped_group_still_charges_7gib": true,
+      "strict_frozen_vectors": true,
+      "unchanged_adjustment_needs_no_limit_change": true,
+      "unknown_adjustment_keeps_dimensionwise_maximum": true,
+      "unknown_or_unproved_stop_keeps_full_charge": true,
+      "unknown_revision_not_advanced": true,
+      "unknown_upper_bound_required": true
+    },
+    "task": {
+      "access_before_replay": true,
+      "agent_cannot_supply_human_conclusion": true,
+      "aggregate_schema_exportable": true,
+      "cancellation_preserves_shared_independent_and_resource_boundaries": true,
+      "cancellation_waits_for_owned_physical_facts": true,
+      "completed_or_cancel_requested_closes_ordinary_progress": true,
+      "completion_sources_enforced": true,
+      "current_versions_inputs_and_waits_enforced": true,
+      "different_digest_rejected_before_completed": true,
+      "human_pass_and_authorized_skip_distinct": true,
+      "legacy_missing_report_not_fabricated": true,
+      "new_key_completed_returns_fixed_report": true,
+      "relevant_shared_write_blocks_without_stop_authority": true,
+      "report_immutable_and_one_revision_step": true,
+      "same_key_original_result_before_versions": true,
+      "unknown_model_usage_is_separate": true,
+      "unknown_stop_request_and_missing_closure_proof_block_writes": true,
+      "wait_closure_does_not_supply_human_conclusion": true
+    }
+  },
+  "input_binding": {
+    "file_count": 62,
+    "input_set": "docs/acceptance/p0/input-set-decisions-r1.json",
+    "matches": true,
+    "source_commit": "c8b5dfbc4aa554b943934548f192603739984636"
+  },
+  "method_revision": "p0-decisions-check-r1",
+  "schema_matches": true,
+  "schema_sha256": "b2edad41ad6e57f22ff429617120803b49ea746ad0105a98f633315e1c6e6532",
+  "scope": "types, fixed public contract cases and pure arithmetic only; no product, database, network or human acceptance",
+  "syntax_file_count": 21,
+  "verified_utc": "2026-10-14T11:45:50+00:00"
+}
