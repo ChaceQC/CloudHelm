@@ -15,3 +15,5 @@ DBOS 仅接受有界引用和有界事实。ContextReferences 只含需求、Inp
 accepted 回执、Operation 的最终事实、WaitCondition、原 Run 和新续接 Run 分开保存。wait、事件、WorkflowBinding、新 Run 与 DBOS 入队在同一事务内交接；撤权、取消、失效和旧修订阻断新普通推进。原 Run 恢复复用原 workflow，等待后的续接产生稳定的新 Run。DBOS 成功仍须应用层核对当前门禁后收尾 Run，不代表 Task 完成。
 
 支持范围仅为本轮固定版本、单 worker、隔离 PostgreSQL、Standard 文本与用户函数流。真实宿主资源调整/停止释放、跨版本或多 worker 恢复、TLS 许可误差和产品 Task 完成命令消费 P0.3/P1/P4 的相应门禁。P4 前本机应急入口关闭。
+
+2026-10-14 以 [A02](../../acceptance/p0/A02.md) 补齐受控薄适配的恢复新请求、消费瞬态输入后的安全异常和严格断流证据。真实 SDK 的校验修复、500 自动重试、受控摘要压缩续接在固定 HTTP 夹具与同一 PostgreSQL 当前门禁下实测；供应商新请求在同 worker identity 的实际恢复后实测。该补充不追认默认 DBOS 包装、不改变权限/费用规则，不把夹具或结果重取写成供应商恢复证据，也不扩大产品、跨版本或物理容量支持。
