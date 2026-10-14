@@ -1,14 +1,14 @@
-# 支持矩阵 r2
+# 支持矩阵 r3
 
-修订日期：2026-10-14（Asia/Shanghai）。输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[当前拓扑选择](../decisions/p0/topology.md) 和 [P0.3 出口评审](p0/exit-review.md)。r2 增加关键契约决定和用户指定的 s2413 同机角色；原系统诊断及运行证据仍绑定其原日期，不按本次修订追认重测。没有证据的组合不自动纳入正式支持。
+修订日期：2026-10-15（Asia/Shanghai）。输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[本轮拓扑快照](p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md)、[参照适用决定](../decisions/p0/reference-applicability.md) 和 [统一出口评审](p0/exit-review.md)。r3 补齐 s2413 同机准备事实及逐入口方案，明确固定参照的编译/拒绝边界；原运行证据仍绑定原候选和时间，没有证据的产品组合不自动纳入支持。
 
 |组合/能力|本轮实际范围与证据|不支持或未核验时的行为/门禁|
 |---|---|---|
-|WSL 开发|Ubuntu 24.04.4、x86_64、WSL2 内核，Python 3.12.13，Docker 29.1.3/Compose 2.40.3；真实接缝和参照验证通过|只作为开发环境；可见内存约 7.36 GiB，不宣称 8 GiB light 整机容量通过|
-|s2413 同机开发组合|2026-10-14 用户选择 Hub、开发 Runner 和当前交付验证均使用 s2413；历史快照为 Debian 13、x86_64、6 vCPU、约 15.51 GiB RAM、Docker 26.1.5/Compose 2.39.4|共享一个物理宿主资源池；角色已定，Hub/Runner 安装注册、受控路径、配额、目标身份/通道和网络/TLS未取证，实际副作用仍受 P1 门禁|
+|WSL 开发|Ubuntu 24.04.4、x86_64、WSL2 内核，锁定工程 Python 3.12.13；本轮采集器使用系统 Python 3.12.3，Docker 29.1.3/Compose 2.40.3；历史接缝和参照验证按原候选有效|只作为开发环境；可见内存约 7.36 GiB，不宣称 8 GiB light 整机容量通过。本轮 PATH 无 Linux Node，Windows 挂载的 npm 被采集器拒绝，不影响历史固定容器构建证据|
+|s2413 同机开发组合|用户选择 Hub、开发 Runner 和当前交付验证均使用 s2413；本轮快照为 Debian 13、x86_64、6 CPU、约 15.51 GiB RAM、Docker 26.1.5+dfsg1/Compose 2.39.4，四个候选项目目录均不存在|共享一个物理宿主资源池；具体受控方案已单列，项目额度/归属占用上界仍未知，新准入关闭。安装注册、配额生效、产品身份/通道和网络/TLS仍须 P1 实际取证|
 |正式独立交付拓扑|s2413 同机结果不能计为另一台交付机器；本次未安排第二台目标|项目所有者/基础设施负责人在 P1.4 前指定并核验独立目标；不宣称 D06 独立交付或两档容量通过|
-|模型/Gateway/DBOS|固定 gpt-6-luna/max、Standard 全球用户函数流、单 worker、有界引用薄适配；A01 所选有限切片及 [A02](p0/A02.md) 恢复新请求/消费后失败检查点/严格断流组合已取得证据；SDK 二次请求用固定夹具核验门禁|未知费用保持占账；未支持档位拒绝准入/计价；未经裁剪的默认 DBOS 包装入口拒绝；P0.1 完整出口未放行，不扩展多 worker或跨版本支持|
-|产品 Compose 实验子集|image/environment/networks/volumes/restart/healthcheck；两阶段解析与版本绑定拒绝清单见 p0/compose-remote.md|build、privileged、devices、network_mode、env_file、include/extends/profiles及未列字段明确拒绝；固定 development Compose 不能原样送产品部署|
+|模型/Gateway/DBOS|固定 gpt-6-luna/max、Standard 全球用户函数流、单 worker、有界引用薄适配；A01 所选有限切片及 [A02](p0/A02.md) 恢复新请求/消费后失败检查点/严格断流组合已取得证据；SDK 二次请求用固定夹具核验门禁|未知费用保持占账；未支持档位拒绝准入/计价；未经裁剪的默认 DBOS 包装入口拒绝。历史支持范围由各自输入限定，产品接线仍须 P1/P2 证据，不扩展多 worker 或跨版本支持|
+|产品 Compose 实验子集|image/environment/networks/volumes/restart/healthcheck；旧专项仍保留原候选，本轮实际观察原参照被 parse_source 拒绝|build、privileged、devices、network_mode、env_file、include/extends/profiles及未列字段明确拒绝；G02a 覆盖全部 52 个映射字段，资源/只读/网络不可剥离后冒充支持|
 |参照构建与开发 Compose|Docker BuildKit 的两个独立目录，Python/Node/Nginx/Postgres digest 固定；锁定依赖生产构建、健康/迁移/故障/持久化通过|build/depends_on/read_only/tmpfs/dns_opt/ports等仅为本轮开发夹具；P1.2/P1.3 生成受限 Release 运行声明，不由本轮推定产品支持|
 |迁移|历史参照为 PostgreSQL 16.13、在线单目标线性 Alembic、两修订和实际 head 核对；P0.3 [迁移决定](../decisions/p0/migration-contract.md) 冻结单事务模式、五类查询及稳定身份|非线性、并行迁移、任意 shell、自动 downgrade、非事务/无界迁移不支持；新契约的给定事实校验不替代 P1 的真实账本、未知结果核对和后置证据|
 |浏览器参照|Codex 内嵌浏览器的真实 CRUD、失败提示/表单保留；外部 HTTP method r1.1 覆盖同源静态资源与 API|只覆盖参照 Web UI；不推定其他浏览器、Tauri/WebView 或能力隔离通过|

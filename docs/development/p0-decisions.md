@@ -28,16 +28,30 @@ PYTHONUTF8=1 uv run --locked --offline python -m packages.contracts.p0.decision_
 最终候选先提交源码及决定，再通过只读命令生成公开文件 InputSet：
 
 ```bash
-PYTHONUTF8=1 uv run --locked --offline python -m scripts.p0.decision_manifest --revision r1
+PYTHONUTF8=1 uv run --locked --offline python -m scripts.p0.decision_manifest --revision r2
 ```
 
-该命令只读显式清单中的契约、决定、方法、锁文件、权威设计和引用证据，并逐文件核对当前字节与真实 Git HEAD。输出需通过 `apply_patch` 保存到新的 `docs/acceptance/p0/input-set-decisions-r1.json`；不改写历史 InputSet。未提交文件、输入不同或缺失时拒绝冻结，不会自动提交、删除或写文件。
+该命令只读显式清单中的契约、决定、方法、锁文件、权威设计和引用证据，并逐文件核对当前字节与真实 Git HEAD。上例使用新的 r2，输出需通过 `apply_patch` 保存到尚不存在的 `docs/acceptance/p0/input-set-decisions-r2.json`；已有修订不得覆盖，继续修改时选择下一修订。未提交文件、输入不同或缺失时拒绝冻结，不会自动提交、删除或写文件。
 
 ```bash
 PYTHONUTF8=1 uv run --locked --offline python -m scripts.p0.check_decisions \
-  --input-set docs/acceptance/p0/input-set-decisions-r1.json
+  --input-set docs/acceptance/p0/input-set-decisions-r2.json
 ```
 
 带 InputSet 的检查还会核对清单、Git source_commit、工作树与逐文件哈希，再运行相同窄检查。结果保存为独立证据，由 [出口评审](../acceptance/p0/exit-review.md) 记录实际候选与范围。后续改变契约、决定、方法、依赖或验证环境时，建立新修订/新输入与新证据，不能覆盖旧清单或沿用不适用的通过结论。
 
 通过只证明已绑定输入下的类型、纯函数边界及结构一致性。真实权限事务、唯一报告、共享宿主配额/停止、许可时间误差、网络/代理撤销、原生 Desktop 和人类验收仍依各自阶段与支持矩阵取得证据。
+
+## 收尾输入与历史证据
+
+历史 `input-set-decisions-r1.json` 绑定其自身 `source_commit`，其中包括当时的文档。当前文档已经修订，不能在最新工作树强行复用旧清单；需要重现旧结果时使用对应提交的独立检出。只修改准备方案而没有改变契约时，无需重复七组历史契约检查。
+
+P0 同机收尾使用独立的公开清单，绑定新采集/适用性方法、受控方案及其引用证据。新增源码和决定提交后生成新的修订；输出仍通过 `apply_patch` 保存，清单自身和后续裁决、进度不作为自己的输入：
+
+```bash
+PYTHONUTF8=1 uv run --locked --offline --no-sync python -B -m scripts.p0.closure_manifest --revision r1
+PYTHONUTF8=1 uv run --locked --offline --no-sync python -B -m scripts.p0.closure_manifest \
+  --verify docs/acceptance/p0/input-set-closure-r1.json
+```
+
+已有收尾修订存在时，生成命令拒绝覆盖，应选择新的 r2/r3 等；复核已存在的清单只运行 `--verify`。该核验逐字节比较当前公开输入与源码提交，并按各自历史提交核对旧清单；最早的 r1 接缝清单没有记录 `source_commit`，输出明确保留这一限制，不补造来源或重新执行旧实验。新方法的实际环境观测与解析拒绝结果另存独立证据，由出口评审解释支持范围。

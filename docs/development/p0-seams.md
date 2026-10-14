@@ -95,3 +95,23 @@ docker compose -f infra/p0/compose.yaml down
 ```
 
 关闭临时数据库会删除 tmpfs 运行数据；重跑时重新建立本轮专属 schema，既有卡片事实和公共输入哈希保留。版本推进后按 AGENTS.md 清理本项目已替代且无当前任务/验证/回滚引用的旧开发镜像；先核对具体标签和摘要，不使用全局 prune。固定基础镜像可供同版本实验复现，不将它误认成早期 CloudHelm 开发镜像。
+
+## 5. 同机准备与参照适用性
+
+P0-G01/G02 只需要环境事实与固定参照的适用性证据时，不启动数据库或重跑上述收费批次。对应入口为 [本轮快照](../acceptance/p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md) 和 [参照适用决定](../decisions/p0/reference-applicability.md)。在已有 WSL 环境按实际需要运行：
+
+```bash
+cd /mnt/e/Project/CloudHelm
+# 只读系统字段和本地 Docker 聚合信息；逐项保留 unknown/不可调用。
+PATH="$HOME/.local/bin:$PATH" python3 scripts/p0/topology_snapshot.py wsl
+
+# 只读固定公共文件及指定历史 Git 对象，实际观察旧解析器的拒绝。
+uv run --locked --offline --no-sync python -B -m scripts.p0.reference_applicability \
+  --historical-repository "/mnt/d/graduation project"
+```
+
+采集器退出 0 仅表示完成采集；各分区的 observed、unknown、拒绝与未配置必须分别解释。它不读取完整配置、容器配置或凭据，也不实现产品准入；当前已批准预算和可信占用上界未知，因此诊断要求新执行按零可准入处理。s2413 由现有获授权连接将同一源码通过 SSH stdin 执行；本机没有直接可用的 `ssh s2413` 别名，具体连接值不得复制进仓库。
+
+适用性方法依赖本机历史仓库内的已登记对象，路径按实际本机位置传入；它不会执行历史源码或读取该仓库工作树配置。结果中的 passed 只覆盖固定来源/字节、字段分类和原解析器拒绝；`product_deployment_supported=false` 不是待忽略的提示。缺少历史对象或输入变动时非零退出，不能用旧结果补造通过。
+
+最终公开输入冻结与历史摘要复核使用 [收尾清单方法](p0-decisions.md#收尾输入与历史证据)。不因文档更新重取无变化的环境快照；方法或环境变化时记录新窗口与新证据，历史数据保留。P1 实际安装、配额、身份、制品、迁移及独立目标，P2 预览/原生支持分别按门禁取证。
