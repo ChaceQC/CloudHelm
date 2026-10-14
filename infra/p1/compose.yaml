@@ -1,0 +1,49 @@
+name: cloudhelm-p1-fixture
+services:
+  postgres:
+    image: postgres:16.13@sha256:5d143123fdf80462d1778cd4f24b9f7ca13c87174bca19141fb194c5a1ebca59
+    environment:
+      POSTGRES_DB: cloudhelm
+      POSTGRES_USER: cloudhelm_fixture_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/bootstrap_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets:
+      - bootstrap_password
+    ports:
+      - "127.0.0.1:${CLOUDHELM_P1_PORT:?}:5432"
+    command:
+      - postgres
+      - -c
+      - max_connections=32
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_error_statement=panic
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudhelm_fixture_admin -d cloudhelm"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+    read_only: true
+    mem_limit: 256m
+    cpus: 1.0
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /var/lib/postgresql/data:size=268435456
+      - /var/run/postgresql:size=16777216
+      - /tmp:size=16777216
+    logging:
+      driver: local
+      options:
+        max-size: 1m
+        max-file: "2"
+secrets:
+  bootstrap_password:
+    file: "${CLOUDHELM_P1_RUNTIME_DIR:?}/bootstrap_password"

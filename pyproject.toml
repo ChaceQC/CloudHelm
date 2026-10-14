@@ -1,7 +1,7 @@
 [project]
-name = "cloudhelm-p0-seams"
-version = "0.0.0"
-description = "CloudHelm P0 isolated integration probes; not a product release"
+name = "cloudhelm-hub"
+version = "0.1.0"
+description = "CloudHelm Hub development source and isolated integration probes"
 requires-python = "==3.12.*"
 dependencies = [
   "alembic==1.20.0",
@@ -14,6 +14,7 @@ dependencies = [
   "pyyaml==6.0.3",
   "rfc8785==0.1.4",
   "sqlalchemy==2.1.4",
+  "uvicorn==0.54.0",
 ]
 
 [tool.uv]

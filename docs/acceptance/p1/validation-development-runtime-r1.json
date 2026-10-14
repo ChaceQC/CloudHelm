@@ -1,0 +1,58 @@
+{
+  "baseline": {
+    "application_name": "cloudhelm-hub",
+    "application_version": "0.1.0",
+    "business_revision": "0001_p1_1",
+    "dbos_schema_version": null,
+    "dbos_sdk_version": "3.2.0",
+    "initialization_operation_id": "e8a6ee564dff4197b9655cc027c0da70",
+    "installation_id": "0981f07bbf5d4e0da1b4952c4b7a270b"
+  },
+  "checks": {
+    "runtime": {
+      "api_liveness_two_instances": true,
+      "api_no_worker_connections_or_version_changes": true,
+      "api_source_client_only": true,
+      "fixture_baseline_restored": true,
+      "recovery_and_version_gates_rejected": true,
+      "role_connection_samples_within_budget": true,
+      "worker_single_instance_and_sigterm_restart": true
+    }
+  },
+  "cleanup": "complete",
+  "complete_scope": false,
+  "environment": {
+    "dbos": "3.2.0",
+    "fastapi": "0.143.0",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "psycopg": "3.3.6",
+    "pydantic": "2.14.1",
+    "python": "3.12.13",
+    "sqlalchemy": "2.1.4",
+    "system": "Linux",
+    "uvicorn": "0.54.0"
+  },
+  "finished_at_utc": "2026-10-14T20:30:18.682270+00:00",
+  "fixture_id": "cloudhelm-p1-85f2161c6b06",
+  "groups": [
+    "runtime"
+  ],
+  "human_acceptance": "not_performed",
+  "independent_delivery": "not_performed",
+  "input_binding": {
+    "matches": false,
+    "mode": "development_worktree"
+  },
+  "method_revision": "p1-foundation-r1",
+  "public_contracts": {
+    "method_revision": "p1-public-contracts-r1",
+    "operation_count": 15,
+    "path_count": 13,
+    "schema_count": 33,
+    "schema_revision": "p1-hub-api-r1",
+    "snapshot_match": true
+  },
+  "scope": "WSL development integration; Task completion uses controlled synthetic domain facts",
+  "started_at_utc": "2026-10-14T20:29:20.704567+00:00",
+  "status": "passed"
+}

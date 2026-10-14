@@ -69,13 +69,13 @@ jobs:
           print("仓库结构、UTF-8 文本及 .thesis-work 忽略规则检查通过。")
           PY
 
-      - name: 安装已锁定的隔离接缝依赖
+      - name: 安装已锁定的 Hub 与接缝依赖
         uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
         with:
           version: "0.11.29"
           enable-cache: true
 
-      - name: 检查 P0 源码与契约导入
+      - name: 检查 Hub、P0 与参照源码和契约
         run: |
           uv sync --locked
           uv run --frozen python - <<'PY'
@@ -84,7 +84,7 @@ jobs:
           import pathlib
           from packages.contracts.p0.runtime_contracts import P0RuntimeContracts
 
-          for directory in ("scripts/p0", "integrations", "examples/standalone-project/backend/app", "examples/standalone-project/backend/migrations", "docs/acceptance/reference/r1"):
+          for directory in ("database", "modules", "services", "packages/contracts/p1", "scripts/p1", "scripts/p0", "integrations", "examples/standalone-project/backend/app", "examples/standalone-project/backend/migrations", "docs/acceptance/reference/r1"):
               for path in pathlib.Path(directory).rglob("*.py"):
                   ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
           schema = P0RuntimeContracts.model_json_schema()
@@ -96,11 +96,14 @@ jobs:
           from app.main import create_app
           frozen_api = json.loads(pathlib.Path("examples/standalone-project/backend/openapi.json").read_text(encoding="utf-8"))
           assert create_app(None).openapi() == frozen_api
-          print("P0/参照源码语法、锁定依赖、契约导入与OpenAPI一致性检查通过；未运行模型、数据库或容器实验。")
+          print("Hub/P0/参照源码语法、锁定依赖、契约导入与参照OpenAPI一致性检查通过；本步骤未运行模型、数据库或容器实验。")
           PY
 
       - name: 核对 P0.3 决定契约
         run: uv run --frozen python -m scripts.p0.check_decisions
+
+      - name: 核对 Hub HTTP 契约快照
+        run: uv run --frozen python -m scripts.p1.check_public_contracts
 
       - name: 检查参照后端依赖锁
         run: uv lock --check --directory examples/standalone-project/backend

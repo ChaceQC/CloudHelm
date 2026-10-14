@@ -4,22 +4,24 @@
 
 ## 当前基线
 
-仓库目前提供 **v4.7 设计资料、执行计划、P0 隔离接缝工程和全栈参照项目**。CloudHelm 产品尚未实现，暂不提供产品安装包或业务启动命令。v4.7 是设计文档版本，不是软件版本。
+仓库提供 **Hub 基础开发源码、v4.7 设计资料、执行计划、隔离接缝工程和全栈参照项目**。Hub 开发源码版本为 `0.1.0`，包含受控数据库初始化、用户/项目与角色管理、Task 命令和唯一完成报告、独立 API 与单 worker 入口。v4.7 是设计文档版本，与软件版本分开管理。
+
+开发者可按 [Hub 开发与维护说明](./docs/development/p1-hub.md) 在 WSL 安装锁定依赖，配置独立数据库角色，初始化用户/项目并启动服务。Task 的普通推进入口检查当前授权、版本和输入；缺少候选/验收依据或存在未核对写操作时返回具体阻断。完整 Agent 开发、受限构建、Desktop 和远程交付继续按设计分阶段接入，当前不提供产品安装包。
 
 隔离工程用于核验 SDK、数据库、工具协议和 Compose 边界，开发者可按 [P0 接缝使用说明](./docs/development/p0-seams.md) 安装锁定依赖、启动临时数据库并执行对应探测；实际兼容范围见 [组件基线](./docs/decisions/p0/component-baseline.md) 和 [接缝结论](./docs/acceptance/p0/seam-summary.md)。
 
-[P0 决定契约](./packages/contracts/p0/README.md) 提供身份、迁移、资源、Task 控制、许可、预览及核心映射的可校验模型和 JSON Schema。开发者可按 [契约使用说明](./docs/development/p0-decisions.md) 在 WSL 执行不连接外部服务的窄检查；这些模型尚未接入产品运行入口。
+[P0 决定契约](./packages/contracts/p0/README.md) 提供身份、迁移、资源、Task 控制、许可、预览及核心映射的可校验模型和 JSON Schema。Hub 显式复用其中的身份/摘要、工程引用与 Task 控制规则，实际 HTTP 和内部交接类型见 [Hub 基础契约](./packages/contracts/p1/README.md)。其余接缝仍保持各自支持边界，可按 [契约使用说明](./docs/development/p0-decisions.md) 在 WSL 执行对应窄检查。
 
 [全栈便签参照](./examples/standalone-project/README.md) 包含 React、FastAPI、PostgreSQL 和线性 Alembic 迁移，可在 WSL 通过 Compose 运行。入口仅供本机合成数据使用，源码与独立 HTTP 验收资产分开提供；候选组合和使用边界见 [首条链路规格](./docs/implementation/reference-chain.md) 与 [支持矩阵](./docs/acceptance/support-matrix.md)。
 
 ## 技术方向
 
-以下为总体设计中的技术选型，仍待分阶段实现和验证：
+技术选型及接入范围以设计和当前工程为准：
 
-- 桌面端：Tauri、React、TypeScript。
-- 服务端：FastAPI、Pydantic、SQLAlchemy、PostgreSQL、Alembic。
-- Agent 与持久工作流：PydanticAI、DBOS Python。
-- 开发、构建与交付环境：Docker Compose。
+- Hub：FastAPI、Pydantic、SQLAlchemy、PostgreSQL、Alembic。
+- 持久工作流：DBOS Python；Agent 协议运行时选用 PydanticAI，完整 Agent 链路后续接入。
+- 桌面端：计划使用 Tauri、React、TypeScript。
+- 开发、构建与交付环境：Docker Compose，按受支持范围逐步接入。
 
 ## 阅读入口
 

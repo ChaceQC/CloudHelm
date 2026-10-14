@@ -1,0 +1,4285 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CloudHelm Hub API",
+    "description": "P1.1 identity, existing-project management and Task control API.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "summary": "Identity.Current",
+        "operationId": "identity_current_api_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentIdentity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ]
+      }
+    },
+    "/api/projects": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Projects.List",
+        "operationId": "projects_list_api_projects_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Projects.Get",
+        "operationId": "projects_get_api_projects__project_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Projects.Rename",
+        "operationId": "projects_rename_api_projects__project_id__patch",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameProjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Projects Rename Api Projects  Project Id  Patch"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/role-bindings": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Projects.Roles",
+        "operationId": "projects_roles_api_projects__project_id__role_bindings_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleBindingPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Projects.Grant Role",
+        "operationId": "projects_grant_role_api_projects__project_id__role_bindings_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantProjectRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Projects Grant Role Api Projects  Project Id  Role Bindings Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/role-bindings/revoke": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Projects.Revoke Role",
+        "operationId": "projects_revoke_role_api_projects__project_id__role_bindings_revoke_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeProjectRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Projects Revoke Role Api Projects  Project Id  Role Bindings Revoke Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/tasks": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Create",
+        "operationId": "tasks_create_api_projects__project_id__tasks_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            }
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCreateRejection"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 403 Tasks Create Api Projects  Project Id  Tasks Post"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCreateRejection"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 404 Tasks Create Api Projects  Project Id  Tasks Post"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCreateRejection"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Tasks Create Api Projects  Project Id  Tasks Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCreateRejection"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Tasks Create Api Projects  Project Id  Tasks Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Query",
+        "operationId": "tasks_query_api_tasks__task_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/completion-report": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Report",
+        "operationId": "tasks_report_api_tasks__task_id__completion_report_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCompletionReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/start": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Start",
+        "operationId": "tasks_start_api_tasks__task_id__start_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 403 Tasks Start Api Tasks  Task Id  Start Post"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 404 Tasks Start Api Tasks  Task Id  Start Post"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Tasks Start Api Tasks  Task Id  Start Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Tasks Start Api Tasks  Task Id  Start Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/complete": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Complete",
+        "operationId": "tasks_complete_api_tasks__task_id__complete_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 403 Tasks Complete Api Tasks  Task Id  Complete Post"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 404 Tasks Complete Api Tasks  Task Id  Complete Post"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Tasks Complete Api Tasks  Task Id  Complete Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Tasks Complete Api Tasks  Task Id  Complete Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/cancel": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Cancel",
+        "operationId": "tasks_cancel_api_tasks__task_id__cancel_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 403 Tasks Cancel Api Tasks  Task Id  Cancel Post"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 404 Tasks Cancel Api Tasks  Task Id  Cancel Post"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Tasks Cancel Api Tasks  Task Id  Cancel Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Tasks Cancel Api Tasks  Task Id  Cancel Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/reconcile": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Tasks.Reconcile",
+        "operationId": "tasks_reconcile_api_tasks__task_id__reconcile_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            }
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 403 Tasks Reconcile Api Tasks  Task Id  Reconcile Post"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 404 Tasks Reconcile Api Tasks  Task Id  Reconcile Post"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Tasks Reconcile Api Tasks  Task Id  Reconcile Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TaskCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Tasks Reconcile Api Tasks  Task Id  Reconcile Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness",
+        "operationId": "liveness_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Liveness"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request Entity Too Large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$",
+            "title": "Code"
+          },
+          "blocking_object_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Blocking Object Ids",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "ApiErrorResponse"
+      },
+      "CancelTaskRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Control Revision"
+          },
+          "cancel_reason": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Cancel Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "cancel_reason"
+        ],
+        "title": "CancelTaskRequest"
+      },
+      "CancellationIntent": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "cancel_requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Cancel Requested At"
+          },
+          "cancel_requested_by": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "cancel_reason": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Cancel Reason"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Control Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "cancel_requested_at",
+          "cancel_requested_by",
+          "cancel_reason",
+          "control_revision"
+        ],
+        "title": "CancellationIntent"
+      },
+      "CommandEnvelope": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "digest_profile": {
+            "type": "string",
+            "const": "cloudhelm-jcs-sha256-r1",
+            "title": "Digest Profile",
+            "default": "cloudhelm-jcs-sha256-r1"
+          },
+          "request_schema_revision": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Request Schema Revision"
+          },
+          "caller": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ResourceScope"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ResourceScope"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "resource.read",
+              "project.manage",
+              "task.command",
+              "task.cancel",
+              "workspace.write",
+              "candidate.submit",
+              "review.submit",
+              "human_test.enter",
+              "human_test.pass",
+              "human_test.request_changes",
+              "human_test.skip",
+              "deployment.approve",
+              "operation.request",
+              "operation.query",
+              "operation.stop",
+              "operation.reconcile",
+              "fact.archive",
+              "step.execute",
+              "emergency.execute",
+              "emergency.handover"
+            ],
+            "title": "Action"
+          },
+          "expected_resource_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Resource Revision"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "References",
+            "default": []
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Idempotency Key"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_schema_revision",
+          "caller",
+          "scope",
+          "target",
+          "action",
+          "expected_resource_revision",
+          "command_id",
+          "idempotency_key",
+          "request_digest"
+        ],
+        "title": "CommandEnvelope"
+      },
+      "CompleteTaskRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Input Validity Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision"
+        ],
+        "title": "CompleteTaskRequest"
+      },
+      "CompletionBasis": {
+        "properties": {
+          "requirement_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "acceptance_assets_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "final_candidate_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "integrated_source_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Input Validity Revision"
+          },
+          "required_check_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Required Check Ids"
+          },
+          "required_evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "Required Evidence Refs"
+          },
+          "human_test": {
+            "$ref": "#/components/schemas/HumanTestCompletionFact"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement_ref",
+          "acceptance_assets_ref",
+          "final_candidate_ref",
+          "integrated_source_ref",
+          "input_set_ref",
+          "input_validity_revision",
+          "required_check_ids",
+          "required_evidence_refs",
+          "human_test"
+        ],
+        "title": "CompletionBasis"
+      },
+      "CreateTaskRequest": {
+        "properties": {
+          "expected_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Project Revision"
+          },
+          "declaration": {
+            "$ref": "#/components/schemas/TaskDeclaration"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_project_revision",
+          "declaration"
+        ],
+        "title": "CreateTaskRequest"
+      },
+      "CurrentIdentity": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-identity-r1",
+            "title": "Schema Revision",
+            "default": "p1-identity-r1"
+          },
+          "user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "session_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Session Id"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "display_name",
+          "session_id",
+          "expires_at"
+        ],
+        "title": "CurrentIdentity"
+      },
+      "EngineeringRef": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "session",
+              "run",
+              "operation",
+              "operation_result",
+              "wait_condition",
+              "context",
+              "input_set",
+              "history",
+              "messages",
+              "deferred_results",
+              "tool_request",
+              "delivery",
+              "requirement",
+              "contract",
+              "source",
+              "build",
+              "artifact",
+              "environment",
+              "environment_config",
+              "parameter_set",
+              "resource_binding",
+              "secret_version",
+              "evidence",
+              "acceptance_assets",
+              "method",
+              "candidate",
+              "release",
+              "deployment_plan",
+              "deployment_spec",
+              "policy",
+              "descriptor",
+              "compose",
+              "runtime",
+              "config_schema",
+              "migration",
+              "approval",
+              "variant"
+            ],
+            "title": "Kind"
+          },
+          "object_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Object Id"
+          },
+          "revision": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Revision"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "digest_algorithm": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "sha256"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest Algorithm"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "object_id",
+          "revision"
+        ],
+        "title": "EngineeringRef"
+      },
+      "GrantProjectRoleRequest": {
+        "properties": {
+          "expected_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Project Revision"
+          },
+          "expected_permission_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Permission Revision"
+          },
+          "user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "developer",
+              "reviewer"
+            ],
+            "title": "Role"
+          },
+          "actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "resource.read",
+                "task.command",
+                "task.cancel",
+                "operation.query",
+                "operation.stop",
+                "operation.reconcile",
+                "fact.archive"
+              ]
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Actions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_project_revision",
+          "expected_permission_revision",
+          "user_id",
+          "role",
+          "actions"
+        ],
+        "title": "GrantProjectRoleRequest"
+      },
+      "HumanTestCompletionFact": {
+        "properties": {
+          "policy_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "is_completion_gate": {
+            "type": "boolean",
+            "title": "Is Completion Gate",
+            "default": false
+          },
+          "policy_current": {
+            "type": "boolean",
+            "title": "Policy Current",
+            "default": false
+          },
+          "skip_allowed": {
+            "type": "boolean",
+            "title": "Skip Allowed",
+            "default": false
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "conclusion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "passed",
+                  "changes_requested",
+                  "skipped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion"
+          },
+          "concluded_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Principal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concluded_at_utc": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concluded At Utc"
+          },
+          "conclusion_evidence_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authorized_human_conclusion": {
+            "type": "boolean",
+            "title": "Authorized Human Conclusion",
+            "default": false
+          },
+          "applicable_to_final_input": {
+            "type": "boolean",
+            "title": "Applicable To Final Input",
+            "default": false
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "policy_ref"
+        ],
+        "title": "HumanTestCompletionFact"
+      },
+      "Liveness": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "alive",
+            "title": "Status",
+            "default": "alive"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Liveness"
+      },
+      "Principal": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent",
+              "executor"
+            ],
+            "title": "Kind"
+          },
+          "subject_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Subject Id"
+          },
+          "delegator_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delegator Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "subject_id"
+        ],
+        "title": "Principal"
+      },
+      "ProjectCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "renamed",
+              "role_granted",
+              "role_revoked",
+              "unchanged",
+              "rejected"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectView"
+          },
+          "role_binding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleBindingView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "project_id",
+          "outcome",
+          "code",
+          "project"
+        ],
+        "title": "ProjectCommandResult"
+      },
+      "ProjectPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectView"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ProjectPage"
+      },
+      "ProjectView": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-identity-r1",
+            "title": "Schema Revision",
+            "default": "p1-identity-r1"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "owner_user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Owner User Id"
+          },
+          "revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Revision"
+          },
+          "permission_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Permission Revision"
+          },
+          "policy_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Policy Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "name",
+          "owner_user_id",
+          "revision",
+          "permission_revision",
+          "policy_revision"
+        ],
+        "title": "ProjectView"
+      },
+      "ReconcileTaskRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Control Revision"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "completion",
+              "cancellation"
+            ],
+            "title": "Purpose"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "purpose"
+        ],
+        "title": "ReconcileTaskRequest",
+        "description": "Reinspect existing facts; this does not authorize new physical operations."
+      },
+      "RenameProjectRequest": {
+        "properties": {
+          "expected_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Project Revision"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_project_revision",
+          "name"
+        ],
+        "title": "RenameProjectRequest"
+      },
+      "ResourceScope": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "resource_kind": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Resource Kind"
+          },
+          "resource_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Resource Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "resource_kind",
+          "resource_id"
+        ],
+        "title": "ResourceScope"
+      },
+      "RevokeProjectRoleRequest": {
+        "properties": {
+          "expected_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Project Revision"
+          },
+          "expected_permission_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Permission Revision"
+          },
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_project_revision",
+          "expected_permission_revision",
+          "binding_id"
+        ],
+        "title": "RevokeProjectRoleRequest"
+      },
+      "RoleBindingPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoleBindingView"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RoleBindingPage"
+      },
+      "RoleBindingView": {
+        "properties": {
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "developer",
+              "reviewer"
+            ],
+            "title": "Role"
+          },
+          "actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "resource.read",
+                "project.manage",
+                "task.command",
+                "task.cancel",
+                "workspace.write",
+                "candidate.submit",
+                "review.submit",
+                "human_test.enter",
+                "human_test.pass",
+                "human_test.request_changes",
+                "human_test.skip",
+                "deployment.approve",
+                "operation.request",
+                "operation.query",
+                "operation.stop",
+                "operation.reconcile",
+                "fact.archive",
+                "step.execute",
+                "emergency.execute",
+                "emergency.handover"
+              ]
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Actions"
+          },
+          "revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Revision"
+          },
+          "revoked": {
+            "type": "boolean",
+            "title": "Revoked"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding_id",
+          "project_id",
+          "user_id",
+          "role",
+          "actions",
+          "revision",
+          "revoked"
+        ],
+        "title": "RoleBindingView"
+      },
+      "StartTaskRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Input Validity Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision"
+        ],
+        "title": "StartTaskRequest"
+      },
+      "TaskBlocker": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "object_kind": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Object Kind",
+            "default": "task"
+          },
+          "object_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "TaskBlocker"
+      },
+      "TaskBudget": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "maxLength": 25,
+            "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,8})?$",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "CNY"
+            ],
+            "title": "Currency"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "TaskBudget",
+        "description": "A declared spending ceiling, not a reservation or a known actual charge."
+      },
+      "TaskCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "started",
+              "completed",
+              "cancellation_requested",
+              "cancelled",
+              "already_completed",
+              "already_cancelled",
+              "reconciled",
+              "rejected",
+              "blocked",
+              "input_invalidated",
+              "impact_archived",
+              "write_intent_registered",
+              "reconciliation_requested"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "paused",
+              "waiting_input",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Input Validity Revision"
+          },
+          "completion_report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Report Id"
+          },
+          "original_command_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Command Id"
+          },
+          "workflow_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Id"
+          },
+          "control_purpose": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "completion",
+                  "cancellation"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Purpose"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/TaskBlocker"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Blockers",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "task_id",
+          "outcome",
+          "code",
+          "state",
+          "version",
+          "control_revision",
+          "input_validity_revision"
+        ],
+        "title": "TaskCommandResult",
+        "description": "Persist exactly this result; replays do not replace it with a newer Task view."
+      },
+      "TaskCompletionReport": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Report Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "completion_command": {
+            "$ref": "#/components/schemas/TaskControlCommand"
+          },
+          "committed_version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Committed Version"
+          },
+          "committed_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Committed Control Revision"
+          },
+          "committed_at_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Committed At Utc"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/CompletionBasis"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_id",
+          "task_id",
+          "completion_command",
+          "committed_version",
+          "committed_control_revision",
+          "committed_at_utc",
+          "basis"
+        ],
+        "title": "TaskCompletionReport"
+      },
+      "TaskControlCommand": {
+        "properties": {
+          "envelope": {
+            "$ref": "#/components/schemas/CommandEnvelope"
+          },
+          "request": {
+            "$ref": "#/components/schemas/TaskControlRequest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "envelope",
+          "request"
+        ],
+        "title": "TaskControlCommand"
+      },
+      "TaskControlRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "complete_task",
+              "cancel_task"
+            ],
+            "title": "Action"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991,
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Input Validity Revision"
+          },
+          "cancel_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "expected_control_revision"
+        ],
+        "title": "TaskControlRequest"
+      },
+      "TaskCreateRejection": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "outcome": {
+            "type": "string",
+            "const": "rejected",
+            "title": "Outcome",
+            "default": "rejected"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/TaskBlocker"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Blockers",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "project_id",
+          "code"
+        ],
+        "title": "TaskCreateRejection",
+        "description": "A rejected declaration has no Task identity, state or business version."
+      },
+      "TaskDeclaration": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "requirement_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "acceptance_assets_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "source_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/TaskBudget"
+          },
+          "resource_scope_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "human_test_policy_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "goal",
+          "requirement_ref",
+          "acceptance_assets_ref",
+          "source_ref",
+          "budget",
+          "resource_scope_ref",
+          "human_test_policy_ref"
+        ],
+        "title": "TaskDeclaration"
+      },
+      "TaskView": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "paused",
+              "waiting_input",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Input Validity Revision"
+          },
+          "declaration": {
+            "$ref": "#/components/schemas/TaskDeclaration"
+          },
+          "cancellation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CancellationIntent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completion_report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completion Report Id"
+          },
+          "input_status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "needs_review",
+              "superseded"
+            ],
+            "title": "Input Status"
+          },
+          "ordinary_progress_closed": {
+            "type": "boolean",
+            "title": "Ordinary Progress Closed"
+          },
+          "work_items": {
+            "items": {
+              "$ref": "#/components/schemas/WorkItemView"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Work Items",
+            "default": []
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/components/schemas/TaskBlocker"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Blockers",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "project_id",
+          "state",
+          "version",
+          "control_revision",
+          "input_validity_revision",
+          "declaration",
+          "input_status",
+          "ordinary_progress_closed"
+        ],
+        "title": "TaskView"
+      },
+      "WorkItemView": {
+        "properties": {
+          "work_item_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item Id"
+          },
+          "revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Revision"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "running",
+              "blocked",
+              "submitted",
+              "accepted",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "accepted_input_set_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "work_item_id",
+          "revision",
+          "state",
+          "required",
+          "goal"
+        ],
+        "title": "WorkItemView"
+      }
+    },
+    "securitySchemes": {
+      "CloudHelmSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque"
+      }
+    }
+  },
+  "x-cloudhelm-schema-revision": "p1-hub-api-r1"
+}
