@@ -1,0 +1,5267 @@
+{
+  "$defs": {
+    "AcceptedReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "query_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "status": {
+          "const": "accepted",
+          "default": "accepted",
+          "title": "Status",
+          "type": "string"
+        },
+        "wait_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        }
+      },
+      "required": [
+        "operation_id",
+        "request_digest",
+        "query_ref",
+        "wait_ref"
+      ],
+      "title": "AcceptedReceipt",
+      "type": "object"
+    },
+    "AllocationIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict_keys": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Conflict Keys",
+          "type": "array"
+        },
+        "cpu_period_us": {
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "title": "Cpu Period Us",
+          "type": "integer"
+        },
+        "executor_instance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Executor Instance Id",
+          "type": "string"
+        },
+        "host_resource_pool_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Host Resource Pool Id",
+          "type": "string"
+        },
+        "hub_incarnation": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Hub Incarnation",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "reservation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Reservation Id",
+          "type": "string"
+        },
+        "resource_generation": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Resource Generation",
+          "type": "integer"
+        },
+        "resource_group_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Resource Group Digest",
+          "type": "string"
+        },
+        "resource_group_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Resource Group Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reservation_id",
+        "operation_id",
+        "resource_group_id",
+        "resource_group_digest",
+        "host_resource_pool_id",
+        "executor_instance_id",
+        "hub_incarnation",
+        "resource_generation",
+        "cpu_period_us"
+      ],
+      "title": "AllocationIdentity",
+      "type": "object"
+    },
+    "AuthorizationEnvelope": {
+      "additionalProperties": false,
+      "description": "Trusted adapter's fresh authorization facts, never a client capability.",
+      "properties": {
+        "action": {
+          "enum": [
+            "resource.read",
+            "project.manage",
+            "task.command",
+            "task.cancel",
+            "workspace.write",
+            "candidate.submit",
+            "review.submit",
+            "human_test.enter",
+            "human_test.pass",
+            "human_test.request_changes",
+            "human_test.skip",
+            "deployment.approve",
+            "operation.request",
+            "operation.query",
+            "operation.stop",
+            "operation.reconcile",
+            "fact.archive",
+            "step.execute",
+            "emergency.execute",
+            "emergency.handover"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "allowed": {
+          "default": false,
+          "title": "Allowed",
+          "type": "boolean"
+        },
+        "audit_session_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Audit Session Id",
+          "type": "string"
+        },
+        "caller": {
+          "$ref": "#/$defs/Principal"
+        },
+        "decision_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "delegation_current": {
+          "default": false,
+          "title": "Delegation Current",
+          "type": "boolean"
+        },
+        "permission_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Permission Revision",
+          "type": "integer"
+        },
+        "policy_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Policy Revision",
+          "type": "integer"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "resource_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Resource Revision",
+          "type": "integer"
+        },
+        "role": {
+          "enum": [
+            "project_owner",
+            "developer",
+            "reviewer",
+            "tester",
+            "deployment_approver",
+            "agent",
+            "executor",
+            "emergency_admin"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/ResourceScope"
+        },
+        "target": {
+          "$ref": "#/$defs/ResourceScope"
+        }
+      },
+      "required": [
+        "caller",
+        "role",
+        "scope",
+        "target",
+        "action",
+        "permission_revision",
+        "policy_revision",
+        "resource_revision",
+        "audit_session_id",
+        "decision_id"
+      ],
+      "title": "AuthorizationEnvelope",
+      "type": "object"
+    },
+    "CancellationIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "cancel_reason": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Cancel Reason",
+          "type": "string"
+        },
+        "cancel_requested_at": {
+          "format": "date-time",
+          "title": "Cancel Requested At",
+          "type": "string"
+        },
+        "cancel_requested_by": {
+          "$ref": "#/$defs/Principal"
+        },
+        "command_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command_id",
+        "cancel_requested_at",
+        "cancel_requested_by",
+        "cancel_reason",
+        "control_revision"
+      ],
+      "title": "CancellationIntent",
+      "type": "object"
+    },
+    "CancellationTarget": {
+      "additionalProperties": false,
+      "properties": {
+        "object_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Object Id",
+          "type": "string"
+        },
+        "object_kind": {
+          "enum": [
+            "task",
+            "work_item",
+            "session",
+            "run",
+            "operation",
+            "result",
+            "wait_condition",
+            "reservation",
+            "human_test",
+            "release",
+            "deployment",
+            "incident",
+            "cleanup"
+          ],
+          "title": "Object Kind",
+          "type": "string"
+        },
+        "owner_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Owner Id",
+          "type": "string"
+        },
+        "owner_kind": {
+          "enum": [
+            "task",
+            "shared",
+            "independent"
+          ],
+          "title": "Owner Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "object_kind",
+        "object_id",
+        "owner_kind",
+        "owner_id"
+      ],
+      "title": "CancellationTarget",
+      "type": "object"
+    },
+    "CommandEnvelope": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "resource.read",
+            "project.manage",
+            "task.command",
+            "task.cancel",
+            "workspace.write",
+            "candidate.submit",
+            "review.submit",
+            "human_test.enter",
+            "human_test.pass",
+            "human_test.request_changes",
+            "human_test.skip",
+            "deployment.approve",
+            "operation.request",
+            "operation.query",
+            "operation.stop",
+            "operation.reconcile",
+            "fact.archive",
+            "step.execute",
+            "emergency.execute",
+            "emergency.handover"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "caller": {
+          "$ref": "#/$defs/Principal"
+        },
+        "command_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "digest_profile": {
+          "const": "cloudhelm-jcs-sha256-r1",
+          "default": "cloudhelm-jcs-sha256-r1",
+          "title": "Digest Profile",
+          "type": "string"
+        },
+        "expected_resource_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Resource Revision",
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 32,
+          "title": "References",
+          "type": "array"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "request_schema_revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Request Schema Revision",
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/ResourceScope"
+        },
+        "target": {
+          "$ref": "#/$defs/ResourceScope"
+        }
+      },
+      "required": [
+        "request_schema_revision",
+        "caller",
+        "scope",
+        "target",
+        "action",
+        "expected_resource_revision",
+        "command_id",
+        "idempotency_key",
+        "request_digest"
+      ],
+      "title": "CommandEnvelope",
+      "type": "object"
+    },
+    "CompletionBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_assets_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "final_candidate_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "human_test": {
+          "$ref": "#/$defs/HumanTestCompletionFact"
+        },
+        "input_set_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "input_validity_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Input Validity Revision",
+          "type": "integer"
+        },
+        "integrated_source_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "required_check_ids": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Required Check Ids",
+          "type": "array"
+        },
+        "required_evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "title": "Required Evidence Refs",
+          "type": "array"
+        },
+        "requirement_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        }
+      },
+      "required": [
+        "requirement_ref",
+        "acceptance_assets_ref",
+        "final_candidate_ref",
+        "integrated_source_ref",
+        "input_set_ref",
+        "input_validity_revision",
+        "required_check_ids",
+        "required_evidence_refs",
+        "human_test"
+      ],
+      "title": "CompletionBasis",
+      "type": "object"
+    },
+    "CurrentTaskAccess": {
+      "additionalProperties": false,
+      "description": "Fresh identity-layer decision for this command; never client input.",
+      "properties": {
+        "action": {
+          "enum": [
+            "complete_task",
+            "cancel_task"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "authorization_decision_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Authorization Decision Id",
+          "type": "string"
+        },
+        "caller": {
+          "$ref": "#/$defs/Principal"
+        },
+        "command_allowed": {
+          "default": false,
+          "title": "Command Allowed",
+          "type": "boolean"
+        },
+        "command_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "permission_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Permission Revision",
+          "type": "integer"
+        },
+        "report_read_allowed": {
+          "default": false,
+          "title": "Report Read Allowed",
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "#/$defs/ResourceScope"
+        },
+        "task_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "command_id",
+        "caller",
+        "scope",
+        "task_id",
+        "action",
+        "authorization_decision_id",
+        "permission_revision"
+      ],
+      "title": "CurrentTaskAccess",
+      "type": "object"
+    },
+    "DependencyLink": {
+      "additionalProperties": false,
+      "properties": {
+        "consumer_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "producer_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "required_quality": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Required Quality",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Rule Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "consumer_ref",
+        "producer_ref",
+        "required_quality",
+        "rule_id",
+        "rule_version"
+      ],
+      "title": "DependencyLink",
+      "type": "object"
+    },
+    "DeploymentPlanBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "environment_config_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "environment_execution_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Environment Execution Id",
+          "type": "string"
+        },
+        "executor_instance": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Executor Instance",
+          "type": "string"
+        },
+        "expected_environment_revision_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Expected Environment Revision Id",
+          "type": "string"
+        },
+        "expected_observed_state_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Expected Observed State Digest",
+          "type": "string"
+        },
+        "generation": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "input_set_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "normalized_spec_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "operation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "parser_revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Parser Revision",
+          "type": "string"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "plan_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Plan Id",
+          "type": "string"
+        },
+        "release_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "target_installation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Target Installation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "plan_id",
+        "plan_digest",
+        "operation_id",
+        "release_ref",
+        "environment_config_ref",
+        "environment_execution_id",
+        "expected_environment_revision_id",
+        "expected_observed_state_digest",
+        "normalized_spec_ref",
+        "input_set_ref",
+        "parser_revision",
+        "target_installation_id",
+        "executor_instance",
+        "generation",
+        "approval_ref"
+      ],
+      "title": "DeploymentPlanBinding",
+      "type": "object"
+    },
+    "DiskRetentionTransfer": {
+      "additionalProperties": false,
+      "properties": {
+        "accounting_mode": {
+          "const": "ledger",
+          "default": "ledger",
+          "title": "Accounting Mode",
+          "type": "string"
+        },
+        "allocation_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Allocation Revision",
+          "type": "integer"
+        },
+        "identity": {
+          "$ref": "#/$defs/AllocationIdentity"
+        },
+        "observed_at_utc": {
+          "format": "date-time",
+          "title": "Observed At Utc",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "retained_bytes": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Retained Bytes",
+          "type": "integer"
+        },
+        "retained_object_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Retained Object Id",
+          "type": "string"
+        },
+        "retention_limit_bytes": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Retention Limit Bytes",
+          "type": "integer"
+        },
+        "transfer_evidence_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Transfer Evidence Ref",
+          "type": "string"
+        },
+        "transfer_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Transfer Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transfer_id",
+        "request_digest",
+        "identity",
+        "allocation_revision",
+        "retained_object_id",
+        "retained_bytes",
+        "retention_limit_bytes",
+        "observed_at_utc",
+        "transfer_evidence_ref"
+      ],
+      "title": "DiskRetentionTransfer",
+      "type": "object"
+    },
+    "EmergencyAccessProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_actions": {
+          "items": {
+            "enum": [
+              "controlled_restart",
+              "restore_compatible_artifact"
+            ],
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Allowed Actions",
+          "type": "array"
+        },
+        "authentication": {
+          "const": "so-peercred-and-ed25519-challenge-r1",
+          "title": "Authentication",
+          "type": "string"
+        },
+        "authentication_material_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "enabled": {
+          "const": false,
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "executor_instance": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Executor Instance",
+          "type": "string"
+        },
+        "installation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Installation Id",
+          "type": "string"
+        },
+        "local_admin_identity": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Local Admin Identity",
+          "type": "string"
+        },
+        "local_admin_uid": {
+          "maximum": 4294967294,
+          "minimum": 0,
+          "title": "Local Admin Uid",
+          "type": "integer"
+        },
+        "max_execution_seconds": {
+          "maximum": 900,
+          "minimum": 1,
+          "title": "Max Execution Seconds",
+          "type": "integer"
+        },
+        "owner_user_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Owner User Id",
+          "type": "string"
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "profile_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "resource_scope": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Resource Scope",
+          "type": "array"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "title": "Valid From",
+          "type": "string"
+        },
+        "valid_until": {
+          "format": "date-time",
+          "title": "Valid Until",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile_id",
+        "revision",
+        "installation_id",
+        "executor_instance",
+        "owner_user_id",
+        "local_admin_identity",
+        "local_admin_uid",
+        "authentication",
+        "authentication_material_ref",
+        "resource_scope",
+        "allowed_actions",
+        "policy_ref",
+        "valid_from",
+        "valid_until",
+        "max_execution_seconds"
+      ],
+      "title": "EmergencyAccessProfile",
+      "type": "object"
+    },
+    "EngineeringRef": {
+      "additionalProperties": false,
+      "properties": {
+        "authority": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authority"
+        },
+        "digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest"
+        },
+        "digest_algorithm": {
+          "anyOf": [
+            {
+              "const": "sha256",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Digest Algorithm"
+        },
+        "kind": {
+          "enum": [
+            "task",
+            "session",
+            "run",
+            "operation",
+            "operation_result",
+            "wait_condition",
+            "context",
+            "input_set",
+            "history",
+            "messages",
+            "deferred_results",
+            "tool_request",
+            "delivery",
+            "requirement",
+            "contract",
+            "source",
+            "build",
+            "artifact",
+            "environment",
+            "environment_config",
+            "parameter_set",
+            "resource_binding",
+            "secret_version",
+            "evidence",
+            "acceptance_assets",
+            "method",
+            "candidate",
+            "release",
+            "deployment_plan",
+            "deployment_spec",
+            "policy",
+            "descriptor",
+            "compose",
+            "runtime",
+            "config_schema",
+            "migration",
+            "approval",
+            "variant"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "object_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Object Id",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "object_id",
+        "revision"
+      ],
+      "title": "EngineeringRef",
+      "type": "object"
+    },
+    "EnvironmentConfigRevision": {
+      "additionalProperties": false,
+      "properties": {
+        "config_revision_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Config Revision Id",
+          "type": "string"
+        },
+        "environment_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Environment Id",
+          "type": "string"
+        },
+        "parameter_set_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "resource_binding_refs": {
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Resource Binding Refs",
+          "type": "array"
+        },
+        "revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "secret_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 32,
+          "title": "Secret Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "config_revision_id",
+        "environment_id",
+        "revision",
+        "parameter_set_ref",
+        "resource_binding_refs"
+      ],
+      "title": "EnvironmentConfigRevision",
+      "type": "object"
+    },
+    "EvidenceApplicability": {
+      "additionalProperties": false,
+      "properties": {
+        "consumer_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "input_set_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "input_validity_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Input Validity Revision",
+          "type": "integer"
+        },
+        "reason_code": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "rule_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "rule_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Rule Version",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "valid",
+            "needs_review",
+            "superseded"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_ref",
+        "consumer_ref",
+        "input_set_ref",
+        "input_validity_revision",
+        "status",
+        "rule_id",
+        "rule_version",
+        "reason_code"
+      ],
+      "title": "EvidenceApplicability",
+      "type": "object"
+    },
+    "EvidenceRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "environment_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "evidence_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "input_set_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "method_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "result": {
+          "enum": [
+            "passed",
+            "failed",
+            "unknown",
+            "not_run"
+          ],
+          "title": "Result",
+          "type": "string"
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "support_scope": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Support Scope",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "subject_ref",
+        "input_set_ref",
+        "method_ref",
+        "environment_ref",
+        "result",
+        "observed_at",
+        "support_scope"
+      ],
+      "title": "EvidenceRecord",
+      "type": "object"
+    },
+    "GrantAcceptance": {
+      "additionalProperties": false,
+      "description": "Persist once under the start lock; re-delivery retrieves this exact record.",
+      "properties": {
+        "first_accepted_mono_us": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "First Accepted Mono Us",
+          "type": "integer"
+        },
+        "first_mapping": {
+          "$ref": "#/$defs/TimeMapping"
+        },
+        "grant": {
+          "$ref": "#/$defs/StepPermit"
+        }
+      },
+      "required": [
+        "grant",
+        "first_mapping",
+        "first_accepted_mono_us"
+      ],
+      "title": "GrantAcceptance",
+      "type": "object"
+    },
+    "HostResourcePool": {
+      "additionalProperties": false,
+      "properties": {
+        "capacity_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capacity Evidence Ref"
+        },
+        "capacity_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Capacity Revision",
+          "type": "integer"
+        },
+        "configured_budget": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "executor_instance_ids": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Executor Instance Ids",
+          "type": "array"
+        },
+        "group_limits_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Limits Evidence Ref"
+        },
+        "host_identity_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Host Identity Evidence Ref"
+        },
+        "host_resource_pool_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Host Resource Pool Id",
+          "type": "string"
+        },
+        "measured_allocatable_capacity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceVector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "physical_host_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Physical Host Id",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "unknown_occupancy_upper_bound": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResourceVector"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "host_resource_pool_id",
+        "physical_host_id",
+        "executor_instance_ids",
+        "capacity_revision",
+        "configured_budget"
+      ],
+      "title": "HostResourcePool",
+      "type": "object"
+    },
+    "HumanTestCompletionFact": {
+      "additionalProperties": false,
+      "properties": {
+        "applicable_to_final_input": {
+          "default": false,
+          "title": "Applicable To Final Input",
+          "type": "boolean"
+        },
+        "authorized_human_conclusion": {
+          "default": false,
+          "title": "Authorized Human Conclusion",
+          "type": "boolean"
+        },
+        "concluded_at_utc": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Concluded At Utc"
+        },
+        "concluded_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Principal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "conclusion": {
+          "anyOf": [
+            {
+              "enum": [
+                "passed",
+                "changes_requested",
+                "skipped"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conclusion"
+        },
+        "conclusion_evidence_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "is_completion_gate": {
+          "default": false,
+          "title": "Is Completion Gate",
+          "type": "boolean"
+        },
+        "policy_current": {
+          "default": false,
+          "title": "Policy Current",
+          "type": "boolean"
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "skip_allowed": {
+          "default": false,
+          "title": "Skip Allowed",
+          "type": "boolean"
+        },
+        "skip_reason": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Skip Reason"
+        }
+      },
+      "required": [
+        "policy_ref"
+      ],
+      "title": "HumanTestCompletionFact",
+      "type": "object"
+    },
+    "IdempotencyRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "caller": {
+          "$ref": "#/$defs/Principal"
+        },
+        "command_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Command Id",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "operation_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operation Id"
+        },
+        "report_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Report Id"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "result_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Result Ref"
+        },
+        "scope": {
+          "$ref": "#/$defs/ResourceScope"
+        }
+      },
+      "required": [
+        "caller",
+        "scope",
+        "idempotency_key",
+        "command_id",
+        "request_digest"
+      ],
+      "title": "IdempotencyRecord",
+      "type": "object"
+    },
+    "InputSet": {
+      "additionalProperties": false,
+      "properties": {
+        "canonicalization": {
+          "const": "rfc8785-reference-set-r1",
+          "default": "rfc8785-reference-set-r1",
+          "title": "Canonicalization",
+          "type": "string"
+        },
+        "input_set_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Input Set Id",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "title": "References",
+          "type": "array"
+        },
+        "set_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Set Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "input_set_id",
+        "references",
+        "set_digest"
+      ],
+      "title": "InputSet",
+      "type": "object"
+    },
+    "MaintenanceGate": {
+      "additionalProperties": false,
+      "properties": {
+        "executor_instance": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Executor Instance",
+          "type": "string"
+        },
+        "installation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Installation Id",
+          "type": "string"
+        },
+        "local_admin_identity": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Local Admin Identity",
+          "type": "string"
+        },
+        "maintenance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Maintenance Id",
+          "type": "string"
+        },
+        "normal_admission_closed": {
+          "const": true,
+          "default": true,
+          "title": "Normal Admission Closed",
+          "type": "boolean"
+        },
+        "original_operation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Original Operation Id",
+          "type": "string"
+        },
+        "profile_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Profile Id",
+          "type": "string"
+        },
+        "profile_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Profile Revision",
+          "type": "integer"
+        },
+        "recovery_operation_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recovery Operation Id"
+        },
+        "resource_scope": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Resource Scope",
+          "type": "array"
+        }
+      },
+      "required": [
+        "maintenance_id",
+        "installation_id",
+        "executor_instance",
+        "profile_id",
+        "profile_revision",
+        "local_admin_identity",
+        "resource_scope",
+        "original_operation_id"
+      ],
+      "title": "MaintenanceGate",
+      "type": "object"
+    },
+    "MaintenanceHandback": {
+      "additionalProperties": false,
+      "properties": {
+        "current_hub_incarnation": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Current Hub Incarnation",
+          "type": "string"
+        },
+        "expected_generation": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Generation",
+          "type": "integer"
+        },
+        "hub_confirmation_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "local_admin_confirmation_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "maintenance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Maintenance Id",
+          "type": "string"
+        },
+        "reconciliation_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "recovery_result_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Recovery Result Digest",
+          "type": "string"
+        },
+        "resource_scope": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Resource Scope",
+          "type": "array"
+        },
+        "unknown_conflicts": {
+          "maximum": 0,
+          "minimum": 0,
+          "title": "Unknown Conflicts",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "maintenance_id",
+        "recovery_result_digest",
+        "resource_scope",
+        "expected_generation",
+        "current_hub_incarnation",
+        "local_admin_confirmation_ref",
+        "hub_confirmation_ref",
+        "reconciliation_ref",
+        "unknown_conflicts"
+      ],
+      "title": "MaintenanceHandback",
+      "type": "object"
+    },
+    "MigrationBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "step_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "step_id",
+        "request_digest"
+      ],
+      "title": "MigrationBinding",
+      "type": "object"
+    },
+    "MigrationPlan": {
+      "additionalProperties": false,
+      "description": "Public fixed request body; its digest belongs in MigrationBinding, not itself.",
+      "properties": {
+        "alembic_version": {
+          "const": "1.20.0",
+          "default": "1.20.0",
+          "title": "Alembic Version",
+          "type": "string"
+        },
+        "backup_evidence_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Backup Evidence Ref",
+          "type": "string"
+        },
+        "backup_mode": {
+          "enum": [
+            "restore_verified",
+            "empty_target_verified"
+          ],
+          "title": "Backup Mode",
+          "type": "string"
+        },
+        "boundary": {
+          "const": "delivered_project",
+          "default": "delivered_project",
+          "title": "Boundary",
+          "type": "string"
+        },
+        "compatibility_evidence_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Compatibility Evidence Ref",
+          "type": "string"
+        },
+        "compatibility_mode": {
+          "enum": [
+            "fresh_install",
+            "old_and_new_compatible"
+          ],
+          "title": "Compatibility Mode",
+          "type": "string"
+        },
+        "control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Revision",
+          "type": "integer"
+        },
+        "database_instance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Database Instance Id",
+          "type": "string"
+        },
+        "direction": {
+          "const": "upgrade",
+          "default": "upgrade",
+          "title": "Direction",
+          "type": "string"
+        },
+        "execution_lock_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Execution Lock Id",
+          "type": "string"
+        },
+        "execution_order": {
+          "const": "before_service_update",
+          "default": "before_service_update",
+          "title": "Execution Order",
+          "type": "string"
+        },
+        "input_set_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Set Digest",
+          "type": "string"
+        },
+        "lock_timeout_seconds": {
+          "const": 5,
+          "default": 5,
+          "title": "Lock Timeout Seconds",
+          "type": "integer"
+        },
+        "max_runtime_seconds": {
+          "const": 600,
+          "default": 600,
+          "title": "Max Runtime Seconds",
+          "type": "integer"
+        },
+        "migration_artifact_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Migration Artifact Digest",
+          "type": "string"
+        },
+        "mode": {
+          "const": "transactional_ddl",
+          "default": "transactional_ddl",
+          "title": "Mode",
+          "type": "string"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "postconditions_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Postconditions Digest",
+          "type": "string"
+        },
+        "postgres_version": {
+          "const": "16.13",
+          "default": "16.13",
+          "title": "Postgres Version",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "revisions": {
+          "items": {
+            "$ref": "#/$defs/MigrationRevision"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Revisions",
+          "type": "array"
+        },
+        "schema_name": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Schema Name",
+          "type": "string"
+        },
+        "start_revision": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Revision"
+        },
+        "statement_timeout_seconds": {
+          "const": 300,
+          "default": 300,
+          "title": "Statement Timeout Seconds",
+          "type": "integer"
+        },
+        "step_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Step Id",
+          "type": "string"
+        },
+        "step_kind": {
+          "const": "database_migrate",
+          "default": "database_migrate",
+          "title": "Step Kind",
+          "type": "string"
+        },
+        "target_revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Target Revision",
+          "type": "string"
+        },
+        "transaction_mode": {
+          "const": "single_transaction",
+          "default": "single_transaction",
+          "title": "Transaction Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "plan_digest",
+        "control_revision",
+        "input_set_digest",
+        "database_instance_id",
+        "schema_name",
+        "migration_artifact_digest",
+        "revisions",
+        "start_revision",
+        "target_revision",
+        "execution_lock_id",
+        "backup_mode",
+        "backup_evidence_ref",
+        "compatibility_mode",
+        "compatibility_evidence_ref",
+        "postconditions_digest"
+      ],
+      "title": "MigrationPlan",
+      "type": "object"
+    },
+    "MigrationPostcheck": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "enum": [
+            "schema_integrity",
+            "data_integrity",
+            "application_probe"
+          ],
+          "title": "Check Id",
+          "type": "string"
+        },
+        "evidence_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Evidence Ref",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "failed",
+            "not_run"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        }
+      },
+      "required": [
+        "check_id",
+        "outcome",
+        "evidence_ref"
+      ],
+      "title": "MigrationPostcheck",
+      "type": "object"
+    },
+    "MigrationQueryResult": {
+      "additionalProperties": false,
+      "description": "Trusted observations; boolean declarations supplied by clients are not evidence.",
+      "properties": {
+        "actual_heads": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Actual Heads",
+          "type": "array"
+        },
+        "attempt_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Attempt Id"
+        },
+        "binding": {
+          "$ref": "#/$defs/MigrationBinding"
+        },
+        "database_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Database Evidence Ref"
+        },
+        "database_instance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Database Instance Id",
+          "type": "string"
+        },
+        "database_ledger_complete": {
+          "default": false,
+          "title": "Database Ledger Complete",
+          "type": "boolean"
+        },
+        "database_revision_observed": {
+          "default": false,
+          "title": "Database Revision Observed",
+          "type": "boolean"
+        },
+        "database_running": {
+          "default": false,
+          "title": "Database Running",
+          "type": "boolean"
+        },
+        "executor_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Executor Evidence Ref"
+        },
+        "executor_ledger_complete": {
+          "default": false,
+          "title": "Executor Ledger Complete",
+          "type": "boolean"
+        },
+        "failure_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Ref"
+        },
+        "known_effects_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Known Effects Ref"
+        },
+        "lock_state": {
+          "default": "unknown",
+          "enum": [
+            "held_by_operation",
+            "free",
+            "unknown"
+          ],
+          "title": "Lock State",
+          "type": "string"
+        },
+        "migration_artifact_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Migration Artifact Digest",
+          "type": "string"
+        },
+        "never_started_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Never Started Evidence Ref"
+        },
+        "observation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "physical_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Physical Evidence Ref"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "postchecks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MigrationPostcheck"
+          },
+          "maxItems": 3,
+          "title": "Postchecks",
+          "type": "array"
+        },
+        "postconditions_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Postconditions Digest"
+        },
+        "process_state": {
+          "default": "unknown",
+          "enum": [
+            "absent",
+            "running",
+            "stopped",
+            "unknown"
+          ],
+          "title": "Process State",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "schema_name": {
+          "pattern": "^[a-z_][a-z0-9_]{0,62}$",
+          "title": "Schema Name",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_started",
+            "running",
+            "succeeded",
+            "failed_known",
+            "unknown"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding",
+        "plan_digest",
+        "database_instance_id",
+        "schema_name",
+        "migration_artifact_digest",
+        "status",
+        "observation_id",
+        "observed_at"
+      ],
+      "title": "MigrationQueryResult",
+      "type": "object"
+    },
+    "MigrationRetryGate": {
+      "additionalProperties": false,
+      "description": "Current trusted facts checked under the start lock, not persisted permissions.",
+      "properties": {
+        "approval_current": {
+          "default": false,
+          "title": "Approval Current",
+          "type": "boolean"
+        },
+        "authorized": {
+          "default": false,
+          "title": "Authorized",
+          "type": "boolean"
+        },
+        "binding": {
+          "$ref": "#/$defs/MigrationBinding"
+        },
+        "control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Revision",
+          "type": "integer"
+        },
+        "fresh_permit_valid": {
+          "default": false,
+          "title": "Fresh Permit Valid",
+          "type": "boolean"
+        },
+        "inputs_current": {
+          "default": false,
+          "title": "Inputs Current",
+          "type": "boolean"
+        },
+        "no_conflicting_execution": {
+          "default": false,
+          "title": "No Conflicting Execution",
+          "type": "boolean"
+        },
+        "observation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "old_grants_closed": {
+          "default": false,
+          "title": "Old Grants Closed",
+          "type": "boolean"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "preconditions_verified": {
+          "default": false,
+          "title": "Preconditions Verified",
+          "type": "boolean"
+        },
+        "resources_reserved": {
+          "default": false,
+          "title": "Resources Reserved",
+          "type": "boolean"
+        },
+        "start_lock_held": {
+          "default": false,
+          "title": "Start Lock Held",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "binding",
+        "plan_digest",
+        "control_revision",
+        "observation_id"
+      ],
+      "title": "MigrationRetryGate",
+      "type": "object"
+    },
+    "MigrationRevision": {
+      "additionalProperties": false,
+      "properties": {
+        "change_kinds": {
+          "items": {
+            "enum": [
+              "create_table",
+              "create_index"
+            ],
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Change Kinds",
+          "type": "array"
+        },
+        "down_revision": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Down Revision"
+        },
+        "revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Revision",
+          "type": "string"
+        },
+        "script_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Script Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revision",
+        "down_revision",
+        "script_digest",
+        "change_kinds"
+      ],
+      "title": "MigrationRevision",
+      "type": "object"
+    },
+    "OperationClosureFact": {
+      "additionalProperties": false,
+      "properties": {
+        "affects_completion": {
+          "default": false,
+          "title": "Affects Completion",
+          "type": "boolean"
+        },
+        "closure": {
+          "default": "unknown",
+          "enum": [
+            "closed_unstarted",
+            "ended_reconciled",
+            "safely_stopped",
+            "running",
+            "stop_requested",
+            "unknown"
+          ],
+          "title": "Closure",
+          "type": "string"
+        },
+        "closure_evidence_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "effects_recorded": {
+          "default": false,
+          "title": "Effects Recorded",
+          "type": "boolean"
+        },
+        "operation_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "owner_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Owner Id",
+          "type": "string"
+        },
+        "owner_kind": {
+          "enum": [
+            "task",
+            "shared",
+            "independent"
+          ],
+          "title": "Owner Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_ref",
+        "owner_kind",
+        "owner_id"
+      ],
+      "title": "OperationClosureFact",
+      "type": "object"
+    },
+    "OperationWait": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_session_version": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Session Version",
+          "type": "integer"
+        },
+        "from_run_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "From Run Id",
+          "type": "string"
+        },
+        "operation_ids": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Operation Ids",
+          "type": "array"
+        },
+        "session_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Session Id",
+          "type": "string"
+        },
+        "wait_condition_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        }
+      },
+      "required": [
+        "session_id",
+        "from_run_id",
+        "expected_session_version",
+        "wait_condition_ref",
+        "operation_ids"
+      ],
+      "title": "OperationWait",
+      "type": "object"
+    },
+    "P0CoreContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_receipt": {
+          "$ref": "#/$defs/AcceptedReceipt"
+        },
+        "operation_wait": {
+          "$ref": "#/$defs/OperationWait"
+        },
+        "run_continuity": {
+          "$ref": "#/$defs/RunContinuity"
+        },
+        "runtime_input": {
+          "$ref": "#/$defs/RuntimeInput"
+        },
+        "turn_result": {
+          "$ref": "#/$defs/TurnResult"
+        },
+        "workflow_binding": {
+          "$ref": "#/$defs/WorkflowBinding"
+        }
+      },
+      "required": [
+        "runtime_input",
+        "turn_result",
+        "accepted_receipt",
+        "operation_wait",
+        "workflow_binding",
+        "run_continuity"
+      ],
+      "title": "P0CoreContracts",
+      "type": "object"
+    },
+    "P0DeliveryContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "deployment_plan_binding": {
+          "$ref": "#/$defs/DeploymentPlanBinding"
+        },
+        "environment_config": {
+          "$ref": "#/$defs/EnvironmentConfigRevision"
+        },
+        "release_manifest": {
+          "$ref": "#/$defs/ReleaseManifest"
+        }
+      },
+      "required": [
+        "release_manifest",
+        "environment_config",
+        "deployment_plan_binding"
+      ],
+      "title": "P0DeliveryContracts",
+      "type": "object"
+    },
+    "P0EmergencyContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "handback": {
+          "$ref": "#/$defs/MaintenanceHandback"
+        },
+        "maintenance_gate": {
+          "$ref": "#/$defs/MaintenanceGate"
+        },
+        "profile": {
+          "$ref": "#/$defs/EmergencyAccessProfile"
+        }
+      },
+      "required": [
+        "profile",
+        "maintenance_gate",
+        "handback"
+      ],
+      "title": "P0EmergencyContracts",
+      "type": "object"
+    },
+    "P0EngineeringContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {
+          "$ref": "#/$defs/EvidenceApplicability"
+        },
+        "dependency": {
+          "$ref": "#/$defs/DependencyLink"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceRecord"
+        },
+        "input_set": {
+          "$ref": "#/$defs/InputSet"
+        }
+      },
+      "required": [
+        "input_set",
+        "evidence",
+        "dependency",
+        "applicability"
+      ],
+      "title": "P0EngineeringContracts",
+      "type": "object"
+    },
+    "P0IdentityContracts": {
+      "additionalProperties": false,
+      "description": "Schema collection only; these fields do not form a runtime aggregate.",
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationEnvelope"
+        },
+        "command": {
+          "$ref": "#/$defs/CommandEnvelope"
+        },
+        "idempotency_record": {
+          "$ref": "#/$defs/IdempotencyRecord"
+        }
+      },
+      "required": [
+        "command",
+        "authorization",
+        "idempotency_record"
+      ],
+      "title": "P0IdentityContracts",
+      "type": "object"
+    },
+    "P0MigrationContracts": {
+      "additionalProperties": false,
+      "description": "Schema collection only; this wrapper does not execute a migration.",
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/MigrationBinding"
+        },
+        "plan": {
+          "$ref": "#/$defs/MigrationPlan"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "query_result": {
+          "$ref": "#/$defs/MigrationQueryResult"
+        },
+        "retry_gate": {
+          "$ref": "#/$defs/MigrationRetryGate"
+        }
+      },
+      "required": [
+        "plan",
+        "binding",
+        "query_result",
+        "retry_gate"
+      ],
+      "title": "P0MigrationContracts",
+      "type": "object"
+    },
+    "P0PermitContracts": {
+      "additionalProperties": false,
+      "description": "Schema collection only; this wrapper is not a runtime operation.",
+      "properties": {
+        "acceptance": {
+          "$ref": "#/$defs/GrantAcceptance"
+        },
+        "gate": {
+          "$ref": "#/$defs/PermitGate"
+        },
+        "plan_step": {
+          "$ref": "#/$defs/PlanStep"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "step_permit": {
+          "$ref": "#/$defs/StepPermit"
+        },
+        "time_mapping": {
+          "$ref": "#/$defs/TimeMapping"
+        }
+      },
+      "required": [
+        "plan_step",
+        "time_mapping",
+        "step_permit",
+        "gate",
+        "acceptance"
+      ],
+      "title": "P0PermitContracts",
+      "type": "object"
+    },
+    "P0PreviewContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/PreviewBinding"
+        },
+        "client_route": {
+          "$ref": "#/$defs/PreviewClientRoute"
+        },
+        "exchange": {
+          "$ref": "#/$defs/PreviewExchange"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "proxy_control": {
+          "$ref": "#/$defs/PreviewProxyControl"
+        },
+        "raw_port_access": {
+          "$ref": "#/$defs/PreviewRawPortAccess"
+        },
+        "revocation": {
+          "$ref": "#/$defs/PreviewRevocation"
+        }
+      },
+      "required": [
+        "binding",
+        "client_route",
+        "raw_port_access",
+        "exchange",
+        "proxy_control",
+        "revocation"
+      ],
+      "title": "P0PreviewContracts",
+      "type": "object"
+    },
+    "P0ResourceContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "adjustment": {
+          "$ref": "#/$defs/ResourceAdjustment"
+        },
+        "allocation": {
+          "$ref": "#/$defs/ResourceAllocation"
+        },
+        "pending_adjustment": {
+          "$ref": "#/$defs/PendingAdjustmentAccounting"
+        },
+        "pool": {
+          "$ref": "#/$defs/HostResourcePool"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "release_evidence": {
+          "$ref": "#/$defs/ResourceReleaseEvidence"
+        },
+        "release_projection": {
+          "$ref": "#/$defs/ReleaseProjection"
+        },
+        "request": {
+          "$ref": "#/$defs/ResourceRequest"
+        },
+        "retention_transfer": {
+          "$ref": "#/$defs/DiskRetentionTransfer"
+        }
+      },
+      "required": [
+        "pool",
+        "request",
+        "allocation",
+        "adjustment",
+        "pending_adjustment",
+        "release_evidence",
+        "release_projection",
+        "retention_transfer"
+      ],
+      "title": "P0ResourceContracts",
+      "type": "object"
+    },
+    "P0TaskControlContracts": {
+      "additionalProperties": false,
+      "properties": {
+        "cancellation_target": {
+          "$ref": "#/$defs/CancellationTarget"
+        },
+        "command": {
+          "$ref": "#/$defs/TaskControlCommand"
+        },
+        "current_access": {
+          "$ref": "#/$defs/CurrentTaskAccess"
+        },
+        "decision": {
+          "$ref": "#/$defs/TaskControlDecision"
+        },
+        "facts": {
+          "$ref": "#/$defs/TaskControlFacts"
+        },
+        "report": {
+          "$ref": "#/$defs/TaskCompletionReport"
+        }
+      },
+      "required": [
+        "command",
+        "current_access",
+        "facts",
+        "report",
+        "decision",
+        "cancellation_target"
+      ],
+      "title": "P0TaskControlContracts",
+      "type": "object"
+    },
+    "PendingAdjustmentAccounting": {
+      "additionalProperties": false,
+      "properties": {
+        "accounted_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "adjustment": {
+          "$ref": "#/$defs/ResourceAdjustment"
+        },
+        "allocation_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Allocation Revision",
+          "type": "integer"
+        },
+        "previous_accounted_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "unknown"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adjustment",
+        "previous_accounted_vector",
+        "state",
+        "allocation_revision",
+        "accounted_vector"
+      ],
+      "title": "PendingAdjustmentAccounting",
+      "type": "object"
+    },
+    "PermitBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "actual_state_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Actual State Digest",
+          "type": "string"
+        },
+        "authorization_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Authorization Revision",
+          "type": "integer"
+        },
+        "control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Revision",
+          "type": "integer"
+        },
+        "environment_config_revision_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Environment Config Revision Id",
+          "type": "string"
+        },
+        "environment_execution_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Environment Execution Id",
+          "type": "string"
+        },
+        "executor_instance": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Executor Instance",
+          "type": "string"
+        },
+        "expected_environment_revision_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Expected Environment Revision Id",
+          "type": "string"
+        },
+        "generation": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "hub_incarnation": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Hub Incarnation",
+          "type": "string"
+        },
+        "input_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Digest",
+          "type": "string"
+        },
+        "operation_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Plan Digest",
+          "type": "string"
+        },
+        "predecessor_results_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Predecessor Results Digest",
+          "type": "string"
+        },
+        "step_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "plan_digest",
+        "step_id",
+        "input_digest",
+        "executor_instance",
+        "hub_incarnation",
+        "generation",
+        "environment_execution_id",
+        "environment_config_revision_id",
+        "expected_environment_revision_id",
+        "control_revision",
+        "authorization_revision",
+        "predecessor_results_digest",
+        "actual_state_digest"
+      ],
+      "title": "PermitBinding",
+      "type": "object"
+    },
+    "PermitGate": {
+      "additionalProperties": false,
+      "description": "Trusted current facts, never a client-controlled authorization request.",
+      "properties": {
+        "authenticated": {
+          "default": false,
+          "title": "Authenticated",
+          "type": "boolean"
+        },
+        "authorized": {
+          "default": false,
+          "title": "Authorized",
+          "type": "boolean"
+        },
+        "binding": {
+          "$ref": "#/$defs/PermitBinding"
+        },
+        "channel_binding_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Channel Binding Id",
+          "type": "string"
+        },
+        "clock_continuity_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Clock Continuity Id",
+          "type": "string"
+        },
+        "maintenance_active": {
+          "default": true,
+          "title": "Maintenance Active",
+          "type": "boolean"
+        },
+        "mapping_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Mapping Epoch",
+          "type": "string"
+        },
+        "now_mono_us": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Now Mono Us",
+          "type": "integer"
+        },
+        "obtained_online": {
+          "default": false,
+          "title": "Obtained Online",
+          "type": "boolean"
+        },
+        "other_grants_closed": {
+          "default": false,
+          "title": "Other Grants Closed",
+          "type": "boolean"
+        },
+        "prerequisites_met": {
+          "default": false,
+          "title": "Prerequisites Met",
+          "type": "boolean"
+        },
+        "resources_reserved": {
+          "default": false,
+          "title": "Resources Reserved",
+          "type": "boolean"
+        },
+        "step_known_unstarted": {
+          "default": false,
+          "title": "Step Known Unstarted",
+          "type": "boolean"
+        },
+        "time_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Time Epoch",
+          "type": "string"
+        },
+        "time_evidence_valid": {
+          "default": false,
+          "title": "Time Evidence Valid",
+          "type": "boolean"
+        },
+        "verified_time_evidence_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Verified Time Evidence Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding",
+        "time_epoch",
+        "mapping_epoch",
+        "clock_continuity_id",
+        "channel_binding_id",
+        "verified_time_evidence_digest",
+        "now_mono_us"
+      ],
+      "title": "PermitGate",
+      "type": "object"
+    },
+    "PlanStep": {
+      "additionalProperties": false,
+      "properties": {
+        "compensation_step_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compensation Step Id"
+        },
+        "input_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Input Digest",
+          "type": "string"
+        },
+        "input_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Input Ref",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "artifact_prepare",
+            "runtime_input_check",
+            "database_migrate",
+            "service_update",
+            "health_verify",
+            "approved_compensation"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "max_runtime_seconds": {
+          "exclusiveMinimum": 0,
+          "title": "Max Runtime Seconds",
+          "type": "integer"
+        },
+        "on_failure": {
+          "default": "stop_and_reconcile",
+          "enum": [
+            "stop_and_reconcile",
+            "approved_compensation"
+          ],
+          "title": "On Failure",
+          "type": "string"
+        },
+        "postconditions_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Postconditions Digest",
+          "type": "string"
+        },
+        "preconditions_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Preconditions Digest",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "result_query_ref": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Result Query Ref",
+          "type": "string"
+        },
+        "step_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Step Id",
+          "type": "string"
+        },
+        "stop_mode": {
+          "enum": [
+            "cancel_transfer_then_reconcile",
+            "stop_read_only",
+            "database_transaction_boundary",
+            "reconcile_service_transition"
+          ],
+          "title": "Stop Mode",
+          "type": "string"
+        },
+        "type_revision": {
+          "const": "1",
+          "default": "1",
+          "title": "Type Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "kind",
+        "input_ref",
+        "input_digest",
+        "preconditions_digest",
+        "postconditions_digest",
+        "max_runtime_seconds",
+        "stop_mode",
+        "result_query_ref"
+      ],
+      "title": "PlanStep",
+      "type": "object"
+    },
+    "PreviewBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "authorization_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Authorization Id",
+          "type": "string"
+        },
+        "authorization_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Authorization Revision",
+          "type": "integer"
+        },
+        "candidate_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "environment_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "human_test_session_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Human Test Session Id"
+        },
+        "input_set_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "permission": {
+          "const": "preview.access",
+          "default": "preview.access",
+          "title": "Permission",
+          "type": "string"
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "project_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "purpose": {
+          "enum": [
+            "development",
+            "candidate",
+            "human_test"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "scope": {
+          "const": "one_environment_instance",
+          "default": "one_environment_instance",
+          "title": "Scope",
+          "type": "string"
+        },
+        "subject_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "test_round": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Test Round"
+        },
+        "workspace_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workspace Id"
+        }
+      },
+      "required": [
+        "authorization_id",
+        "authorization_revision",
+        "subject_id",
+        "project_id",
+        "environment_ref",
+        "policy_ref",
+        "purpose"
+      ],
+      "title": "PreviewBinding",
+      "type": "object"
+    },
+    "PreviewClientRoute": {
+      "additionalProperties": false,
+      "properties": {
+        "cookie_same_site": {
+          "const": "Strict",
+          "default": "Strict",
+          "title": "Cookie Same Site",
+          "type": "string"
+        },
+        "dns_tls_verified": {
+          "default": false,
+          "title": "Dns Tls Verified",
+          "type": "boolean"
+        },
+        "isolation_evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PreviewEvidence"
+          },
+          "maxItems": 6,
+          "title": "Isolation Evidence",
+          "type": "array"
+        },
+        "redemption_method": {
+          "const": "POST",
+          "default": "POST",
+          "title": "Redemption Method",
+          "type": "string"
+        },
+        "redemption_path": {
+          "const": "/__cloudhelm/redeem",
+          "default": "/__cloudhelm/redeem",
+          "title": "Redemption Path",
+          "type": "string"
+        },
+        "route": {
+          "enum": [
+            "browser_windows_edge",
+            "browser_linux_chromium",
+            "external_windows_edge",
+            "external_linux_chromium",
+            "tauri_windows_webview2",
+            "tauri_linux_webkitgtk"
+          ],
+          "title": "Route",
+          "type": "string"
+        },
+        "runtime_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "ticket_location": {
+          "const": "protected_post_body",
+          "default": "protected_post_body",
+          "title": "Ticket Location",
+          "type": "string"
+        }
+      },
+      "required": [
+        "route",
+        "runtime_ref"
+      ],
+      "title": "PreviewClientRoute",
+      "type": "object"
+    },
+    "PreviewEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "client_route": {
+          "enum": [
+            "browser_windows_edge",
+            "browser_linux_chromium",
+            "external_windows_edge",
+            "external_linux_chromium",
+            "tauri_windows_webview2",
+            "tauri_linux_webkitgtk"
+          ],
+          "title": "Client Route",
+          "type": "string"
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "group": {
+          "enum": [
+            "management",
+            "cross_origin",
+            "native",
+            "revocation",
+            "version",
+            "secrets"
+          ],
+          "title": "Group",
+          "type": "string"
+        },
+        "runtime_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        }
+      },
+      "required": [
+        "group",
+        "client_route",
+        "runtime_ref",
+        "evidence_ref"
+      ],
+      "title": "PreviewEvidence",
+      "type": "object"
+    },
+    "PreviewExchange": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization_expires_at": {
+          "format": "date-time",
+          "title": "Authorization Expires At",
+          "type": "string"
+        },
+        "binding": {
+          "$ref": "#/$defs/PreviewBinding"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "committed": {
+          "title": "Committed",
+          "type": "boolean"
+        },
+        "credential_reissued": {
+          "const": false,
+          "default": false,
+          "title": "Credential Reissued",
+          "type": "boolean"
+        },
+        "environment_expires_at": {
+          "format": "date-time",
+          "title": "Environment Expires At",
+          "type": "string"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "redemption_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Redemption Id"
+        },
+        "response_state": {
+          "default": "not_sent",
+          "enum": [
+            "not_sent",
+            "delivered",
+            "lost"
+          ],
+          "title": "Response State",
+          "type": "string"
+        },
+        "session_expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Expires At"
+        },
+        "session_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 1,
+          "title": "Session Ids",
+          "type": "array"
+        },
+        "ticket_expires_at": {
+          "format": "date-time",
+          "title": "Ticket Expires At",
+          "type": "string"
+        },
+        "ticket_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Ticket Id",
+          "type": "string"
+        },
+        "ticket_state_after": {
+          "enum": [
+            "unused",
+            "consumed"
+          ],
+          "title": "Ticket State After",
+          "type": "string"
+        },
+        "ticket_state_before": {
+          "const": "unused",
+          "default": "unused",
+          "title": "Ticket State Before",
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding",
+        "ticket_id",
+        "ticket_state_after",
+        "issued_at",
+        "checked_at",
+        "ticket_expires_at",
+        "authorization_expires_at",
+        "environment_expires_at",
+        "committed"
+      ],
+      "title": "PreviewExchange",
+      "type": "object"
+    },
+    "PreviewProxyClosure": {
+      "additionalProperties": false,
+      "properties": {
+        "all_routes_closed": {
+          "default": false,
+          "title": "All Routes Closed",
+          "type": "boolean"
+        },
+        "binding": {
+          "$ref": "#/$defs/PreviewBinding"
+        },
+        "connections_closed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Connections Closed At"
+        },
+        "denied_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denied At"
+        },
+        "hub_clock_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Hub Clock Epoch",
+          "type": "string"
+        },
+        "new_access_denied": {
+          "default": false,
+          "title": "New Access Denied",
+          "type": "boolean"
+        },
+        "proxy": {
+          "$ref": "#/$defs/PreviewProxyIdentity"
+        },
+        "received_elapsed_upper_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Received Elapsed Upper Ms",
+          "type": "integer"
+        },
+        "remaining_client_connections": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Remaining Client Connections",
+          "type": "integer"
+        },
+        "remaining_upstream_connections": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Remaining Upstream Connections",
+          "type": "integer"
+        },
+        "revoke_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revoke Revision",
+          "type": "integer"
+        },
+        "sessions_disabled": {
+          "default": false,
+          "title": "Sessions Disabled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "proxy",
+        "binding",
+        "revoke_revision",
+        "hub_clock_epoch",
+        "received_elapsed_upper_ms",
+        "remaining_client_connections",
+        "remaining_upstream_connections"
+      ],
+      "title": "PreviewProxyClosure",
+      "type": "object"
+    },
+    "PreviewProxyControl": {
+      "additionalProperties": false,
+      "properties": {
+        "clock_continuous": {
+          "default": false,
+          "title": "Clock Continuous",
+          "type": "boolean"
+        },
+        "control_age_upper_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Age Upper Ms",
+          "type": "integer"
+        },
+        "current_authorization_verified": {
+          "default": false,
+          "title": "Current Authorization Verified",
+          "type": "boolean"
+        },
+        "failure_age_upper_ms": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Age Upper Ms"
+        },
+        "failure_detected_mono_ms": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Detected Mono Ms"
+        },
+        "last_verified_control_mono_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Last Verified Control Mono Ms",
+          "type": "integer"
+        },
+        "new_access_enabled": {
+          "default": false,
+          "title": "New Access Enabled",
+          "type": "boolean"
+        },
+        "observed_mono_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Observed Mono Ms",
+          "type": "integer"
+        },
+        "remaining_connections": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Remaining Connections",
+          "type": "integer"
+        },
+        "session_authenticated": {
+          "default": false,
+          "title": "Session Authenticated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "last_verified_control_mono_ms",
+        "observed_mono_ms",
+        "control_age_upper_ms"
+      ],
+      "title": "PreviewProxyControl",
+      "type": "object"
+    },
+    "PreviewProxyIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Boot Id",
+          "type": "string"
+        },
+        "proxy_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Proxy Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "proxy_id",
+        "boot_id"
+      ],
+      "title": "PreviewProxyIdentity",
+      "type": "object"
+    },
+    "PreviewRawPortAccess": {
+      "additionalProperties": false,
+      "properties": {
+        "address_family": {
+          "const": "ipv4",
+          "default": "ipv4",
+          "title": "Address Family",
+          "type": "string"
+        },
+        "approved_mapping_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "caller": {
+          "enum": [
+            "preview_proxy",
+            "same_instance_frontend",
+            "same_instance_backend"
+          ],
+          "title": "Caller",
+          "type": "string"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "purpose": {
+          "enum": [
+            "development",
+            "candidate",
+            "human_test"
+          ],
+          "title": "Purpose",
+          "type": "string"
+        },
+        "service": {
+          "enum": [
+            "frontend",
+            "backend",
+            "hmr",
+            "database"
+          ],
+          "title": "Service",
+          "type": "string"
+        },
+        "source_instance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Source Instance Id",
+          "type": "string"
+        },
+        "target_instance_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Target Instance Id",
+          "type": "string"
+        },
+        "transport": {
+          "const": "tcp",
+          "default": "tcp",
+          "title": "Transport",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "port",
+        "caller",
+        "source_instance_id",
+        "target_instance_id",
+        "approved_mapping_ref",
+        "purpose"
+      ],
+      "title": "PreviewRawPortAccess",
+      "type": "object"
+    },
+    "PreviewRevocation": {
+      "additionalProperties": false,
+      "properties": {
+        "additional_possible_proxies": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PreviewProxyIdentity"
+          },
+          "maxItems": 32,
+          "title": "Additional Possible Proxies",
+          "type": "array"
+        },
+        "binding": {
+          "$ref": "#/$defs/PreviewBinding"
+        },
+        "closures": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PreviewProxyClosure"
+          },
+          "maxItems": 64,
+          "title": "Closures",
+          "type": "array"
+        },
+        "deadline_at": {
+          "format": "date-time",
+          "title": "Deadline At",
+          "type": "string"
+        },
+        "elapsed_upper_ms": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Elapsed Upper Ms",
+          "type": "integer"
+        },
+        "hub_clock_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Hub Clock Epoch",
+          "type": "string"
+        },
+        "observed_hub_clock_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Observed Hub Clock Epoch",
+          "type": "string"
+        },
+        "requested_at": {
+          "format": "date-time",
+          "title": "Requested At",
+          "type": "string"
+        },
+        "required_proxies": {
+          "items": {
+            "$ref": "#/$defs/PreviewProxyIdentity"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Required Proxies",
+          "type": "array"
+        },
+        "revoke_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Revoke Revision",
+          "type": "integer"
+        },
+        "timing_evidence_current": {
+          "default": false,
+          "title": "Timing Evidence Current",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "binding",
+        "revoke_revision",
+        "requested_at",
+        "deadline_at",
+        "hub_clock_epoch",
+        "observed_hub_clock_epoch",
+        "elapsed_upper_ms",
+        "required_proxies"
+      ],
+      "title": "PreviewRevocation",
+      "type": "object"
+    },
+    "Principal": {
+      "additionalProperties": false,
+      "properties": {
+        "delegator_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delegator Id"
+        },
+        "kind": {
+          "enum": [
+            "human",
+            "agent",
+            "executor"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "subject_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "subject_id"
+      ],
+      "title": "Principal",
+      "type": "object"
+    },
+    "ReleaseManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_assets_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "build_input_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "build_run_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "compose_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "configuration_schema_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "descriptor_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "migration_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 32,
+          "title": "Migration Refs",
+          "type": "array"
+        },
+        "parser_revision": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Parser Revision",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "release_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Release Id",
+          "type": "string"
+        },
+        "runtime_contract_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "services": {
+          "items": {
+            "$ref": "#/$defs/ServiceArtifact"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Services",
+          "type": "array"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "variant_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "verification_refs": {
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Verification Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "release_id",
+        "source_ref",
+        "build_input_ref",
+        "build_run_ref",
+        "services",
+        "runtime_contract_ref",
+        "configuration_schema_ref",
+        "verification_refs",
+        "acceptance_assets_ref",
+        "descriptor_ref",
+        "compose_ref",
+        "parser_revision",
+        "variant_ref"
+      ],
+      "title": "ReleaseManifest",
+      "type": "object"
+    },
+    "ReleaseProjection": {
+      "additionalProperties": false,
+      "properties": {
+        "effective_hard_limits": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "remaining_accounted_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "transferred_retained_bytes": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Transferred Retained Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "remaining_accounted_vector",
+        "effective_hard_limits"
+      ],
+      "title": "ReleaseProjection",
+      "type": "object"
+    },
+    "ResourceAdjustment": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_allocation_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Allocation Revision",
+          "type": "integer"
+        },
+        "identity": {
+          "$ref": "#/$defs/AllocationIdentity"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "resource_adjustment_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Resource Adjustment Id",
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/$defs/ResourceLimits"
+        }
+      },
+      "required": [
+        "resource_adjustment_id",
+        "request_digest",
+        "identity",
+        "expected_allocation_revision",
+        "target"
+      ],
+      "title": "ResourceAdjustment",
+      "type": "object"
+    },
+    "ResourceAllocation": {
+      "additionalProperties": false,
+      "properties": {
+        "accounted_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "allocation_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Allocation Revision",
+          "type": "integer"
+        },
+        "creation_request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Creation Request Digest",
+          "type": "string"
+        },
+        "hard_limits": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "identity": {
+          "$ref": "#/$defs/AllocationIdentity"
+        },
+        "pending_resource_adjustment_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pending Resource Adjustment Id"
+        },
+        "state": {
+          "enum": [
+            "reserved",
+            "active",
+            "releasing",
+            "orphaned",
+            "released"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "accounted_vector",
+        "hard_limits",
+        "identity",
+        "creation_request_digest",
+        "allocation_revision",
+        "state"
+      ],
+      "title": "ResourceAllocation",
+      "type": "object"
+    },
+    "ResourceLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "accounted_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "hard_limits": {
+          "$ref": "#/$defs/ResourceVector"
+        }
+      },
+      "required": [
+        "accounted_vector",
+        "hard_limits"
+      ],
+      "title": "ResourceLimits",
+      "type": "object"
+    },
+    "ResourceReleaseEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "closure": {
+          "enum": [
+            "unknown",
+            "group_stopped",
+            "closed_unstarted"
+          ],
+          "title": "Closure",
+          "type": "string"
+        },
+        "closure_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Closure Evidence Ref"
+        },
+        "disk_evidence_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Disk Evidence Ref"
+        },
+        "disk_remaining_bytes": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Disk Remaining Bytes"
+        },
+        "expected_allocation_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Allocation Revision",
+          "type": "integer"
+        },
+        "identity": {
+          "$ref": "#/$defs/AllocationIdentity"
+        },
+        "retention_transfer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiskRetentionTransfer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "identity",
+        "expected_allocation_revision",
+        "closure"
+      ],
+      "title": "ResourceReleaseEvidence",
+      "type": "object"
+    },
+    "ResourceRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "accounted_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "hard_limits": {
+          "$ref": "#/$defs/ResourceVector"
+        },
+        "identity": {
+          "$ref": "#/$defs/AllocationIdentity"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "request_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Request Digest",
+          "type": "string"
+        },
+        "request_vector": {
+          "$ref": "#/$defs/ResourceVector"
+        }
+      },
+      "required": [
+        "accounted_vector",
+        "hard_limits",
+        "identity",
+        "request_digest",
+        "request_vector"
+      ],
+      "title": "ResourceRequest",
+      "type": "object"
+    },
+    "ResourceScope": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "resource_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Resource Id",
+          "type": "string"
+        },
+        "resource_kind": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Resource Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project_id",
+        "resource_kind",
+        "resource_id"
+      ],
+      "title": "ResourceScope",
+      "type": "object"
+    },
+    "ResourceVector": {
+      "additionalProperties": false,
+      "properties": {
+        "cpu_millicores": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Cpu Millicores",
+          "type": "integer"
+        },
+        "disk_bytes": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Disk Bytes",
+          "type": "integer"
+        },
+        "heavy_slots": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Heavy Slots",
+          "type": "integer"
+        },
+        "memory_mib": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Memory Mib",
+          "type": "integer"
+        },
+        "pids": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Pids",
+          "type": "integer"
+        },
+        "preview_slots": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Preview Slots",
+          "type": "integer"
+        }
+      },
+      "title": "ResourceVector",
+      "type": "object"
+    },
+    "RunContinuity": {
+      "additionalProperties": false,
+      "properties": {
+        "prior_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prior Run Id"
+        },
+        "prior_session_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prior Session Id"
+        },
+        "prior_workflow_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prior Workflow Id"
+        },
+        "run_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "session_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Session Id",
+          "type": "string"
+        },
+        "trigger": {
+          "enum": [
+            "initial",
+            "crash_recovery",
+            "wait_continuation"
+          ],
+          "title": "Trigger",
+          "type": "string"
+        },
+        "workflow_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Workflow Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "run_id",
+        "workflow_id",
+        "trigger"
+      ],
+      "title": "RunContinuity",
+      "type": "object"
+    },
+    "RuntimeInput": {
+      "additionalProperties": false,
+      "properties": {
+        "committed_history": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "context_package": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "deferred_results": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected_input_validity_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Input Validity Revision",
+          "type": "integer"
+        },
+        "expected_session_version": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Session Version",
+          "type": "integer"
+        },
+        "expected_task_control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Task Control Revision",
+          "type": "integer"
+        },
+        "input_set": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "pending_messages": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineeringRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "session_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Session Id",
+          "type": "string"
+        },
+        "task_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "session_id",
+        "run_id",
+        "expected_session_version",
+        "expected_task_control_revision",
+        "expected_input_validity_revision",
+        "context_package",
+        "input_set",
+        "committed_history"
+      ],
+      "title": "RuntimeInput",
+      "type": "object"
+    },
+    "ServiceArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ref": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "platform": {
+          "const": "linux/amd64",
+          "title": "Platform",
+          "type": "string"
+        },
+        "service_key": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Service Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service_key",
+        "platform",
+        "artifact_ref"
+      ],
+      "title": "ServiceArtifact",
+      "type": "object"
+    },
+    "StepPermit": {
+      "additionalProperties": false,
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/PermitBinding"
+        },
+        "channel_binding_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Channel Binding Id",
+          "type": "string"
+        },
+        "clock_continuity_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Clock Continuity Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expires At",
+          "type": "integer"
+        },
+        "grant_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Grant Id",
+          "type": "string"
+        },
+        "issued_at": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Issued At",
+          "type": "integer"
+        },
+        "mapping_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Mapping Epoch",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "time_domain": {
+          "const": "hub-monotonic-us-v1",
+          "default": "hub-monotonic-us-v1",
+          "title": "Time Domain",
+          "type": "string"
+        },
+        "time_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Time Epoch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "grant_id",
+        "binding",
+        "time_epoch",
+        "mapping_epoch",
+        "clock_continuity_id",
+        "channel_binding_id",
+        "issued_at",
+        "expires_at"
+      ],
+      "title": "StepPermit",
+      "type": "object"
+    },
+    "TaskCompletionReport": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "$ref": "#/$defs/CompletionBasis"
+        },
+        "committed_at_utc": {
+          "format": "date-time",
+          "title": "Committed At Utc",
+          "type": "string"
+        },
+        "committed_control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Committed Control Revision",
+          "type": "integer"
+        },
+        "committed_version": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Committed Version",
+          "type": "integer"
+        },
+        "completion_command": {
+          "$ref": "#/$defs/TaskControlCommand"
+        },
+        "report_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Report Id",
+          "type": "string"
+        },
+        "task_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_id",
+        "task_id",
+        "completion_command",
+        "committed_version",
+        "committed_control_revision",
+        "committed_at_utc",
+        "basis"
+      ],
+      "title": "TaskCompletionReport",
+      "type": "object"
+    },
+    "TaskControlCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "envelope": {
+          "$ref": "#/$defs/CommandEnvelope"
+        },
+        "request": {
+          "$ref": "#/$defs/TaskControlRequest"
+        }
+      },
+      "required": [
+        "envelope",
+        "request"
+      ],
+      "title": "TaskControlCommand",
+      "type": "object"
+    },
+    "TaskControlDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking_operation_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Blocking Operation Ids",
+          "type": "array"
+        },
+        "code": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "original_command_id": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Command Id"
+        },
+        "original_result_ref": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Result Ref"
+        },
+        "outcome": {
+          "enum": [
+            "replay",
+            "already_completed",
+            "completion_eligible",
+            "cancellation_eligible",
+            "already_cancelled",
+            "rejected",
+            "blocked"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "report": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskCompletionReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "outcome",
+        "code"
+      ],
+      "title": "TaskControlDecision",
+      "type": "object"
+    },
+    "TaskControlFacts": {
+      "additionalProperties": false,
+      "description": "Complete, same-transaction domain/identity/execution projection, not Task storage.",
+      "properties": {
+        "basis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompletionBasis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cancellation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CancellationIntent"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "completion_report": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskCompletionReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Control Revision",
+          "type": "integer"
+        },
+        "evidence_current": {
+          "default": false,
+          "title": "Evidence Current",
+          "type": "boolean"
+        },
+        "input_current": {
+          "default": false,
+          "title": "Input Current",
+          "type": "boolean"
+        },
+        "input_validity_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Input Validity Revision",
+          "type": "integer"
+        },
+        "operation_set_current": {
+          "default": false,
+          "title": "Operation Set Current",
+          "type": "boolean"
+        },
+        "operations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/OperationClosureFact"
+          },
+          "maxItems": 128,
+          "title": "Operations",
+          "type": "array"
+        },
+        "ordinary_progress_closed": {
+          "default": false,
+          "title": "Ordinary Progress Closed",
+          "type": "boolean"
+        },
+        "required_acceptance_satisfied": {
+          "default": false,
+          "title": "Required Acceptance Satisfied",
+          "type": "boolean"
+        },
+        "required_waits_satisfied": {
+          "default": false,
+          "title": "Required Waits Satisfied",
+          "type": "boolean"
+        },
+        "required_work_items_accepted": {
+          "default": false,
+          "title": "Required Work Items Accepted",
+          "type": "boolean"
+        },
+        "run_history_saved_and_fenced": {
+          "default": false,
+          "title": "Run History Saved And Fenced",
+          "type": "boolean"
+        },
+        "state": {
+          "enum": [
+            "draft",
+            "active",
+            "paused",
+            "waiting_input",
+            "completed",
+            "failed",
+            "cancelled"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "task_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "unknown_model_usage_present": {
+          "default": false,
+          "title": "Unknown Model Usage Present",
+          "type": "boolean"
+        },
+        "version": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "task_id",
+        "state",
+        "version",
+        "control_revision",
+        "input_validity_revision"
+      ],
+      "title": "TaskControlFacts",
+      "type": "object"
+    },
+    "TaskControlRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "complete_task",
+            "cancel_task"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "cancel_reason": {
+          "anyOf": [
+            {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cancel Reason"
+        },
+        "expected_control_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Expected Control Revision",
+          "type": "integer"
+        },
+        "expected_input_validity_revision": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Input Validity Revision"
+        }
+      },
+      "required": [
+        "action",
+        "expected_control_revision"
+      ],
+      "title": "TaskControlRequest",
+      "type": "object"
+    },
+    "TimeMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "channel_binding_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Channel Binding Id",
+          "type": "string"
+        },
+        "clock_continuity_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Clock Continuity Id",
+          "type": "string"
+        },
+        "executor_instance": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Executor Instance",
+          "type": "string"
+        },
+        "hub_incarnation": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Hub Incarnation",
+          "type": "string"
+        },
+        "hub_sample_error_us": {
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Hub Sample Error Us",
+          "type": "integer"
+        },
+        "hub_sample_us": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Hub Sample Us",
+          "type": "integer"
+        },
+        "local_read_error_us": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Local Read Error Us",
+          "type": "integer"
+        },
+        "mapping_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Mapping Epoch",
+          "type": "string"
+        },
+        "mapping_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Mapping Id",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "received_mono_us": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Received Mono Us",
+          "type": "integer"
+        },
+        "relative_rate_ppm": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Relative Rate Ppm",
+          "type": "integer"
+        },
+        "sample_nonce": {
+          "pattern": "^[0-9a-f]{32}$",
+          "title": "Sample Nonce",
+          "type": "string"
+        },
+        "sent_mono_us": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sent Mono Us",
+          "type": "integer"
+        },
+        "support_evidence_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Support Evidence Digest",
+          "type": "string"
+        },
+        "time_domain": {
+          "const": "hub-monotonic-us-v1",
+          "default": "hub-monotonic-us-v1",
+          "title": "Time Domain",
+          "type": "string"
+        },
+        "time_epoch": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Time Epoch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "time_epoch",
+        "mapping_id",
+        "mapping_epoch",
+        "clock_continuity_id",
+        "hub_incarnation",
+        "executor_instance",
+        "channel_binding_id",
+        "sample_nonce",
+        "support_evidence_digest",
+        "sent_mono_us",
+        "received_mono_us",
+        "hub_sample_us",
+        "hub_sample_error_us",
+        "local_read_error_us",
+        "relative_rate_ppm"
+      ],
+      "title": "TimeMapping",
+      "type": "object"
+    },
+    "TurnResult": {
+      "additionalProperties": false,
+      "properties": {
+        "delivery_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 8,
+          "title": "Delivery Refs",
+          "type": "array"
+        },
+        "history_delta": {
+          "$ref": "#/$defs/EngineeringRef"
+        },
+        "outcome": {
+          "enum": [
+            "tool_requests",
+            "waiting_condition",
+            "submitted",
+            "continue_required"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "protocol_revision": {
+          "const": "p0-decisions-r1",
+          "default": "p0-decisions-r1",
+          "title": "Protocol Revision",
+          "type": "string"
+        },
+        "reason_code": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Reason Code",
+          "type": "string"
+        },
+        "request_records": {
+          "default": [],
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 12,
+          "title": "Request Records",
+          "type": "array"
+        },
+        "run_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "tool_request_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 8,
+          "title": "Tool Request Refs",
+          "type": "array"
+        },
+        "wait_condition_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EngineeringRef"
+          },
+          "maxItems": 8,
+          "title": "Wait Condition Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_id",
+        "outcome",
+        "history_delta",
+        "reason_code"
+      ],
+      "title": "TurnResult",
+      "type": "object"
+    },
+    "WorkflowBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "advance_revision": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Advance Revision",
+          "type": "integer"
+        },
+        "business_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Business Id",
+          "type": "string"
+        },
+        "business_kind": {
+          "enum": [
+            "task",
+            "session",
+            "agent_run",
+            "operation",
+            "build_run",
+            "deployment"
+          ],
+          "title": "Business Kind",
+          "type": "string"
+        },
+        "process_type": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Process Type",
+          "type": "string"
+        },
+        "workflow_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Workflow Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "business_kind",
+        "business_id",
+        "process_type",
+        "advance_revision",
+        "workflow_id"
+      ],
+      "title": "WorkflowBinding",
+      "type": "object"
+    }
+  },
+  "$id": "urn:cloudhelm:p0-decisions:r1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Independent P0 model collection; not a runtime aggregate or released product protocol.",
+  "properties": {
+    "delivery": {
+      "$ref": "#/$defs/P0DeliveryContracts"
+    },
+    "emergency": {
+      "$ref": "#/$defs/P0EmergencyContracts"
+    },
+    "engineering": {
+      "$ref": "#/$defs/P0EngineeringContracts"
+    },
+    "identity": {
+      "$ref": "#/$defs/P0IdentityContracts"
+    },
+    "migrations": {
+      "$ref": "#/$defs/P0MigrationContracts"
+    },
+    "permits": {
+      "$ref": "#/$defs/P0PermitContracts"
+    },
+    "preview": {
+      "$ref": "#/$defs/P0PreviewContracts"
+    },
+    "protocol_revision": {
+      "const": "p0-decisions-r1",
+      "default": "p0-decisions-r1",
+      "title": "Protocol Revision",
+      "type": "string"
+    },
+    "resources": {
+      "$ref": "#/$defs/P0ResourceContracts"
+    },
+    "runtime": {
+      "$ref": "#/$defs/P0CoreContracts"
+    },
+    "task_control": {
+      "$ref": "#/$defs/P0TaskControlContracts"
+    }
+  },
+  "required": [
+    "engineering",
+    "runtime",
+    "identity",
+    "migrations",
+    "resources",
+    "task_control",
+    "permits",
+    "preview",
+    "delivery",
+    "emergency"
+  ],
+  "title": "P0DecisionContracts",
+  "type": "object"
+}

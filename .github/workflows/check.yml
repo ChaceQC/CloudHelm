@@ -99,6 +99,9 @@ jobs:
           print("P0/参照源码语法、锁定依赖、契约导入与OpenAPI一致性检查通过；未运行模型、数据库或容器实验。")
           PY
 
+      - name: 核对 P0.3 决定契约
+        run: uv run --frozen python -m scripts.p0.check_decisions
+
       - name: 检查参照后端依赖锁
         run: uv lock --check --directory examples/standalone-project/backend
 

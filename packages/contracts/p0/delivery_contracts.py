@@ -8,6 +8,7 @@ from packages.contracts.p0.decision_common import (
     Contract, Digest, Identifier, ProtocolRevision, Revision,
 )
 from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_kind
+from packages.contracts.p0.permit_contracts import PermitBinding
 
 
 class ServiceArtifact(Contract):
@@ -59,6 +60,7 @@ class ReleaseManifest(Contract):
 
 
 class EnvironmentConfigRevision(Contract):
+    config_revision_id: Identifier
     environment_id: Identifier
     revision: Revision
     parameter_set_ref: EngineeringRef
@@ -81,7 +83,8 @@ class DeploymentPlanBinding(Contract):
     operation_id: Identifier
     release_ref: EngineeringRef
     environment_config_ref: EngineeringRef
-    expected_environment_revision: Revision
+    environment_execution_id: Identifier
+    expected_environment_revision_id: Identifier
     expected_observed_state_digest: Digest
     normalized_spec_ref: EngineeringRef
     input_set_ref: EngineeringRef
@@ -100,6 +103,24 @@ class DeploymentPlanBinding(Contract):
         ):
             expect_kind(ref, kind)
         return self
+
+
+def check_initial_plan_binding(
+    plan: DeploymentPlanBinding, configuration: EnvironmentConfigRevision, permit: PermitBinding,
+) -> None:
+    """Check the first step's cross-contract identities, without granting authority."""
+    if (plan.environment_config_ref.object_id != configuration.config_revision_id
+            or plan.environment_config_ref.revision != str(configuration.revision)):
+        raise ValueError("PLAN_CONFIGURATION_REFERENCE_MISMATCH")
+    for field in (
+        "operation_id", "plan_digest", "executor_instance", "generation",
+        "environment_execution_id", "expected_environment_revision_id",
+    ):
+        if getattr(plan, field) != getattr(permit, field):
+            raise ValueError("INITIAL_PLAN_PERMIT_BINDING_MISMATCH")
+    if (permit.environment_config_revision_id != configuration.config_revision_id
+            or permit.actual_state_digest != plan.expected_observed_state_digest):
+        raise ValueError("INITIAL_CONFIGURATION_OR_STATE_MISMATCH")
 
 
 class P0DeliveryContracts(Contract):

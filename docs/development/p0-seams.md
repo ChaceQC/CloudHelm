@@ -2,6 +2,8 @@
 
 该工程供开发者复现 P0.1 接缝实验，不是业务 Hub/Runner/Remote Agent 或 Desktop。以 [组件基线](../decisions/p0/component-baseline.md) 的版本和 [六卡及接缝报告](../acceptance/p0/seam-summary.md) 的支持范围为准。
 
+P0.3 的决定模型和不依赖数据库/供应商的窄检查另见 [决定契约使用说明](p0-decisions.md)；复核决定时无需重跑本页历史收费或容器接缝。
+
 ## 1. 安装和启动
 
 本机使用 WSL Ubuntu-24.04，仓库在 `/mnt/e/Project/CloudHelm`。从 Windows 启动一个验证期间保持运行的 WSL 终端，或执行 `wsl.exe -d Ubuntu-24.04 --exec /bin/sleep infinity` 保活。所有依赖、SDK、数据库和 Docker 命令在 WSL 内执行。

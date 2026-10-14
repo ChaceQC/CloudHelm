@@ -45,6 +45,8 @@ Pydantic 源码是本轮可执行的形状及跨字段校验，导出的 JSON Sc
 
 `EnvironmentConfigRevision` 单独固定环境、配置修订、实际参数集合、受控资源和 secret 版本引用，不能带明文秘密。`DeploymentPlanBinding` 固定 Release、环境配置、目标起始环境修订/实际状态摘要、解析结果、InputSet、解析器、目标/执行器/代次和批准引用；PlanStep/许可详见 [时间与许可](time-preview-access.md)。环境配置修订不等于目标环境状态修订，普通控制修订也不等于执行器代次。
 
+配置记录的 `config_revision_id` 对应工程引用的 object_id 和许可的 `environment_config_revision_id`；工程引用 revision 使用该记录数字修订的十进制字符串。计划与首步许可使用相同的 `environment_execution_id`、`expected_environment_revision_id` 及实际状态摘要；`check_initial_plan_binding` 校验这些跨契约关系。后续步骤须在相同计划中按真实前序结果取得允许的中间状态修订，不能反复套用首步起始状态。资源契约的 `executor_instance_id`/`resource_generation` 分别映射相同执行器的 `executor_instance`/`generation`，字段名差异不产生新的权威身份。
+
 同制品换运行时参数生成新的环境配置/计划并核对批准适用性，Release 不回写。编译进制品的参数变化生成新构建变体和证据。配置/secret 版本、Release 或批准摘要变化须重新解析及审批；不允许通过可变参数增加服务、替换镜像或改变未声明可变的拓扑/命令。
 
 两阶段解析的来源仍归 D04 §1.1～1.2。现有 [Compose 专项](../../acceptance/p0/compose-remote.md) 只证明实验子集；参照开发 Compose 含 build 等字段，不能直接作为产品部署输入。P1.2/P1.3 必须从受限构建取得固定制品，补齐首链需要的运行字段及拒绝证据。目标侧禁止源码 build；首条交付采用受控归档，不自动 pull。

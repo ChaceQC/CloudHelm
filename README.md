@@ -8,6 +8,8 @@
 
 隔离工程用于核验 SDK、数据库、工具协议和 Compose 边界，开发者可按 [P0 接缝使用说明](./docs/development/p0-seams.md) 安装锁定依赖、启动临时数据库并执行对应探测；实际兼容范围见 [组件基线](./docs/decisions/p0/component-baseline.md) 和 [接缝结论](./docs/acceptance/p0/seam-summary.md)。
 
+[P0 决定契约](./packages/contracts/p0/README.md) 提供身份、迁移、资源、Task 控制、许可、预览及核心映射的可校验模型和 JSON Schema。开发者可按 [契约使用说明](./docs/development/p0-decisions.md) 在 WSL 执行不连接外部服务的窄检查；这些模型尚未接入产品运行入口。
+
 [全栈便签参照](./examples/standalone-project/README.md) 包含 React、FastAPI、PostgreSQL 和线性 Alembic 迁移，可在 WSL 通过 Compose 运行。入口仅供本机合成数据使用，源码与独立 HTTP 验收资产分开提供；候选组合和使用边界见 [首条链路规格](./docs/implementation/reference-chain.md) 与 [支持矩阵](./docs/acceptance/support-matrix.md)。
 
 ## 技术方向

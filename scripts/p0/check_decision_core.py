@@ -3,11 +3,14 @@
 from pydantic import ValidationError
 
 from packages.contracts.p0.core_contracts import AcceptedReceipt, RunContinuity, TurnResult
-from packages.contracts.p0.delivery_contracts import EnvironmentConfigRevision, ReleaseManifest
+from packages.contracts.p0.delivery_contracts import (
+    DeploymentPlanBinding, EnvironmentConfigRevision, ReleaseManifest, check_initial_plan_binding,
+)
 from packages.contracts.p0.emergency_contracts import EmergencyAccessProfile, MaintenanceGate
 from packages.contracts.p0.engineering_contracts import (
     EngineeringRef, EvidenceRecord, InputSet, input_set_digest,
 )
+from packages.contracts.p0.permit_contracts import PermitBinding
 
 DIGEST = "sha256:" + "a" * 64
 
@@ -55,6 +58,38 @@ def emergency_payload():
     }
 
 
+def check_plan_binding() -> bool:
+    configuration = EnvironmentConfigRevision(
+        config_revision_id="configuration-1", environment_id="environment-1", revision=1,
+        parameter_set_ref=reference("parameter_set"), resource_binding_refs=(reference("resource_binding"),),
+    )
+    configuration_ref = EngineeringRef(
+        kind="environment_config", object_id=configuration.config_revision_id,
+        revision="1", digest=DIGEST, digest_algorithm="sha256",
+    )
+    plan = DeploymentPlanBinding(
+        plan_id="plan-1", plan_digest=DIGEST, operation_id="operation-1",
+        release_ref=reference("release"), environment_config_ref=configuration_ref,
+        environment_execution_id="execution-1", expected_environment_revision_id="state-1",
+        expected_observed_state_digest=DIGEST, normalized_spec_ref=reference("deployment_spec"),
+        input_set_ref=reference("input_set"), parser_revision="r1",
+        target_installation_id="installation-1", executor_instance="executor-1", generation=1,
+        approval_ref=reference("approval"),
+    )
+    permit = PermitBinding(
+        operation_id="operation-1", plan_digest=DIGEST, step_id="step-1", input_digest=DIGEST,
+        executor_instance="executor-1", hub_incarnation="hub-1", generation=1,
+        environment_execution_id="execution-1", environment_config_revision_id="configuration-1",
+        expected_environment_revision_id="state-1", control_revision=1, authorization_revision=1,
+        predecessor_results_digest=DIGEST, actual_state_digest=DIGEST,
+    )
+    check_initial_plan_binding(plan, configuration, permit)
+    changed = PermitBinding(**{**permit.model_dump(), "environment_config_revision_id": "configuration-2"})
+    wrong_state = PermitBinding(**{**permit.model_dump(), "expected_environment_revision_id": "state-2"})
+    return (rejects(lambda: check_initial_plan_binding(plan, configuration, changed))
+            and rejects(lambda: check_initial_plan_binding(plan, configuration, wrong_state)))
+
+
 def run_checks() -> dict[str, bool]:
     refs = (reference("source"), reference("contract"))
     frozen = InputSet(input_set_id="set-1", references=refs, set_digest=input_set_digest(refs))
@@ -69,7 +104,7 @@ def run_checks() -> dict[str, bool]:
                "query_ref": reference("operation", "operation-1"), "wait_ref": reference("operation", "operation-1")}
     release = ReleaseManifest(**release_payload())
     environment = EnvironmentConfigRevision(
-        environment_id="test-env", revision=1, parameter_set_ref=reference("parameter_set"),
+        config_revision_id="configuration-test", environment_id="test-env", revision=1, parameter_set_ref=reference("parameter_set"),
         resource_binding_refs=(reference("resource_binding"),), secret_refs=(reference("secret_version"),),
     )
     evidence = {"evidence_id": "evidence-1", "subject_ref": reference("artifact"),
@@ -88,6 +123,7 @@ def run_checks() -> dict[str, bool]:
         "wait_requires_condition": rejects(lambda: TurnResult(run_id="run-1", outcome="waiting_condition", history_delta=reference("history"), reason_code="WAIT")),
         "release_rejects_environment_values": rejects(lambda: ReleaseManifest(**release_payload(), environment_id=environment.environment_id)),
         "environment_rejects_raw_secrets": release.release_id == "release-1" and rejects(lambda: EnvironmentConfigRevision(**environment.model_dump(), secret_values={"credential": "synthetic-content"})),
+        "configuration_and_execution_state_bind_separately": check_plan_binding(),
         "audit_requires_utc": rejects(lambda: EvidenceRecord(**evidence, observed_at="2026-10-14T08:00:00+08:00")),
         "unknown_evidence_preserved": EvidenceRecord(**evidence, observed_at="2026-10-14T00:00:00Z").result == "unknown",
         "emergency_disabled": not EmergencyAccessProfile(**emergency_payload()).enabled and rejects(lambda: EmergencyAccessProfile(**emergency_payload(), enabled=True)),
