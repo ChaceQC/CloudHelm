@@ -1,10 +1,11 @@
-# 支持矩阵 r3
+# 支持矩阵 r4
 
-修订日期：2026-10-15（Asia/Shanghai）。输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[本轮拓扑快照](p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md)、[参照适用决定](../decisions/p0/reference-applicability.md) 和 [统一出口评审](p0/exit-review.md)。r3 补齐 s2413 同机准备事实及逐入口方案，明确固定参照的编译/拒绝边界；原运行证据仍绑定原候选和时间，没有证据的产品组合不自动纳入支持。
+修订日期：2026-10-15（Asia/Shanghai）。r4 新增 [P1.1 固定候选开发记录](p1/p1-1.md)，原 r3 的 s2413 同机准备事实和逐入口方案保持其历史范围。其余输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[P0 拓扑快照](p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md)、[参照适用决定](../decisions/p0/reference-applicability.md) 和 [P0 出口评审](p0/exit-review.md)。各运行证据绑定各自候选和时间，没有证据的产品组合不自动纳入支持。
 
 |组合/能力|本轮实际范围与证据|不支持或未核验时的行为/门禁|
 |---|---|---|
-|WSL 开发|Ubuntu 24.04.4、x86_64、WSL2 内核，锁定工程 Python 3.12.13；本轮采集器使用系统 Python 3.12.3，Docker 29.1.3/Compose 2.40.3；历史接缝和参照验证按原候选有效|只作为开发环境；可见内存约 7.36 GiB，不宣称 8 GiB light 整机容量通过。本轮 PATH 无 Linux Node，Windows 挂载的 npm 被采集器拒绝，不影响历史固定容器构建证据|
+|WSL 开发|Ubuntu 24.04.4、x86_64、WSL2 内核，锁定工程 Python 3.12.13；P0 采集器使用系统 Python 3.12.3，Docker 29.1.3/Compose 2.40.3；历史接缝和参照验证按原候选有效，P1.1 另绑定当前源码与新输入|只作为开发环境；P0 可见内存约 7.36 GiB，不宣称 8 GiB light 整机容量通过。P0 PATH 无 Linux Node，Windows npm 被采集器拒绝的记录不影响历史固定容器构建证据|
+|Hub 身份、命令与 Task 基础|`cloudhelm-hub/0.1.0`、PostgreSQL 16.13、DBOS 3.2.0、业务 head 0001_p1_1；[125 个固定输入](p1/input-set-p1-1-r1.json)对应[61 个结果键全部通过](p1/validation-p1-1-r1.json)，覆盖真实角色/HTTP、同库事务、Task 控制竞争与单 worker；API 13 路径/15 操作|完成/封闭正向域事实为 protocol_validation 合成来源，不代表真实开发/人测/执行器验收；模型、构建、Runner/Remote、Desktop 和 s2413 部署未由本行放行。精确 DBOS 系统 schema 数字保持 null，多机 HA/跨版本恢复不支持|
 |s2413 同机开发组合|用户选择 Hub、开发 Runner 和当前交付验证均使用 s2413；本轮快照为 Debian 13、x86_64、6 CPU、约 15.51 GiB RAM、Docker 26.1.5+dfsg1/Compose 2.39.4，四个候选项目目录均不存在|共享一个物理宿主资源池；具体受控方案已单列，项目额度/归属占用上界仍未知，新准入关闭。安装注册、配额生效、产品身份/通道和网络/TLS仍须 P1 实际取证|
 |正式独立交付拓扑|s2413 同机结果不能计为另一台交付机器；本次未安排第二台目标|项目所有者/基础设施负责人在 P1.4 前指定并核验独立目标；不宣称 D06 独立交付或两档容量通过|
 |模型/Gateway/DBOS|固定 gpt-6-luna/max、Standard 全球用户函数流、单 worker、有界引用薄适配；A01 所选有限切片及 [A02](p0/A02.md) 恢复新请求/消费后失败检查点/严格断流组合已取得证据；SDK 二次请求用固定夹具核验门禁|未知费用保持占账；未支持档位拒绝准入/计价；未经裁剪的默认 DBOS 包装入口拒绝。历史支持范围由各自输入限定，产品接线仍须 P1/P2 证据，不扩展多 worker 或跨版本支持|
