@@ -21,7 +21,7 @@ P0.1 所选薄适配已交付，完整退出条件待补齐；P0.2 参照资产/
 
 ### 进行中
 
-- 无实施项进行中；最终文档/证据开发分支交付正在收尾。五个 `gpt-6-luna / max` 小任务的边界和结果见计划及 A02。
+- 无。所列实现、定向验证、证据冻结及 dev 交付已完成。五个 `gpt-6-luna / max` 小任务的边界和结果见计划及 A02。
 
 ### 阻塞与风险
 
@@ -41,7 +41,7 @@ P0.1 所选薄适配已交付，完整退出条件待补齐；P0.2 参照资产/
 - 方法开发检查：锁定 WSL 环境严格断流的 12 个合成断言检查通过；Agent 默认 structured output 为 tool 模式，固定 function_call 夹具的校验修复/摘要解析核对通过。它们不是供应商或数据库组合通过证据。
 - 固定候选后运行 `check_admitted_paths.py`（6/6）、`check_checkpoint.py`（消费后成功/失败安全）、`check_stream_assertions.py`（14/14）、`probe_admitted_recovery.py --live`（4/4，真实 HTTP 1）、`probe_admitted_stream.py --live --live-revision r2`（严格两场景通过，真实 HTTP 4）。命令均在 WSL 锁定环境用 `uv run --locked --offline python`；未重跑参照、生产、原生 Desktop 或无关业务全量测试。
 - 最终新 InputSet 25 个文件与源码/当前字节一致；旧 A01 20 个输入与其历史源码 commit 一致（不要求已修改的当前文件匹配旧版本），参照 36 个和旧接缝 17 个当前输入保持原字节；45 个已改文档链接及精确费用汇总核对通过。方法版本/公共 API 修正后才取本轮证据，不追认旧失败路径。
-- 源码 e7eded8 的 [仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/38509954309) completed/success。最终文档提交与最新 GitHub 结论在交付后补记；该 CI 仅覆盖结构、契约、锁和构建，不代替上述运行取证或产品验收。
+- 源码 e7eded8 和输入/证据提交 `3d58688e4824bd602457d8686dfde1741d983f19` 均已正常推送 origin/dev；交付后工作树干净。源码的 [仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/38509954309) completed/success；文档提交触发的检查异步运行，不预填结论。CI 仅覆盖结构、契约、锁和构建，不代替上述运行取证或产品验收。main 未合并，未创建 tag/Release。
 
 ## 2026-10-13 · P0.1-A01 与 P0.2 交付（已完成）
 
