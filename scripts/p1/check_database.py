@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from datetime import datetime, timezone
-from importlib import import_module
 
 from dbos import DBOSClient, DBOSPortableJSONSerializer
 from sqlalchemy import inspect, select, update
@@ -14,6 +13,7 @@ from sqlalchemy.exc import DBAPIError
 from database.connection import create_business_pools, create_engine_from_settings
 from database.maintenance import MaintenanceError, initialize_database, maintenance_lock
 from database.metadata import metadata
+from database.models import load_business_metadata
 from database.readiness import assert_runtime_ready, assert_schema_ready, require_maintenance_role
 from database.tables import runtime_baseline
 from database.uow import UnitOfWork
@@ -116,9 +116,7 @@ def _maintenance(fixture: DatabaseFixture) -> dict[str, object]:
 
 def run_checks(fixture: DatabaseFixture) -> dict[str, bool]:
     """Thin adapter for the outer runner's fresh fixture; original checks are unchanged."""
-    for module in ("database.commands", "modules.sync.tables", "modules.workflow.tables",
-                   "modules.identity.tables", "modules.projects.tables", "modules.collaboration.tables"):
-        import_module(module)
+    load_business_metadata()
     maintenance = _maintenance(fixture)
     roles = [_runtime_role(fixture, role) for role in ("api", "worker")]
     return {
@@ -133,9 +131,7 @@ def run_checks(fixture: DatabaseFixture) -> dict[str, bool]:
 
 def main() -> int:
     started_at = datetime.now(timezone.utc).isoformat()
-    for module in ("database.commands", "modules.sync.tables", "modules.workflow.tables",
-                   "modules.identity.tables", "modules.projects.tables", "modules.collaboration.tables"):
-        import_module(module)
+    load_business_metadata()
     print(json.dumps({"status": "running", "method": "p1-database-r1", "started_at": started_at}), flush=True)
     try:
         with database_fixture() as fixture:

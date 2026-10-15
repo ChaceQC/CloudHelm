@@ -17,9 +17,11 @@
 |Git 代理|`packages/contracts/p1/workspace_git.py`；`modules/workspaces/` 的 Git、路径和工作文件模块|首步仅精确对象/安全文件视图；后续才接候选冻结、受控修改和 Git 操作。`tables.py`、应用/查询/工作流归 Hub 代理|
 |Runner 代理|`packages/contracts/p1/runner_contracts.py`；`services/dev-runner/`；专属 probe/check 方法|首步仅固定工具链和受限能力探针；通过后分别接环境/缓存/数据，再接构建/归档，每步单独取证|
 |Hub 代理|来源表/应用；工作区/构建记录与命令；`modules/delivery/`、`modules/artifacts/`；线性迁移、必要身份/Task 接缝、API/worker|先结构，再显式工程授权/初始输入，再物理回执和域内工作流；不在同一步包办全部集成|
+|工程授权代理|`modules/identity/policy.py`、`packages/contracts/p1/identity_requests.py` 和专属授权检查；必要时新增独立工程授权模块|只接入显式 `workspace.write`、`candidate.submit`、`operation.request`，保留旧绑定原动作；不改 Hub 结构、Task 输入或 API 路由|
+|制品内容代理|`packages/contracts/p1/build_artifacts.py`、`modules/artifacts/` 和专属内容检查|独立核验 OCI 归档的成员、大小、摘要与平台并原子发布；不写 BuildRun 业务状态或 Runner 构建执行|
 |主会话|计划/进度、设计裁决、实施/使用说明、根版本与必要 CI、OpenAPI 同步、最终 InputSet/集成方法及 Git|消费代理已交付接口与证据；代理负责实现未交回前不替写、不交叉修改|
 
-子代理固定为 `gpt-6-astra / max`。每个后续任务另列输入、少量负责文件、产物和退出条件；异常终止后沿原任务继续。共同契约先完成定义后再由消费者接入，避免同时重写字段。
+本次接续的子代理按用户最新要求固定为 `gpt-6.1-sol / max`。每个后续任务另列输入、少量负责文件、产物和退出条件；异常终止后沿原任务继续。共同契约先完成定义后再由消费者接入，避免同时重写字段。
 
 ## 3. Git 来源和文件视图
 
@@ -47,6 +49,8 @@ P1.2 新增受控初次工程 InputSet 绑定接口，消费已存在且可核�
 
 新增迁移从 `0001_p1_1` 线性前进，旧迁移不修改。新版本先支持新隔离开发库；既有安装版本不匹配时继续拒绝，`initialize` 不冒充升级器。如实际需要已有库升级，单独拆出有明确版本/回滚边界的受控维护任务。SDK 版本不因新表自动变化。
 
+接续顺序中，工程动作上界与请求契约作为独立小步先行：核对 P0 角色上界、旧记录动作列表与新请求验证；来源/工作区应用随后消费该接口。实际授予及撤权仍走当前项目策略事务，不能通过全局集合变化给既有角色增加权限。
+
 ## 5. Runner、限制与能力核验
 
 Runner 只接受封闭的注册操作，`RunnerOperationSpec` 绑定原操作/摘要、项目/Task、执行器身份、工作区或候选、InputSet、修订/代次、工具链、策略、开发限额记录和 UTC 截止时间。公共调用者不能给出任意命令、挂载、Docker 选项或已授权/已预留断言。实际文件位置和限额必须从受控注册记录解析。
@@ -71,9 +75,13 @@ Runner 只接受封闭的注册操作，`RunnerOperationSpec` 绑定原操作/�
 
 构建归档在受限临时存储生成，由可信采集器核对大小、归档 SHA-256、OCI manifest/config digest、实际 image ID 与 linux/amd64 平台，再原子发布只读索引。BuildRun 只消费可信实物回执，不信任仓库脚本自报通过或镜像身份。最终镜像启动/就绪及独立 HTTP 关键检查绑定新输入，正式验收脚本不进入候选构建上下文且不能被其改写。
 
+内容采集先独立支持单一 `linux/amd64` OCI image archive：逐层核对 descriptor 大小与 SHA-256，拒绝归档路径越界、重复成员、符号链接及不支持媒体类型，固定 archive/manifest/config/layer 身份。归档核验不等于镜像启动成功；Runner 的实际 load/inspect 回执另行核对 config/image ID，BuildRun 只有收齐对应输入和实物证据才可形成业务结果。
+
 目标交付只消费已固定归档/镜像和运行契约；P1.2 不生成虚构的 Release、环境批准或部署成功，也不发送源码到目标临时构建。实际归档和源码保持不同权限及生命周期。
 
 ## 7. 验证与版本依据
+
+本轮新增工程能力的开发源码版本为 `0.2.0`，DBOS 工作流应用版本单独固定为 `cloudhelm-hub/0.2.0`；业务线性迁移为 `0002_p1_2`，DBOS SDK 继续固定 `3.2.0`。软件、工作流与数据库版本分别核对，数值接近不表示合并管理。新隔离库验证适用于这些基线；旧 `0.1.0` 安装不由 `initialize` 自动升级，未发布 tag 或 Release。
 
 验证按 Git 文件边界、Hub 当前权/事务/输入、Runner 实际限制、环境/缓存/数据和最终构建分组。每个小步只执行相关必要检查；最终新 InputSet 绑定源码、方法、依赖和环境，同一候选合并结果不能由三个代理的局部成功替代。
 

@@ -2,14 +2,83 @@
 
 from sqlalchemy import insert, select
 
-from modules.collaboration.command_support import command_result, record_event, update_task
+from database.commands import CommandConflict
+from database.uow import UnitOfWork, require_transaction
+from modules.collaboration.command_support import (
+    assert_result_read_access, command_result, persist_result, prepare_task_command,
+    record_event, rejected_result, update_task,
+)
 from modules.collaboration.errors import TaskBoundaryError
-from modules.collaboration.guards import check_task_revisions, require_ordinary_progress
+from modules.collaboration.guards import check_task_revisions, read_task, require_ordinary_progress
+from modules.collaboration.initial_inputs import validate_initial_input_set
 from modules.collaboration.records import read_registered_reference, reference_key
 from modules.collaboration.tables import task_inputs, task_operation_links
-from modules.identity.actors import AuthoritativeResource
+from modules.identity.actors import Actor, AuthoritativeResource, validate_actor
 from modules.identity.authorization import authorize_current
 from packages.contracts.p1.task_facts import OperationIntentMetadata, operation_scope_digest
+from packages.contracts.p1.task_internal import BindInitialTaskInputRequest
+from packages.contracts.p1.task_results import TaskCommandResult, TaskHttpResult
+
+
+def bind_initial_input(context, request: BindInitialTaskInputRequest):
+    context.task = require_ordinary_progress(
+        context.uow.connection, context.task["task_id"], expected_version=request.expected_version,
+        expected_control_revision=request.expected_control_revision,
+        expected_input_validity_revision=request.expected_input_validity_revision,
+        allowed_states=("draft", "active"),
+    )
+    task = context.task
+    existing = context.uow.connection.scalar(select(task_inputs.c.input_set_key).where(
+        task_inputs.c.task_id == task["task_id"],
+    ).limit(1))
+    if task["input_validity_revision"] != 0 or existing is not None:
+        raise TaskBoundaryError("task_initial_input_already_bound")
+    input_record, source_record = validate_initial_input_set(
+        context.uow.connection, task, request.input_set_ref,
+    )
+    update_task(context, input_validity_revision=1)
+    context.uow.connection.execute(insert(task_inputs).values(
+        task_id=task["task_id"], input_validity_revision=1,
+        input_set_key=reference_key(task["project_id"], input_record.reference),
+        source_key=reference_key(task["project_id"], source_record.reference),
+    ))
+    result = command_result(context, "input_bound", "task_initial_input_bound")
+    record_event(context, result, "task.initial_input_bound", change_ref=input_record.reference)
+    return result, 200
+
+
+def bind_initial_input_in_uow(
+    uow: UnitOfWork, actor: Actor, task_id: str, request: BindInitialTaskInputRequest,
+    *, idempotency_key: str,
+) -> TaskHttpResult:
+    """Use the caller's transaction; task.command never replaces workspace.write.
+
+    Fresh authorization precedes replay. Only a new command enters transition gates;
+    command, input binding, Task version and event roll back with the caller's UoW.
+    """
+    require_transaction(uow.connection)
+    if type(request) is not BindInitialTaskInputRequest:
+        raise TaskBoundaryError("task_request_schema_invalid", status_code=422)
+    try:
+        request = BindInitialTaskInputRequest.model_validate(request.model_dump(mode="python"))
+    except ValueError:
+        raise TaskBoundaryError("task_request_schema_invalid", status_code=422) from None
+    validate_actor(actor)
+    try:
+        context, existing = prepare_task_command(uow, actor, task_id, request, idempotency_key)
+        if existing is not None:
+            result = TaskCommandResult.model_validate(existing.result)
+            assert_result_read_access(context, result)
+            return TaskHttpResult(status_code=existing.status_code, body=result)
+        try:
+            with uow.connection.begin_nested():
+                result, status = bind_initial_input(context, request)
+        except TaskBoundaryError as error:
+            context.task = read_task(uow.connection, task_id, for_update=True)
+            result, status = rejected_result(context, error)
+        return persist_result(context, result, status)
+    except CommandConflict as error:
+        raise TaskBoundaryError(str(error)) from None
 
 
 def _advance_input_validity(context, **values) -> None:

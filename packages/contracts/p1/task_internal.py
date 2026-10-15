@@ -9,6 +9,20 @@ from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_k
 from packages.contracts.p1.task_results import TaskCommandResult
 
 
+class BindInitialTaskInputRequest(Contract):
+    """Bind existing registered inputs; this grants no workspace or execution access."""
+
+    expected_version: Revision
+    expected_control_revision: Revision
+    expected_input_validity_revision: Revision
+    input_set_ref: EngineeringRef
+
+    @model_validator(mode="after")
+    def check_input_set(self):
+        expect_kind(self.input_set_ref, "input_set")
+        return self
+
+
 class InvalidateTaskInputRequest(Contract):
     expected_version: Revision
     expected_control_revision: Revision

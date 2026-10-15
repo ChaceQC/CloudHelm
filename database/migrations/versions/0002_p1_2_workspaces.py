@@ -1,0 +1,145 @@
+"""Static source/workspace snapshot; only the controlled fresh-install path is open."""
+
+from alembic import op
+
+revision = "0002_p1_2"
+down_revision = "0001_p1_1"
+branch_labels = None
+depends_on = None
+
+STATEMENTS = (
+    """ALTER TABLE cloudhelm.tasks ADD CONSTRAINT uq_task_project_owner UNIQUE (project_id, task_id)""",
+    """ALTER TABLE cloudhelm.work_items ADD CONSTRAINT uq_work_item_task_owner UNIQUE (task_id, work_item_id)""",
+    """CREATE TABLE cloudhelm.project_git_sources (
+    project_id VARCHAR(160) NOT NULL,
+    source_id VARCHAR(160) NOT NULL,
+    source_revision BIGINT NOT NULL,
+    source_json JSONB NOT NULL,
+    source_digest VARCHAR(71) NOT NULL,
+    registered_by_command_id VARCHAR(160) NOT NULL,
+    authorization_decision_id VARCHAR(160) NOT NULL,
+    registered_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    CONSTRAINT pk_project_git_sources PRIMARY KEY (project_id),
+    CONSTRAINT fk_git_sources_project FOREIGN KEY(project_id) REFERENCES cloudhelm.projects (project_id),
+    CONSTRAINT uq_project_git_sources_source_id UNIQUE (source_id),
+    CONSTRAINT fk_git_sources_command FOREIGN KEY(registered_by_command_id) REFERENCES cloudhelm.commands (command_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT uq_project_git_sources_registered_by_command_id UNIQUE (registered_by_command_id),
+    CONSTRAINT fk_git_sources_authorization FOREIGN KEY(authorization_decision_id) REFERENCES cloudhelm.audit_records (decision_id),
+    CONSTRAINT uq_project_git_source_binding UNIQUE (project_id, source_id, source_revision),
+    CONSTRAINT ck_project_git_sources_source_revision CHECK (source_revision BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_project_git_sources_source_digest CHECK (source_digest ~ '^sha256:[0-9a-f]{64}$'),
+    CONSTRAINT ck_project_git_sources_source_bounded CHECK (jsonb_typeof(source_json) = 'object' AND octet_length(source_json::text) <= 16384),
+    CONSTRAINT ck_project_git_sources_source_identity CHECK ((source_json ->> 'project_id') IS NOT DISTINCT FROM project_id AND (source_json ->> 'source_id') IS NOT DISTINCT FROM source_id AND (source_json ->> 'source_revision') IS NOT DISTINCT FROM source_revision::text)
+)""",
+    """CREATE TABLE cloudhelm.project_source_imports (
+    operation_id VARCHAR(160) NOT NULL,
+    project_id VARCHAR(160) NOT NULL,
+    source_id VARCHAR(160) NOT NULL,
+    command_id VARCHAR(160) NOT NULL,
+    authorization_decision_id VARCHAR(160) NOT NULL,
+    expected_project_revision BIGINT NOT NULL,
+    accepted_project_revision BIGINT NOT NULL,
+    request_json JSONB NOT NULL,
+    command_request_digest VARCHAR(71) NOT NULL,
+    spec_json JSONB NOT NULL,
+    request_digest VARCHAR(71) NOT NULL,
+    accepted_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    CONSTRAINT pk_project_source_imports PRIMARY KEY (operation_id),
+    CONSTRAINT uq_project_source_imports_project_id UNIQUE (project_id),
+    CONSTRAINT uq_project_source_imports_source_id UNIQUE (source_id),
+    CONSTRAINT uq_project_source_imports_command_id UNIQUE (command_id),
+    CONSTRAINT fk_source_import_project FOREIGN KEY(project_id) REFERENCES cloudhelm.projects (project_id),
+    CONSTRAINT fk_source_import_command FOREIGN KEY(command_id) REFERENCES cloudhelm.commands (command_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT fk_source_import_authorization FOREIGN KEY(authorization_decision_id) REFERENCES cloudhelm.audit_records (decision_id),
+    CONSTRAINT ck_project_source_imports_project_revision CHECK (expected_project_revision BETWEEN 1 AND 9007199254740990 AND accepted_project_revision = expected_project_revision + 1),
+    CONSTRAINT ck_project_source_imports_operation_identity CHECK (operation_id = 'source-import-' || command_id AND source_id = 'source-' || command_id),
+    CONSTRAINT ck_project_source_imports_request_digests CHECK (command_request_digest ~ '^sha256:[0-9a-f]{64}$' AND request_digest ~ '^sha256:[0-9a-f]{64}$'),
+    CONSTRAINT ck_project_source_imports_request_binding CHECK (jsonb_typeof(request_json) = 'object' AND octet_length(request_json::text) <= 4096 AND (request_json ->> 'reference_revision') IS NOT DISTINCT FROM 'p0-reference-input-set-r1' AND (request_json ->> 'expected_project_revision') IS NOT DISTINCT FROM expected_project_revision::text),
+    CONSTRAINT ck_project_source_imports_spec_binding CHECK (jsonb_typeof(spec_json) = 'object' AND octet_length(spec_json::text) <= 16384 AND (spec_json ->> 'reference_revision') IS NOT DISTINCT FROM 'p0-reference-input-set-r1' AND (spec_json #>> '{source,project_id}') IS NOT DISTINCT FROM project_id AND (spec_json #>> '{source,source_id}') IS NOT DISTINCT FROM source_id AND (spec_json #>> '{source,source_revision}') IS NOT DISTINCT FROM '1')
+)""",
+    """CREATE TABLE cloudhelm.workspaces (
+    workspace_id VARCHAR(160) NOT NULL,
+    project_id VARCHAR(160) NOT NULL,
+    task_id VARCHAR(160) NOT NULL,
+    work_item_id VARCHAR(160) NOT NULL,
+    owner_user_id VARCHAR(160) NOT NULL,
+    source_id VARCHAR(160) NOT NULL,
+    source_revision BIGINT NOT NULL,
+    base_commit VARCHAR(64) NOT NULL,
+    workspace_revision BIGINT NOT NULL,
+    write_generation BIGINT NOT NULL,
+    binding_json JSONB NOT NULL,
+    binding_digest VARCHAR(71) NOT NULL,
+    files_json JSONB,
+    files_digest VARCHAR(71),
+    materialization_operation_id VARCHAR(160),
+    storage_id VARCHAR(160),
+    created_by_command_id VARCHAR(160) NOT NULL,
+    authorization_decision_id VARCHAR(160) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    CONSTRAINT pk_workspaces PRIMARY KEY (workspace_id),
+    CONSTRAINT fk_workspaces_owner_user FOREIGN KEY(owner_user_id) REFERENCES cloudhelm.users (user_id),
+    CONSTRAINT uq_workspaces_materialization_operation_id UNIQUE (materialization_operation_id),
+    CONSTRAINT uq_workspaces_storage_id UNIQUE (storage_id),
+    CONSTRAINT fk_workspaces_command FOREIGN KEY(created_by_command_id) REFERENCES cloudhelm.commands (command_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT uq_workspaces_created_by_command_id UNIQUE (created_by_command_id),
+    CONSTRAINT fk_workspaces_authorization FOREIGN KEY(authorization_decision_id) REFERENCES cloudhelm.audit_records (decision_id),
+    CONSTRAINT fk_workspaces_source_binding FOREIGN KEY(project_id, source_id, source_revision) REFERENCES cloudhelm.project_git_sources (project_id, source_id, source_revision),
+    CONSTRAINT fk_workspaces_task_owner FOREIGN KEY(project_id, task_id) REFERENCES cloudhelm.tasks (project_id, task_id),
+    CONSTRAINT fk_workspaces_work_item_owner FOREIGN KEY(task_id, work_item_id) REFERENCES cloudhelm.work_items (task_id, work_item_id),
+    CONSTRAINT uq_workspace_owner_binding UNIQUE (workspace_id, project_id, task_id, work_item_id, owner_user_id, source_id, source_revision),
+    CONSTRAINT ck_workspaces_source_revision CHECK (source_revision BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_workspaces_workspace_revision CHECK (workspace_revision BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_workspaces_write_generation CHECK (write_generation BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_workspaces_base_commit CHECK (base_commit ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+    CONSTRAINT ck_workspaces_binding_digest CHECK (binding_digest ~ '^sha256:[0-9a-f]{64}$'),
+    CONSTRAINT ck_workspaces_binding_bounded CHECK (jsonb_typeof(binding_json) = 'object' AND octet_length(binding_json::text) <= 16384),
+    CONSTRAINT ck_workspaces_binding_identity CHECK ((binding_json ->> 'workspace_id') IS NOT DISTINCT FROM workspace_id AND (binding_json ->> 'project_id') IS NOT DISTINCT FROM project_id AND (binding_json ->> 'task_id') IS NOT DISTINCT FROM task_id AND (binding_json ->> 'work_item_id') IS NOT DISTINCT FROM work_item_id AND (binding_json ->> 'owner_user_id') IS NOT DISTINCT FROM owner_user_id AND (binding_json ->> 'source_id') IS NOT DISTINCT FROM source_id AND (binding_json ->> 'source_revision') IS NOT DISTINCT FROM source_revision::text AND (binding_json ->> 'base_commit') IS NOT DISTINCT FROM base_commit AND (binding_json ->> 'workspace_revision') IS NOT DISTINCT FROM workspace_revision::text AND (binding_json ->> 'write_generation') IS NOT DISTINCT FROM write_generation::text),
+    CONSTRAINT ck_workspaces_files_receipt_complete CHECK ((files_json IS NULL AND files_digest IS NULL AND materialization_operation_id IS NULL AND storage_id IS NULL) OR (files_json IS NOT NULL AND files_digest IS NOT NULL AND materialization_operation_id IS NOT NULL AND storage_id IS NOT NULL AND files_digest ~ '^sha256:[0-9a-f]{64}$' AND jsonb_typeof(files_json) = 'object' AND octet_length(files_json::text) <= 32768 AND (files_json -> 'binding') IS NOT DISTINCT FROM binding_json AND (files_json ->> 'operation_id') IS NOT DISTINCT FROM materialization_operation_id AND (files_json ->> 'storage_id') IS NOT DISTINCT FROM storage_id))
+)""",
+    """CREATE TABLE cloudhelm.workspace_candidates (
+    candidate_id VARCHAR(160) NOT NULL,
+    workspace_id VARCHAR(160) NOT NULL,
+    project_id VARCHAR(160) NOT NULL,
+    task_id VARCHAR(160) NOT NULL,
+    work_item_id VARCHAR(160) NOT NULL,
+    owner_user_id VARCHAR(160) NOT NULL,
+    source_id VARCHAR(160) NOT NULL,
+    source_revision BIGINT NOT NULL,
+    workspace_revision BIGINT NOT NULL,
+    write_generation BIGINT NOT NULL,
+    candidate_commit VARCHAR(64) NOT NULL,
+    parent_commit VARCHAR(64) NOT NULL,
+    freeze_operation_id VARCHAR(160) NOT NULL,
+    storage_id VARCHAR(160) NOT NULL,
+    snapshot_json JSONB NOT NULL,
+    snapshot_digest VARCHAR(71) NOT NULL,
+    created_by_command_id VARCHAR(160) NOT NULL,
+    authorization_decision_id VARCHAR(160) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+    CONSTRAINT pk_workspace_candidates PRIMARY KEY (candidate_id),
+    CONSTRAINT uq_workspace_candidates_freeze_operation_id UNIQUE (freeze_operation_id),
+    CONSTRAINT uq_workspace_candidates_storage_id UNIQUE (storage_id),
+    CONSTRAINT fk_candidates_command FOREIGN KEY(created_by_command_id) REFERENCES cloudhelm.commands (command_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT uq_workspace_candidates_created_by_command_id UNIQUE (created_by_command_id),
+    CONSTRAINT fk_candidates_authorization FOREIGN KEY(authorization_decision_id) REFERENCES cloudhelm.audit_records (decision_id),
+    CONSTRAINT fk_candidates_workspace_owner FOREIGN KEY(workspace_id, project_id, task_id, work_item_id, owner_user_id, source_id, source_revision) REFERENCES cloudhelm.workspaces (workspace_id, project_id, task_id, work_item_id, owner_user_id, source_id, source_revision),
+    CONSTRAINT ck_workspace_candidates_source_revision CHECK (source_revision BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_workspace_candidates_workspace_revision CHECK (workspace_revision BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_workspace_candidates_write_generation CHECK (write_generation BETWEEN 0 AND 9007199254740991),
+    CONSTRAINT ck_workspace_candidates_candidate_commit CHECK (candidate_commit ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+    CONSTRAINT ck_workspace_candidates_parent_commit CHECK (parent_commit ~ '^([0-9a-f]{40}|[0-9a-f]{64})$'),
+    CONSTRAINT ck_workspace_candidates_snapshot_digest CHECK (snapshot_digest ~ '^sha256:[0-9a-f]{64}$'),
+    CONSTRAINT ck_workspace_candidates_snapshot_bounded CHECK (jsonb_typeof(snapshot_json) = 'object' AND octet_length(snapshot_json::text) <= 32768),
+    CONSTRAINT ck_workspace_candidates_snapshot_identity CHECK ((snapshot_json ->> 'candidate_id') IS NOT DISTINCT FROM candidate_id AND (snapshot_json ->> 'candidate_commit') IS NOT DISTINCT FROM candidate_commit AND (snapshot_json ->> 'parent_commit') IS NOT DISTINCT FROM parent_commit AND (snapshot_json ->> 'freeze_operation_id') IS NOT DISTINCT FROM freeze_operation_id AND (snapshot_json ->> 'storage_id') IS NOT DISTINCT FROM storage_id AND (snapshot_json #>> '{binding,workspace_id}') IS NOT DISTINCT FROM workspace_id AND (snapshot_json #>> '{binding,project_id}') IS NOT DISTINCT FROM project_id AND (snapshot_json #>> '{binding,task_id}') IS NOT DISTINCT FROM task_id AND (snapshot_json #>> '{binding,work_item_id}') IS NOT DISTINCT FROM work_item_id AND (snapshot_json #>> '{binding,owner_user_id}') IS NOT DISTINCT FROM owner_user_id AND (snapshot_json #>> '{binding,source_id}') IS NOT DISTINCT FROM source_id AND (snapshot_json #>> '{binding,source_revision}') IS NOT DISTINCT FROM source_revision::text AND (snapshot_json #>> '{binding,workspace_revision}') IS NOT DISTINCT FROM workspace_revision::text AND (snapshot_json #>> '{binding,write_generation}') IS NOT DISTINCT FROM write_generation::text)
+)""",
+)
+
+
+def upgrade() -> None:
+    for statement in STATEMENTS:
+        op.execute(statement)
+
+
+def downgrade() -> None:
+    raise RuntimeError("p1_workspace_downgrade_not_supported")

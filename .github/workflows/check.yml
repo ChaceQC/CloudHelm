@@ -105,6 +105,11 @@ jobs:
       - name: 核对 Hub HTTP 契约快照
         run: uv run --frozen python -m scripts.p1.check_public_contracts
 
+      - name: 核对 Git 文件视图与 OCI 内容边界
+        run: |
+          uv run --frozen python -m scripts.p1.check_workspace_git
+          uv run --frozen python -m scripts.p1.check_artifact_content
+
       - name: 检查参照后端依赖锁
         run: uv lock --check --directory examples/standalone-project/backend
 

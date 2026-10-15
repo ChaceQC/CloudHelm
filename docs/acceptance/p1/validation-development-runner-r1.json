@@ -1,0 +1,169 @@
+{
+  "method_revision": "p1-runner-capabilities-r1",
+  "spec": {
+    "protocol_revision": "p1-runner-probe-r1",
+    "action": "probe_capabilities",
+    "operation_id": "runner-probe-433e630dee444837bdc762be6fc628f2",
+    "request_digest": "sha256:7d07c282a510b556c41c73cc9ca29054b11afd2eb50c478d564793b1ad03c1d6",
+    "executor_instance_id": "ubuntu-24-04-wsl-maintenance",
+    "input_set_ref": {
+      "kind": "input_set",
+      "object_id": "runner-probe-433e630dee444837bdc762be6fc628f2-input",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:50ab6605aedadc8737955f1a39a6b0f7b0193eb8234c423f8e960c2ae41988d3",
+      "digest_algorithm": "sha256"
+    },
+    "toolchain_ref": {
+      "kind": "artifact",
+      "object_id": "moby/buildkit:v0.34.0-rootless",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359",
+      "digest_algorithm": "sha256"
+    },
+    "policy_ref": {
+      "kind": "policy",
+      "object_id": "runner-probe-policy",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:092b27052445c3e422fffb57a90408d728a4c14e4092e06944936085ca5b0a5b",
+      "digest_algorithm": "sha256"
+    },
+    "development_envelope_ref": {
+      "kind": "policy",
+      "object_id": "runner-probe-static-envelope",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:092b27052445c3e422fffb57a90408d728a4c14e4092e06944936085ca5b0a5b",
+      "digest_algorithm": "sha256"
+    },
+    "deadline": "2026-10-15T08:09:27.448737Z",
+    "project_id": null,
+    "task_id": null,
+    "workspace_ref": null,
+    "candidate_ref": null,
+    "expected_workspace_revision": null,
+    "writer_generation": null
+  },
+  "started_at": "2026-10-15T08:07:57.448737Z",
+  "finished_at": "2026-10-15T08:08:02.279580Z",
+  "toolchain_image_id": "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359",
+  "container_id": "728a6dddf7dfc5dc2fb93135550df03485d4ceac6a5118708bf03f8586958be8",
+  "probe_input_digest": "sha256:84ac4b3634ef6f94f7b6a381499970eb6feb2d74ce4a1f200bca6ccd8a4907ef",
+  "security_exceptions": [
+    "seccomp=unconfined",
+    "systempaths=unconfined"
+  ],
+  "capabilities": [
+    {
+      "capability": "rootless_uid",
+      "status": "verified",
+      "reason": "actual_exec_user_namespace_mapping",
+      "observations": [
+        "run_uid=0",
+        "uid_map=         0       1000          1|         1     100000      65536|"
+      ]
+    },
+    {
+      "capability": "pid_proc_isolation",
+      "status": "verified",
+      "reason": "actual_exec_pid_namespace_and_proc",
+      "observations": [
+        "run=pid:[4026532312]",
+        "outer=pid:[4026532241]",
+        "proc_one=busybox"
+      ]
+    },
+    {
+      "capability": "process_sandbox",
+      "status": "verified",
+      "reason": "worker_sandbox_and_background_process_cleanup",
+      "observations": [
+        "background_duration_seconds=300",
+        "observed_sleepers=1",
+        "remaining_sleepers=0",
+        "group_processes_observed=8"
+      ]
+    },
+    {
+      "capability": "group_cpu",
+      "status": "verified",
+      "reason": "kernel_parent_cgroup_limit",
+      "observations": [
+        "cpu.max=100000 100000",
+        "memory.swap.max=0"
+      ]
+    },
+    {
+      "capability": "group_memory",
+      "status": "verified",
+      "reason": "kernel_parent_cgroup_limit",
+      "observations": [
+        "memory.max=536870912",
+        "memory.swap.max=0"
+      ]
+    },
+    {
+      "capability": "group_pids",
+      "status": "verified",
+      "reason": "kernel_parent_cgroup_limit",
+      "observations": [
+        "pids.max=128",
+        "memory.swap.max=0"
+      ]
+    },
+    {
+      "capability": "tmpfs_limit",
+      "status": "verified",
+      "reason": "actual_bounded_tmpfs_write_rejected",
+      "observations": [
+        "exec_tmpfs_kib=1024",
+        "excess_write=ENOSPC",
+        "tmpfs_bytes[/home/user/.local/share/buildkit]=67108864",
+        "tmpfs_bytes[/run/user/1000]=8388608",
+        "tmpfs_bytes[/tmp]=8388608",
+        "tmpfs_bytes[/dev/shm]=1048576",
+        "persistent_disk_quota=unverified"
+      ]
+    },
+    {
+      "capability": "network_isolation",
+      "status": "verified",
+      "reason": "actual_host_sentinel_public_egress_and_namespace",
+      "observations": [
+        "run=net:[4026532314]",
+        "host=net:[4026531833]",
+        "ipv4_routes=none",
+        "docker_network=none"
+      ]
+    },
+    {
+      "capability": "filesystem_boundary",
+      "status": "verified",
+      "reason": "actual_container_mounts_and_security",
+      "observations": [
+        "readonly_root=true",
+        "only_fixed_context_bind=true",
+        "privileged=false",
+        "devices=none",
+        "host_socket=absent",
+        "additional_capabilities=none"
+      ]
+    },
+    {
+      "capability": "stop_confirmation",
+      "status": "verified",
+      "reason": "docker_and_host_process_stop_confirmed",
+      "observations": [
+        "tracked_processes=8",
+        "remaining_processes=0",
+        "cgroup_populated=false",
+        "owned_container_removed=true"
+      ]
+    }
+  ],
+  "failures": [],
+  "diagnostics": [],
+  "support_scope": "controlled_wsl_offline_tmpfs_probe_only"
+}

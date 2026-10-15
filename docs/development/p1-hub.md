@@ -1,6 +1,6 @@
 # Hub 基础开发与维护
 
-本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；完整构建、Agent 开发、Desktop、远程交付及恢复支持按后续工作包接入。
+本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；完整构建、Agent 开发、Desktop、远程交付及恢复支持按后续工作包接入。
 
 ## 1. 环境与配置
 
@@ -33,7 +33,7 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 /home/cloudhelm/.local/bin/uv run --locked python -m database.manage initialize
 ```
 
-初始化保存安装身份和原操作身份，执行业务线性迁移 `0001_p1_1`，再使用 DBOS 公开同版初始化接口。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。
+初始化保存安装身份和原操作身份，执行业务线性迁移至 `0002_p1_2`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.2.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。旧 `0001_p1_1`/`0.1.0` 安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。
 
 成功回执中的 `dbos_schema_version` 仍可为 `null`：公开接口没有提供本轮可单独核验的精确数字版本。实际支持依据是固定 SDK、受控初始化来源及公开启动核验，不支持借此进行跨 SDK 升级、回退或旧备份自动恢复。
 

@@ -22,7 +22,8 @@ from packages.contracts.p0.decision_common import Contract
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p0.task_control_contracts import TaskControlRequest
 from packages.contracts.p1.task_internal import (
-    InvalidateTaskInputRequest, RegisterTaskWriteIntentRequest, TaskAdvanceRequest, TaskChangedEvent,
+    BindInitialTaskInputRequest, InvalidateTaskInputRequest, RegisterTaskWriteIntentRequest,
+    TaskAdvanceRequest, TaskChangedEvent,
 )
 from packages.contracts.p1.task_requests import (
     CancelTaskRequest, CompleteTaskRequest, ReconcileTaskRequest, StartTaskRequest,
@@ -64,6 +65,7 @@ def normalized_request(request: Contract) -> tuple[str, Contract]:
         )
     schemas = {
         StartTaskRequest: "p1-task-start-r1", ReconcileTaskRequest: "p1-task-reconcile-r1",
+        BindInitialTaskInputRequest: "p1-task-initial-input-bind-r1",
         InvalidateTaskInputRequest: "p1-task-input-invalidate-r1",
         RegisterTaskWriteIntentRequest: "p1-task-write-intent-r1", TaskAdvanceRequest: "p1-task-advance-r1",
     }

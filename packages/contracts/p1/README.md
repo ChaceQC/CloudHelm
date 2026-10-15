@@ -1,6 +1,6 @@
 # Hub 基础契约
 
-本目录维护 Hub 基础的固定请求、公共投影与内部交接类型。设计依据为 [P1.1 实施说明](../../../docs/implementation/p1-1-foundation.md)，运行与维护入口见 [开发说明](../../../docs/development/p1-hub.md)。实现、开发验证和产品验收分别记录，类型校验不授予权限或证明执行事实。
+本目录维护 Hub 的固定请求、公共投影与内部交接类型。设计依据为 [P1.1 实施说明](../../../docs/implementation/p1-1-foundation.md) 与 [P1.2 工程实施说明](../../../docs/implementation/p1-2-engineering.md)，运行与维护入口见 [开发说明](../../../docs/development/p1-hub.md)。实现、开发验证和产品验收分别记录，类型校验不授予权限或证明执行事实。
 
 |文件|职责|
 |---|---|
@@ -9,9 +9,15 @@
 |`task_requests.py`|Task 创建声明和启动/完成/取消/核对请求；目标、准确来源、预算与资源范围显式固定|
 |`task_results.py`|Task、阻断对象及命令响应；创建失败不会返回虚构 Task 身份|
 |`task_facts.py`|受控来源登记及 Task 消费事实的内部元数据，不能作为公共 HTTP 授权/完成输入|
+|`task_internal.py`|域内推进与首次工程 InputSet 绑定请求；初次绑定只消费登记引用，不产生候选或验收结论|
+|`workspace_git.py`、`workspace_records.py`|精确 Git 身份、独立文件清单、来源/工作区记录与物理候选；Git OID、文件清单和元数据摘要分别管理|
+|`runner_contracts.py`|固定维护探针操作及逐能力事实；拒绝业务目标、任意命令、挂载或自报授权|
+|`build_artifacts.py`|单一 linux/amd64 OCI 归档的内容回执、存储边界与工程引用；不代表 BuildRun 或运行验收成功|
 |`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
 
 所有固定模型拒绝额外字段。API 还检查原始 JSON 重复键、非法数值和请求边界；真实主体、scope、action、当前授权及请求摘要由服务端解析和构造，不能用客户端自报的 `caller`、角色、`allowed` 或完成布尔值放行。
+
+项目 developer 绑定可显式授予 `workspace.write`、`candidate.submit`、`operation.request`。旧 owner/角色/委托不因动作枚举扩展自动得到新权限；原结果回读仍须当前权。首次 InputSet 绑定使用 Task 元数据权限，不替代后续工程动作授权。
 
 身份、工程引用及 Task 控制规则显式复用 [P0 决定契约](../p0/README.md)，沿用 `p0-decisions-r1` 与 `cloudhelm-jcs-sha256-r1` 的含义；新增路由绑定独立的固定请求 schema 修订。软件版本、业务迁移、DBOS SDK、工作流应用和 API/schema 修订独立管理，P0 历史字节不重算或改写。
 

@@ -3,7 +3,7 @@
   "info": {
     "title": "CloudHelm Hub API",
     "description": "P1.1 identity, existing-project management and Task control API.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
     "/api/auth/me": {
@@ -3056,7 +3056,10 @@
                 "operation.query",
                 "operation.stop",
                 "operation.reconcile",
-                "fact.archive"
+                "fact.archive",
+                "workspace.write",
+                "candidate.submit",
+                "operation.request"
               ]
             },
             "type": "array",
@@ -3736,7 +3739,8 @@
               "input_invalidated",
               "impact_archived",
               "write_intent_registered",
-              "reconciliation_requested"
+              "reconciliation_requested",
+              "input_bound"
             ],
             "title": "Outcome"
           },

@@ -1,9 +1,9 @@
-"""P1.1 source/workflow baselines; these are not release or design versions."""
+"""Current Hub workflow baseline; independent of release and design versions."""
 
 from packages.contracts.p1.commands import WorkflowName
 
 APPLICATION_NAME = "cloudhelm-hub"
-APPLICATION_VERSION = "0.1.0"
+APPLICATION_VERSION = "0.2.0"
 DBOS_SDK_VERSION = "3.2.0"
 DBOS_SCHEMA = "dbos"
 INITIAL_WORKFLOW: WorkflowName = "collaboration.task_initial.v1"

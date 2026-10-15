@@ -1,0 +1,72 @@
+{
+  "protocol_revision": "p0-decisions-r1",
+  "input_set_id": "runner-probe-433e630dee444837bdc762be6fc628f2-input",
+  "canonicalization": "rfc8785-reference-set-r1",
+  "references": [
+    {
+      "kind": "method",
+      "object_id": "packages:contracts:p1:runner_contracts.py",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:7c5ad062ea05b14cb0f93c1883e314d934ea49b13bee95b796dbc60b08d3251e",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "method",
+      "object_id": "services:dev-runner:policy.py",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:092b27052445c3e422fffb57a90408d728a4c14e4092e06944936085ca5b0a5b",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "method",
+      "object_id": "services:dev-runner:toolchain.py",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:0760c2b251098bba6e62e1ca583b9f6f4575375583b01e6735c9b057a01fc275",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "method",
+      "object_id": "services:dev-runner:capabilities.py",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:c40e502592c180aab2857d7c239a43fd61ef67948a31e571c33897eed61b35d3",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "method",
+      "object_id": "scripts:p1:probe_runner.py",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:ae4043a08343bd54b9cc124d32520fbd9ee1151c5f66d2184cf39fd347233684",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "artifact",
+      "object_id": "moby/buildkit:v0.34.0-rootless",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "policy",
+      "object_id": "runner-probe-policy",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:092b27052445c3e422fffb57a90408d728a4c14e4092e06944936085ca5b0a5b",
+      "digest_algorithm": "sha256"
+    },
+    {
+      "kind": "policy",
+      "object_id": "runner-probe-static-envelope",
+      "revision": "r1",
+      "authority": "controlled-wsl-maintenance",
+      "digest": "sha256:092b27052445c3e422fffb57a90408d728a4c14e4092e06944936085ca5b0a5b",
+      "digest_algorithm": "sha256"
+    }
+  ],
+  "set_digest": "sha256:50ab6605aedadc8737955f1a39a6b0f7b0193eb8234c423f8e960c2ae41988d3"
+}

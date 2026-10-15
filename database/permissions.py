@@ -1,4 +1,4 @@
-"""Fixed P1.1 role grants; no runtime role owns schema or mutable audit history."""
+"""Fixed Hub role grants; no runtime role owns schema or mutable audit history."""
 
 from sqlalchemy.engine import Connection
 
@@ -11,6 +11,14 @@ IMMUTABLE_TABLES = (
     "task_operation_links", "task_operation_observations",
 )
 TASK_MUTABLE_TABLES = ("tasks", "work_items", "task_wait_conditions", "task_run_links")
+WORKSPACE_INSERTS = {
+    "api": ("project_git_sources", "project_source_imports", "workspaces"),
+    "worker": ("workspace_candidates",),
+}
+WORKSPACE_RECEIPT_COLUMNS = (
+    "workspace_revision", "write_generation", "binding_json", "binding_digest",
+    "files_json", "files_digest", "materialization_operation_id", "storage_id",
+)
 _IDENTITY_UPDATES = {
     "api": {
         "users": ("revision",), "device_sessions": ("revoked_at", "revision"),
@@ -38,6 +46,12 @@ def apply_runtime_permissions(connection: Connection) -> None:
         for table, columns in {**_IDENTITY_UPDATES[role], "outbox": ("dispatched_at",),
                                "task_fact_sources": ("enabled",)}.items():
             connection.exec_driver_sql(f"GRANT UPDATE ({', '.join(columns)}) ON cloudhelm.{table} TO {name}")
+        for table in WORKSPACE_INSERTS[role]:
+            connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
+        if role == "worker":
+            connection.exec_driver_sql(
+                f"GRANT UPDATE ({', '.join(WORKSPACE_RECEIPT_COLUMNS)}) ON cloudhelm.workspaces TO {name}"
+            )
         if role == "api":
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.role_bindings TO {name}")
     connection.exec_driver_sql(f"REVOKE ALL ON ALL TABLES IN SCHEMA dbos FROM {DBOS_RUNTIME_ROLE}")
