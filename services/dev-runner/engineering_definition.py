@@ -9,16 +9,30 @@ from packages.contracts.p1.development_environment import POSTGRES_REFERENCE
 from packages.contracts.p1.workspace_git import content_digest
 
 from .backend_build_inputs import _read_fixed, verify_source as verify_backend
-from .frontend_build_inputs import verify_source as verify_frontend
+from .frontend_build_inputs import SOURCE_DIGESTS, verify_source as verify_frontend
 from .frontend_images import BASES
 from .offline_images import SOURCE_REFERENCE
 from .toolchain import TOOLCHAIN_DIGEST
 
 CONTROLLED_ROOT = "infra/p1/reference-build/"
+FRONTEND_SOURCE_METADATA = {
+    ".dockerignore": "80d80bd24d6f35ad894790ce2a9a23784ccfd69e84eb41d383c3c990dfc5c9b4",
+    "Dockerfile": "33fab9b0b86547f6b5c049e66c767ce1d583215c2aea2fcad52245fffeb5087a",
+}
 
 
 def split_sources(files: Mapping[str, bytes], prefix: str):
-    return {name.removeprefix(prefix + "/"): raw for name, raw in files.items() if name.startswith(prefix + "/")}
+    selected = {name.removeprefix(prefix + "/"): raw for name, raw in files.items()
+                if name.startswith(prefix + "/")}
+    if prefix == "frontend":
+        # The registered source includes the original online build metadata.
+        # This explicit offline variant fixes it separately from its ten inputs.
+        if (set(selected) != set(SOURCE_DIGESTS) | set(FRONTEND_SOURCE_METADATA)
+                or any(type(selected[name]) is not bytes or content_digest(selected[name])[7:] != digest
+                       for name, digest in FRONTEND_SOURCE_METADATA.items())):
+            raise WorkspaceFileError("build_frontend_source_metadata_mismatch")
+        return {name: selected[name] for name in SOURCE_DIGESTS}
+    return selected
 
 
 def _controlled(name):

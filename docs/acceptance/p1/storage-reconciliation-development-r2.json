@@ -1,0 +1,19 @@
+{
+  "method_revision": "p1-ext4-backing-reconciliation-r2",
+  "observed_at": "2026-10-17T20:10:42.310325+00:00",
+  "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+  "prior_report_sha256": "7e14186886f1958f670a0b2e6e537788c949d2ae7890e2fb905a4ff08d646a4d",
+  "scope": "read-only WSL ext4 inode allocation bitmap and birth time after filesystem sync",
+  "backing_device": 2096,
+  "backing_inode": 262432,
+  "original_cleanup_at": "2026-10-17T19:53:14.516638+00:00",
+  "current_inode_birth_at": "2026-10-17T20:10:38+00:00",
+  "inode_allocation_bitmap_free": true,
+  "inode_blockcount": 0,
+  "inode_reallocated_after_original_cleanup": true,
+  "matching_loop_devices": [],
+  "instance_path_absent": true,
+  "actual_backing_reclamation_confirmed": true,
+  "reclaimed_backing_file_bytes": 4294967296,
+  "remaining_accounted_bytes": 0
+}

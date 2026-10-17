@@ -49,12 +49,14 @@ def observe_candidate(storage_ref, candidate, expected_proof):
     return observation
 
 
-def _build(probe, storage_ref, candidate, input_ref):
+def _build(probe, storage_ref, candidate, input_ref, report):
     task_id = candidate.snapshot.binding.task_id
     task = probe.get(f"/api/tasks/{task_id}", TaskView)
     files, _ = candidate_files(storage_ref, candidate)
     definitions = import_module("services.dev-runner.engineering_definition")
+    report["last_stage"] = "build_input_definition"
     definition = definitions.definition_for_candidate(files, task.declaration.acceptance_assets_ref)
+    report["last_stage"] = "build_http_acceptance"
     accepted = probe.post(f"/api/tasks/{task_id}/builds", RequestBuildRequest(
         expected_version=task.version, expected_control_revision=task.control_revision,
         expected_input_validity_revision=task.input_validity_revision, candidate_id=candidate.snapshot.candidate_id,
@@ -84,7 +86,7 @@ def _input_reference(build):
 
 
 def build_and_environment(probe, storage_ref, candidate, input_ref, report):
-    build = _build(probe, storage_ref, candidate, input_ref)
+    build = _build(probe, storage_ref, candidate, input_ref, report)
     probe.evidence["build"] = build.model_dump(mode="json")
     report["last_stage"] = "three_artifact_environment"
     assets = load_reference_assets(ROOT)

@@ -28,6 +28,8 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 已完成 Hub 基
 - R7 开发接线：真实 HTTP/同事务入队/单 worker 已跑通来源、Task、文件修改、候选和恢复开发，候选保持不变；[前半链记录](docs/acceptance/p1/validation-development-engineering-candidate-r2.json)及[定向清理记录](docs/acceptance/p1/validation-development-engineering-candidate-cleanup-r1.json)分别保留运行与回收事实。该次存在并行无关构建文件漂移，只作为开发接线证据。
 - R7 制品环境：复用已生成的前后端归档并核验 PostgreSQL 依赖，真实完成三角色加载、迁移/就绪、独立 HTTP、重启持久性、数据库不可用、暂停恢复及数据重建；[原字节报告](docs/acceptance/p1/validation-development-artifact-environment-r1.json)记录全部容器/父组停止删除、池卸载、loop 脱离与 backing 删除，但当次宿主空间增量不足，仍保守占账 4GiB 待核对。此前失败定位并修复了 Docker 29 manifest/config 身份差别、挂载命名空间、PostgreSQL shm、固定镜像的文件权限与内部网络入口；没有将失败写成成功或删除写成额度释放。
 - 当前固定运行组合：数据库 UID1000、64MiB shm；后端沿镜像 UID0 且 drop ALL；Nginx master UID0，仅保留 SETUID/SETGID/CHOWN，三服务均只读 root。三服务与迁移处于 896MiB/1.5CPU/256PID 父组，平台控制进程另计；独立验收使用只连当前前端的有界 loopback 入口，不构成 P2 预览或整机容量验收。下一步固定实现提交与新 InputSet，运行完整工程链。
+- 实现提交 `ff8056744a95db3fbf1fc2421afcdbc51eb47e15` 已推送 dev，对应[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/39065135382)成功。InputSet r1 固定 290 文件；首次完整方法的前后输入均匹配，但在 Build 申请前暴露固定前端来源 12 文件与离线配方 10 文件的成员接缝，尚未启动 Builder；[失败原记录](docs/acceptance/p1/validation-p1-2-r1.json)及[8GiB 池清理收据](docs/acceptance/p1/validation-p1-2-r1-cleanup.json)保留。修复仅核验原 Dockerfile/.dockerignore 的固定摘要后选择离线配方输入，未知文件和字节变化继续拒绝；该改动将由新输入重新绑定。
+- 早期环境验证的 4GiB 保守占账已通过[补充只读核对 r2](docs/acceptance/p1/storage-reconciliation-development-r2.json)解除：绑定原报告 SHA-256、原 backing 设备/inode，确认实例与 loop 均消失，ext4 inode 已在原删除之后重新分配且当前 bitmap 空闲、blockcount 为 0；原文件已无分配块。r1 无法排除 inode 复用的核对记录保留，不改写原未知结论。该核对仅说明 WSL ext4 可复用空间，不声称 Windows VHD 文件已缩小。
 
 ## 2026-10-17 · school-docs 本地目录忽略
 

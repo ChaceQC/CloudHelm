@@ -1,0 +1,22 @@
+{
+  "input_set": "docs/acceptance/p1/input-set-p1-2-r1.json",
+  "reason": "The fixed chain failed before Build HTTP acceptance; all API, worker, observer and database processes had stopped",
+  "build_was_not_accepted": true,
+  "environment_parent_stopped": {"created": false},
+  "storage_removed": {
+    "storage_id": "dev-storage-4f050b67bc2e49f5b1c2c0adab6a03d0",
+    "phase": "cleanup",
+    "observed_at": "2026-10-17T20:07:55.351547+00:00",
+    "unmounted": {"already_unmounted": true, "backing_not_attached": true},
+    "loop_detached": true,
+    "backing_file_deleted": true,
+    "instance_directory_deleted": true,
+    "host_free_byte_increase": 8589946880,
+    "host_free_bytes_before": 1053649911808,
+    "host_free_bytes_after": 1062239858688,
+    "host_reclamation_confirmed": true,
+    "reclaimed_backing_file_bytes": 8589934592,
+    "remaining_accounted_bytes": 0
+  },
+  "human_acceptance": null
+}

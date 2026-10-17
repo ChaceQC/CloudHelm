@@ -106,7 +106,7 @@ def run(args, report):
     report["database_cleanup"] = "complete"
     report["database_and_process_cleanup"] = report.get("process_cleanup", "not_started")
     safe_stages = {"source_http_accepted", "real_reference_task", "workspace_materialization",
-                   "controlled_file_mutation", "candidate_freeze", "development_resume"}
+                   "controlled_file_mutation", "candidate_freeze", "development_resume", "build_input_definition"}
     report["storage_release_safe"] = (report["database_and_process_cleanup"] == "complete" and (
         args.through_candidate or report.get("last_stage") in safe_stages or pending is None))
     if pending is not None:
