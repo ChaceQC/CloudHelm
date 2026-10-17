@@ -1,0 +1,23 @@
+{
+  "scope": "two superseded P0.2 local application tags only",
+  "removed": [
+    {
+      "tag": "cloudhelm-reference-backend:p0.2-r1",
+      "image_id": "sha256:c5aae3849a2921fcbfee5591eb90df8d335aff224fd3b90f2f498af0f9e87dba",
+      "container_references": []
+    },
+    {
+      "tag": "cloudhelm-reference-frontend:p0.2-r1",
+      "image_id": "sha256:8352361124d8cfaa6015c90724f154278f9faa0fb7b07877be5aeddc8f3d0640",
+      "container_references": []
+    }
+  ],
+  "docker_result": [
+    "Untagged: cloudhelm-reference-backend:p0.2-r1",
+    "Deleted: sha256:c5aae3849a2921fcbfee5591eb90df8d335aff224fd3b90f2f498af0f9e87dba",
+    "Untagged: cloudhelm-reference-frontend:p0.2-r1",
+    "Deleted: sha256:8352361124d8cfaa6015c90724f154278f9faa0fb7b07877be5aeddc8f3d0640"
+  ],
+  "force": false,
+  "global_prune": false
+}
