@@ -1,0 +1,16 @@
+{
+  "schema_revision": "p1-reference-project-descriptor-r1",
+  "project": "reference-notes",
+  "support_scope": "cloudhelm-wsl-controlled-development-r1",
+  "build_variant": "fixed-notes-offline-linux-amd64-r1",
+  "build_recipes": ["backend.offline.Dockerfile", "frontend.offline.Dockerfile"],
+  "runtime_template": "runtime.compose.yaml",
+  "configuration_schema": "config.schema.json",
+  "output_roles": ["backend", "frontend", "postgres"],
+  "migration_revision": "0002_add_updated_at_index",
+  "migration_identity": "reference_owner",
+  "application_database_identity": "reference_app",
+  "data_revision": "reference-synthetic-r1",
+  "frontend_api": "/api/notes",
+  "deployment_entry_enabled": false
+}

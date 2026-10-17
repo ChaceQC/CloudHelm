@@ -184,12 +184,12 @@ class CapabilityProbe:
         self._observe_processes()
 
     def _observe_processes(self) -> None:
-        result = self.client.run("top", self.container_id, "-eo", "pid,comm", timeout=self.remaining())
+        result = self.client.run("top", self.container_id, "-eo", "pid", timeout=self.remaining())
         for line in result.stdout.splitlines()[1:]:
             fields = line.split()
-            if len(fields) != 2 or not fields[0].isdigit():
+            if len(fields) != 1 or not fields[0].isdigit():
                 raise ProbeFailure("probe_process_observation_invalid")
-            pid, command = int(fields[0]), fields[1]
+            pid = int(fields[0])
             identity = process_identity(pid)
             if identity is None:
                 continue

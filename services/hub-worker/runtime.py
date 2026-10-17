@@ -37,8 +37,11 @@ def _local_environment() -> None:
         raise WorkerRuntimeError("external_dbos_environment_not_supported")
 
 
-def _start_dbos(application, engine, installation_id: str) -> None:
+def _start_dbos(application, engine, installation_id: str, engineering) -> None:
     from modules.collaboration.workflows import register_task_workflows
+    from modules.delivery.workflows import register_build_workflows
+    from modules.projects.workflows import register_source_workflows
+    from modules.workspaces.workflows import register_workspace_workflows
 
     DBOS(config=DBOSConfig(
         name=APPLICATION_NAME, application_version=APPLICATION_VERSION,
@@ -50,6 +53,9 @@ def _start_dbos(application, engine, installation_id: str) -> None:
         log_level="CRITICAL", console_log_level="CRITICAL",
     ))
     register_task_workflows(application)
+    register_source_workflows(engineering.source_import)
+    register_workspace_workflows(engineering.workspace_operation)
+    register_build_workflows(engineering.build)
     DBOS.listen_queues(WORKER_QUEUES)
     DBOS.launch()
     for queue in WORKER_QUEUES:
@@ -79,6 +85,7 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
         if stop.is_set():
             return
         from modules.collaboration.application import TaskApplication
+        from .engineering_runtime import create_engineering_runtime
 
         client = DBOSClient(
             system_database_engine=pools.normal, dbos_system_schema=DBOS_SCHEMA,
@@ -88,8 +95,9 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
         )
         system_engine = create_engine_from_settings(settings, purpose="dbos")
         application = TaskApplication(pools.normal, pools.control, client)
+        engineering = create_engineering_runtime(pools)
         dbos_attempted = True
-        _start_dbos(application, system_engine, baseline.installation_id)
+        _start_dbos(application, system_engine, baseline.installation_id, engineering)
         if not stop.is_set():
             emit_status("ready", installation_id=baseline.installation_id,
                         application_name=APPLICATION_NAME, application_version=APPLICATION_VERSION,

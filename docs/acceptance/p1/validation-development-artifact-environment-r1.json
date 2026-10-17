@@ -1,0 +1,1385 @@
+{
+  "created": {
+    "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+    "phase": "create",
+    "observed_at": "2026-10-17T19:52:40.387121+00:00",
+    "registration": {
+      "method_revision": "p1-development-storage-r2",
+      "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+      "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+      "filesystem_uuid": "86d096b2-e156-4b7a-8da6-670a63c276ba",
+      "owner_uid": 1000,
+      "backing_file_bytes": 4294967296,
+      "backing_device": 2096,
+      "backing_inode": 262432,
+      "created_at": "2026-10-17T19:52:40.366225Z",
+      "scope": "local_controlled_development",
+      "allowed_purposes": [
+        "workspace",
+        "archive"
+      ],
+      "admission_safety_bytes": 1048576
+    },
+    "mount": {
+      "mount_id": 414,
+      "mount_source": "/dev/loop0",
+      "mount_device": "7:0",
+      "mount_namespace": "mnt:[4026532220]",
+      "mount_options": [
+        "nodev",
+        "noexec",
+        "nosuid",
+        "relatime",
+        "rw"
+      ],
+      "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-4bc2a8450d4545af9f89c3149f48d8a0/data"
+    },
+    "references": {
+      "workspace": {
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+        "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+        "purpose": "workspace"
+      },
+      "archive": {
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+        "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+        "purpose": "archive"
+      }
+    },
+    "maintenance_mount_namespace": "mnt:[4026532220]",
+    "pid1_mount_namespace": "mnt:[4026532220]",
+    "backing_file_bytes": 4294967296,
+    "backing_allocated_bytes": 4294971392
+  },
+  "environment": {
+    "result": "passed",
+    "started_at": "2026-10-17T19:52:41.772747+00:00",
+    "input_binding": "development_worktree",
+    "human_acceptance": null,
+    "artifact_set": {
+      "postgres": {
+        "schema_revision": "p1-artifact-content-r1",
+        "storage_id": "oci-583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+        "archive_digest": "sha256:583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+        "archive_bytes": 160163840,
+        "platform": "linux/amd64",
+        "manifest": {
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "digest": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+          "size_bytes": 3628
+        },
+        "config": {
+          "media_type": "application/vnd.oci.image.config.v1+json",
+          "digest": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+          "size_bytes": 10134
+        },
+        "image_id": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+        "layers": [
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:57fb71246055257a374deb7564ceca10f43c2352572b501efc08add5d24ebb61",
+            "size_bytes": 29780226
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:20a683cffcdc0136b539df1300f44790972530bd31131a6d7c3b61f1225750a0",
+            "size_bytes": 1168
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:deb6f5b1d4fcc7a7e9d2c9cf436a540a5652b30a1a2206681b2b3d68fb488ebd",
+            "size_bytes": 6441174
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:70f810f97521bf3e8f49a7983a08a08284807a51649baa76760f447f47a86f27",
+            "size_bytes": 1256753
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:28c7b001f7c185a25d8d6e6593598dc17b0b6555f1d9be4c6b4a45aef67d5d0f",
+            "size_bytes": 8203807
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:89bd933b3504c1aadaa9c0c723ff41f9c29d6a52d06ea2576d0357e0557e0134",
+            "size_bytes": 1311657
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:6fd786e9d2d8807a4db58e3905117d0ac882919d8dfa6dc17f5550711d52db42",
+            "size_bytes": 116
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:538b1755faee8ed9e4ba73415d6d2331282e952a5841ad2a9a6d067e56dddd23",
+            "size_bytes": 3140
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:18f64d703d8929b401984d5cabd1e42bfd97de46b51b2f13bda6167ab3105195",
+            "size_bytes": 113119080
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:a5321ae1fd2784292944155ad26341c69f12a41539a1f9a5fcfa228e291e77d8",
+            "size_bytes": 10068
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:9ece4c1ed352286f3018b7fc7003b48549f30c50f46066749f281d9aaae83c35",
+            "size_bytes": 128
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:ec732245c890ff11e62f90a519bf8ffc6ec92e9ad2188090532534500dbebd3a",
+            "size_bytes": 168
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:e40701225891c385428ec5018b9cfea7dcdbaa73dd140b03ccf123d330de2559",
+            "size_bytes": 6098
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:33b67bd603bd81ab194f3d96803aefacdb5fa72b5e36950b569df2399b72e0df",
+            "size_bytes": 185
+          }
+        ]
+      },
+      "backend": {
+        "schema_revision": "p1-artifact-content-r1",
+        "storage_id": "oci-240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+        "archive_digest": "sha256:240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+        "archive_bytes": 65600512,
+        "platform": "linux/amd64",
+        "manifest": {
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "digest": "sha256:a47db306519b3df1f07f0ab3abe157af74ee31ac3e2e5e70dfb9e1ff77223c30",
+          "size_bytes": 1627
+        },
+        "config": {
+          "media_type": "application/vnd.oci.image.config.v1+json",
+          "digest": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+          "size_bytes": 8530
+        },
+        "image_id": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+        "layers": [
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:039e6f9f9752f74a3ff4a6a224f64c7c864da16ed98f882107704328f41b9c42",
+            "size_bytes": 28232590
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:e8e392f3681c10ad9c2b19ab6614fd158f6d5a03e0f71694aea9429d38813dbd",
+            "size_bytes": 3520804
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:8e0b0d5a4a0425bc991b95b78af125c6005a0a82a89011f076802a0265d8ff32",
+            "size_bytes": 13667988
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:1634f3c69c84a41815c187086e80cf5fdec289c6ce620014ef3ca9b54c019279",
+            "size_bytes": 248
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:974d7c500d5e730424634686737b08c2e7caf0bb7248eb0d9a5fe9b60d285d08",
+            "size_bytes": 93
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:a5b28d0a7181f2510a7e9ede128f9368bc67fa491af1239448cdc345287994d4",
+            "size_bytes": 17374929
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:d43a0aba6d62918d6341a0c0179c95353f9b83dcceab85ea99c37c692855b810",
+            "size_bytes": 2782249
+          }
+        ]
+      },
+      "frontend": {
+        "schema_revision": "p1-artifact-content-r1",
+        "storage_id": "oci-9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+        "archive_digest": "sha256:9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+        "archive_bytes": 26081792,
+        "platform": "linux/amd64",
+        "manifest": {
+          "media_type": "application/vnd.oci.image.manifest.v1+json",
+          "digest": "sha256:f38d1c7ac6467d5044a5a1ebd2a38037467ae5c918ef4d2309e1b3e4be738fdb",
+          "size_bytes": 2375
+        },
+        "config": {
+          "media_type": "application/vnd.oci.image.config.v1+json",
+          "digest": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+          "size_bytes": 13572
+        },
+        "image_id": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+        "layers": [
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:6a0ac1617861a677b045b7ff88545213ec31c0ff08763195a70a4a5adda577bb",
+            "size_bytes": 3864189
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:82736a35d0e7f1309edc13d09115410b81542cf8b91afff80deeace02b6f2f26",
+            "size_bytes": 1870921
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:583599bb7d382e9e986a9ff65204981307bfa71670a29f4190eedae93c4858be",
+            "size_bytes": 627
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:aee4e54b3865ee4d98545b6b49f9e8ab3b9b6ed114a2eafedc7a22e984ea5a68",
+            "size_bytes": 956
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:781ff50d2644f74714c0d5a4ffa3447bbfd4b293cfb1dc6a637722ae24c89241",
+            "size_bytes": 404
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:453da7dbc73e7338c4e201ec3f3c4a5f7751adbf5a6f127792c1cd001a780721",
+            "size_bytes": 1210
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:4a8b0b2a5b1937755263ac7ac4ee26db2906c13a5d70f1fb1875ba8e370cdd8f",
+            "size_bytes": 1399
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:612c0c1df4c55a0bf145f84df03cb28de505e6a52fb8e49c9da7b143fc00ad2d",
+            "size_bytes": 20248489
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:9db400e95d96ca82f87265295679871d2ac99d44241d8d829221133499d59e13",
+            "size_bytes": 195
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:45277dc377041b4c4ab430ad99354546e6f0758bdf87ebc909b8071e9d7d0d20",
+            "size_bytes": 455
+          },
+          {
+            "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+            "digest": "sha256:3b503941f9c1d976cba3005fe676af57a2bcdb39e87c12fb47bde653fcab0206",
+            "size_bytes": 62997
+          }
+        ]
+      }
+    },
+    "evidence": {
+      "http": [
+        {
+          "method_revision": "reference-http-r1.1",
+          "requirement_revision": "reference-requirements-r1",
+          "phase": "baseline",
+          "case_counts": {
+            "total": 43,
+            "passed": 43,
+            "failed": 0
+          },
+          "passed": true,
+          "passed_cases": [
+            "REF-02-04.marker_cleanup_before",
+            "REF-06.health_200",
+            "REF-06.ready_200",
+            "REF-02-04.list_json_array_sorted_utc",
+            "REF-02-03.create_201_server_integer_id",
+            "REF-04.create_reverse_lexical_order_record",
+            "REF-04.reverse_lexical_pair_list_sorted_by_id",
+            "REF-04.reverse_lexical_pair_order",
+            "REF-03.create_returns_title_body_utc_timestamps",
+            "REF-02.read_200_and_values",
+            "REF-02.read_values",
+            "REF-02.patch_single_field_accepted",
+            "REF-02.patch_response_object",
+            "REF-02.patch_persisted_values_read_200",
+            "REF-02.patch_values",
+            "REF-02.patch_empty_rejected_422",
+            "REF-02.patch_unknown_field_rejected_422",
+            "REF-02.patch_null_rejected_422",
+            "REF-02.delete_204",
+            "REF-02.deleted_read_404",
+            "REF-03.title_trimmed_on_create",
+            "REF-03.title_trimmed_value",
+            "REF-03.trimmed_title_read_back",
+            "REF-03.trimmed_title_persisted",
+            "REF-03.title_1_accepted",
+            "REF-03.title_1_accepted_length",
+            "REF-03.title_120_accepted",
+            "REF-03.title_120_accepted_length",
+            "REF-03.title_121_rejected_422",
+            "REF-03.empty_title_rejected_422",
+            "REF-03.missing_post_title_rejected_422",
+            "REF-03.body_4000_accepted",
+            "REF-03.body_4000_retained",
+            "REF-03.body_4001_rejected_422",
+            "REF-03.post_body_defaults_empty",
+            "REF-02.missing_get_404",
+            "REF-02.missing_patch_404",
+            "REF-02.missing_delete_404",
+            "REF-04.list_sorted_after_writes",
+            "REF-04.list_contains_live_boundary_records",
+            "REF-01.static_root_html_200",
+            "REF-01.same_origin_javascript_bundle_200",
+            "REF-02-04.marker_cleanup_after"
+          ],
+          "failed_cases": []
+        },
+        {
+          "method_revision": "reference-http-r1.1",
+          "requirement_revision": "reference-requirements-r1",
+          "phase": "seed",
+          "case_counts": {
+            "total": 3,
+            "passed": 3,
+            "failed": 0
+          },
+          "passed": true,
+          "passed_cases": [
+            "REF-04.seed_ready_200",
+            "REF-04.seed_clear_exact_reserved_marker",
+            "REF-04.seed_create_fixed_persistence_marker"
+          ],
+          "failed_cases": []
+        },
+        {
+          "method_revision": "reference-http-r1.1",
+          "requirement_revision": "reference-requirements-r1",
+          "phase": "verify-persisted",
+          "case_counts": {
+            "total": 2,
+            "passed": 2,
+            "failed": 0
+          },
+          "passed": true,
+          "passed_cases": [
+            "REF-04.persisted_marker_present_after_api_restart",
+            "REF-04.persisted_marker_cleanup_exact"
+          ],
+          "failed_cases": []
+        },
+        {
+          "method_revision": "reference-http-r1.1",
+          "requirement_revision": "reference-requirements-r1",
+          "phase": "not-ready",
+          "case_counts": {
+            "total": 2,
+            "passed": 2,
+            "failed": 0
+          },
+          "passed": true,
+          "passed_cases": [
+            "REF-06.health_200_while_dependency_unavailable",
+            "REF-06.ready_503_while_dependency_unavailable"
+          ],
+          "failed_cases": []
+        },
+        {
+          "method_revision": "reference-http-r1.1",
+          "requirement_revision": "reference-requirements-r1",
+          "phase": "baseline",
+          "case_counts": {
+            "total": 43,
+            "passed": 43,
+            "failed": 0
+          },
+          "passed": true,
+          "passed_cases": [
+            "REF-02-04.marker_cleanup_before",
+            "REF-06.health_200",
+            "REF-06.ready_200",
+            "REF-02-04.list_json_array_sorted_utc",
+            "REF-02-03.create_201_server_integer_id",
+            "REF-04.create_reverse_lexical_order_record",
+            "REF-04.reverse_lexical_pair_list_sorted_by_id",
+            "REF-04.reverse_lexical_pair_order",
+            "REF-03.create_returns_title_body_utc_timestamps",
+            "REF-02.read_200_and_values",
+            "REF-02.read_values",
+            "REF-02.patch_single_field_accepted",
+            "REF-02.patch_response_object",
+            "REF-02.patch_persisted_values_read_200",
+            "REF-02.patch_values",
+            "REF-02.patch_empty_rejected_422",
+            "REF-02.patch_unknown_field_rejected_422",
+            "REF-02.patch_null_rejected_422",
+            "REF-02.delete_204",
+            "REF-02.deleted_read_404",
+            "REF-03.title_trimmed_on_create",
+            "REF-03.title_trimmed_value",
+            "REF-03.trimmed_title_read_back",
+            "REF-03.trimmed_title_persisted",
+            "REF-03.title_1_accepted",
+            "REF-03.title_1_accepted_length",
+            "REF-03.title_120_accepted",
+            "REF-03.title_120_accepted_length",
+            "REF-03.title_121_rejected_422",
+            "REF-03.empty_title_rejected_422",
+            "REF-03.missing_post_title_rejected_422",
+            "REF-03.body_4000_accepted",
+            "REF-03.body_4000_retained",
+            "REF-03.body_4001_rejected_422",
+            "REF-03.post_body_defaults_empty",
+            "REF-02.missing_get_404",
+            "REF-02.missing_patch_404",
+            "REF-02.missing_delete_404",
+            "REF-04.list_sorted_after_writes",
+            "REF-04.list_contains_live_boundary_records",
+            "REF-01.static_root_html_200",
+            "REF-01.same_origin_javascript_bundle_200",
+            "REF-02-04.marker_cleanup_after"
+          ],
+          "failed_cases": []
+        },
+        {
+          "method_revision": "reference-http-r1.1",
+          "requirement_revision": "reference-requirements-r1",
+          "phase": "baseline",
+          "case_counts": {
+            "total": 43,
+            "passed": 43,
+            "failed": 0
+          },
+          "passed": true,
+          "passed_cases": [
+            "REF-02-04.marker_cleanup_before",
+            "REF-06.health_200",
+            "REF-06.ready_200",
+            "REF-02-04.list_json_array_sorted_utc",
+            "REF-02-03.create_201_server_integer_id",
+            "REF-04.create_reverse_lexical_order_record",
+            "REF-04.reverse_lexical_pair_list_sorted_by_id",
+            "REF-04.reverse_lexical_pair_order",
+            "REF-03.create_returns_title_body_utc_timestamps",
+            "REF-02.read_200_and_values",
+            "REF-02.read_values",
+            "REF-02.patch_single_field_accepted",
+            "REF-02.patch_response_object",
+            "REF-02.patch_persisted_values_read_200",
+            "REF-02.patch_values",
+            "REF-02.patch_empty_rejected_422",
+            "REF-02.patch_unknown_field_rejected_422",
+            "REF-02.patch_null_rejected_422",
+            "REF-02.delete_204",
+            "REF-02.deleted_read_404",
+            "REF-03.title_trimmed_on_create",
+            "REF-03.title_trimmed_value",
+            "REF-03.trimmed_title_read_back",
+            "REF-03.trimmed_title_persisted",
+            "REF-03.title_1_accepted",
+            "REF-03.title_1_accepted_length",
+            "REF-03.title_120_accepted",
+            "REF-03.title_120_accepted_length",
+            "REF-03.title_121_rejected_422",
+            "REF-03.empty_title_rejected_422",
+            "REF-03.missing_post_title_rejected_422",
+            "REF-03.body_4000_accepted",
+            "REF-03.body_4000_retained",
+            "REF-03.body_4001_rejected_422",
+            "REF-03.post_body_defaults_empty",
+            "REF-02.missing_get_404",
+            "REF-02.missing_patch_404",
+            "REF-02.missing_delete_404",
+            "REF-04.list_sorted_after_writes",
+            "REF-04.list_contains_live_boundary_records",
+            "REF-01.static_root_html_200",
+            "REF-01.same_origin_javascript_bundle_200",
+            "REF-02-04.marker_cleanup_after"
+          ],
+          "failed_cases": []
+        }
+      ],
+      "stop_confirmations": [
+        {
+          "container_id": "a6ebb1615301edb953370cb69c1aef7a94acb466a6b1f5b53fa7a20aaf2a5ea8",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "f3eaad336823f99951dec7d22174f710d3d46bc8a41dabd367ff7be7e14a3bfc",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "ef7cbdeb498195458fd543f2cd5375e55bdd8e4d884bb89af33afdec14acb55f",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "a6ebb1615301edb953370cb69c1aef7a94acb466a6b1f5b53fa7a20aaf2a5ea8",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "f3eaad336823f99951dec7d22174f710d3d46bc8a41dabd367ff7be7e14a3bfc",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "ef7cbdeb498195458fd543f2cd5375e55bdd8e4d884bb89af33afdec14acb55f",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "a6ebb1615301edb953370cb69c1aef7a94acb466a6b1f5b53fa7a20aaf2a5ea8",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "ef7cbdeb498195458fd543f2cd5375e55bdd8e4d884bb89af33afdec14acb55f",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "a6ebb1615301edb953370cb69c1aef7a94acb466a6b1f5b53fa7a20aaf2a5ea8",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        },
+        {
+          "container_id": "f3eaad336823f99951dec7d22174f710d3d46bc8a41dabd367ff7be7e14a3bfc",
+          "pid_zero": true,
+          "running": false,
+          "original_cgroup_unpopulated_or_removed": true
+        }
+      ],
+      "data": [
+        {
+          "revision": "reference-synthetic-r1",
+          "generation": 1,
+          "migration_revision": "0002_add_updated_at_index",
+          "reset": false,
+          "synthetic_seed_verified": true,
+          "trust_authentication_absent": true,
+          "application_role_unprivileged": true
+        },
+        {
+          "revision": "reference-synthetic-r1",
+          "generation": 2,
+          "migration_revision": "0002_add_updated_at_index",
+          "reset": true,
+          "synthetic_seed_verified": true,
+          "trust_authentication_absent": true,
+          "application_role_unprivileged": true
+        }
+      ],
+      "loaded": {
+        "postgres": {
+          "archive_digest": "sha256:583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+          "manifest_digest": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+          "config_digest": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+          "oci_config_image_id": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+          "actual_image_id": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+          "docker_identity_kind": "oci_manifest",
+          "rootfs_diff_ids_and_runtime_configuration_verified": true,
+          "platform": "linux/amd64"
+        },
+        "backend": {
+          "archive_digest": "sha256:240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+          "manifest_digest": "sha256:a47db306519b3df1f07f0ab3abe157af74ee31ac3e2e5e70dfb9e1ff77223c30",
+          "config_digest": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+          "oci_config_image_id": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+          "actual_image_id": "sha256:a47db306519b3df1f07f0ab3abe157af74ee31ac3e2e5e70dfb9e1ff77223c30",
+          "docker_identity_kind": "oci_manifest",
+          "rootfs_diff_ids_and_runtime_configuration_verified": true,
+          "platform": "linux/amd64"
+        },
+        "frontend": {
+          "archive_digest": "sha256:9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+          "manifest_digest": "sha256:f38d1c7ac6467d5044a5a1ebd2a38037467ae5c918ef4d2309e1b3e4be738fdb",
+          "config_digest": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+          "oci_config_image_id": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+          "actual_image_id": "sha256:f38d1c7ac6467d5044a5a1ebd2a38037467ae5c918ef4d2309e1b3e4be738fdb",
+          "docker_identity_kind": "oci_manifest",
+          "rootfs_diff_ids_and_runtime_configuration_verified": true,
+          "platform": "linux/amd64"
+        }
+      },
+      "stage": "verified",
+      "parent_limits": {
+        "unit": "cloudhelm_p1_artifact_4bc2a8450d4545af9f89c3149f48d8a0.slice",
+        "kernel_limits": {
+          "cpu.max": "150000 100000",
+          "memory.max": "939524096",
+          "pids.max": "256"
+        },
+        "memory_peak_bytes": 360902656,
+        "pids_peak": 32
+      },
+      "runtime": {
+        "postgres": {
+          "container_id": "f3eaad336823f99951dec7d22174f710d3d46bc8a41dabd367ff7be7e14a3bfc",
+          "image_id": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+          "running": true,
+          "kernel_limits": {
+            "cpu.max": "50000 100000",
+            "memory.max": "268435456",
+            "memory.swap.max": "0",
+            "pids.max": "64"
+          },
+          "parent_verified": true,
+          "root_readonly": true,
+          "user": "1000:1000",
+          "cap_drop": [
+            "ALL"
+          ],
+          "cap_add": [],
+          "platform_entrance": null,
+          "tmpfs_capacities": {
+            "/tmp": 16777216,
+            "/var/run/postgresql": 4194304,
+            "/dev/shm": 67108864
+          },
+          "data_mount_inode_verified": true
+        },
+        "backend": {
+          "container_id": "a6ebb1615301edb953370cb69c1aef7a94acb466a6b1f5b53fa7a20aaf2a5ea8",
+          "image_id": "sha256:a47db306519b3df1f07f0ab3abe157af74ee31ac3e2e5e70dfb9e1ff77223c30",
+          "running": true,
+          "kernel_limits": {
+            "cpu.max": "75000 100000",
+            "memory.max": "536870912",
+            "memory.swap.max": "0",
+            "pids.max": "128"
+          },
+          "parent_verified": true,
+          "root_readonly": true,
+          "user": "0:0",
+          "cap_drop": [
+            "ALL"
+          ],
+          "cap_add": [],
+          "platform_entrance": null,
+          "tmpfs_capacities": {
+            "/tmp": 16777216,
+            "/dev/shm": 1048576
+          },
+          "data_mount_inode_verified": false
+        },
+        "frontend": {
+          "container_id": "ef7cbdeb498195458fd543f2cd5375e55bdd8e4d884bb89af33afdec14acb55f",
+          "image_id": "sha256:f38d1c7ac6467d5044a5a1ebd2a38037467ae5c918ef4d2309e1b3e4be738fdb",
+          "running": true,
+          "kernel_limits": {
+            "cpu.max": "25000 100000",
+            "memory.max": "134217728",
+            "memory.swap.max": "0",
+            "pids.max": "64"
+          },
+          "parent_verified": true,
+          "root_readonly": true,
+          "user": "0:0",
+          "cap_drop": [
+            "ALL"
+          ],
+          "cap_add": [
+            "SETUID",
+            "SETGID",
+            "CHOWN"
+          ],
+          "platform_entrance": {
+            "kind": "local_validation_loopback_tcp",
+            "url": "http://127.0.0.1:48711",
+            "target_container_id": "ef7cbdeb498195458fd543f2cd5375e55bdd8e4d884bb89af33afdec14acb55f",
+            "target_port": 80,
+            "active_connections_max": 1,
+            "pending_connections_max": 8,
+            "connection_bytes_max": 8388608,
+            "connection_seconds_max": 15,
+            "platform_overhead": true,
+            "p2_preview": false
+          },
+          "tmpfs_capacities": {
+            "/tmp": 8388608,
+            "/var/cache/nginx": 16777216,
+            "/var/run": 1048576,
+            "/dev/shm": 1048576
+          },
+          "data_mount_inode_verified": false
+        }
+      },
+      "suspended_storage": {
+        "registration": {
+          "method_revision": "p1-development-storage-r2",
+          "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+          "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+          "filesystem_uuid": "86d096b2-e156-4b7a-8da6-670a63c276ba",
+          "owner_uid": 1000,
+          "backing_file_bytes": 4294967296,
+          "backing_device": 2096,
+          "backing_inode": 262432,
+          "created_at": "2026-10-17T19:52:40.366225Z",
+          "scope": "local_controlled_development",
+          "allowed_purposes": [
+            "workspace",
+            "archive"
+          ],
+          "admission_safety_bytes": 1048576
+        },
+        "observed_at": "2026-10-17T19:53:03.055512Z",
+        "purpose": "workspace",
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-4bc2a8450d4545af9f89c3149f48d8a0/data",
+        "mount_id": 414,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532220]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "backing_allocated_bytes": 4294971392,
+        "accounted_backing_bytes": 4294967296,
+        "filesystem_capacity_bytes": 4143677440,
+        "filesystem_free_bytes": 3843571712,
+        "filesystem_available_bytes": 3826794496,
+        "retained_bytes_including_metadata": 300105728,
+        "admission_safety_bytes": 1048576,
+        "allocatable_bytes": 3825745920,
+        "hard_boundary": "fixed_regular_file_ext4",
+        "accounting_scope": "whole_backing_file_remains_charged_after_stop"
+      },
+      "parent_stop": {
+        "unit": "cloudhelm_p1_artifact_4bc2a8450d4545af9f89c3149f48d8a0.slice",
+        "kernel_limits": {
+          "cpu.max": "150000 100000",
+          "memory.max": "939524096",
+          "pids.max": "256"
+        },
+        "memory_peak_bytes": 361697280,
+        "pids_peak": 32,
+        "root_stop_pending": true,
+        "populated": false
+      },
+      "retained_storage": {
+        "registration": {
+          "method_revision": "p1-development-storage-r2",
+          "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+          "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+          "filesystem_uuid": "86d096b2-e156-4b7a-8da6-670a63c276ba",
+          "owner_uid": 1000,
+          "backing_file_bytes": 4294967296,
+          "backing_device": 2096,
+          "backing_inode": 262432,
+          "created_at": "2026-10-17T19:52:40.366225Z",
+          "scope": "local_controlled_development",
+          "allowed_purposes": [
+            "workspace",
+            "archive"
+          ],
+          "admission_safety_bytes": 1048576
+        },
+        "observed_at": "2026-10-17T19:53:14.402103Z",
+        "purpose": "workspace",
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-4bc2a8450d4545af9f89c3149f48d8a0/data",
+        "mount_id": 414,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532220]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "backing_allocated_bytes": 4294971392,
+        "accounted_backing_bytes": 4294967296,
+        "filesystem_capacity_bytes": 4143677440,
+        "filesystem_free_bytes": 3843551232,
+        "filesystem_available_bytes": 3826774016,
+        "retained_bytes_including_metadata": 300126208,
+        "admission_safety_bytes": 1048576,
+        "allocatable_bytes": 3825725440,
+        "hard_boundary": "fixed_regular_file_ext4",
+        "accounting_scope": "whole_backing_file_remains_charged_after_stop"
+      }
+    },
+    "observation": {
+      "spec": {
+        "schema_revision": "p1-artifact-environment-r1",
+        "operation_id": "artifact-env-2a7603bcdced41928cb707ff63e3574d",
+        "source_revision": "6dd8b605a5cc4b7b641cc0f9b4f2633614c6e757",
+        "input_set_ref": {
+          "kind": "input_set",
+          "object_id": "artifact-env-2a7603bcdced41928cb707ff63e3574d-input",
+          "revision": "r1",
+          "authority": "controlled-wsl-maintenance",
+          "digest": "sha256:6566a418b64bf59b78ad6927420bc906473a572ba15a9d391378ca44afe39f34",
+          "digest_algorithm": "sha256"
+        },
+        "storage_ref": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+          "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+          "purpose": "workspace"
+        },
+        "data_revision": "reference-synthetic-r1",
+        "migration_revision": "0002_add_updated_at_index",
+        "acceptance_bundle_digest": "sha256:5c8e2d03847254f6c151533fd08add132f3b8d8fa131d4c1e0cca5b0e0dfe1df",
+        "deadline": "2026-10-17T20:07:41.734748Z"
+      },
+      "state": "ready",
+      "observed_at": "2026-10-17T19:53:12.453560Z",
+      "data_generation": 2,
+      "artifacts": {
+        "postgres": {
+          "schema_revision": "p1-artifact-content-r1",
+          "storage_id": "oci-583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+          "archive_digest": "sha256:583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+          "archive_bytes": 160163840,
+          "platform": "linux/amd64",
+          "manifest": {
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+            "size_bytes": 3628
+          },
+          "config": {
+            "media_type": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+            "size_bytes": 10134
+          },
+          "image_id": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+          "layers": [
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:57fb71246055257a374deb7564ceca10f43c2352572b501efc08add5d24ebb61",
+              "size_bytes": 29780226
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:20a683cffcdc0136b539df1300f44790972530bd31131a6d7c3b61f1225750a0",
+              "size_bytes": 1168
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:deb6f5b1d4fcc7a7e9d2c9cf436a540a5652b30a1a2206681b2b3d68fb488ebd",
+              "size_bytes": 6441174
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:70f810f97521bf3e8f49a7983a08a08284807a51649baa76760f447f47a86f27",
+              "size_bytes": 1256753
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:28c7b001f7c185a25d8d6e6593598dc17b0b6555f1d9be4c6b4a45aef67d5d0f",
+              "size_bytes": 8203807
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:89bd933b3504c1aadaa9c0c723ff41f9c29d6a52d06ea2576d0357e0557e0134",
+              "size_bytes": 1311657
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:6fd786e9d2d8807a4db58e3905117d0ac882919d8dfa6dc17f5550711d52db42",
+              "size_bytes": 116
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:538b1755faee8ed9e4ba73415d6d2331282e952a5841ad2a9a6d067e56dddd23",
+              "size_bytes": 3140
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:18f64d703d8929b401984d5cabd1e42bfd97de46b51b2f13bda6167ab3105195",
+              "size_bytes": 113119080
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:a5321ae1fd2784292944155ad26341c69f12a41539a1f9a5fcfa228e291e77d8",
+              "size_bytes": 10068
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:9ece4c1ed352286f3018b7fc7003b48549f30c50f46066749f281d9aaae83c35",
+              "size_bytes": 128
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:ec732245c890ff11e62f90a519bf8ffc6ec92e9ad2188090532534500dbebd3a",
+              "size_bytes": 168
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:e40701225891c385428ec5018b9cfea7dcdbaa73dd140b03ccf123d330de2559",
+              "size_bytes": 6098
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:33b67bd603bd81ab194f3d96803aefacdb5fa72b5e36950b569df2399b72e0df",
+              "size_bytes": 185
+            }
+          ]
+        },
+        "backend": {
+          "schema_revision": "p1-artifact-content-r1",
+          "storage_id": "oci-240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+          "archive_digest": "sha256:240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+          "archive_bytes": 65600512,
+          "platform": "linux/amd64",
+          "manifest": {
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:a47db306519b3df1f07f0ab3abe157af74ee31ac3e2e5e70dfb9e1ff77223c30",
+            "size_bytes": 1627
+          },
+          "config": {
+            "media_type": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+            "size_bytes": 8530
+          },
+          "image_id": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+          "layers": [
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:039e6f9f9752f74a3ff4a6a224f64c7c864da16ed98f882107704328f41b9c42",
+              "size_bytes": 28232590
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:e8e392f3681c10ad9c2b19ab6614fd158f6d5a03e0f71694aea9429d38813dbd",
+              "size_bytes": 3520804
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:8e0b0d5a4a0425bc991b95b78af125c6005a0a82a89011f076802a0265d8ff32",
+              "size_bytes": 13667988
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:1634f3c69c84a41815c187086e80cf5fdec289c6ce620014ef3ca9b54c019279",
+              "size_bytes": 248
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:974d7c500d5e730424634686737b08c2e7caf0bb7248eb0d9a5fe9b60d285d08",
+              "size_bytes": 93
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:a5b28d0a7181f2510a7e9ede128f9368bc67fa491af1239448cdc345287994d4",
+              "size_bytes": 17374929
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:d43a0aba6d62918d6341a0c0179c95353f9b83dcceab85ea99c37c692855b810",
+              "size_bytes": 2782249
+            }
+          ]
+        },
+        "frontend": {
+          "schema_revision": "p1-artifact-content-r1",
+          "storage_id": "oci-9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+          "archive_digest": "sha256:9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+          "archive_bytes": 26081792,
+          "platform": "linux/amd64",
+          "manifest": {
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:f38d1c7ac6467d5044a5a1ebd2a38037467ae5c918ef4d2309e1b3e4be738fdb",
+            "size_bytes": 2375
+          },
+          "config": {
+            "media_type": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+            "size_bytes": 13572
+          },
+          "image_id": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+          "layers": [
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:6a0ac1617861a677b045b7ff88545213ec31c0ff08763195a70a4a5adda577bb",
+              "size_bytes": 3864189
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:82736a35d0e7f1309edc13d09115410b81542cf8b91afff80deeace02b6f2f26",
+              "size_bytes": 1870921
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:583599bb7d382e9e986a9ff65204981307bfa71670a29f4190eedae93c4858be",
+              "size_bytes": 627
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:aee4e54b3865ee4d98545b6b49f9e8ab3b9b6ed114a2eafedc7a22e984ea5a68",
+              "size_bytes": 956
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:781ff50d2644f74714c0d5a4ffa3447bbfd4b293cfb1dc6a637722ae24c89241",
+              "size_bytes": 404
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:453da7dbc73e7338c4e201ec3f3c4a5f7751adbf5a6f127792c1cd001a780721",
+              "size_bytes": 1210
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:4a8b0b2a5b1937755263ac7ac4ee26db2906c13a5d70f1fb1875ba8e370cdd8f",
+              "size_bytes": 1399
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:612c0c1df4c55a0bf145f84df03cb28de505e6a52fb8e49c9da7b143fc00ad2d",
+              "size_bytes": 20248489
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:9db400e95d96ca82f87265295679871d2ac99d44241d8d829221133499d59e13",
+              "size_bytes": 195
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:45277dc377041b4c4ab430ad99354546e6f0758bdf87ebc909b8071e9d7d0d20",
+              "size_bytes": 455
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:3b503941f9c1d976cba3005fe676af57a2bcdb39e87c12fb47bde653fcab0206",
+              "size_bytes": 62997
+            }
+          ]
+        }
+      },
+      "entrance": "http://127.0.0.1:48711",
+      "running_roles": [
+        "postgres",
+        "backend",
+        "frontend"
+      ],
+      "migration_observed": "0002_add_updated_at_index",
+      "process_and_readiness_verified": true,
+      "retained_storage_accounting": "whole_bounded_backing_remains_charged",
+      "human_acceptance": null
+    },
+    "support_scope": "controlled_wsl_artifact_http_environment_only",
+    "disposed": {
+      "spec": {
+        "schema_revision": "p1-artifact-environment-r1",
+        "operation_id": "artifact-env-2a7603bcdced41928cb707ff63e3574d",
+        "source_revision": "6dd8b605a5cc4b7b641cc0f9b4f2633614c6e757",
+        "input_set_ref": {
+          "kind": "input_set",
+          "object_id": "artifact-env-2a7603bcdced41928cb707ff63e3574d-input",
+          "revision": "r1",
+          "authority": "controlled-wsl-maintenance",
+          "digest": "sha256:6566a418b64bf59b78ad6927420bc906473a572ba15a9d391378ca44afe39f34",
+          "digest_algorithm": "sha256"
+        },
+        "storage_ref": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+          "instance_revision": "30de06d2e6ed4efcac92658ca2211d0f",
+          "purpose": "workspace"
+        },
+        "data_revision": "reference-synthetic-r1",
+        "migration_revision": "0002_add_updated_at_index",
+        "acceptance_bundle_digest": "sha256:5c8e2d03847254f6c151533fd08add132f3b8d8fa131d4c1e0cca5b0e0dfe1df",
+        "deadline": "2026-10-17T20:07:41.734748Z"
+      },
+      "state": "disposed",
+      "observed_at": "2026-10-17T19:53:14.406067Z",
+      "data_generation": 2,
+      "artifacts": {
+        "postgres": {
+          "schema_revision": "p1-artifact-content-r1",
+          "storage_id": "oci-583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+          "archive_digest": "sha256:583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+          "archive_bytes": 160163840,
+          "platform": "linux/amd64",
+          "manifest": {
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+            "size_bytes": 3628
+          },
+          "config": {
+            "media_type": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+            "size_bytes": 10134
+          },
+          "image_id": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+          "layers": [
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:57fb71246055257a374deb7564ceca10f43c2352572b501efc08add5d24ebb61",
+              "size_bytes": 29780226
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:20a683cffcdc0136b539df1300f44790972530bd31131a6d7c3b61f1225750a0",
+              "size_bytes": 1168
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:deb6f5b1d4fcc7a7e9d2c9cf436a540a5652b30a1a2206681b2b3d68fb488ebd",
+              "size_bytes": 6441174
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:70f810f97521bf3e8f49a7983a08a08284807a51649baa76760f447f47a86f27",
+              "size_bytes": 1256753
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:28c7b001f7c185a25d8d6e6593598dc17b0b6555f1d9be4c6b4a45aef67d5d0f",
+              "size_bytes": 8203807
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:89bd933b3504c1aadaa9c0c723ff41f9c29d6a52d06ea2576d0357e0557e0134",
+              "size_bytes": 1311657
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:6fd786e9d2d8807a4db58e3905117d0ac882919d8dfa6dc17f5550711d52db42",
+              "size_bytes": 116
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:538b1755faee8ed9e4ba73415d6d2331282e952a5841ad2a9a6d067e56dddd23",
+              "size_bytes": 3140
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:18f64d703d8929b401984d5cabd1e42bfd97de46b51b2f13bda6167ab3105195",
+              "size_bytes": 113119080
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:a5321ae1fd2784292944155ad26341c69f12a41539a1f9a5fcfa228e291e77d8",
+              "size_bytes": 10068
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:9ece4c1ed352286f3018b7fc7003b48549f30c50f46066749f281d9aaae83c35",
+              "size_bytes": 128
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:ec732245c890ff11e62f90a519bf8ffc6ec92e9ad2188090532534500dbebd3a",
+              "size_bytes": 168
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:e40701225891c385428ec5018b9cfea7dcdbaa73dd140b03ccf123d330de2559",
+              "size_bytes": 6098
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:33b67bd603bd81ab194f3d96803aefacdb5fa72b5e36950b569df2399b72e0df",
+              "size_bytes": 185
+            }
+          ]
+        },
+        "backend": {
+          "schema_revision": "p1-artifact-content-r1",
+          "storage_id": "oci-240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+          "archive_digest": "sha256:240c9302a72a5efa63997a169aeb4be72d6cb0df8ded1deac761afa4cc75735f",
+          "archive_bytes": 65600512,
+          "platform": "linux/amd64",
+          "manifest": {
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:a47db306519b3df1f07f0ab3abe157af74ee31ac3e2e5e70dfb9e1ff77223c30",
+            "size_bytes": 1627
+          },
+          "config": {
+            "media_type": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+            "size_bytes": 8530
+          },
+          "image_id": "sha256:2031b3a46e5e3f388e7e1154ebab1c2f5a44051bf37b24c798e7fa3039f75518",
+          "layers": [
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:039e6f9f9752f74a3ff4a6a224f64c7c864da16ed98f882107704328f41b9c42",
+              "size_bytes": 28232590
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:e8e392f3681c10ad9c2b19ab6614fd158f6d5a03e0f71694aea9429d38813dbd",
+              "size_bytes": 3520804
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:8e0b0d5a4a0425bc991b95b78af125c6005a0a82a89011f076802a0265d8ff32",
+              "size_bytes": 13667988
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:1634f3c69c84a41815c187086e80cf5fdec289c6ce620014ef3ca9b54c019279",
+              "size_bytes": 248
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:974d7c500d5e730424634686737b08c2e7caf0bb7248eb0d9a5fe9b60d285d08",
+              "size_bytes": 93
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:a5b28d0a7181f2510a7e9ede128f9368bc67fa491af1239448cdc345287994d4",
+              "size_bytes": 17374929
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:d43a0aba6d62918d6341a0c0179c95353f9b83dcceab85ea99c37c692855b810",
+              "size_bytes": 2782249
+            }
+          ]
+        },
+        "frontend": {
+          "schema_revision": "p1-artifact-content-r1",
+          "storage_id": "oci-9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+          "archive_digest": "sha256:9b2375d43088860c16d02d7234a4b04a3d8ab0f5d7839c43bb0c157bbc88e777",
+          "archive_bytes": 26081792,
+          "platform": "linux/amd64",
+          "manifest": {
+            "media_type": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:f38d1c7ac6467d5044a5a1ebd2a38037467ae5c918ef4d2309e1b3e4be738fdb",
+            "size_bytes": 2375
+          },
+          "config": {
+            "media_type": "application/vnd.oci.image.config.v1+json",
+            "digest": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+            "size_bytes": 13572
+          },
+          "image_id": "sha256:454c4f00a1bd7bbdfc7d25c173615c48d568fac9efb9cbbaf08ea8c002b49546",
+          "layers": [
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:6a0ac1617861a677b045b7ff88545213ec31c0ff08763195a70a4a5adda577bb",
+              "size_bytes": 3864189
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:82736a35d0e7f1309edc13d09115410b81542cf8b91afff80deeace02b6f2f26",
+              "size_bytes": 1870921
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:583599bb7d382e9e986a9ff65204981307bfa71670a29f4190eedae93c4858be",
+              "size_bytes": 627
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:aee4e54b3865ee4d98545b6b49f9e8ab3b9b6ed114a2eafedc7a22e984ea5a68",
+              "size_bytes": 956
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:781ff50d2644f74714c0d5a4ffa3447bbfd4b293cfb1dc6a637722ae24c89241",
+              "size_bytes": 404
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:453da7dbc73e7338c4e201ec3f3c4a5f7751adbf5a6f127792c1cd001a780721",
+              "size_bytes": 1210
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:4a8b0b2a5b1937755263ac7ac4ee26db2906c13a5d70f1fb1875ba8e370cdd8f",
+              "size_bytes": 1399
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:612c0c1df4c55a0bf145f84df03cb28de505e6a52fb8e49c9da7b143fc00ad2d",
+              "size_bytes": 20248489
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:9db400e95d96ca82f87265295679871d2ac99d44241d8d829221133499d59e13",
+              "size_bytes": 195
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:45277dc377041b4c4ab430ad99354546e6f0758bdf87ebc909b8071e9d7d0d20",
+              "size_bytes": 455
+            },
+            {
+              "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+              "digest": "sha256:3b503941f9c1d976cba3005fe676af57a2bcdb39e87c12fb47bde653fcab0206",
+              "size_bytes": 62997
+            }
+          ]
+        }
+      },
+      "entrance": null,
+      "running_roles": [],
+      "migration_observed": "0002_add_updated_at_index",
+      "process_and_readiness_verified": false,
+      "retained_storage_accounting": "whole_bounded_backing_remains_charged",
+      "human_acceptance": null
+    },
+    "finished_at": "2026-10-17T19:53:14.406172+00:00"
+  },
+  "summary": {
+    "result": "passed",
+    "report_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-4bc2a8450d4545af9f89c3149f48d8a0/data/workspace/artifact-env-2a7603bcdced41928cb707ff63e3574d",
+    "failure": null,
+    "human_acceptance": null
+  },
+  "root_wrapper_observed_at": "2026-10-17T19:53:14.463685+00:00",
+  "parent_stop": {
+    "unit": "cloudhelm_p1_artifact_4bc2a8450d4545af9f89c3149f48d8a0.slice",
+    "kernel_limits": {
+      "cpu.max": "150000 100000",
+      "memory.max": "939524096",
+      "pids.max": "256"
+    },
+    "memory_peak_bytes": 361697280,
+    "pids_peak": 32,
+    "stopped_and_removed": true
+  },
+  "cleanup": {
+    "storage_id": "dev-storage-4bc2a8450d4545af9f89c3149f48d8a0",
+    "phase": "cleanup",
+    "observed_at": "2026-10-17T19:53:14.516638+00:00",
+    "unmounted": {
+      "mount_id": 414,
+      "mount_source": "/dev/loop0",
+      "mount_device": "7:0",
+      "mount_namespace": "mnt:[4026532220]",
+      "mount_options": [
+        "nodev",
+        "noexec",
+        "nosuid",
+        "relatime",
+        "rw"
+      ],
+      "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-4bc2a8450d4545af9f89c3149f48d8a0/data"
+    },
+    "loop_detached": true,
+    "backing_file_deleted": true,
+    "instance_directory_deleted": true,
+    "host_free_byte_increase": 8192,
+    "host_reclamation_confirmed": false,
+    "reclaimed_backing_file_bytes": 0,
+    "remaining_accounted_bytes": 4294967296
+  }
+}

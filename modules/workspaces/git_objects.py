@@ -235,5 +235,25 @@ class GitObjectStore:
         with self.open_commit(source, base_commit) as (tree, _):
             return tree
 
+    @contextmanager
+    def candidate_repository(self, source: RegisteredGitSource, base_commit: str):
+        """Trusted candidate publisher only; target refs remain owned by integration.
+
+        The caller already holds the workspace writer lock. This second lock
+        protects service metadata while immutable objects and private candidate
+        refs are published; no arbitrary Git command is exposed to a request.
+        """
+        if type(source) is not RegisteredGitSource:
+            raise WorkspaceFileError("candidate_source_unsupported")
+        registered = self.resolve_source(source.project_id, source.source_id, source.source_revision)
+        if registered != source or source.source_prefix:
+            raise WorkspaceFileError("candidate_source_unsupported")
+        _object_id(base_commit, source.object_format)
+        with self._root.exclusive() as root:
+            with directory_at(root, managed_repository_slot(source)) as directory:
+                validate_bare_metadata(directory, source.object_format)
+                tree = _inspect(directory, source, base_commit, time.monotonic() + _OPERATION_SECONDS)
+                yield directory, tree
+
     def close(self) -> None:
         self._root.close()

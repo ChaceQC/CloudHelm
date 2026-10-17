@@ -13,6 +13,7 @@ from .middleware import SafeHttpBoundary
 from .routes_identity import router as identity_router
 from .routes_projects import router as projects_router
 from .routes_tasks import router as tasks_router
+from .routes_engineering import router as engineering_router
 from .runtime import start_runtime
 
 
@@ -30,7 +31,7 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     errors = {code: {"model": ApiErrorResponse} for code in (400, 401, 403, 404, 409, 413, 415, 422, 500, 503)}
     app = FastAPI(
         title="CloudHelm Hub API", version=APPLICATION_VERSION,
-        description="P1.1 identity, existing-project management and Task control API.",
+        description="Identity, Task control and bounded P1.2 engineering intents and queries.",
         lifespan=lifespan, docs_url=None, redoc_url=None, debug=False,
         redirect_slashes=False, responses=errors,
     )
@@ -40,6 +41,7 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     app.include_router(identity_router)
     app.include_router(projects_router)
     app.include_router(tasks_router)
+    app.include_router(engineering_router)
 
     @app.get("/health/live", response_model=Liveness, tags=["health"])
     def liveness():

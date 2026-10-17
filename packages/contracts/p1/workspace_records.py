@@ -60,7 +60,12 @@ class WorkspaceRecord(Contract):
         if (self.files is None) != (self.files_digest is None):
             raise ValueError("workspace_files_digest_pair_required")
         if self.files is not None:
-            if self.files.binding != self.binding:
+            # The original byte receipt remains immutable as the mutable binding
+            # advances. Its ownership/base identity can never change.
+            revisions = {"workspace_revision", "write_generation"}
+            if (self.files.binding.model_dump(exclude=revisions) != self.binding.model_dump(exclude=revisions)
+                    or self.files.binding.workspace_revision > self.binding.workspace_revision
+                    or self.files.binding.write_generation > self.binding.write_generation):
                 raise ValueError("workspace_files_binding_mismatch")
             if self.files_digest != workspace_metadata_digest(self.files):
                 raise ValueError("workspace_files_digest_mismatch")

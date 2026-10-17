@@ -8,6 +8,7 @@ import rfc8785
 from pydantic import Field, field_validator, model_validator
 
 from packages.contracts.p0.decision_common import Contract, Digest, Identifier, Revision
+from packages.contracts.p0.engineering_contracts import UtcTimestamp
 
 GitObjectId = Annotated[str, Field(pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")]
 StorageId = Annotated[str, Field(pattern=r"^[a-z]+-[0-9a-f]{64}$")]
@@ -177,3 +178,111 @@ class SourceTree(Contract):
     @property
     def total_bytes(self) -> int:
         return sum(item.size_bytes for item in self.files)
+
+
+class WorkspaceReadSpec(Contract):
+    binding: WorkspaceBinding
+    materialization_operation_id: Identifier
+
+
+class WorkspaceMutationSpec(WorkspaceReadSpec):
+    action: Literal["write", "delete"]
+    path: str
+    expected_manifest_digest: Digest
+    expected_file: WorkspaceFile | None
+    content: bytes | None = Field(default=None, strict=True, max_length=MAX_FILE_BYTES, exclude=True, repr=False)
+    mode: Literal["100644", "100755"] | None = None
+
+    @field_validator("path")
+    @classmethod
+    def check_path(cls, value: str) -> str:
+        return workspace_path(value)
+
+    @model_validator(mode="after")
+    def check_mutation(self):
+        if self.expected_file is not None and self.expected_file.path != self.path:
+            raise ValueError("workspace_file_path_mismatch")
+        if self.action == "delete":
+            if self.expected_file is None or self.content is not None or self.mode is not None:
+                raise ValueError("workspace_delete_invalid")
+        elif self.content is None or self.replacement == self.expected_file:
+            raise ValueError("workspace_write_invalid_or_unchanged")
+        return self
+
+    @property
+    def replacement(self) -> WorkspaceFile | None:
+        if self.action == "delete":
+            return None
+        data = self.content if self.content is not None else b""
+        return WorkspaceFile(path=self.path, mode=self.mode or (self.expected_file.mode if self.expected_file else "100644"),
+                             size_bytes=len(data), content_digest=content_digest(data))
+
+
+def workspace_mutation_digest(spec: WorkspaceMutationSpec) -> str:
+    return content_digest(rfc8785.dumps({
+        "schema_revision": "p1-workspace-file-operation-r1", "binding": spec.binding.model_dump(mode="json"),
+        "materialization_operation_id": spec.materialization_operation_id, "action": spec.action, "path": spec.path,
+        "expected_manifest_digest": spec.expected_manifest_digest,
+        "expected_file": spec.expected_file.model_dump() if spec.expected_file else None,
+        "replacement": spec.replacement.model_dump() if spec.replacement else None,
+    }))
+
+
+class WorkspaceChange(Contract):
+    path: str
+    kind: Literal["added", "modified", "deleted"]
+    before: WorkspaceFile | None
+    after: WorkspaceFile | None
+
+
+class WorkspaceStatus(Contract):
+    binding: WorkspaceBinding
+    materialization_operation_id: Identifier
+    observation_only: Literal[True] = True
+    initial_manifest_digest: Digest
+    current_manifest_digest: Digest
+    file_count: int = Field(strict=True, ge=0, le=MAX_FILES)
+    total_bytes: int = Field(strict=True, ge=0, le=MAX_SOURCE_BYTES)
+    files: tuple[WorkspaceFile, ...] = Field(max_length=128)
+    changes: tuple[WorkspaceChange, ...] = Field(max_length=128)
+    files_truncated: bool
+    changes_truncated: bool
+    change_count: int = Field(strict=True, ge=0, le=MAX_FILES * 2)
+    unresolved_operations: int = Field(strict=True, ge=0, le=256)
+
+
+class WorkspaceDiff(Contract):
+    binding: WorkspaceBinding
+    path: str
+    observation_only: Literal[True] = True
+    before: WorkspaceFile | None
+    after: WorkspaceFile | None
+    patch: str = Field(max_length=65536)
+    binary: bool
+    truncated: bool
+    reason_code: Literal["binary", "input_limit", "output_limit"] | None = None
+
+
+class WorkspaceMutationReceipt(Contract):
+    schema_revision: Literal["p1-workspace-file-operation-r1"] = "p1-workspace-file-operation-r1"
+    operation_id: Identifier
+    request_digest: Digest
+    binding: WorkspaceBinding
+    materialization_operation_id: Identifier
+    action: Literal["write", "delete"]
+    path: str
+    outcome: Literal["applied", "not_applied"]
+    before_file: WorkspaceFile | None
+    after_file: WorkspaceFile | None
+    before_manifest_digest: Digest
+    after_manifest_digest: Digest
+    observed_at: UtcTimestamp
+
+
+class WorkspaceMutationStatus(Contract):
+    operation_id: Identifier
+    request_digest: Digest
+    state: Literal["not_found", "pending", "unknown", "applied", "not_applied"]
+    target_state: Literal["old", "new", "other", "unavailable"] | None = None
+    receipt: WorkspaceMutationReceipt | None = None
+    reason_code: str | None = None

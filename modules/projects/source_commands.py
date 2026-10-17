@@ -1,4 +1,4 @@
-"""Authenticated source import acceptance; no physical Git or fake workflow enqueue."""
+"""Authenticated source intents; physical Git runs after the accepting transaction."""
 
 from uuid import uuid4
 
@@ -15,13 +15,15 @@ from modules.projects.source_operations import (
     SOURCE_IMPORT_SCHEMA, SourceImportError, import_view, read_import_intent, resolve_import_operation_in_uow,
 )
 from modules.projects.source_tables import project_git_sources
+from modules.projects.source_receipts import read_source_registration, register_published_import, verify_published_import
 from modules.projects.tables import projects
 from modules.sync.events import append_event
-from modules.workspaces.source_import import ReferenceImportSpec, reference_import_digest
+from modules.workspaces.source_import import ReferenceImportSpec, ReferenceSourceImporter, reference_import_digest
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p1.source_requests import (
     ImportReferenceSourceRequest, SourceImportCommandResult, SourceImportHttpResult, SourceImportView,
 )
+from packages.contracts.p1.source_records import SourceImportRegistration
 from packages.contracts.p1.workspace_git import RegisteredGitSource
 
 MAX_REVISION = 9007199254740991
@@ -37,7 +39,7 @@ def current_project_access(uow, actor, project_id):
     return resource, decision
 
 
-def accept_reference_import(uow, actor, project_id, request, *, idempotency_key):
+def accept_reference_import(uow, actor, project_id, request, *, idempotency_key, enqueue_operation=None):
     """Participate in the caller's UoW; current permission precedes durable replay."""
     if type(request) is not ImportReferenceSourceRequest:
         raise SourceImportError("source_import_request_invalid")
@@ -107,16 +109,21 @@ def accept_reference_import(uow, actor, project_id, request, *, idempotency_key)
                      event_type="project.source_import_accepted", schema_version="p1-source-import-event-r1", payload=result)
         status = 202
     save_result(uow.connection, envelope, result, status_code=status, authorization=authorization.envelope)
+    if status == 202 and enqueue_operation is not None:
+        enqueue_operation(uow, result.operation_id, envelope.command_id, project_id,
+                          result.project_revision, envelope.request_digest)
     return SourceImportHttpResult(status_code=status, body=result)
 
 
 class SourceImportApplication:
-    def __init__(self, engine, control_engine) -> None:
+    def __init__(self, engine, control_engine, *, enqueue_operation=None) -> None:
         self.engine, self.control_engine = engine, control_engine
+        self.enqueue_operation = enqueue_operation
 
     def import_reference(self, actor, project_id, request, *, idempotency_key) -> SourceImportHttpResult:
         with UnitOfWork(self.engine) as uow:
-            return accept_reference_import(uow, actor, project_id, request, idempotency_key=idempotency_key)
+            return accept_reference_import(uow, actor, project_id, request, idempotency_key=idempotency_key,
+                                           enqueue_operation=self.enqueue_operation)
 
     def query(self, actor, project_id: str, operation_id: str) -> SourceImportView:
         with UnitOfWork(self.control_engine) as uow:
@@ -124,7 +131,17 @@ class SourceImportApplication:
             row, spec = read_import_intent(uow.connection, operation_id)
             if row["project_id"] != project_id:
                 raise SourceImportError("source_import_not_found")
-            return import_view(row, spec)
+            view = import_view(row, spec)
+            registration = read_source_registration(uow.connection, row)
+            if registration is not None:
+                view = SourceImportView.model_validate({**view.model_dump(mode="python"), "state": "registered",
+                                                        "code": "source_import_registered", "registration": registration})
+            return view
+
+    def finish_import(self, operation_id: str, importer: ReferenceSourceImporter) -> SourceImportRegistration:
+        verified = verify_published_import(operation_id, importer)
+        with UnitOfWork(self.engine) as uow:
+            return register_published_import(uow, operation_id, verified)
 
     def resolve_import_operation(self, operation_id: str) -> ReferenceImportSpec:
         with UnitOfWork(self.control_engine) as uow:

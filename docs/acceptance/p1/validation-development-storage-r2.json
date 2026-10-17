@@ -1,0 +1,463 @@
+{
+  "method_revision": "p1-development-storage-r2",
+  "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+  "phase": "cleanup-proof",
+  "observed_at": "2026-10-17T18:56:27.770514+00:00",
+  "environment": {
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "uid": 1000,
+    "wsl_distribution": "Ubuntu-24.04"
+  },
+  "method_files": {
+    "packages/contracts/p1/development_storage.py": "sha256:55c3ed6914f924793635dfa32749718f225ddcd9d3766524247f633ae25113b6",
+    "services/dev-runner/development_storage.py": "sha256:cb8dcc492852f35e8ff3269a44eec145dc72f8cae7acf688c0fef6094570acfd",
+    "services/dev-runner/development_storage_maintenance.py": "sha256:8e78bda3342d3a70f563b32c0dc755364e348b253ecf76851f28ffbd9fd3ee70",
+    "scripts/p1/probe_development_storage.py": "sha256:2ebd311f939b3885ac860eddb72cadfb9a41c7b74c4041fe2db8f971fda2c9ee"
+  },
+  "input_status": "development_worktree",
+  "scope": "local_registered_provider_only",
+  "provider_capacity_bytes": 67108864,
+  "all_required_verified": true,
+  "evidence": {
+    "create": {
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "create",
+      "observed_at": "2026-10-17T18:56:23.917858+00:00",
+      "registration": {
+        "method_revision": "p1-development-storage-r2",
+        "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+        "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+        "filesystem_uuid": "63389c6f-28fd-4cc7-a95c-3c10cf76a76b",
+        "owner_uid": 1000,
+        "backing_file_bytes": 67108864,
+        "backing_device": 2096,
+        "backing_inode": 259917,
+        "created_at": "2026-10-17T18:56:23.899564Z",
+        "scope": "local_controlled_development",
+        "allowed_purposes": [
+          "git",
+          "workspace",
+          "candidate",
+          "cache",
+          "archive"
+        ],
+        "admission_safety_bytes": 1048576
+      },
+      "mount": {
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data"
+      },
+      "references": {
+        "git": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "purpose": "git"
+        },
+        "workspace": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "purpose": "workspace"
+        },
+        "candidate": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "purpose": "candidate"
+        },
+        "cache": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "purpose": "cache"
+        },
+        "archive": {
+          "schema_revision": "p1-development-storage-ref-r1",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "purpose": "archive"
+        }
+      },
+      "maintenance_mount_namespace": "mnt:[4026532219]",
+      "pid1_mount_namespace": "mnt:[4026532219]",
+      "backing_file_bytes": 67108864,
+      "backing_allocated_bytes": 67112960
+    },
+    "fill": {
+      "method_revision": "p1-development-storage-r2",
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "fill",
+      "observed_at": "2026-10-17T18:56:25.004726+00:00",
+      "environment": {
+        "kernel": "6.18.33.2-microsoft-standard-WSL2",
+        "uid": 1000,
+        "wsl_distribution": "Ubuntu-24.04"
+      },
+      "method_files": {
+        "packages/contracts/p1/development_storage.py": "sha256:55c3ed6914f924793635dfa32749718f225ddcd9d3766524247f633ae25113b6",
+        "services/dev-runner/development_storage.py": "sha256:cb8dcc492852f35e8ff3269a44eec145dc72f8cae7acf688c0fef6094570acfd",
+        "services/dev-runner/development_storage_maintenance.py": "sha256:8e78bda3342d3a70f563b32c0dc755364e348b253ecf76851f28ffbd9fd3ee70",
+        "scripts/p1/probe_development_storage.py": "sha256:2ebd311f939b3885ac860eddb72cadfb9a41c7b74c4041fe2db8f971fda2c9ee"
+      },
+      "input_status": "development_worktree",
+      "scope": "local_registered_provider_only",
+      "provider_capacity_bytes": 67108864,
+      "before": {
+        "registration": {
+          "method_revision": "p1-development-storage-r2",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "filesystem_uuid": "63389c6f-28fd-4cc7-a95c-3c10cf76a76b",
+          "owner_uid": 1000,
+          "backing_file_bytes": 67108864,
+          "backing_device": 2096,
+          "backing_inode": 259917,
+          "created_at": "2026-10-17T18:56:23.899564Z",
+          "scope": "local_controlled_development",
+          "allowed_purposes": [
+            "git",
+            "workspace",
+            "candidate",
+            "cache",
+            "archive"
+          ],
+          "admission_safety_bytes": 1048576
+        },
+        "observed_at": "2026-10-17T18:56:24.809078Z",
+        "purpose": "cache",
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data",
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "backing_allocated_bytes": 67112960,
+        "accounted_backing_bytes": 67108864,
+        "filesystem_capacity_bytes": 58675200,
+        "filesystem_free_bytes": 58634240,
+        "filesystem_available_bytes": 57294848,
+        "retained_bytes_including_metadata": 40960,
+        "admission_safety_bytes": 1048576,
+        "allocatable_bytes": 56246272,
+        "hard_boundary": "fixed_regular_file_ext4",
+        "accounting_scope": "whole_backing_file_remains_charged_after_stop"
+      },
+      "writer": {
+        "enospc": true,
+        "written_bytes": 57212928,
+        "writer_stopped": true
+      },
+      "after_writer_stopped": {
+        "registration": {
+          "method_revision": "p1-development-storage-r2",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "filesystem_uuid": "63389c6f-28fd-4cc7-a95c-3c10cf76a76b",
+          "owner_uid": 1000,
+          "backing_file_bytes": 67108864,
+          "backing_device": 2096,
+          "backing_inode": 259917,
+          "created_at": "2026-10-17T18:56:23.899564Z",
+          "scope": "local_controlled_development",
+          "allowed_purposes": [
+            "git",
+            "workspace",
+            "candidate",
+            "cache",
+            "archive"
+          ],
+          "admission_safety_bytes": 1048576
+        },
+        "observed_at": "2026-10-17T18:56:24.999046Z",
+        "purpose": "cache",
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data",
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "backing_allocated_bytes": 67112960,
+        "accounted_backing_bytes": 67108864,
+        "filesystem_capacity_bytes": 58675200,
+        "filesystem_free_bytes": 1384448,
+        "filesystem_available_bytes": 45056,
+        "retained_bytes_including_metadata": 57290752,
+        "admission_safety_bytes": 1048576,
+        "allocatable_bytes": 0,
+        "hard_boundary": "fixed_regular_file_ext4",
+        "accounting_scope": "whole_backing_file_remains_charged_after_stop"
+      },
+      "provider_roots": {
+        "git": {
+          "directory_name": "git",
+          "filesystem_device": 1792,
+          "accounted_backing_bytes": 67108864
+        },
+        "workspace": {
+          "directory_name": "workspace",
+          "filesystem_device": 1792,
+          "accounted_backing_bytes": 67108864
+        },
+        "candidate": {
+          "directory_name": "workspace",
+          "filesystem_device": 1792,
+          "accounted_backing_bytes": 67108864
+        },
+        "cache": {
+          "directory_name": "cache",
+          "filesystem_device": 1792,
+          "accounted_backing_bytes": 67108864
+        },
+        "archive": {
+          "directory_name": "archive",
+          "filesystem_device": 1792,
+          "accounted_backing_bytes": 67108864
+        }
+      },
+      "same_instance_lock_verified": true,
+      "oversized_admission_rejected": true,
+      "stale_instance_rejected": true,
+      "reference_identity_mismatch_rejected": true,
+      "request_is_free_space_gate_not_per_operation_quota": true,
+      "retained_payload_digest": "sha256:43f5659ce59de97fc11cfd6405bfe8b9ce0a34c8a3b8ea8b1f33c0c758d5237a"
+    },
+    "unmount": {
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "unmount",
+      "observed_at": "2026-10-17T18:56:25.075682+00:00",
+      "unmounted": {
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data"
+      },
+      "loop_detached": true,
+      "accounted_backing_bytes": 67108864,
+      "backing_file_retained": true
+    },
+    "unmounted": {
+      "method_revision": "p1-development-storage-r2",
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "unmounted",
+      "observed_at": "2026-10-17T18:56:25.901675+00:00",
+      "environment": {
+        "kernel": "6.18.33.2-microsoft-standard-WSL2",
+        "uid": 1000,
+        "wsl_distribution": "Ubuntu-24.04"
+      },
+      "method_files": {
+        "packages/contracts/p1/development_storage.py": "sha256:55c3ed6914f924793635dfa32749718f225ddcd9d3766524247f633ae25113b6",
+        "services/dev-runner/development_storage.py": "sha256:cb8dcc492852f35e8ff3269a44eec145dc72f8cae7acf688c0fef6094570acfd",
+        "services/dev-runner/development_storage_maintenance.py": "sha256:8e78bda3342d3a70f563b32c0dc755364e348b253ecf76851f28ffbd9fd3ee70",
+        "scripts/p1/probe_development_storage.py": "sha256:2ebd311f939b3885ac860eddb72cadfb9a41c7b74c4041fe2db8f971fda2c9ee"
+      },
+      "input_status": "development_worktree",
+      "scope": "local_registered_provider_only",
+      "provider_capacity_bytes": 67108864,
+      "unmounted_admission_rejected": true,
+      "accounted_backing_bytes": 67108864
+    },
+    "remount": {
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "remount",
+      "observed_at": "2026-10-17T18:56:25.962210+00:00",
+      "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+      "unmounted": {
+        "already_unmounted": true,
+        "backing_not_attached": true
+      },
+      "mounted": {
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data"
+      },
+      "same_backing_file": true
+    },
+    "retained": {
+      "method_revision": "p1-development-storage-r2",
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "retained",
+      "observed_at": "2026-10-17T18:56:26.869329+00:00",
+      "environment": {
+        "kernel": "6.18.33.2-microsoft-standard-WSL2",
+        "uid": 1000,
+        "wsl_distribution": "Ubuntu-24.04"
+      },
+      "method_files": {
+        "packages/contracts/p1/development_storage.py": "sha256:55c3ed6914f924793635dfa32749718f225ddcd9d3766524247f633ae25113b6",
+        "services/dev-runner/development_storage.py": "sha256:cb8dcc492852f35e8ff3269a44eec145dc72f8cae7acf688c0fef6094570acfd",
+        "services/dev-runner/development_storage_maintenance.py": "sha256:8e78bda3342d3a70f563b32c0dc755364e348b253ecf76851f28ffbd9fd3ee70",
+        "scripts/p1/probe_development_storage.py": "sha256:2ebd311f939b3885ac860eddb72cadfb9a41c7b74c4041fe2db8f971fda2c9ee"
+      },
+      "input_status": "development_worktree",
+      "scope": "local_registered_provider_only",
+      "provider_capacity_bytes": 67108864,
+      "before_release": {
+        "registration": {
+          "method_revision": "p1-development-storage-r2",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "filesystem_uuid": "63389c6f-28fd-4cc7-a95c-3c10cf76a76b",
+          "owner_uid": 1000,
+          "backing_file_bytes": 67108864,
+          "backing_device": 2096,
+          "backing_inode": 259917,
+          "created_at": "2026-10-17T18:56:23.899564Z",
+          "scope": "local_controlled_development",
+          "allowed_purposes": [
+            "git",
+            "workspace",
+            "candidate",
+            "cache",
+            "archive"
+          ],
+          "admission_safety_bytes": 1048576
+        },
+        "observed_at": "2026-10-17T18:56:26.858564Z",
+        "purpose": "cache",
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data",
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "backing_allocated_bytes": 67112960,
+        "accounted_backing_bytes": 67108864,
+        "filesystem_capacity_bytes": 58675200,
+        "filesystem_free_bytes": 1388544,
+        "filesystem_available_bytes": 49152,
+        "retained_bytes_including_metadata": 57286656,
+        "admission_safety_bytes": 1048576,
+        "allocatable_bytes": 0,
+        "hard_boundary": "fixed_regular_file_ext4",
+        "accounting_scope": "whole_backing_file_remains_charged_after_stop"
+      },
+      "after_release": {
+        "registration": {
+          "method_revision": "p1-development-storage-r2",
+          "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+          "instance_revision": "c334e94e28f94845bdbd77835283e3de",
+          "filesystem_uuid": "63389c6f-28fd-4cc7-a95c-3c10cf76a76b",
+          "owner_uid": 1000,
+          "backing_file_bytes": 67108864,
+          "backing_device": 2096,
+          "backing_inode": 259917,
+          "created_at": "2026-10-17T18:56:23.899564Z",
+          "scope": "local_controlled_development",
+          "allowed_purposes": [
+            "git",
+            "workspace",
+            "candidate",
+            "cache",
+            "archive"
+          ],
+          "admission_safety_bytes": 1048576
+        },
+        "observed_at": "2026-10-17T18:56:26.862436Z",
+        "purpose": "cache",
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data",
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "backing_allocated_bytes": 67112960,
+        "accounted_backing_bytes": 67108864,
+        "filesystem_capacity_bytes": 58675200,
+        "filesystem_free_bytes": 58601472,
+        "filesystem_available_bytes": 57262080,
+        "retained_bytes_including_metadata": 73728,
+        "admission_safety_bytes": 1048576,
+        "allocatable_bytes": 56213504,
+        "hard_boundary": "fixed_regular_file_ext4",
+        "accounting_scope": "whole_backing_file_remains_charged_after_stop"
+      },
+      "reclaimed_filesystem_bytes": 57212928,
+      "accounted_backing_bytes_unchanged": true,
+      "retained_payload_digest": "sha256:43f5659ce59de97fc11cfd6405bfe8b9ce0a34c8a3b8ea8b1f33c0c758d5237a",
+      "read_after_remount_verified": true
+    },
+    "cleanup": {
+      "storage_id": "dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8",
+      "phase": "cleanup",
+      "observed_at": "2026-10-17T18:56:26.951345+00:00",
+      "unmounted": {
+        "mount_id": 406,
+        "mount_source": "/dev/loop0",
+        "mount_device": "7:0",
+        "mount_namespace": "mnt:[4026532219]",
+        "mount_options": [
+          "nodev",
+          "noexec",
+          "nosuid",
+          "relatime",
+          "rw"
+        ],
+        "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-58e487a06d4e4a5ab4ec5e3fa14396d8/data"
+      },
+      "loop_detached": true,
+      "backing_file_deleted": true,
+      "instance_directory_deleted": true,
+      "host_free_byte_increase": 67121152,
+      "host_reclamation_confirmed": true,
+      "reclaimed_backing_file_bytes": 67108864,
+      "remaining_accounted_bytes": 0
+    }
+  },
+  "removed_instance_rejected": true,
+  "fixture_removed": true,
+  "application_writers_verified": false,
+  "large_development_pool_created": false
+}

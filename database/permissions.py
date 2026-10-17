@@ -9,11 +9,12 @@ IMMUTABLE_TABLES = (
     "commands", "event_log", "workflow_bindings", "audit_records", "task_declarations",
     "task_inputs", "task_completion_reports", "task_reference_records", "task_evidence_links",
     "task_operation_links", "task_operation_observations",
+    "build_runs",
 )
 TASK_MUTABLE_TABLES = ("tasks", "work_items", "task_wait_conditions", "task_run_links")
 WORKSPACE_INSERTS = {
     "api": ("project_git_sources", "project_source_imports", "workspaces"),
-    "worker": ("workspace_candidates",),
+    "worker": ("project_git_sources", "workspace_candidates"),
 }
 WORKSPACE_RECEIPT_COLUMNS = (
     "workspace_revision", "write_generation", "binding_json", "binding_digest",

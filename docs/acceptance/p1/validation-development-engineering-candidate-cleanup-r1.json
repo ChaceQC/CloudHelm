@@ -1,0 +1,32 @@
+{
+  "scope": "Directed cleanup after the two development root-wrapper attempts; no product rerun",
+  "human_acceptance": null,
+  "cleanups": [
+    {
+      "storage_id": "dev-storage-2f49f6babb8f4f5195a6a80edf181499",
+      "phase": "cleanup",
+      "observed_at": "2026-10-17T19:19:57.425808+00:00",
+      "unmounted": {"already_unmounted": true, "backing_not_attached": true},
+      "loop_detached": true,
+      "backing_file_deleted": true,
+      "instance_directory_deleted": true,
+      "host_free_byte_increase": 536883200,
+      "host_reclamation_confirmed": true,
+      "reclaimed_backing_file_bytes": 536870912,
+      "remaining_accounted_bytes": 0
+    },
+    {
+      "storage_id": "dev-storage-7a2eb5eee1044a84ba91c9ed7b3fb04a",
+      "phase": "cleanup",
+      "observed_at": "2026-10-17T19:22:14.656203+00:00",
+      "unmounted": {"already_unmounted": true, "backing_not_attached": true},
+      "loop_detached": true,
+      "backing_file_deleted": true,
+      "instance_directory_deleted": true,
+      "host_free_byte_increase": 536883200,
+      "host_reclamation_confirmed": true,
+      "reclaimed_backing_file_bytes": 536870912,
+      "remaining_accounted_bytes": 0
+    }
+  ]
+}

@@ -160,7 +160,10 @@ def load_task_control_facts(connection: Connection, task_id: str) -> TaskControl
     inputs = read_completion_inputs(reader, task, declaration)
     acceptance = read_acceptance_facts(reader, task, inputs)
     input_ref = inputs.input_set.reference if inputs.input_set else None
-    operations = read_operation_facts(connection, task, input_ref)
+    from modules.collaboration.engineering_operations import read_engineering_operation_blockers
+
+    operations = (*read_operation_facts(connection, task, input_ref),
+                  *read_engineering_operation_blockers(connection, task_id))
     human = read_human_fact(reader, inputs, declaration)
     waits_ready = _waits_satisfied(reader, input_ref)
     history_fenced, usage_unknown = _run_history(reader, task)
@@ -188,7 +191,10 @@ def load_cancellation_facts(connection: Connection, task_id: str) -> TaskControl
     """Cancellation needs physical closure and history, not a completed delivery input."""
     task = read_task(connection, task_id, for_update=True)
     reader = FactReader(connection, task["project_id"], task_id)
-    operations = read_operation_facts(connection, task, None, for_cancellation=True)
+    from modules.collaboration.engineering_operations import read_engineering_operation_blockers
+
+    operations = (*read_operation_facts(connection, task, None, for_cancellation=True),
+                  *read_engineering_operation_blockers(connection, task_id))
     history_fenced, usage_unknown = _run_history(reader, task)
     data = read_control_head(connection, task).model_dump()
     data.update(operation_set_current=True, operations=operations,

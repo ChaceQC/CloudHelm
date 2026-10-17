@@ -13,6 +13,7 @@ from database.readiness import DatabaseNotReady
 from database.uow import DatabaseFailure
 from modules.collaboration.errors import TaskBoundaryError
 from modules.identity.errors import IdentityError
+from modules.projects.source_operations import SourceImportError
 from .contracts import ApiErrorResponse
 from .denials import store_identity_denial
 
@@ -52,6 +53,11 @@ def install_error_handlers(app: FastAPI) -> None:
         if code not in {"idempotency_digest_conflict", "idempotency_scope_mismatch"}:
             code = "command_conflict"
         return error_response(code, 409)
+
+    @app.exception_handler(SourceImportError)
+    async def source_error(request: Request, error: SourceImportError):
+        code = str(error)
+        return error_response(code, 404 if code == "source_import_not_found" else 409)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, error: RequestValidationError):

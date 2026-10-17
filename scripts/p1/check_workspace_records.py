@@ -282,7 +282,8 @@ def main() -> int:
         config.set_main_option("script_location", str(Path(__file__).resolve().parents[2] / "database/migrations"))
         script = ScriptDirectory.from_config(config)
         require(script.get_heads() == [BUSINESS_REVISION], "migration_head_mismatch")
-        require(script.get_revision(BUSINESS_REVISION).down_revision == "0001_p1_1", "migration_chain_not_linear")
+        require(script.get_revision(BUSINESS_REVISION).down_revision == "0002_p1_2"
+                and script.get_revision("0002_p1_2").down_revision == "0001_p1_1", "migration_chain_not_linear")
         source, workspace, candidate = records()
         with database_fixture() as fixture:
             engine = create_engine_from_settings(fixture.settings("migrator"), purpose="maintenance")

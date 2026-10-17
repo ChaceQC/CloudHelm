@@ -33,7 +33,7 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 /home/cloudhelm/.local/bin/uv run --locked python -m database.manage initialize
 ```
 
-初始化保存安装身份和原操作身份，执行业务线性迁移至 `0002_p1_2`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.2.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。旧 `0001_p1_1`/`0.1.0` 安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。
+初始化保存安装身份和原操作身份，执行业务线性迁移至 `0003_p1_2_builds`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.2.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。旧 `0001_p1_1`/`0.1.0` 或 `0002_p1_2` 安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。
 
 成功回执中的 `dbos_schema_version` 仍可为 `null`：公开接口没有提供本轮可单独核验的精确数字版本。实际支持依据是固定 SDK、受控初始化来源及公开启动核验，不支持借此进行跨 SDK 升级、回退或旧备份自动恢复。
 
@@ -90,6 +90,7 @@ worker 成功启动后输出带 UTC 时间的 `ready`。同一安装身份在受
 |项目名称、角色|`PATCH /api/projects/{project_id}`；`GET/POST /api/projects/{project_id}/role-bindings`；`POST /api/projects/{project_id}/role-bindings/revoke`|
 |Task 创建、当前状态|`POST /api/projects/{project_id}/tasks`；`GET /api/tasks/{task_id}`|
 |Task 控制|`POST /api/tasks/{task_id}/start`、`/complete`、`/cancel`、`/reconcile`|
+|来源、工作区、候选与构建|工程申请、文件修改及原操作查询见[工程入口](p1-engineering.md#4-工程入口与本机注册)|
 |唯一完成报告|`GET /api/tasks/{task_id}/completion-report`|
 |进程存活|`GET /health/live`|
 

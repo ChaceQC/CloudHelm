@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cloudhelm:p1:reference-notes:config:r1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["data_revision", "migration_revision"],
+  "properties": {
+    "data_revision": {"const": "reference-synthetic-r1"},
+    "migration_revision": {"const": "0002_add_updated_at_index"}
+  },
+  "description": "Fixed local artifact verification. The runtime allocates a loopback port and ephemeral database credentials; neither is a build parameter."
+}

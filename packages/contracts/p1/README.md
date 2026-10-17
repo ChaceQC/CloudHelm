@@ -13,6 +13,11 @@
 |`workspace_git.py`、`workspace_records.py`|精确 Git 身份、独立文件清单、来源/工作区记录与物理候选；Git OID、文件清单和元数据摘要分别管理|
 |`runner_contracts.py`|固定维护探针操作及逐能力事实；拒绝业务目标、任意命令、挂载或自报授权|
 |`build_artifacts.py`|单一 linux/amd64 OCI 归档的内容回执、存储边界与工程引用；不代表 BuildRun 或运行验收成功|
+|`source_requests.py`、`source_records.py`、`reference_requests.py`|固定参照导入意图、可信来源回执和初次真实工程 Task 输入；公共调用者不提交实物成功声明|
+|`workspace_requests.py`、`workspace_uploads.py`、`workspace_candidates.py`|工作区版本/写入代次、32KiB UTF-8 文件入口及物理候选冻结；源码 bytes 只进入受控 staging，命令保存内容摘要|
+|`build_requests.py`、`build_records.py`|BuildRun 的候选/输入/配方/锁/工具链及运行契约绑定，三角色制品内容与可信执行观察分别登记|
+|`engineering_commands.py`|project/workspace/build 的同事务 DBOS 交接；工作流仅接收稳定 operation_id|
+|`development_storage.py`、`development_environment.py`、`npm_cache.py`|受控开发实例修订、实际存储准入、环境生命周期及缓存键；注册和契约均不代替物理核验|
 |`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
 
 所有固定模型拒绝额外字段。API 还检查原始 JSON 重复键、非法数值和请求边界；真实主体、scope、action、当前授权及请求摘要由服务端解析和构造，不能用客户端自报的 `caller`、角色、`allowed` 或完成布尔值放行。
@@ -28,3 +33,9 @@
 完整完成报告只由当前持久事实构造，包含固定输入、集成来源、必需检查和证据。缺少真实来源、候选、验收或存在未核对的相关写意图时继续阻断。取消仅核对取消所需的当前权限、封闭/历史和物理事实，不以缺少开发验收材料阻止其受限收尾。人测结论保持真实值；Agent 不替人填通过或跳过。
 
 完成命令的回执携带稳定 `completion_report_id`；完整报告通过同一 Task 的 `/completion-report` 入口按当前权限读取。同键重投和已完成的新键返回均指向同一份报告，不重新生成内容。
+
+工作区当前 binding 可以递增，初次 `WorkspaceFiles` 的原字节及其 binding 保持不可变。记录要求固定归属、来源和 base commit 相等，初次 revision/generation 不超过当前值；旧严格读取器需要同步此校验。对应约束经新迁移 `0003_p1_2_builds` 调整，旧迁移和旧证据不改写。
+
+`content_verified` 只表示已核验 OCI 内容。BuildRun 的 `succeeded` 还必须具有可信执行终结事实，以及 frontend/backend/postgres 三角色的 manifest、config、实际 loaded image ID 一致性。未收尾或未知的工作区/构建操作参与 Task 完成及取消门禁；物理候选、成功构建均不自动生成最终集成验收或人类结论。
+
+OCI 内容回执的 `image_id` 保持 config digest 语义。执行观察单独保存 `loaded_image_id` 与 `docker_identity_kind`：当前 Docker 29 containerd 存储实际使用 manifest digest 标识镜像，须同时核对其 Descriptor、平台、RootFS 和运行配置。默认 `oci_config` 兼容旧协议记录，不能把两个不同身份直接互相替代。

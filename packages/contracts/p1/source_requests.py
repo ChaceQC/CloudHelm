@@ -6,6 +6,7 @@ from pydantic import model_validator
 
 from packages.contracts.p0.decision_common import Contract, Digest, Identifier, Revision
 from packages.contracts.p0.engineering_contracts import UtcTimestamp
+from packages.contracts.p1.source_records import SourceImportRegistration
 from packages.contracts.p1.workspace_git import RegisteredGitSource
 
 
@@ -43,9 +44,24 @@ class SourceImportHttpResult(Contract):
 class SourceImportView(Contract):
     operation_id: Identifier
     command_id: Identifier
-    state: Literal["accepted"] = "accepted"
-    code: Literal["source_import_awaiting_executor"] = "source_import_awaiting_executor"
+    state: Literal["accepted", "registered"] = "accepted"
+    code: Literal["source_import_awaiting_executor", "source_import_registered"] = "source_import_awaiting_executor"
     source: RegisteredGitSource
     request_digest: Digest
     accepted_project_revision: Revision
     accepted_at: UtcTimestamp
+    registration: SourceImportRegistration | None = None
+
+    @model_validator(mode="after")
+    def check_registration(self):
+        if (self.state == "registered") != (self.registration is not None):
+            raise ValueError("source_import_registration_state_mismatch")
+        expected_code = "source_import_registered" if self.registration else "source_import_awaiting_executor"
+        if self.code != expected_code:
+            raise ValueError("source_import_registration_state_mismatch")
+        if self.registration is not None and (
+            self.registration.operation_id != self.operation_id
+            or self.registration.source_record.source != self.source
+        ):
+            raise ValueError("source_import_registration_binding_mismatch")
+        return self

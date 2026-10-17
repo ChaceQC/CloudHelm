@@ -125,27 +125,38 @@ def reference_objects(repository):
 
 
 def initialize_bare(directory: int, source: RegisteredGitSource) -> None:
-    write_new_file(directory, "config", b"[core]\nrepositoryformatversion = 0\nfilemode = true\nbare = true\n")
+    config = b"[core]\nrepositoryformatversion = 0\nfilemode = true\nbare = true\n"
+    if source.object_format == "sha256":
+        config = config.replace(b"repositoryformatversion = 0", b"repositoryformatversion = 1")
+        config += b"[extensions]\nobjectformat = sha256\n"
+    write_new_file(directory, "config", config)
     write_new_file(directory, "HEAD", f"ref: {source.target_branch}\n".encode("utf-8"))
     for path in ("objects", "refs/heads"):
         with directory_at(directory, path, create=True):
             pass
 
 
-def _write_object(directory: int, kind: str, data: bytes) -> str:
+def _write_object(directory: int, kind: str, data: bytes, object_format: str = "sha1") -> str:
+    if object_format not in {"sha1", "sha256"} or kind not in {"blob", "tree", "commit"}:
+        raise WorkspaceFileError("git_object_format_mismatch")
     raw = f"{kind} {len(data)}\0".encode("ascii") + data
-    oid = hashlib.sha1(raw).hexdigest()
+    oid = hashlib.new(object_format, raw).hexdigest()
     compressed = zlib.compress(raw)
     with directory_at(directory, "objects/" + oid[:2], create=True) as objects:
         if exists_at(objects, oid[2:]):
-            if read_regular(objects, oid[2:], len(compressed)) != compressed:
+            decoder = zlib.decompressobj()
+            try:
+                existing = decoder.decompress(read_regular(objects, oid[2:], len(raw) * 2 + 1024), len(raw) + 1)
+            except zlib.error:
+                raise WorkspaceFileError("source_import_object_conflict") from None
+            if existing != raw or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
                 raise WorkspaceFileError("source_import_object_conflict")
         else:
             write_new_file(objects, oid[2:], compressed)
     return oid
 
 
-def _write_tree(directory: int, files) -> str:
+def _write_tree(directory: int, files, object_format: str = "sha1") -> str:
     root = {}
     for entry in files:
         node, parts = root, entry.path.split("/")
@@ -159,7 +170,7 @@ def _write_tree(directory: int, files) -> str:
         for name, value in ordered:
             mode, oid = ("40000", emit(value)) if isinstance(value, dict) else (value.mode, value.blob_id)
             entries.append(mode.encode("ascii") + b" " + name.encode("utf-8") + b"\0" + bytes.fromhex(oid))
-        return _write_object(directory, "tree", b"".join(entries))
+        return _write_object(directory, "tree", b"".join(entries), object_format)
 
     return emit(root)
 

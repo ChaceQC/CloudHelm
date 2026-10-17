@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "CloudHelm Hub API",
-    "description": "P1.1 identity, existing-project management and Task control API.",
+    "description": "Identity, Task control and bounded P1.2 engineering intents and queries.",
     "version": "0.2.0"
   },
   "paths": {
@@ -1145,16 +1145,6 @@
           }
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "OK"
-          },
           "201": {
             "description": "Successful Response",
             "content": {
@@ -1164,16 +1154,6 @@
                 }
               }
             }
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Accepted"
           },
           "400": {
             "content": {
@@ -1306,6 +1286,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
           }
         }
       }
@@ -1635,26 +1635,6 @@
           }
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
           "202": {
             "description": "Successful Response",
             "content": {
@@ -1796,6 +1776,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
           }
         }
       }
@@ -1856,26 +1856,6 @@
                 }
               }
             }
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Accepted"
           },
           "400": {
             "content": {
@@ -2008,6 +1988,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
           }
         }
       }
@@ -2059,26 +2059,6 @@
           }
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
           "202": {
             "description": "Successful Response",
             "content": {
@@ -2220,6 +2200,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
           }
         }
       }
@@ -2280,26 +2280,6 @@
                 }
               }
             }
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Accepted"
           },
           "400": {
             "content": {
@@ -2408,6 +2388,1981 @@
                     }
                   ],
                   "title": "Response 422 Tasks Reconcile Api Tasks  Task Id  Reconcile Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/source-imports": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Import Source",
+        "operationId": "import_source_api_projects__project_id__source_imports_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportReferenceSourceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceImportCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SourceImportCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Import Source Api Projects  Project Id  Source Imports Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SourceImportCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Import Source Api Projects  Project Id  Source Imports Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/source-imports/{operation_id}": {
+      "get": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Source Status",
+        "operationId": "source_status_api_projects__project_id__source_imports__operation_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Operation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceImportView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/reference-tasks": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Reference Task",
+        "operationId": "reference_task_api_projects__project_id__reference_tasks_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReferenceTaskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceTaskResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/workspaces": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Create Workspace",
+        "operationId": "create_workspace_api_tasks__task_id__workspaces_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Create Workspace Api Tasks  Task Id  Workspaces Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Create Workspace Api Tasks  Task Id  Workspaces Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}": {
+      "get": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Workspace Status",
+        "operationId": "workspace_status_api_workspaces__workspace_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/materialize": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Materialize Workspace",
+        "operationId": "materialize_workspace_api_workspaces__workspace_id__materialize_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterializeWorkspaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Materialize Workspace Api Workspaces  Workspace Id  Materialize Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Materialize Workspace Api Workspaces  Workspace Id  Materialize Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/candidates": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Submit Candidate",
+        "operationId": "submit_candidate_api_workspaces__workspace_id__candidates_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitWorkspaceCandidateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Submit Candidate Api Workspaces  Workspace Id  Candidates Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Submit Candidate Api Workspaces  Workspace Id  Candidates Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/files": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Mutate File",
+        "operationId": "mutate_file_api_workspaces__workspace_id__files_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceMutationUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Mutate File Api Workspaces  Workspace Id  Files Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Mutate File Api Workspaces  Workspace Id  Files Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/operations/{operation_id}": {
+      "get": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Workspace Operation",
+        "operationId": "workspace_operation_api_workspaces__workspace_id__operations__operation_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Operation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOperationView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/candidates/{candidate_id}": {
+      "get": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Candidate Status",
+        "operationId": "candidate_status_api_workspaces__workspace_id__candidates__candidate_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhysicalCandidateRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/builds": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Request Build",
+        "operationId": "request_build_api_tasks__task_id__builds_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestBuildRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/BuildCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Request Build Api Tasks  Task Id  Builds Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/BuildCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Request Build Api Tasks  Task Id  Builds Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/builds/{operation_id}": {
+      "get": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Build Status",
+        "operationId": "build_status_api_tasks__task_id__builds__operation_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Operation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             },
@@ -2586,18 +4541,742 @@
         ],
         "title": "ApiErrorResponse"
       },
+      "BuildArtifactRecord": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "frontend",
+              "backend",
+              "postgres"
+            ],
+            "title": "Role"
+          },
+          "storage_id": {
+            "type": "string",
+            "pattern": "^oci-[0-9a-f]{64}$",
+            "title": "Storage Id"
+          },
+          "content_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "archive_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Archive Digest"
+          },
+          "archive_bytes": {
+            "type": "integer",
+            "maximum": 2147483648.0,
+            "minimum": 1024.0,
+            "title": "Archive Bytes"
+          },
+          "platform": {
+            "type": "string",
+            "const": "linux/amd64",
+            "title": "Platform",
+            "default": "linux/amd64"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          },
+          "config_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Digest"
+          },
+          "image_id": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Image Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "storage_id",
+          "content_ref",
+          "archive_digest",
+          "archive_bytes",
+          "manifest_digest",
+          "config_digest",
+          "image_id"
+        ],
+        "title": "BuildArtifactRecord"
+      },
+      "BuildCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "build_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Run Id"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Digest"
+          },
+          "build_input_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Input Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "project_id",
+          "task_id",
+          "version",
+          "control_revision",
+          "input_validity_revision",
+          "outcome",
+          "code"
+        ],
+        "title": "BuildCommandResult"
+      },
+      "BuildContentRegistration": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "build_input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Build Input Digest"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/BuildArtifactRecord"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Artifacts"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "applicable": {
+            "type": "boolean",
+            "title": "Applicable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "build_input_digest",
+          "artifacts",
+          "observed_at",
+          "applicable"
+        ],
+        "title": "BuildContentRegistration"
+      },
+      "BuildDefinition": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-build-definition-r1",
+            "title": "Schema Revision",
+            "default": "p1-build-definition-r1"
+          },
+          "recipes": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFileInput"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Recipes"
+          },
+          "locks": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFileInput"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Locks"
+          },
+          "toolchain_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Toolchain Refs"
+          },
+          "base_image_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Base Image Refs"
+          },
+          "platform": {
+            "type": "string",
+            "const": "linux/amd64",
+            "title": "Platform",
+            "default": "linux/amd64"
+          },
+          "descriptor": {
+            "$ref": "#/components/schemas/BuildFileInput"
+          },
+          "compose": {
+            "$ref": "#/components/schemas/BuildFileInput"
+          },
+          "runtime_contract_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "config_schema": {
+            "$ref": "#/components/schemas/BuildFileInput"
+          },
+          "migrations": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFileInput"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "Migrations"
+          },
+          "acceptance_assets_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "parameter_set_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "frontend",
+                "backend",
+                "postgres"
+              ]
+            },
+            "type": "array",
+            "title": "Output Roles",
+            "default": [
+              "frontend",
+              "backend",
+              "postgres"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recipes",
+          "locks",
+          "toolchain_refs",
+          "base_image_refs",
+          "descriptor",
+          "compose",
+          "runtime_contract_ref",
+          "config_schema",
+          "migrations",
+          "acceptance_assets_ref"
+        ],
+        "title": "BuildDefinition"
+      },
+      "BuildExecutionArtifact": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "frontend",
+              "backend",
+              "postgres"
+            ],
+            "title": "Role"
+          },
+          "storage_id": {
+            "type": "string",
+            "pattern": "^oci-[0-9a-f]{64}$",
+            "title": "Storage Id"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          },
+          "config_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Digest"
+          },
+          "loaded_image_id": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Loaded Image Id"
+          },
+          "docker_identity_kind": {
+            "type": "string",
+            "enum": [
+              "oci_config",
+              "oci_manifest"
+            ],
+            "title": "Docker Identity Kind",
+            "default": "oci_config"
+          },
+          "platform": {
+            "type": "string",
+            "const": "linux/amd64",
+            "title": "Platform",
+            "default": "linux/amd64"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "storage_id",
+          "manifest_digest",
+          "config_digest",
+          "loaded_image_id"
+        ],
+        "title": "BuildExecutionArtifact",
+        "description": "Trusted exporter/loader inspection, separately compared with retained OCI."
+      },
+      "BuildExecutionObservation": {
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Observation Id"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "build_input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Build Input Digest"
+          },
+          "executor_instance_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance Id"
+          },
+          "executor_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Executor Generation"
+          },
+          "previous_observation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Observation Id"
+          },
+          "closure": {
+            "type": "string",
+            "enum": [
+              "closed_unstarted",
+              "ended_reconciled",
+              "safely_stopped",
+              "running",
+              "unknown"
+            ],
+            "title": "Closure"
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 255.0,
+                "minimum": -255.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Code"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/BuildExecutionArtifact"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Artifacts",
+            "default": []
+          },
+          "method_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observation_id",
+          "operation_id",
+          "request_digest",
+          "build_input_digest",
+          "executor_instance_id",
+          "executor_generation",
+          "closure",
+          "method_ref",
+          "observed_at"
+        ],
+        "title": "BuildExecutionObservation",
+        "description": "Internal trusted-producer protocol, never an HTTP request or a passed flag."
+      },
+      "BuildFileInput": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "controlled_recipe"
+            ],
+            "title": "Origin",
+            "default": "candidate"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "digest"
+        ],
+        "title": "BuildFileInput",
+        "description": "A relative file in the candidate or the controlled recipe bundle."
+      },
+      "BuildFixedInputs": {
+        "properties": {
+          "source_input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "source_input_set": {
+            "$ref": "#/components/schemas/InputSet"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/CandidateSnapshot"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/BuildDefinition"
+          },
+          "input_set": {
+            "$ref": "#/components/schemas/InputSet"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_input_set_ref",
+          "source_input_set",
+          "candidate",
+          "definition",
+          "input_set"
+        ],
+        "title": "BuildFixedInputs"
+      },
+      "BuildObservationRegistration": {
+        "properties": {
+          "observation": {
+            "$ref": "#/components/schemas/BuildExecutionObservation"
+          },
+          "applicable": {
+            "type": "boolean",
+            "title": "Applicable"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observation",
+          "applicable"
+        ],
+        "title": "BuildObservationRegistration"
+      },
+      "BuildRunRecord": {
+        "properties": {
+          "build_run_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Build Run Id"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "accepted_task_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Accepted Task Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "fixed_inputs": {
+            "$ref": "#/components/schemas/BuildFixedInputs"
+          },
+          "build_input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Build Input Digest"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "build_run_id",
+          "operation_id",
+          "command_id",
+          "project_id",
+          "task_id",
+          "accepted_task_version",
+          "control_revision",
+          "input_validity_revision",
+          "request_digest",
+          "fixed_inputs",
+          "build_input_digest",
+          "accepted_at"
+        ],
+        "title": "BuildRunRecord"
+      },
+      "BuildView": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/BuildRunRecord"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "running",
+              "failed",
+              "succeeded",
+              "unknown"
+            ],
+            "title": "State"
+          },
+          "content_verified": {
+            "type": "boolean",
+            "title": "Content Verified",
+            "default": false
+          },
+          "content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildContentRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildObservationRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "record",
+          "state"
+        ],
+        "title": "BuildView"
+      },
       "CancelTaskRequest": {
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "cancel_reason": {
@@ -2640,8 +5319,8 @@
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           }
         },
@@ -2655,6 +5334,129 @@
           "control_revision"
         ],
         "title": "CancellationIntent"
+      },
+      "CandidateFreezeReceipt": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-candidate-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-candidate-r1"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/CandidateSnapshot"
+          },
+          "materialization_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Materialization Operation Id"
+          },
+          "runtime_scope_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Runtime Scope Id"
+          },
+          "writer_scope_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Writer Scope Digest"
+          },
+          "file_count": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 0.0,
+            "title": "File Count"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "maximum": 67108864.0,
+            "minimum": 0.0,
+            "title": "Total Bytes"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "request_digest",
+          "snapshot",
+          "materialization_operation_id",
+          "runtime_scope_id",
+          "writer_scope_digest",
+          "file_count",
+          "total_bytes",
+          "observed_at"
+        ],
+        "title": "CandidateFreezeReceipt"
+      },
+      "CandidateSnapshot": {
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          },
+          "candidate_commit": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+            "title": "Candidate Commit"
+          },
+          "parent_commit": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+            "title": "Parent Commit"
+          },
+          "freeze_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Freeze Operation Id"
+          },
+          "storage_id": {
+            "type": "string",
+            "pattern": "^[a-z]+-[0-9a-f]{64}$",
+            "title": "Storage Id"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding",
+          "candidate_id",
+          "candidate_commit",
+          "parent_commit",
+          "freeze_operation_id",
+          "storage_id",
+          "manifest_digest"
+        ],
+        "title": "CandidateSnapshot"
       },
       "CommandEnvelope": {
         "properties": {
@@ -2713,8 +5515,8 @@
           },
           "expected_resource_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Resource Revision"
           },
           "references": {
@@ -2763,20 +5565,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           }
         },
@@ -2808,8 +5610,8 @@
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "required_check_ids": {
@@ -2851,12 +5653,53 @@
         ],
         "title": "CompletionBasis"
       },
+      "CreateReferenceTaskRequest": {
+        "properties": {
+          "source_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Operation Id"
+          },
+          "expected_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Project Revision"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/TaskBudget"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_operation_id",
+          "expected_project_revision",
+          "title",
+          "goal",
+          "budget"
+        ],
+        "title": "CreateReferenceTaskRequest"
+      },
       "CreateTaskRequest": {
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "declaration": {
@@ -2870,6 +5713,59 @@
           "declaration"
         ],
         "title": "CreateTaskRequest"
+      },
+      "CreateWorkspaceRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "kind": {
+            "type": "string",
+            "const": "create",
+            "title": "Kind",
+            "default": "create"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref"
+        ],
+        "title": "CreateWorkspaceRequest"
       },
       "CurrentIdentity": {
         "properties": {
@@ -3018,18 +5914,63 @@
         ],
         "title": "EngineeringRef"
       },
+      "GitSourceRecord": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-records-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-records-r1"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RegisteredGitSource"
+          },
+          "source_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Digest"
+          },
+          "registered_by_command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Registered By Command Id"
+          },
+          "authorization_decision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Authorization Decision Id"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registered At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "source_digest",
+          "registered_by_command_id",
+          "authorization_decision_id",
+          "registered_at"
+        ],
+        "title": "GitSourceRecord"
+      },
       "GrantProjectRoleRequest": {
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "expected_permission_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Permission Revision"
           },
           "user_id": {
@@ -3191,6 +6132,72 @@
         ],
         "title": "HumanTestCompletionFact"
       },
+      "ImportReferenceSourceRequest": {
+        "properties": {
+          "expected_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Project Revision"
+          },
+          "reference_revision": {
+            "type": "string",
+            "const": "p0-reference-input-set-r1",
+            "title": "Reference Revision",
+            "default": "p0-reference-input-set-r1"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_project_revision"
+        ],
+        "title": "ImportReferenceSourceRequest"
+      },
+      "InputSet": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "input_set_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Input Set Id"
+          },
+          "canonicalization": {
+            "type": "string",
+            "const": "rfc8785-reference-set-r1",
+            "title": "Canonicalization",
+            "default": "rfc8785-reference-set-r1"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "References"
+          },
+          "set_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Set Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "input_set_id",
+          "references",
+          "set_digest"
+        ],
+        "title": "InputSet"
+      },
       "Liveness": {
         "properties": {
           "status": {
@@ -3203,6 +6210,202 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Liveness"
+      },
+      "MaterializeWorkspaceRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "kind": {
+            "type": "string",
+            "const": "materialize",
+            "title": "Kind",
+            "default": "materialize"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation"
+        ],
+        "title": "MaterializeWorkspaceRequest"
+      },
+      "MutateWorkspaceFileRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "kind": {
+            "type": "string",
+            "const": "mutate",
+            "title": "Kind",
+            "default": "mutate"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "write",
+              "delete"
+            ],
+            "title": "Action"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "expected_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Expected Manifest Digest"
+          },
+          "expected_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "replacement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation",
+          "action",
+          "path",
+          "expected_manifest_digest",
+          "expected_file",
+          "replacement"
+        ],
+        "title": "MutateWorkspaceFileRequest",
+        "description": "Only content identity is durable; trusted ingress stages the actual bytes."
+      },
+      "PhysicalCandidateRecord": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-records-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-records-r1"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/CandidateSnapshot"
+          },
+          "snapshot_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Snapshot Digest"
+          },
+          "created_by_command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Created By Command Id"
+          },
+          "authorization_decision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Authorization Decision Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "snapshot",
+          "snapshot_digest",
+          "created_by_command_id",
+          "authorization_decision_id",
+          "created_at"
+        ],
+        "title": "PhysicalCandidateRecord"
       },
       "Principal": {
         "properties": {
@@ -3358,20 +6561,20 @@
           },
           "revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Revision"
           },
           "permission_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Permission Revision"
           },
           "policy_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Policy Revision"
           }
         },
@@ -3391,14 +6594,14 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "purpose": {
@@ -3420,12 +6623,104 @@
         "title": "ReconcileTaskRequest",
         "description": "Reinspect existing facts; this does not authorize new physical operations."
       },
+      "ReferenceTaskResult": {
+        "properties": {
+          "task": {
+            "$ref": "#/components/schemas/TaskCommandResult"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task",
+          "input_set_ref"
+        ],
+        "title": "ReferenceTaskResult"
+      },
+      "RegisteredGitSource": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-git-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-git-r1"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "source_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Id"
+          },
+          "source_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Source Revision"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "managed_bare",
+              "external"
+            ],
+            "title": "Kind"
+          },
+          "target_branch": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 12,
+            "title": "Target Branch"
+          },
+          "source_prefix": {
+            "type": "string",
+            "title": "Source Prefix",
+            "default": ""
+          },
+          "object_format": {
+            "type": "string",
+            "enum": [
+              "sha1",
+              "sha256"
+            ],
+            "title": "Object Format"
+          },
+          "access_mode": {
+            "type": "string",
+            "enum": [
+              "read_only",
+              "read_write"
+            ],
+            "title": "Access Mode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "source_id",
+          "source_revision",
+          "kind",
+          "target_branch",
+          "object_format",
+          "access_mode"
+        ],
+        "title": "RegisteredGitSource"
+      },
       "RenameProjectRequest": {
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "name": {
@@ -3442,6 +6737,51 @@
           "name"
         ],
         "title": "RenameProjectRequest"
+      },
+      "RequestBuildRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/BuildDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "candidate_id",
+          "input_set_ref",
+          "definition"
+        ],
+        "title": "RequestBuildRequest"
       },
       "ResourceScope": {
         "properties": {
@@ -3477,14 +6817,14 @@
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "expected_permission_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Permission Revision"
           },
           "binding_id": {
@@ -3595,8 +6935,8 @@
           },
           "revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Revision"
           },
           "revoked": {
@@ -3617,24 +6957,215 @@
         ],
         "title": "RoleBindingView"
       },
+      "SourceImportCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Project Revision"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RegisteredGitSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "project_id",
+          "project_revision",
+          "outcome",
+          "code"
+        ],
+        "title": "SourceImportCommandResult"
+      },
+      "SourceImportRegistration": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-source-registration-r1",
+            "title": "Schema Revision",
+            "default": "p1-source-registration-r1"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "receipt_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Receipt Digest"
+          },
+          "source_record": {
+            "$ref": "#/components/schemas/GitSourceRecord"
+          },
+          "source_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "receipt_digest",
+          "source_record",
+          "source_ref"
+        ],
+        "title": "SourceImportRegistration"
+      },
+      "SourceImportView": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "registered"
+            ],
+            "title": "State",
+            "default": "accepted"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "source_import_awaiting_executor",
+              "source_import_registered"
+            ],
+            "title": "Code",
+            "default": "source_import_awaiting_executor"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RegisteredGitSource"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "accepted_project_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Accepted Project Revision"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceImportRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "command_id",
+          "source",
+          "request_digest",
+          "accepted_project_revision",
+          "accepted_at"
+        ],
+        "title": "SourceImportView"
+      },
       "StartTaskRequest": {
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           }
         },
@@ -3646,6 +7177,66 @@
           "expected_input_validity_revision"
         ],
         "title": "StartTaskRequest"
+      },
+      "SubmitWorkspaceCandidateRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "kind": {
+            "type": "string",
+            "const": "candidate",
+            "title": "Kind",
+            "default": "candidate"
+          },
+          "expected_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Expected Manifest Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation",
+          "expected_manifest_digest"
+        ],
+        "title": "SubmitWorkspaceCandidateRequest"
       },
       "TaskBlocker": {
         "properties": {
@@ -3765,20 +7356,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "completion_report_id": {
@@ -3892,14 +7483,14 @@
           },
           "committed_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Committed Version"
           },
           "committed_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Committed Control Revision"
           },
           "committed_at_utc": {
@@ -3953,16 +7544,16 @@
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 9007199254740991,
-                "minimum": 0
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -4114,20 +7705,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "declaration": {
@@ -4213,8 +7804,8 @@
           },
           "revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Revision"
           },
           "state": {
@@ -4275,6 +7866,641 @@
           "goal"
         ],
         "title": "WorkItemView"
+      },
+      "WorkspaceBinding": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Workspace Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "work_item_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item Id"
+          },
+          "owner_user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Owner User Id"
+          },
+          "source_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source Id"
+          },
+          "source_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Source Revision"
+          },
+          "base_commit": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+            "title": "Base Commit"
+          },
+          "workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Workspace Revision"
+          },
+          "write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Write Generation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "project_id",
+          "task_id",
+          "work_item_id",
+          "owner_user_id",
+          "source_id",
+          "source_revision",
+          "base_commit",
+          "workspace_revision",
+          "write_generation"
+        ],
+        "title": "WorkspaceBinding"
+      },
+      "WorkspaceCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "create",
+              "materialize",
+              "mutate",
+              "candidate"
+            ],
+            "title": "Kind"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "accepted",
+              "rejected"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          },
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceBinding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "task_id",
+          "kind",
+          "outcome",
+          "code",
+          "version",
+          "control_revision",
+          "input_validity_revision",
+          "input_set_ref"
+        ],
+        "title": "WorkspaceCommandResult"
+      },
+      "WorkspaceFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "100644",
+              "100755"
+            ],
+            "title": "Mode"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 16777216.0,
+            "minimum": 0.0,
+            "title": "Size Bytes"
+          },
+          "content_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Content Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "mode",
+          "size_bytes",
+          "content_digest"
+        ],
+        "title": "WorkspaceFile"
+      },
+      "WorkspaceFiles": {
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "storage_id": {
+            "type": "string",
+            "pattern": "^[a-z]+-[0-9a-f]{64}$",
+            "title": "Storage Id"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          },
+          "file_count": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 0.0,
+            "title": "File Count"
+          },
+          "total_bytes": {
+            "type": "integer",
+            "maximum": 67108864.0,
+            "minimum": 0.0,
+            "title": "Total Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding",
+          "operation_id",
+          "storage_id",
+          "manifest_digest",
+          "file_count",
+          "total_bytes"
+        ],
+        "title": "WorkspaceFiles",
+        "description": "Immutable receipt for the initial bytes, not current mutable view evidence."
+      },
+      "WorkspaceMutationReceipt": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-file-operation-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-file-operation-r1"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "materialization_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Materialization Operation Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "write",
+              "delete"
+            ],
+            "title": "Action"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "not_applied"
+            ],
+            "title": "Outcome"
+          },
+          "before_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "after_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceFile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Before Manifest Digest"
+          },
+          "after_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "After Manifest Digest"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "request_digest",
+          "binding",
+          "materialization_operation_id",
+          "action",
+          "path",
+          "outcome",
+          "before_file",
+          "after_file",
+          "before_manifest_digest",
+          "after_manifest_digest",
+          "observed_at"
+        ],
+        "title": "WorkspaceMutationReceipt"
+      },
+      "WorkspaceMutationUpload": {
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/MutateWorkspaceFileRequest"
+          },
+          "content_utf8": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32768
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Utf8"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request"
+        ],
+        "title": "WorkspaceMutationUpload"
+      },
+      "WorkspaceOperationRegistration": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "receipt_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Receipt Digest"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceFiles"
+              },
+              {
+                "$ref": "#/components/schemas/WorkspaceMutationReceipt"
+              },
+              {
+                "$ref": "#/components/schemas/CandidateFreezeReceipt"
+              }
+            ],
+            "title": "Receipt"
+          },
+          "applicable": {
+            "type": "boolean",
+            "title": "Applicable"
+          },
+          "binding_after": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "registered_task_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Registered Task Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "request_digest",
+          "receipt_digest",
+          "receipt",
+          "applicable",
+          "binding_after",
+          "registered_task_version"
+        ],
+        "title": "WorkspaceOperationRegistration"
+      },
+      "WorkspaceOperationView": {
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/WorkspaceCommandResult"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "registered"
+            ],
+            "title": "State"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceOperationRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result",
+          "accepted_at",
+          "state"
+        ],
+        "title": "WorkspaceOperationView"
+      },
+      "WorkspaceRecord": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-records-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-records-r1"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "binding_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Binding Digest"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceFiles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "files_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files Digest"
+          },
+          "created_by_command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Created By Command Id"
+          },
+          "authorization_decision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Authorization Decision Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding",
+          "binding_digest",
+          "created_by_command_id",
+          "authorization_decision_id",
+          "created_at"
+        ],
+        "title": "WorkspaceRecord"
+      },
+      "WorkspaceView": {
+        "properties": {
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceRecord"
+          },
+          "task_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Task Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "work_item_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Work Item Revision"
+          },
+          "work_item_state": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item State"
+          },
+          "pending_operation_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Pending Operation Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "workspace",
+          "task_version",
+          "control_revision",
+          "input_validity_revision",
+          "work_item_revision",
+          "work_item_state",
+          "pending_operation_ids"
+        ],
+        "title": "WorkspaceView"
       }
     },
     "securitySchemes": {

@@ -71,7 +71,22 @@ workspaces = Table(
         "(files_json IS NOT NULL AND files_digest IS NOT NULL AND materialization_operation_id IS NOT NULL "
         "AND storage_id IS NOT NULL AND files_digest ~ '^sha256:[0-9a-f]{64}$' "
         "AND jsonb_typeof(files_json) = 'object' AND octet_length(files_json::text) <= 32768 "
-        "AND (files_json -> 'binding') IS NOT DISTINCT FROM binding_json "
+        "AND (files_json #>> '{binding,workspace_id}') IS NOT DISTINCT FROM workspace_id "
+        "AND (files_json #>> '{binding,project_id}') IS NOT DISTINCT FROM project_id "
+        "AND (files_json #>> '{binding,task_id}') IS NOT DISTINCT FROM task_id "
+        "AND (files_json #>> '{binding,work_item_id}') IS NOT DISTINCT FROM work_item_id "
+        "AND (files_json #>> '{binding,owner_user_id}') IS NOT DISTINCT FROM owner_user_id "
+        "AND (files_json #>> '{binding,source_id}') IS NOT DISTINCT FROM source_id "
+        "AND (files_json #>> '{binding,source_revision}') IS NOT DISTINCT FROM source_revision::text "
+        "AND (files_json #>> '{binding,base_commit}') IS NOT DISTINCT FROM base_commit "
+        "AND CASE WHEN jsonb_typeof(files_json #> '{binding,workspace_revision}') = 'number' "
+        "AND (files_json #>> '{binding,workspace_revision}') ~ '^(0|[1-9][0-9]{0,15})$' "
+        "THEN (files_json #>> '{binding,workspace_revision}')::numeric BETWEEN 0 AND workspace_revision "
+        "ELSE false END "
+        "AND CASE WHEN jsonb_typeof(files_json #> '{binding,write_generation}') = 'number' "
+        "AND (files_json #>> '{binding,write_generation}') ~ '^(0|[1-9][0-9]{0,15})$' "
+        "THEN (files_json #>> '{binding,write_generation}')::numeric BETWEEN 0 AND write_generation "
+        "ELSE false END "
         "AND (files_json ->> 'operation_id') IS NOT DISTINCT FROM materialization_operation_id "
         "AND (files_json ->> 'storage_id') IS NOT DISTINCT FROM storage_id)",
         name="files_receipt_complete",
@@ -102,6 +117,7 @@ workspace_candidates = Table(
     Column("authorization_decision_id", String(160),
            ForeignKey("cloudhelm.audit_records.decision_id", name="fk_candidates_authorization"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    UniqueConstraint("candidate_id", "project_id", "task_id", name="uq_candidate_task_owner"),
     ForeignKeyConstraint(
         ["workspace_id", "project_id", "task_id", "work_item_id", "owner_user_id", "source_id", "source_revision"],
         ["cloudhelm.workspaces.workspace_id", "cloudhelm.workspaces.project_id", "cloudhelm.workspaces.task_id",
