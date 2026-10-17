@@ -6,6 +6,14 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 已完成 Hub 基
 
 任务级 [PROJECT_PLAN.md](PROJECT_PLAN.md) 修订 14 已按本轮用户授权继续 P1.2-01～02；用户暂时全部使用 s2413 的选择保留，正式独立目标仍属 P1.4/P1 出口前置。以下按记录列出实际工作，较早条目的“下一步”和阻塞描述保留当时状态，以最新记录为准。
 
+## 2026-10-17 · school-docs 本地目录忽略
+
+- 已完成：根目录 `.gitignore` 新增 `/school-docs/`，忽略该目录及其内容；修改前确认目录尚未被 Git 跟踪。
+- 进行中：无；阻塞与风险：无。
+- 主要文件：`.gitignore`、`PROJECT_PROGRESS.md`。
+- 验证：`git check-ignore -v -- school-docs/ school-docs/ignore-rule-probe.txt` 均命中新增规则，`git status` 不再列出该未跟踪目录，`git diff --check -- .gitignore` 通过。仅核对 Git 忽略规则，未运行业务测试。
+- 下一步：等待用户后续任务。
+
 ## 2026-10-15 · P1.2 接续实施（进行中）
 
 ### 已完成

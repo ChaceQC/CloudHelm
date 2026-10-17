@@ -1,6 +1,9 @@
 # Local thesis workspace, including generated renders, images, and scripts.
 /.thesis-work/
 
+# Local school documents.
+/school-docs/
+
 # Environment files: keep explicitly named templates and examples trackable.
 **/.env
 **/.env.*
