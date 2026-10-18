@@ -1343,4 +1343,3 @@ class WorkspaceDevelopmentRuntime:
         fixed = ("workspace_id", "project_id", "task_id", "work_item_id", "owner_user_id",
                  "source_id", "source_revision", "base_commit")
         return all(getattr(left, field) == getattr(right, field) for field in fixed)
-

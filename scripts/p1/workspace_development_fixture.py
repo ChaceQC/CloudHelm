@@ -267,5 +267,3 @@ print(json.dumps({'status':201,'id':value['id']},separators=(',',':')))
     require(value == {"status": 201, "id": value.get("id")} and type(value.get("id")) is int,
             "workspace_development_http_note_not_created")
     return value
-
-
