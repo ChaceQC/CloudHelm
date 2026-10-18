@@ -35,11 +35,16 @@ def _cached_runtime_check(output: str) -> bool:
 
 
 class BackendBuildRuntime(BackendBuildBoundary):
-    def _arguments(self, manifest_digest: str) -> list[str]:
+    def _arguments(self, manifest_digest: str, *, context_name: str | None = None) -> list[str]:
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", manifest_digest):
             raise ProbeFailure("backend_base_manifest_invalid")
+        context = "/probe/context"
+        if context_name is not None:
+            if not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", context_name):
+                raise ProbeFailure("backend_source_context_name_invalid")
+            context += "/" + context_name
         return ["buildctl", "--addr", SOCKET, "build", "--frontend=dockerfile.v0",
-            "--local=context=/probe/context", "--local=dockerfile=/probe/context",
+            "--local=context=" + context, "--local=dockerfile=" + context,
             "--local=pythonseed=/probe/python-seed", "--opt=context:pythonseed=local:pythonseed",
             "--oci-layout=python=/probe/base", "--opt=context:pythonbase=oci-layout://python@" + manifest_digest,
             "--opt=platform=linux/amd64", "--progress=plain"]
@@ -60,11 +65,12 @@ class BackendBuildRuntime(BackendBuildBoundary):
         self._observe_processes()
         return output
 
-    def build(self, base_manifest_digest: str, *, input_key: str, collect: bool = True) -> dict:
+    def build(self, base_manifest_digest: str, *, input_key: str, collect: bool = True,
+              context_name: str | None = None) -> dict:
         """Inputs/context are fixed by the admitted internal caller before create()."""
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", input_key):
             raise ProbeFailure("backend_build_input_key_invalid")
-        arguments = self._arguments(base_manifest_digest) + ["--opt=target=runtime",
+        arguments = self._arguments(base_manifest_digest, context_name=context_name) + ["--opt=target=runtime",
             "--opt=build-arg:CLOUDHELM_BUILD_INPUT_KEY=" + input_key,
             "--output=type=oci,dest=/probe/output/image.oci.tar,oci-mediatypes=true,compression=gzip,force-compression=true",
             "--metadata-file=/probe/output/build-metadata.json"]
@@ -101,8 +107,10 @@ class BackendBuildRuntime(BackendBuildBoundary):
             result["archive_path"] = str(target)
         return result
 
-    def dependency_evidence(self, base_manifest_digest: str, distributions: dict, *, source_files=None) -> dict:
-        output = self._run_build(self._arguments(base_manifest_digest) + ["--opt=target=verification",
+    def dependency_evidence(self, base_manifest_digest: str, distributions: dict, *, source_files=None,
+                            context_name: str | None = None) -> dict:
+        output = self._run_build(self._arguments(base_manifest_digest, context_name=context_name)
+            + ["--opt=target=verification",
             "--output=type=local,dest=/probe/output/verification"])
         raw = self.execute("cat", "/probe/output/verification/dependency-result.json").stdout
         if len(raw) > 65536:

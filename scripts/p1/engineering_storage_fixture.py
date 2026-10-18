@@ -21,8 +21,12 @@ def main():
     parser.add_argument("--capacity-bytes", type=int, default=8 * 1024**3)
     parser.add_argument("--port", type=int, default=55439)
     parser.add_argument("--through-candidate", action="store_true")
+    parser.add_argument("--method", choices=("engineering", "workspace-development", "task-control"),
+                        default="engineering")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
+    if args.through_candidate and args.method != "engineering":
+        parser.error("--through-candidate only applies to the engineering method")
     if (os.name != "posix" or os.getuid() != 0 or os.environ.get("WSL_DISTRO_NAME") != "Ubuntu-24.04"
             or ROOT != Path("/mnt/e/Project/CloudHelm")):
         print(json.dumps({"status": "failed", "failure_code": "engineering_root_wsl_maintenance_required"}))
@@ -31,7 +35,8 @@ def main():
     created = None
     child_started = False
     environment_group = None
-    report = {"status": "failed", "storage_cleanup": "not_started", "human_acceptance": None}
+    report = {"status": "failed", "storage_cleanup": "not_started", "human_acceptance": None,
+              "method_kind": args.method}
     try:
         groups = importlib.import_module("services.dev-runner.artifact_environment_docker")
         groups.enter_docker_mount_namespace("scripts.p1.engineering_storage_fixture", sys.argv[1:])
@@ -42,10 +47,13 @@ def main():
             environment_group = groups.EnvironmentGroup(identity)
             report["environment_parent_prepared"] = environment_group.prepare_unit()
             report["environment_parent_scope"] = "three services, migration and container helpers; HTTP/Hub/DBOS are platform overhead"
+        module = {"engineering": "scripts.p1.check_engineering",
+                  "workspace-development": "scripts.p1.check_workspace_development",
+                  "task-control": "scripts.p1.check_engineering_task_control"}[args.method]
         arguments = ["/usr/sbin/runuser", "-u", "cloudhelm", "--", "/usr/bin/env",
             "PYTHONUTF8=1", "PYTHONIOENCODING=utf-8", "PYTHONDONTWRITEBYTECODE=1",
             "WSL_DISTRO_NAME=Ubuntu-24.04", str(ROOT / ".venv/bin/python"), "-B", "-m",
-            "scripts.p1.check_engineering", "--storage-id", identity,
+            module, "--storage-id", identity,
             "--storage-revision", created["registration"]["instance_revision"], "--port", str(args.port)]
         arguments += ["--development"] if args.development else ["--input-set", args.input_set]
         if args.through_candidate:

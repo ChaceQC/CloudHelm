@@ -42,6 +42,15 @@ def digest(raw: bytes) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
+def _source_receipt(source_files: Mapping[str, bytes]) -> dict:
+    actual = {name: digest(raw) for name, raw in source_files.items()}
+    files = {name: {"sha256": actual[name], "bytes": len(source_files[name])}
+             for name in sorted(source_files)}
+    manifest = json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {"files": files, "manifest_digest": digest(manifest), "file_count": len(files),
+            "bytes": sum(map(len, source_files.values()))}
+
+
 def verify_source(source_files: Mapping[str, bytes]) -> dict:
     if (not isinstance(source_files, Mapping) or set(source_files) != set(SOURCE_DIGESTS)
             or any(type(raw) is not bytes or len(raw) > MAX_SOURCE_FILE_BYTES for raw in source_files.values())):
@@ -49,10 +58,7 @@ def verify_source(source_files: Mapping[str, bytes]) -> dict:
     actual = {name: digest(raw) for name, raw in source_files.items()}
     if actual != SOURCE_DIGESTS:
         raise ProbeFailure("backend_fixed_source_digest_mismatch")
-    files = {name: {"sha256": actual[name], "bytes": len(source_files[name])} for name in sorted(source_files)}
-    manifest = json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return {"files": files, "manifest_digest": digest(manifest), "file_count": len(files),
-            "bytes": sum(map(len, source_files.values()))}
+    return _source_receipt(source_files)
 
 
 def _read_fixed(path: Path) -> bytes:
@@ -85,17 +91,28 @@ def reference_inputs(source_root: Path = BACKEND) -> dict[str, bytes]:
     return source_files
 
 
-def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, source_ref: str,
-                    distributions: Mapping[str, str]) -> dict:
-    """Internal service boundary, after source/candidate authorization and admission."""
-    source = dict(source_files)
-    receipt = verify_source(source)
+def _write_context(directory: Path, source: Mapping[str, bytes], receipt: dict, *, source_ref: str,
+                   distributions: Mapping[str, str], context_name: str | None = None,
+                   seal_bundle: bool = True) -> dict:
     if not isinstance(source_ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,191}", source_ref):
         raise ProbeFailure("backend_source_reference_invalid")
+    if context_name is not None and not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", context_name):
+        raise ProbeFailure("backend_source_context_name_invalid")
     private_directory(directory)
     recipe = _read_fixed(RECIPE)
-    context = directory / "context"
-    context.mkdir(mode=0o700)
+    bundle = directory / "context"
+    if context_name is None:
+        context = bundle
+        context.mkdir(mode=0o700)
+    else:
+        if bundle.exists() or bundle.is_symlink():
+            state = bundle.lstat()
+            if not stat.S_ISDIR(state.st_mode) or state.st_uid != os.getuid():
+                raise ProbeFailure("backend_source_context_bundle_invalid")
+        else:
+            bundle.mkdir(mode=0o700)
+        context = bundle / context_name
+        context.mkdir(mode=0o700)
     files = source | {"Dockerfile": recipe, "derived-pyproject.toml": derived_project(source),
         "expected-distributions.json": json.dumps(dict(distributions), sort_keys=True).encode("utf-8")}
     for name, raw in files.items():
@@ -110,8 +127,35 @@ def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, sourc
         if child.is_dir():
             child.chmod(0o500)
     context.chmod(0o500)
+    if context_name is None or seal_bundle:
+        bundle.chmod(0o500)
     return receipt | {"source_ref": source_ref, "recipe_digest": digest(recipe),
         "recipe_variant": "fixed-notes-python-offline-r2", "derived_project_digest": digest(derived_project(source))}
+
+
+def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, source_ref: str,
+                    distributions: Mapping[str, str], context_name: str | None = None,
+                    seal_bundle: bool = True) -> dict:
+    """Prepare a strictly fixed candidate; optional names isolate method contexts."""
+    source = dict(source_files)
+    receipt = verify_source(source)
+    return _write_context(directory, source, receipt, source_ref=source_ref,
+                          distributions=distributions, context_name=context_name,
+                          seal_bundle=seal_bundle)
+
+
+def seal_context_bundle(directory: Path) -> None:
+    """Seal all method contexts before the trusted builder pins its read-only bind."""
+    bundle = directory / "context"
+    if bundle.is_symlink() or not bundle.is_dir():
+        raise ProbeFailure("backend_source_context_bundle_invalid")
+    entries = [bundle, *bundle.rglob("*")]
+    for entry in entries:
+        state = entry.lstat()
+        if (state.st_uid != os.getuid() or not (stat.S_ISDIR(state.st_mode) or stat.S_ISREG(state.st_mode))
+                or (entry != bundle and state.st_mode & 0o222)):
+            raise ProbeFailure("backend_source_context_member_invalid")
+    bundle.chmod(0o500)
 
 
 def build_input_key(source: dict, seed: dict, base_manifest_digest: str, *, generation: str = "primary") -> str:
