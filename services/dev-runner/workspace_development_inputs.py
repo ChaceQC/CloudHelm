@@ -21,6 +21,7 @@ METHOD = "p1-workspace-python-dependencies-r1"
 PLATFORM = "linux/amd64"
 PYTHON_VERSION = "3.12.13"
 UV_VERSION = "0.11.29"
+INSTALL_RECIPE = "linux-amd64-wheelhouse-r3"
 MAX_CONTROL_FILE_BYTES = 128 * 1024
 BACKEND_ROOT = "backend"
 LOCK_COMMENT_VARIANT = b"# CloudHelm fixed dependency lock comment variant: p1-workspace-python-r1\n"
@@ -30,7 +31,7 @@ WORKSPACE_INSTALL_ENVIRONMENT = tuple(sorted({
     "LC_ALL": "C.UTF-8",
     "HOME": "/tmp",
     "TMPDIR": "/tmp",
-    "UV_CACHE_DIR": "/private-cache",
+    "UV_CACHE_DIR": "/private-cache/cache",
     "UV_PROJECT_ENVIRONMENT": "/environment",
     "UV_PYTHON_DOWNLOADS": "never",
     "UV_KEYRING_PROVIDER": "disabled",
@@ -94,7 +95,7 @@ class WorkspaceDependencyInputs:
     environment_key: str
 
     def identity(self) -> dict:
-        return {"schema_revision": "p1-workspace-python-dependencies-r1",
+        return {"schema_revision": "p1-workspace-python-dependencies-r1", "installation_recipe": INSTALL_RECIPE,
             "project_id": self.project_id, "workspace_id": self.workspace_id,
             "workspace_key": self.workspace_key, "trust_domain": "p0-controlled-reference",
             "dependency_project": "cloudhelm-reference-notes", "project_name": self.project_name,
@@ -186,10 +187,10 @@ def validate_workspace_dependency_inputs(binding: WorkspaceBinding, source_files
     lock_digest = content_digest(lock_bytes)
     python_pin_digest = content_digest(python_pin_bytes)
     workspace_key = hashlib.sha256(rfc8785.dumps([binding.project_id, binding.workspace_id])).hexdigest()
-    install_arguments = tuple(dependency_input.install_arguments) + ("--no-cache",)
+    install_arguments = tuple(dependency_input.install_arguments)
     install_environment = WORKSPACE_INSTALL_ENVIRONMENT
     install_workdir = WORKSPACE_INSTALL_WORKDIR
-    identity = {"schema_revision": "p1-workspace-python-dependencies-r1",
+    identity = {"schema_revision": "p1-workspace-python-dependencies-r1", "installation_recipe": INSTALL_RECIPE,
         "project_id": binding.project_id, "workspace_id": binding.workspace_id,
         "workspace_key": workspace_key, "trust_domain": dependency_input.trust_domain,
         "dependency_project": dependency_input.project,

@@ -8,7 +8,9 @@ import os
 import posixpath
 import re
 import stat
+import subprocess
 import tarfile
+import time
 from dataclasses import dataclass
 from email.errors import MessageError
 from email import message_from_bytes
@@ -22,7 +24,7 @@ from packages.contracts.p1.workspace_git import WorkspaceBinding
 
 from . import development_storage, python_dependencies
 from .offline_images import SOURCE_REFERENCE
-from .toolchain import ProbeFailure, private_directory
+from .toolchain import DOCKER, ProbeFailure, private_directory, safe_diagnostic
 from .workspace_development_inputs import (
     METHOD, WORKSPACE_PYTHON_TOOLCHAIN, WorkspaceDependencyInputs, WorkspacePythonToolchain,
     WORKSPACE_INSTALL_ENVIRONMENT, WORKSPACE_INSTALL_WORKDIR,
@@ -31,14 +33,17 @@ from .workspace_development_inputs import (
 
 SCOPE = "cloudhelm-p1-workspace-python-dependencies"
 MEMORY_BYTES, CPU_QUOTA, CPU_PERIOD, PIDS_LIMIT = 768 * 1024**2, 150000, 100000, 128
-ENVIRONMENT_BYTES, TOOL_EXEC_BYTES = 384 * 1024**2, 32 * 1024**2
+ENVIRONMENT_BYTES, TOOL_EXEC_BYTES = 384 * 1024**2, 80 * 1024**2
 INSTALL_CACHE_BYTES, INSTALL_TEMP_BYTES, OUTPUT_BYTES, SHM_BYTES = (
-    32 * 1024**2, 32 * 1024**2, 192 * 1024**2, 8 * 1024**2)
-WORKSPACE_SYNC_ARGUMENTS = tuple(python_dependencies.SYNC_ARGUMENTS) + ("--no-cache",)
+    256 * 1024**2, 64 * 1024**2, 192 * 1024**2, 8 * 1024**2)
+WORKSPACE_SYNC_ARGUMENTS = tuple(python_dependencies.SYNC_ARGUMENTS)
 MAX_ARCHIVE_BYTES, MAX_ENVIRONMENT_BYTES, MAX_ARCHIVE_MEMBERS = OUTPUT_BYTES, ENVIRONMENT_BYTES, 100000
 MAX_METADATA_BYTES = 1024**2
 ARCHIVE_NAME = "dependencies.tar.gz"
 EXPECTED_TOP_LEVEL = {"bin", "lib", "pyvenv.cfg"}
+INSTALL_TMPFS_BYTES = {"/environment": ENVIRONMENT_BYTES, "/probe/tooling": TOOL_EXEC_BYTES,
+    "/private-cache": INSTALL_CACHE_BYTES, "/tmp": INSTALL_TEMP_BYTES,
+    "/probe/output": OUTPUT_BYTES, "/dev/shm": SHM_BYTES}
 ABSOLUTE_PYTHON_LINKS = {
     "/usr/local/bin/python", "/usr/local/bin/python3", "/usr/local/bin/python3.12",
 }
@@ -57,7 +62,7 @@ CHECK_DISTRIBUTIONS = (
 )
 
 CONTAINER_SCRIPT = r'''
-import hashlib, json, os, shutil, stat, subprocess, sys, tarfile
+import hashlib, json, os, shutil, stat, subprocess, sys, tarfile, tomllib, time
 SYNC = %s
 CHECK = %s
 MAX_ARCHIVE = %d
@@ -66,10 +71,23 @@ MAX_MEMBERS = %d
 ABSOLUTE_LINKS = %s
 INSTALL_ENVIRONMENT = %s
 INSTALL_WORKDIR = %s
+TMPFS_LIMITS = %s
 
 def fail(code):
     print("CLOUDHELM_WORKSPACE_DEPENDENCIES=" + code, flush=True)
     raise SystemExit(1)
+
+mounts = {}
+for line in open("/proc/self/mountinfo", encoding="utf-8"):
+    parts = line.split(); split = parts.index("-")
+    mounts[parts[4]] = parts[split + 1]
+kernel_tmpfs = {}
+for path, maximum in TMPFS_LIMITS.items():
+    state = os.statvfs(path)
+    size = state.f_blocks * state.f_frsize
+    if mounts.get(path) != "tmpfs" or not 0 < size <= maximum or state.f_flag & os.ST_RDONLY:
+        fail("kernel_tmpfs_boundary_mismatch")
+    kernel_tmpfs[path] = size
 
 def safe_link(name, target):
     if target in ABSOLUTE_LINKS and name in {"bin/python", "bin/python3", "bin/python3.12"}:
@@ -102,12 +120,12 @@ def add_tree(archive, root):
                 pending.append((name + "/", entry.path))
             elif stat.S_ISREG(info.st_mode):
                 mode = stat.S_IMODE(info.st_mode)
-                if mode not in {0o644, 0o755}:
+                if mode & 0o7000:
                     fail("archive_file_mode_invalid")
                 total += info.st_size
                 if total > MAX_BYTES:
                     fail("archive_unpacked_size_limit")
-                item.size, item.mode = info.st_size, mode
+                item.size, item.mode = info.st_size, 0o755 if mode & 0o111 else 0o644
                 descriptor = os.open(entry.path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
                 with os.fdopen(descriptor, "rb") as stream:
                     if os.fstat(stream.fileno()).st_ino != info.st_ino:
@@ -135,12 +153,30 @@ if "sha256:" + digest.hexdigest() != uv_digest:
     fail("uv_binary_digest_mismatch")
 version = subprocess.run([uv_path, "--version"], capture_output=True,
     text=True, encoding="utf-8", check=False, timeout=10)
-if version.returncode or version.stdout.strip() != "uv 0.11.29":
+if version.returncode or version.stdout.strip().split()[:2] != ["uv", "0.11.29"]:
     fail("uv_version_mismatch")
-installed = subprocess.run([uv_path, *SYNC], cwd=INSTALL_WORKDIR,
+project = "/private-cache/project"
+os.mkdir(project, 0o700)
+shutil.copyfile("/snapshot/derived-pyproject.toml", project + "/pyproject.toml")
+shutil.copyfile("/snapshot/.python-version", project + "/.python-version")
+locked = subprocess.run([uv_path, "lock", "--offline", "--no-build", "--no-index",
+    "--find-links=/wheelhouse", "--python=/usr/local/bin/python", "--no-python-downloads"],
+    cwd=project, env=INSTALL_ENVIRONMENT, stdin=subprocess.DEVNULL,
+    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding="utf-8", check=False, timeout=60)
+if locked.returncode:
+    print("CLOUDHELM_WORKSPACE_INSTALL_DIAGNOSTIC=" + locked.stderr[-600:].replace("\n", " "), flush=True)
+    fail("offline_lock_failed")
+expected = json.load(open("/snapshot/expected-distributions.json", encoding="utf-8"))
+packages = tomllib.load(open(project + "/uv.lock", "rb"))["package"]
+external = [item for item in packages if item.get("source") != {"virtual": "."}]
+if (len(external) != len(expected) or {item["name"]:item["version"] for item in external} != expected
+    or any(item.get("sdist") or item.get("source") != {"registry":"/wheelhouse"} for item in external)):
+    fail("offline_lock_distribution_drift")
+installed = subprocess.run([uv_path, *SYNC], cwd=project,
     env=INSTALL_ENVIRONMENT, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL, check=False, timeout=180)
+    stderr=subprocess.PIPE, text=True, encoding="utf-8", check=False, timeout=180)
 if installed.returncode:
+    print("CLOUDHELM_WORKSPACE_INSTALL_DIAGNOSTIC=" + installed.stderr[-600:].replace("\n", " "), flush=True)
     fail("uv_sync_failed")
 checked = subprocess.run(["/environment/bin/python", "-B", "-I", "-c", CHECK],
     stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8",
@@ -170,7 +206,11 @@ print("CLOUDHELM_WORKSPACE_DEPENDENCIES=" + json.dumps({
     "python": "3.12.13", "uv": "0.11.29", "distributions": result["distributions"],
     "psycopg_impl": "binary", "archive_bytes": archive_size,
     "archive_members": members, "archive_unpacked_bytes": unpacked,
+    "kernel_tmpfs_bytes": kernel_tmpfs,
 }, sort_keys=True, separators=(",", ":")), flush=True)
+deadline = time.monotonic() + 120
+while time.monotonic() < deadline:
+    time.sleep(0.2)
 ''' % (
     repr(list(WORKSPACE_SYNC_ARGUMENTS)),
     repr(CHECK_DISTRIBUTIONS),
@@ -180,6 +220,7 @@ print("CLOUDHELM_WORKSPACE_DEPENDENCIES=" + json.dumps({
     repr(sorted(ABSOLUTE_PYTHON_LINKS)),
     repr(dict(WORKSPACE_INSTALL_ENVIRONMENT)),
     repr(WORKSPACE_INSTALL_WORKDIR),
+    repr(INSTALL_TMPFS_BYTES),
 )
 
 
@@ -215,8 +256,8 @@ class WorkspaceDependencyReceipt:
 
 
 class _InstallFailure(ProbeFailure):
-    def __init__(self, category: str, *, safe_to_remove_stage: bool) -> None:
-        super().__init__(category)
+    def __init__(self, category: str, *, safe_to_remove_stage: bool, diagnostic: str = "") -> None:
+        super().__init__(category, detail=diagnostic)
         self.safe_to_remove_stage = safe_to_remove_stage
 
 
@@ -307,6 +348,7 @@ def _verified_uv_binary_digest(seed: Path) -> str:
 
 def _read_snapshot(root: int, inputs: WorkspaceDependencyInputs) -> None:
     expected = {"pyproject.toml": inputs.pyproject_bytes, "uv.lock": inputs.lock_bytes,
+        "derived-pyproject.toml": python_dependencies.derived_project(),
         ".python-version": inputs.python_pin_bytes,
         "expected-distributions.json": _json_bytes(dict(inputs.distributions))}
     with directory_at(root, "inputs") as snapshot:
@@ -398,8 +440,11 @@ def _archive_distributions(archive: tarfile.TarFile, expected: dict[str, str]) -
     if distributions != expected:
         raise ProbeFailure("workspace_python_distribution_set_mismatch")
     config = archive.extractfile("pyvenv.cfg")
-    if (config is None or "version = 3.12.13"
-            not in config.read(4097).decode("utf-8", errors="strict")):
+    values = {} if config is None else dict(
+        (key.strip(), value.strip()) for line in config.read(4097).decode("utf-8", errors="strict").splitlines()
+        if "=" in line for key, value in (line.split("=", 1),)
+    )
+    if values.get("version_info", values.get("version")) != "3.12.13":
         raise ProbeFailure("workspace_python_venv_python_version_mismatch")
     return len(members), unpacked
 
@@ -438,6 +483,7 @@ def _verify_archive(path: Path, expected_digest: str, expected_size: int,
 
 def _write_snapshot(stage_root: int, inputs: WorkspaceDependencyInputs) -> None:
     files = {"pyproject.toml": inputs.pyproject_bytes, "uv.lock": inputs.lock_bytes,
+        "derived-pyproject.toml": python_dependencies.derived_project(),
         ".python-version": inputs.python_pin_bytes,
         "expected-distributions.json": _json_bytes(dict(inputs.distributions))}
     with directory_at(stage_root, "inputs", create=True) as input_root:
@@ -497,15 +543,16 @@ def _validate_container(metadata: dict, *, operation_id: str, workspace_key: str
             and host.get("PidsLimit") == PIDS_LIMIT,
         "privileges": set(host.get("CapDrop") or []) == {"ALL"} and not host.get("CapAdd")
             and not host.get("Devices") and host.get("SecurityOpt") == ["no-new-privileges:true"],
-        "tmpfs": host.get("Tmpfs") == tmpfs and actual_tmpfs == set(tmpfs) | {"/dev/shm"}
-            and host.get("ShmSize") == SHM_BYTES,
+        "tmpfs": host.get("Tmpfs") == tmpfs and host.get("ShmSize") == SHM_BYTES,
         "binds": binds == actual_binds and len(binds) == 3,
         "logs": host.get("LogConfig", {}).get("Type") == "local",
-        "stopped": state.get("Running") is False and state.get("Status") in {"created", "exited"},
+        "running": state.get("Running") is True and state.get("Status") == "running",
     }
     if not all(checks.values()):
         raise ProbeFailure("workspace_python_container_boundary_mismatch",
-            ",".join(name for name, passed in checks.items() if not passed))
+            ",".join(name for name, passed in checks.items() if not passed),
+            json.dumps({"tmpfs": host.get("Tmpfs"), "destinations": sorted(actual_tmpfs),
+                        "shm_bytes": host.get("ShmSize")}) if not checks["tmpfs"] else "")
 
 
 def _container_metadata(client, container_id: str) -> dict:
@@ -536,12 +583,36 @@ def _stop_and_remove(client, container_id: str, operation_id: str, workspace_key
         raise ProbeFailure("workspace_python_container_removal_unconfirmed")
 
 
+def _collect_archive(client, container_id: str, target: Path, expected_size: int) -> None:
+    if type(expected_size) is not int or not 0 < expected_size <= MAX_ARCHIVE_BYTES:
+        raise ProbeFailure("workspace_python_archive_size_invalid")
+    program = (
+        "import os,stat,sys; p='/probe/output/dependencies.tar.gz'; "
+        "fd=os.open(p,os.O_RDONLY|os.O_NOFOLLOW); s=os.fstat(fd); n=int(sys.argv[1]); "
+        "assert stat.S_ISREG(s.st_mode) and s.st_size==n; "
+        "data=os.read(fd,n+1); assert len(data)==n; sys.stdout.buffer.write(data)"
+    )
+    descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        result = subprocess.run([DOCKER, "--host", "unix:///var/run/docker.sock", "exec", container_id,
+            "/usr/local/bin/python", "-B", "-I", "-c", program, str(expected_size)],
+            stdin=subprocess.DEVNULL, stdout=descriptor, stderr=subprocess.PIPE, timeout=90, check=False,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
+                 "DOCKER_CONFIG": str(client.config_directory)})
+        if result.returncode or os.fstat(descriptor).st_size != expected_size:
+            raise ProbeFailure("workspace_python_archive_collection_failed")
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def _run_install(client, *, operation_id: str, workspace_key: str, image_id: str, stage: Path,
                  seed: Path, archive_path: Path, cgroup_parent: str, uv_binary_digest: str) -> dict:
     if _identity_present(client, workspace_key):
         raise _InstallFailure("workspace_python_previous_execution_requires_reconciliation",
                               safe_to_remove_stage=False)
     container_id, failure, unresolved, result = None, None, False, None
+    diagnostic = ""
     try:
         args = ["create", "--name", "cloudhelm-" + operation_id,
             "--label", f"cloudhelm.scope={SCOPE}", "--label", f"cloudhelm.method={METHOD}",
@@ -552,7 +623,7 @@ def _run_install(client, *, operation_id: str, workspace_key: str, image_id: str
             f"--memory-swap={MEMORY_BYTES}", f"--cpu-period={CPU_PERIOD}",
             f"--cpu-quota={CPU_QUOTA}", f"--pids-limit={PIDS_LIMIT}", "--cap-drop=ALL",
             "--security-opt=no-new-privileges:true", "--ipc=private", f"--shm-size={SHM_BYTES}",
-            "--log-driver=local", "--log-opt=max-size=1m", "--log-opt=max-file=1"]
+            "--log-driver=local", "--log-opt=max-size=1m", "--log-opt=max-file=1", "--log-opt=compress=false"]
         for destination, (source, readonly) in _container_mounts(stage, seed).items():
             suffix = ",readonly" if readonly else ""
             args += ["--mount", f"type=bind,src={source},dst={destination}{suffix},bind-propagation=rprivate"]
@@ -563,7 +634,7 @@ def _run_install(client, *, operation_id: str, workspace_key: str, image_id: str
                 ("/tmp", (INSTALL_TEMP_BYTES, "1777", False)),
                 ("/probe/output", (OUTPUT_BYTES, "0700", False))):
             flag = "exec" if execute else "noexec"
-            args += ["--tmpfs", f"{path}:rw,nosuid,nodev,{flag},uid=1000,gid=1000,mode={mode},size={size}"]
+            args += ["--tmpfs", f"{path}:rw,nosuid,nodev,{flag},size={size},uid=1000,gid=1000,mode={mode}"]
         args += ["--workdir=" + WORKSPACE_INSTALL_WORKDIR, "--entrypoint=/usr/local/bin/python", SOURCE_REFERENCE,
                  "-B", "-I", "-c", CONTAINER_SCRIPT, "install", uv_binary_digest]
         created = client.run(*args, timeout=30)
@@ -573,33 +644,39 @@ def _run_install(client, *, operation_id: str, workspace_key: str, image_id: str
         else:
             container_id = candidate
             client.run("start", container_id, timeout=30)
-            waited = client.run("wait", container_id, timeout=210)
-            if waited.stdout.strip() != "0":
-                failure = "workspace_python_install_failed"
-            else:
+            deadline = time.monotonic() + 210
+            while time.monotonic() < deadline:
+                output = client.run("logs", container_id, timeout=20).stdout
+                details = [line.split("=", 1)[1] for line in output.splitlines()
+                           if line.startswith("CLOUDHELM_WORKSPACE_INSTALL_DIAGNOSTIC=")]
+                diagnostic = safe_diagnostic(details[-1]) if details else ""
+                matches = [line.split("=", 1)[1] for line in output.splitlines()
+                           if line.startswith("CLOUDHELM_WORKSPACE_DEPENDENCIES=")]
+                if matches:
+                    if len(matches) != 1:
+                        failure = "workspace_python_install_result_invalid"
+                        break
+                    try:
+                        result = json.loads(matches[0])
+                    except ValueError:
+                        failure = ("workspace_python_" + matches[0]
+                                   if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", matches[0])
+                                   else "workspace_python_install_result_invalid")
+                    break
+                if not _container_metadata(client, container_id)["State"].get("Running"):
+                    failure = "workspace_python_install_failed"
+                    break
+                time.sleep(0.1)
+            if failure is None and result is not None:
                 metadata = _container_metadata(client, container_id)
                 _validate_container(metadata, operation_id=operation_id, workspace_key=workspace_key,
                     image_id=image_id, stage=stage, seed=seed, cgroup_parent=cgroup_parent)
-                if metadata["State"].get("ExitCode") != 0:
-                    failure = "workspace_python_install_failed"
-                else:
-                    logs = client.run("logs", container_id, timeout=20).stdout
-                    matches = [line.split("=", 1)[1] for line in logs.splitlines()
-                               if line.startswith("CLOUDHELM_WORKSPACE_DEPENDENCIES=")]
-                    if len(matches) != 1:
-                        failure = "workspace_python_install_result_missing"
-                    else:
-                        try:
-                            result = json.loads(matches[0])
-                        except ValueError:
-                            failure = "workspace_python_install_result_invalid"
-                    if failure is None:
-                        client.run("cp", container_id + ":/probe/output/" + ARCHIVE_NAME,
-                                   str(archive_path), timeout=90)
+                _collect_archive(client, container_id, archive_path, result.get("archive_bytes"))
     except _InstallFailure as error:
         unresolved, failure = not error.safe_to_remove_stage, error.category
     except ProbeFailure as error:
         failure = error.category
+        diagnostic = error.detail or error.diagnostic
     except Exception:
         failure = "workspace_python_install_container_failed"
     finally:
@@ -616,7 +693,7 @@ def _run_install(client, *, operation_id: str, workspace_key: str, image_id: str
     if unresolved:
         raise _InstallFailure("workspace_python_container_stop_unconfirmed", safe_to_remove_stage=False)
     if failure is not None or result is None:
-        raise _InstallFailure(failure or "workspace_python_install_failed", safe_to_remove_stage=True)
+        raise _InstallFailure(failure or "workspace_python_install_failed", safe_to_remove_stage=True, diagnostic=diagnostic)
     return result
 
 
@@ -656,7 +733,7 @@ def _receipt(binding: WorkspaceBinding, inputs: WorkspaceDependencyInputs, direc
     return WorkspaceDependencyReceipt(binding=binding, environment_key=inputs.environment_key,
         dependency_directory=directory, snapshot_path=directory / ARCHIVE_NAME,
         snapshot_digest=stored["snapshot_digest"], snapshot_bytes=stored["snapshot_bytes"],
-        toolchain_digest=inputs.toolchain.digest, dependency_cache_key=inputs.dependency_cache_key,
+        toolchain_digest=inputs.toolchain.digest, dependency_cache_key="sha256:" + inputs.environment_key,
         seed_manifest_digest=inputs.seed_manifest_digest, lock_digest=inputs.lock_digest,
         project_digest=inputs.project_digest, python=inputs.toolchain.python, uv=inputs.toolchain.uv,
         platform=inputs.toolchain.platform, distributions=inputs.distributions,
@@ -692,7 +769,8 @@ def _complete_stage(binding: WorkspaceBinding, inputs: WorkspaceDependencyInputs
     if (result.get("python") != inputs.toolchain.python or result.get("uv") != inputs.toolchain.uv
             or result.get("psycopg_impl") != "binary"
             or result.get("distributions") != dict(inputs.distributions)
-            or result.get("archive_bytes") != archive_path.stat().st_size):
+            or result.get("archive_bytes") != archive_path.stat().st_size
+            or result.get("kernel_tmpfs_bytes") != INSTALL_TMPFS_BYTES):
         raise ProbeFailure("workspace_python_install_result_mismatch")
     digest, size = _protect_archive(archive_path)
     archive = _verify_archive(archive_path, digest, size, inputs.distributions)
@@ -748,6 +826,10 @@ def _prepare_new_snapshot(binding: WorkspaceBinding, inputs: WorkspaceDependency
         raise
     finally:
         if stage_created and cleanup_safe:
+            with directory_at(namespace_root, stage_name) as staged:
+                if "inputs" in os.listdir(staged):
+                    with directory_at(staged, "inputs") as controls:
+                        os.fchmod(controls, 0o700)
             remove_staging(namespace_root, stage_name)
 
 
@@ -770,9 +852,12 @@ def prepare_workspace_dependencies(binding: WorkspaceBinding, storage, *,
     _fixed_cgroup_parent(storage_id, cgroup_parent)
     if not callable(getattr(docker_client, "run", None)):
         raise ProbeFailure("workspace_python_docker_client_required")
-    seed = Path(python_seed) if python_seed is not None else (
-        Path(storage.cache_root) / "python" / dependency_input.cache_key)
-    seed_receipt = python_dependencies.verify_admitted_seed(seed, dependency_input)
+    if python_seed is None:
+        seed = python_dependencies.CACHE_ROOT / dependency_input.cache_key
+        seed_receipt = python_dependencies.verify_seed(seed, dependency_input)
+    else:
+        seed = Path(python_seed)
+        seed_receipt = python_dependencies.verify_admitted_seed(seed, dependency_input)
     source = read_workspace_backend_inputs(storage, binding)
     inputs = validate_workspace_dependency_inputs(binding, source, dependency_input=dependency_input,
         seed_receipt=seed_receipt, toolchain=toolchain)

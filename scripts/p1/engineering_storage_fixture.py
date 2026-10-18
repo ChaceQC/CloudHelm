@@ -74,7 +74,10 @@ def main():
         method_passed = result.returncode == 0 and method.get("status") == "passed"
         if not method_passed:
             report["failure_code"] = "engineering_child_method_failed"
-        if method.get("database_and_process_cleanup") != "complete" or not method.get("storage_release_safe"):
+        report["child_claimed_storage_release_safe"] = method.get("storage_release_safe") is True
+        # Root independently checks the empty parent, lifetime pin and every
+        # Docker mount before removing this pool, including failed methods.
+        if method.get("database_and_process_cleanup") != "complete":
             report.update(failure_code="engineering_child_stop_unconfirmed", storage_cleanup="retained_for_reconciliation")
         elif method.get("environment", {}).get("mount_namespace") != os.readlink("/proc/self/ns/mnt"):
             report.update(failure_code="engineering_child_mount_namespace_changed", storage_cleanup="retained_for_reconciliation")

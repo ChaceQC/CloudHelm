@@ -187,7 +187,7 @@ class EnvironmentGroup:
             events = (self.path / "cgroup.events").read_text(encoding="utf-8")
             if "populated 0" not in events.splitlines():
                 raise ProbeFailure("artifact_environment_parent_still_populated")
-        result = self.observe() if self.path is not None else {}
+        result = self.observe() if self.path is not None and self.path.exists() else {"parent_already_absent": True}
         if os.getuid() != 0:
             raise ProbeFailure("artifact_environment_explicit_root_stop_required")
         command(["/usr/bin/systemctl", "stop", self.unit])

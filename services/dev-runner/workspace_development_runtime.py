@@ -457,7 +457,7 @@ class WorkspaceDevelopmentRuntime:
         self._validate_spec(spec)
         if (receipt.binding != spec.binding or not receipt.verified
                 or receipt.toolchain_digest != spec.toolchain.artifact_digest
-                or receipt.dependency_cache_key != spec.dependency_cache_key
+                or "sha256:" + receipt.environment_key != spec.dependency_cache_key
                 or receipt.lock_digest != spec.original_lock_digest
                 or receipt.python != WORKSPACE_PYTHON_TOOLCHAIN.python
                 or receipt.uv != WORKSPACE_PYTHON_TOOLCHAIN.uv
@@ -508,7 +508,6 @@ class WorkspaceDevelopmentRuntime:
         receipt = prepare_workspace_dependencies(
             spec.binding, storage, docker_client=self.client, cgroup_parent=self.group.unit,
             dependency_input=PythonDependencyInput(),
-            python_seed=Path(storage.cache_root) / "python" / PythonDependencyInput().cache_key,
             toolchain=WORKSPACE_PYTHON_TOOLCHAIN)
         self._verify_receipt(receipt, spec, storage)
         self.dependency_receipt = receipt
@@ -959,8 +958,8 @@ class WorkspaceDevelopmentRuntime:
             return None
         try:
             dependency_input = PythonDependencyInput()
-            seed = python_dependencies.verify_admitted_seed(
-                Path(storage.cache_root) / "python" / dependency_input.cache_key, dependency_input)
+            seed = python_dependencies.verify_seed(
+                python_dependencies.CACHE_ROOT / dependency_input.cache_key, dependency_input)
             source_files = read_workspace_backend_inputs(storage, current_spec.binding)
             inputs = validate_workspace_dependency_inputs(current_spec.binding, source_files,
                 dependency_input=dependency_input, seed_receipt=seed, toolchain=WORKSPACE_PYTHON_TOOLCHAIN)

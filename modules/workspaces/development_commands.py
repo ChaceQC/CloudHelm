@@ -1,5 +1,7 @@
 """Command identity, trusted spec conversion, and atomic development intent writes."""
 
+import re
+
 from sqlalchemy import func, insert, update
 
 from database.commands import save_result
@@ -73,7 +75,8 @@ def prepare_development_command_context(
     envelope = CommandEnvelope(
         **intent.model_dump(), command_id=command_id, idempotency_key=idempotency_key,
         request_digest=development_command_digest(
-            intent, request, workspace_id=workspace_id, environment_id=environment_id,
+            intent, request, workspace_id=workspace_id,
+            environment_id=None if request.action == "prepare" else environment_id,
         ),
     )
     context = TaskCommandContext(uow, actor, task, authorization, envelope)
@@ -86,7 +89,7 @@ def prepare_development_command_context(
     result = WorkspaceDevelopmentCommandResult.model_validate(existing.result)
     if (result.action != request.action
             or workspace_id is not None and result.workspace_id != workspace_id
-            or environment_id is not None and result.environment_id != environment_id):
+            or request.action != "prepare" and environment_id is not None and result.environment_id != environment_id):
         raise WorkspaceDevelopmentError("workspace_development_result_scope_mismatch")
     if result.operation_id is not None:
         authorize_current(uow, actor, AuthoritativeResource(
@@ -141,8 +144,11 @@ def prepared_development_spec(callback, binding, request, command_id, environmen
         if environment is not None and request.action != "reset_data" and spec.data_revision != environment["data_revision"]:
             raise ValueError
         return spec, None
-    except Exception:
-        return None, WorkspaceDevelopmentError("workspace_development_metadata_unavailable")
+    except Exception as error:
+        category = getattr(error, "category", None)
+        if not isinstance(category, str) or re.fullmatch(r"[a-z][a-z0-9_]{0,63}", category) is None:
+            category = "workspace_development_metadata_" + type(error).__name__.lower()
+        return None, WorkspaceDevelopmentError(category)
 
 
 def development_operation_request(request, command_id, environment_id, binding, spec, environment):

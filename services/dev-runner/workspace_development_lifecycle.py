@@ -9,6 +9,7 @@ import os
 import re
 import stat
 import threading
+import traceback
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -106,10 +107,10 @@ def _observation(record: dict) -> WorkspaceDevelopmentEnvironmentObservation | N
 
 
 def _failure_code(error: Exception) -> str:
-    value = getattr(error, "category", None)
+    value = getattr(error, "category", None) or getattr(error, "code", None)
     if isinstance(value, str) and value.replace("_", "").isalnum() and len(value) <= 96:
         return value
-    return "workspace_development_runtime_unknown"
+    return "workspace_development_" + type(error).__name__.lower()
 
 
 def _current_spec(base: WorkspaceDevelopmentEnvironmentSpec,
@@ -718,6 +719,12 @@ class WorkspaceDevelopmentController:
                     current_operation = dict(current_operation)
                     current_operation.update({"operation_state": "unknown", "phase": "may_have_started",
                         "failure_code": _failure_code(error), "updated_at": _now()})
+                    current_operation["failure_location"] = [
+                        {"file": Path(frame.filename).name, "line": frame.lineno, "function": frame.name}
+                        for frame in traceback.extract_tb(error.__traceback__)[-6:]
+                    ]
+                    if type(error).__name__ == "_InstallFailure":
+                        current_operation["dependency_diagnostic"] = error.detail
                     session.write_operation(current_operation)
                     if current_environment is not None:
                         current_environment = dict(current_environment)
@@ -725,9 +732,7 @@ class WorkspaceDevelopmentController:
                         current_environment["pending_operation_id"] = request.operation_id
                         current_environment["updated_at"] = _now()
                         session.write_environment(current_environment)
-                    if isinstance(error, ProbeFailure):
-                        return None
-                    raise ProbeFailure("workspace_development_operation_unknown") from None
+                    raise ProbeFailure(_failure_code(error)) from None
                 self._store_observation(session, current_operation, current_environment,
                                         intent, spec, value, runtime)
                 runtime.observations[request.operation_id] = value
@@ -763,7 +768,7 @@ class WorkspaceDevelopmentController:
                 spec = self._new_spec_for(checked, environment)
         prepare_operation_id = (request.operation_id if request.action == "prepare" else
                                 self._find_prepare_operation(request.environment_id, checked))
-        runtime = self._readonly_runtime(spec, prepare_operation_id)
+        runtime = self._runtime(spec, prepare_operation_id)
         if existing is None:
             self._check_no_open_environment(request.binding.workspace_id, request.environment_id)
         return self._execute_accepted(checked, existing, environment, spec, runtime)
@@ -884,10 +889,24 @@ class WorkspaceDevelopmentController:
             prepare_operation_id = environment.get("prepare_operation_id")
             if not isinstance(prepare_operation_id, str):
                 raise ProbeFailure("workspace_development_prepare_identity_missing")
-            runtime = self._readonly_runtime(spec, prepare_operation_id)
             with self._storage() as storage:
-                runtime.discover(storage, prepare_operation_id=prepare_operation_id)
-                readers = runtime.registered_readers()
+                from .workspace_development_docker import WorkspaceDevelopmentDocker, METHOD
+                from .workspace_development_inputs import workspace_storage_id
+                from packages.contracts.p1.workspace_candidates import workspace_runtime_scope_id
+
+                scope = workspace_runtime_scope_id(binding)
+                expected = str(storage.workspace_root / workspace_storage_id(binding) / "files")
+                readers = []
+                for record in WorkspaceDevelopmentDocker.discover_owned(
+                        spec.environment_id, scope, operation_id=prepare_operation_id):
+                    if record["role"] != "backend":
+                        continue
+                    source = [mount for mount in record["mounts"] if mount["destination"] == "/workspace"]
+                    if (len(source) != 1 or source[0]["type"] != "bind"
+                            or source[0]["source"] != expected or not source[0]["readonly"]):
+                        raise ProbeFailure("workspace_development_reader_mount_mismatch")
+                    readers.append(RegisteredWorkspaceReader(container_id=record["container_id"],
+                        operation_id=prepare_operation_id, scope=scope, method=METHOD))
             for reader in readers:
                 if (reader.operation_id != prepare_operation_id
                         or reader.scope != workspace_runtime_scope_id(binding)

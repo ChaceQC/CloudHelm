@@ -1,0 +1,162 @@
+{
+  "scope": "development_dependency_installation_and_reuse_only",
+  "human_acceptance": null,
+  "first": {
+    "status": "passed",
+    "receipt": {
+      "binding": {
+        "workspace_id": "workspace-e80d5daa0d5847969fa6316a95d1c1e4",
+        "project_id": "p12-engineering-project",
+        "task_id": "399c4291f31b4643962f96dc44c1c0cd",
+        "work_item_id": "work-item-e80d5daa0d5847969fa6316a95d1c1e4",
+        "owner_user_id": "p12-engineering-owner",
+        "source_id": "source-e6b0753ee2114786a732cab6af548b68",
+        "source_revision": 1,
+        "base_commit": "7ec1ab83bdc963b4d6521d832f7f53f7a874dc11",
+        "workspace_revision": 2,
+        "write_generation": 2
+      },
+      "environment_key": "7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8",
+      "dependency_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-47f56a638ada4987b62f832a1e0ba570/data/cache/workspace-python/ef8d4d64531f764c0e4b62cd63205e5017db13df1848e4b01710dc6f67ffbbb1/7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8",
+      "snapshot_path": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-47f56a638ada4987b62f832a1e0ba570/data/cache/workspace-python/ef8d4d64531f764c0e4b62cd63205e5017db13df1848e4b01710dc6f67ffbbb1/7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8/dependencies.tar.gz",
+      "snapshot_digest": "sha256:3707e5ffd3ccb445048448a6fd42af0be7a62fd202895772187752fb0525141e",
+      "snapshot_bytes": 13529252,
+      "toolchain_digest": "sha256:0f19ddff5c9f607a007d47894770299230c249b763d1db5e9390c35d07edea5c",
+      "dependency_cache_key": "24c0cd1fc33538a10d6ee316b64c85b2fdd4ad28111cbed58de4db9ac637a26b",
+      "seed_manifest_digest": "sha256:822d94202c746eb5c9f0b56c7ace295c85b0f32099be318ca95b4756b56e1f89",
+      "lock_digest": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2",
+      "project_digest": "sha256:b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148",
+      "python": "3.12.13",
+      "uv": "0.11.29",
+      "platform": "linux/amd64",
+      "distributions": {
+        "alembic": "1.20.0",
+        "annotated-doc": "0.0.5",
+        "annotated-types": "0.8.0",
+        "anyio": "4.15.1",
+        "click": "8.5.0",
+        "fastapi": "0.143.0",
+        "h11": "0.16.0",
+        "idna": "3.20",
+        "mako": "1.4.3",
+        "markupsafe": "3.0.4",
+        "opentelemetry-api": "1.45.1",
+        "psycopg": "3.3.6",
+        "psycopg-binary": "3.3.6",
+        "pydantic": "2.14.1",
+        "pydantic-core": "2.50.1",
+        "sqlalchemy": "2.1.4",
+        "starlette": "1.7.0",
+        "typing-extensions": "4.16.0",
+        "typing-inspection": "0.4.4",
+        "uvicorn": "0.54.0"
+      },
+      "archive_member_count": 1251,
+      "archive_expanded_bytes": 50775371,
+      "reused": false,
+      "verified": true
+    },
+    "group": {
+      "unit": "cloudhelm_p1_artifact_47f56a638ada4987b62f832a1e0ba570.slice",
+      "kernel_limits": {
+        "cpu.max": "150000 100000",
+        "memory.max": "939524096",
+        "pids.max": "256"
+      },
+      "memory_peak_bytes": 247189504,
+      "pids_peak": 25,
+      "root_stop_pending": true,
+      "populated": false
+    },
+    "root_group_stopped": {
+      "unit": "cloudhelm_p1_artifact_47f56a638ada4987b62f832a1e0ba570.slice",
+      "kernel_limits": {
+        "cpu.max": "150000 100000",
+        "memory.max": "939524096",
+        "pids.max": "256"
+      },
+      "memory_peak_bytes": 247189504,
+      "pids_peak": 25,
+      "stopped_and_removed": true
+    }
+  },
+  "repeat": {
+    "status": "passed",
+    "receipt": {
+      "binding": {
+        "workspace_id": "workspace-e80d5daa0d5847969fa6316a95d1c1e4",
+        "project_id": "p12-engineering-project",
+        "task_id": "399c4291f31b4643962f96dc44c1c0cd",
+        "work_item_id": "work-item-e80d5daa0d5847969fa6316a95d1c1e4",
+        "owner_user_id": "p12-engineering-owner",
+        "source_id": "source-e6b0753ee2114786a732cab6af548b68",
+        "source_revision": 1,
+        "base_commit": "7ec1ab83bdc963b4d6521d832f7f53f7a874dc11",
+        "workspace_revision": 2,
+        "write_generation": 2
+      },
+      "environment_key": "7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8",
+      "dependency_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-47f56a638ada4987b62f832a1e0ba570/data/cache/workspace-python/ef8d4d64531f764c0e4b62cd63205e5017db13df1848e4b01710dc6f67ffbbb1/7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8",
+      "snapshot_path": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-47f56a638ada4987b62f832a1e0ba570/data/cache/workspace-python/ef8d4d64531f764c0e4b62cd63205e5017db13df1848e4b01710dc6f67ffbbb1/7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8/dependencies.tar.gz",
+      "snapshot_digest": "sha256:3707e5ffd3ccb445048448a6fd42af0be7a62fd202895772187752fb0525141e",
+      "snapshot_bytes": 13529252,
+      "toolchain_digest": "sha256:0f19ddff5c9f607a007d47894770299230c249b763d1db5e9390c35d07edea5c",
+      "dependency_cache_key": "sha256:7e08e910961fc90f94be2f944a12cf0c41691fbab3ef488b7d5e2f55abc539a8",
+      "seed_manifest_digest": "sha256:822d94202c746eb5c9f0b56c7ace295c85b0f32099be318ca95b4756b56e1f89",
+      "lock_digest": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2",
+      "project_digest": "sha256:b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148",
+      "python": "3.12.13",
+      "uv": "0.11.29",
+      "platform": "linux/amd64",
+      "distributions": {
+        "alembic": "1.20.0",
+        "annotated-doc": "0.0.5",
+        "annotated-types": "0.8.0",
+        "anyio": "4.15.1",
+        "click": "8.5.0",
+        "fastapi": "0.143.0",
+        "h11": "0.16.0",
+        "idna": "3.20",
+        "mako": "1.4.3",
+        "markupsafe": "3.0.4",
+        "opentelemetry-api": "1.45.1",
+        "psycopg": "3.3.6",
+        "psycopg-binary": "3.3.6",
+        "pydantic": "2.14.1",
+        "pydantic-core": "2.50.1",
+        "sqlalchemy": "2.1.4",
+        "starlette": "1.7.0",
+        "typing-extensions": "4.16.0",
+        "typing-inspection": "0.4.4",
+        "uvicorn": "0.54.0"
+      },
+      "archive_member_count": 1251,
+      "archive_expanded_bytes": 50775371,
+      "reused": true,
+      "verified": true
+    },
+    "group": {
+      "unit": "cloudhelm_p1_artifact_47f56a638ada4987b62f832a1e0ba570.slice",
+      "kernel_limits": {
+        "cpu.max": "150000 100000",
+        "memory.max": "939524096",
+        "pids.max": "256"
+      },
+      "memory_peak_bytes": 0,
+      "pids_peak": 0,
+      "root_stop_pending": true,
+      "populated": false
+    },
+    "root_group_stopped": {
+      "unit": "cloudhelm_p1_artifact_47f56a638ada4987b62f832a1e0ba570.slice",
+      "kernel_limits": {
+        "cpu.max": "150000 100000",
+        "memory.max": "939524096",
+        "pids.max": "256"
+      },
+      "memory_peak_bytes": 0,
+      "pids_peak": 0,
+      "stopped_and_removed": true
+    }
+  }
+}

@@ -204,12 +204,11 @@ def read_development_operation_record(connection: Connection, operation_id: str)
             raise ValueError
         if type(request) is PrepareWorkspaceDevelopmentEnvironment:
             spec = WorkspaceDevelopmentEnvironmentSpec.model_validate(request.spec.model_dump(mode="python"))
+            environment = read_development_environment(connection, row["environment_id"])
             if (spec.environment_id != row["environment_id"] or spec.binding != binding
-                    or spec.storage_ref.model_dump(mode="json") != row["storage_ref_json"]
-                    or spec.toolchain.model_dump(mode="json") != row["toolchain_json"]
-                    or spec.original_lock_digest != row["original_lock_digest"]
-                    or spec.dependency_cache_key != row["dependency_cache_key"]
-                    or spec.migration_revision != row["migration_revision"]):
+                    or spec.storage_ref.model_dump(mode="json") != environment["storage_ref_json"]
+                    or spec.toolchain.model_dump(mode="json") != environment["toolchain_json"]
+                    or spec.migration_revision != environment["migration_revision"]):
                 raise ValueError
         elif request.source_manifest_digest != row["source_manifest_digest"]:
             raise ValueError

@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -111,7 +112,14 @@ class EngineeringProbe:
         payload = body.model_dump(mode="json") if hasattr(body, "model_dump") else body
         response = self.http.request(method, path, headers=headers, json=payload)
         require(len(response.content) <= 2_000_000, "engineering_http_response_exceeded")
-        require(response.status_code == expected, "engineering_http_status_mismatch")
+        if response.status_code != expected:
+            try:
+                rejected = response.json()
+                code = rejected.get("code") if isinstance(rejected, dict) else None
+            except ValueError:
+                code = None
+            safe_code = code if isinstance(code, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code) else "response_unclassified"
+            raise EngineeringCheckFailure(f"engineering_http_{response.status_code}_{safe_code}")
         try:
             value = response.json()
         except ValueError:

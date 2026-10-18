@@ -118,8 +118,9 @@ class EngineeringDevelopmentRuntime:
             try:
                 current = self.gate(operation_id)
                 applied = controller.apply(current.intent)
-            except Exception:
-                return self._result(operation_id, "unknown", "workspace_development_operation_unsettled")
+            except Exception as error:
+                code = getattr(error, "category", None) or getattr(error, "code", None)
+                return self._result(operation_id, "unknown", code or "workspace_development_operation_unsettled")
             if type(applied) is not WorkspaceDevelopmentEnvironmentObservation:
                 return self._result(operation_id, "unknown", "workspace_development_operation_unsettled")
 

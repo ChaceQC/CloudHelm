@@ -26,7 +26,7 @@ WORKSPACE_DEVELOPMENT_INSERTS = {
 }
 WORKSPACE_DEVELOPMENT_CONTROL_COLUMNS = (
     "environment_revision", "workspace_revision", "write_generation", "binding_json", "binding_digest",
-    "source_manifest_digest",
+    "source_manifest_digest", "updated_at",
 )
 WORKSPACE_DEVELOPMENT_RECEIPT_COLUMNS = (
     "state", "data_revision", "data_generation", "runtime_fact_json", "health_probe_json",

@@ -37,6 +37,9 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - r4 首次环境方法：[失败原记录](docs/acceptance/p1/validation-workspace-development-r4.json)在读取固定参照文件时因 DrvFs 目录不能充当 Linux 私有目录而拒绝，未进入依赖安装／应用服务启动；输入前后匹配，API/worker/数据库已停止。改用既有固定后端读取与独立 P0 manifest 交叉校验，不放宽受控运行目录权限。
 - r4 回收：[定向清理](docs/acceptance/p1/validation-workspace-development-r4-cleanup.json)核对原实例注册及 Docker 命名空间，原父组已消失、loop 已脱离，backing 与目录删除；实际确认回收 8,589,934,592 字节，剩余占账 0。失败原记录未覆盖。
 - 验证方法效率：InputSet 仍核对完整文件集合及每份源码的 Git blob、长度与 SHA-256，Git 对象改为一次 `cat-file --batch` 读取，替代 319 次 `git show`；输入结构与既有 manifest 修订不变。新方法字节将由后续 InputSet 固定。
+- 后续开发接线（未冻结工作树）：修正 prepare 命令摘要不能包含新生成的环境 ID、操作查询误读环境字段、API `updated_at` 列权限；修正只读 wheel 种子定位、原锁到离线配方、uv 版本输出、日志驱动、归档权限与 tmpfs 采集、私有安装键表示。临时目录按实测 uv 二进制大小及离线参照配方调整，容器 768MiB 与父组 896MiB 硬上限不变。
+- 独立依赖[开发记录](docs/acceptance/p1/validation-development-workspace-dependencies-r1.json)：20 个分布、Python 3.12.13/uv 0.11.29、归档 13,529,252 字节和同键复用已实测，实际 tmpfs 上限由容器内核核对，父组停止；仅技术切片结果，不是完整环境或阶段验收。
+- 后端服务开发观测：修正生成脚本的转义及 gzip 逆序反复解压后，真实迁移到 `0002_add_updated_at_index`，`/health`、`/ready`、源码标记与便签写入均通过。修正候选冻结时 reader 查询重复取工作区锁；debug-9 已生成带 live reader 的独立候选，随后在恢复 API 的列权限处失败。debug-10 正继续；所有失败保留在私有原记录，最终固定候选未形成完整通过结论。
 
 ## 2026-10-18 · P1.2 固定验证与交付收尾
 

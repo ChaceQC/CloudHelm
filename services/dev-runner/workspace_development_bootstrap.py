@@ -15,7 +15,7 @@ def bootstrap_command(action: str) -> str:
              "--port", "8000", "--reload", "--reload-dir", "/workspace/backend/app"]
             if action == "serve" else
             ["/environment/bin/python", "-m", "alembic", "upgrade", MIGRATION_REVISION])
-    return """import hashlib, os, pathlib, posixpath, re, stat, tarfile
+    return r"""import hashlib, os, pathlib, posixpath, re, stat, tarfile
 archive='/workspace-cache/dependencies.tar.gz'
 expected=os.environ.get('WORKSPACE_SNAPSHOT_SHA256','')
 if not re.fullmatch(r'[0-9a-f]{64}', expected): raise SystemExit(81)
@@ -64,7 +64,7 @@ with tarfile.open(archive,'r:*') as tar:
             if str(parent) in kinds and kinds[str(parent)]!='dir': raise SystemExit(93)
         if kind=='link' and any(other.startswith(name+'/') for _,other,_ in members): raise SystemExit(94)
     if any(root.iterdir()): raise SystemExit(95)
-    for member,name,kind in sorted(members,key=lambda item:(item[2]!='dir',item[1])):
+    for member,name,kind in members:
         destination=root.joinpath(*name.split('/'))
         if kind=='dir':
             destination.mkdir(mode=0o755,parents=True,exist_ok=True)

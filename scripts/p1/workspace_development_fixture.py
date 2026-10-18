@@ -134,6 +134,11 @@ def wait_development_operation(probe, accepted: WorkspaceDevelopmentCommandResul
     while time.monotonic() < deadline:
         last = probe.get(path, WorkspaceDevelopmentOperationView)
         status = probe.workflow_status(workflow_id)
+        if status == "SUCCESS" and last.operation_state in {"pending", "unknown"}:
+            result = probe.client.retrieve_workflow(workflow_id).get_result()
+            if isinstance(result, dict) and result.get("state") in {"unknown", "failed"}:
+                code = result.get("code", "workspace_development_operation_unsettled")
+                raise WorkspaceDevelopmentCheckFailure(code)
         if last.operation_state in {"succeeded", "failed"}:
             if status not in {"SUCCESS", None}:
                 raise WorkspaceDevelopmentCheckFailure("workspace_development_worker_workflow_failed")
