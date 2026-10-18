@@ -10,7 +10,7 @@ TABLE_MODULES = (
     "database.tables", "database.commands", "modules.sync.tables", "modules.workflow.tables",
     "modules.identity.tables", "modules.projects.tables", "modules.collaboration.tables",
     "modules.projects.source_tables", "modules.projects.source_import_tables", "modules.workspaces.tables",
-    "modules.delivery.tables",
+    "modules.workspaces.development_tables", "modules.delivery.tables",
 )
 
 

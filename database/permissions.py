@@ -20,6 +20,21 @@ WORKSPACE_RECEIPT_COLUMNS = (
     "workspace_revision", "write_generation", "binding_json", "binding_digest",
     "files_json", "files_digest", "materialization_operation_id", "storage_id",
 )
+WORKSPACE_DEVELOPMENT_INSERTS = {
+    "api": ("workspace_development_environments", "workspace_development_environment_operations"),
+    "worker": (),
+}
+WORKSPACE_DEVELOPMENT_CONTROL_COLUMNS = (
+    "environment_revision", "workspace_revision", "write_generation", "binding_json", "binding_digest",
+    "source_manifest_digest",
+)
+WORKSPACE_DEVELOPMENT_RECEIPT_COLUMNS = (
+    "state", "data_revision", "data_generation", "runtime_fact_json", "health_probe_json",
+    "ready_probe_json", "stop_fact_json", "updated_at",
+)
+WORKSPACE_DEVELOPMENT_OPERATION_RECEIPT_COLUMNS = (
+    "operation_state", "observation_json", "observation_digest", "closed_at",
+)
 _IDENTITY_UPDATES = {
     "api": {
         "users": ("revision",), "device_sessions": ("revoked_at", "revision"),
@@ -53,6 +68,21 @@ def apply_runtime_permissions(connection: Connection) -> None:
             connection.exec_driver_sql(
                 f"GRANT UPDATE ({', '.join(WORKSPACE_RECEIPT_COLUMNS)}) ON cloudhelm.workspaces TO {name}"
             )
+            connection.exec_driver_sql(
+                f"GRANT UPDATE ({', '.join(WORKSPACE_DEVELOPMENT_RECEIPT_COLUMNS)}) "
+                "ON cloudhelm.workspace_development_environments TO " + name
+            )
+            connection.exec_driver_sql(
+                f"GRANT UPDATE ({', '.join(WORKSPACE_DEVELOPMENT_OPERATION_RECEIPT_COLUMNS)}) "
+                "ON cloudhelm.workspace_development_environment_operations TO " + name
+            )
+        if role == "api":
+            connection.exec_driver_sql(
+                f"GRANT UPDATE ({', '.join(WORKSPACE_DEVELOPMENT_CONTROL_COLUMNS)}) "
+                "ON cloudhelm.workspace_development_environments TO " + name
+            )
+        for table in WORKSPACE_DEVELOPMENT_INSERTS[role]:
+            connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
         if role == "api":
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.role_bindings TO {name}")
     connection.exec_driver_sql(f"REVOKE ALL ON ALL TABLES IN SCHEMA dbos FROM {DBOS_RUNTIME_ROLE}")

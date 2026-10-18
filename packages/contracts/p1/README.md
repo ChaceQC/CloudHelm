@@ -39,3 +39,5 @@
 `content_verified` 只表示已核验 OCI 内容。BuildRun 的 `succeeded` 还必须具有可信执行终结事实，以及 frontend/backend/postgres 三角色的 manifest、config、实际 loaded image ID 一致性。未收尾或未知的工作区/构建操作参与 Task 完成及取消门禁；物理候选、成功构建均不自动生成最终集成验收或人类结论。
 
 OCI 内容回执的 `image_id` 保持 config digest 语义。执行观察单独保存 `loaded_image_id` 与 `docker_identity_kind`：当前 Docker 29 containerd 存储实际使用 manifest digest 标识镜像，须同时核对其 Descriptor、平台、RootFS 和运行配置。默认 `oci_config` 兼容旧协议记录，不能把两个不同身份直接互相替代。
+
+`development_environment.py` 的 `WorkspaceDevelopment*` 是可变 Workspace 开发环境，与原 `ArtifactEnvironment*` 分开。固定 profile `notes-backend-dev-r1` 绑定工作区修订／写入代次、工具链、源码与锁摘要、私有安装缓存键和数据修订。prepare、suspend、resume、reset_data、dispose 只表示操作意图；ready 必须来自可信 Runner 的进程、`/health`、`/ready` 和迁移 head 事实，休眠／处置须确认停止。同数据修订允许递增 generation 重建。新表通过 `0004_p1_2_development` 线性增加，旧安装不自动升级。

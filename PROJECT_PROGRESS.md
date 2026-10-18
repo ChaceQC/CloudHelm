@@ -23,6 +23,8 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 集成修正：真实工程操作原先只因未存在于 `task_operation_links` 而被 Task blocker 隐去 ID；现按 Workspace／Build 领域原意图核对所属项目与 Task，再执行当前 `operation.query` 鉴权，跨 Task 继续拒绝。实际 ID 可见性待 C6 四场景核验。
 - C3／C4：可变环境契约／表和 Runner 依赖／服务切片正在交付；新增 backing 生命周期 pin 接缝，使长期服务固定存储身份而不长期独占短命令锁，回收还检查容器挂载。该接缝尚未运行验证，整池持续占账不变。
 - 版本：新增开发环境能力按语义版本准备开发源码 `0.3.0`，工作流应用单独 `cloudhelm-hub/0.3.0`；SDK 未变。WSL `uv lock --check --offline` 通过，未升级依赖，未发布 tag 或 Release。
+- C3 基础：独立环境／操作表、契约和迁移 `0004_p1_2_development` 已交付。子代理在 WSL 新隔离 PostgreSQL 实际初始化并反射核对全表、CHECK 名称、活动／未决唯一索引、API/worker 列权限，通过；契约 ready 正向、resume 固定 Spec、同修订 generation 重建及无任意路径／就绪请求字段通过。初次过长约束名在本次新迁移内缩短后重验通过，未改旧迁移。该检查为开发输入，最终新候选方法尚未运行。
+- C6 方法：A→A→B 后端方法已移除人为 generation 失效场景，B 固定为已授权路由变体且独立求源码摘要；静态准备通过，没有运行真实 BuildKit。四组真实工程 Task 方法已交回，采用仅订阅 control/orchestration 的同版 Task worker 作为确定屏障，再由普通 worker 核对工程回执；尚未运行真实场景。两个已有提交的“仓库验证 / check”已成功，不能替代上述业务证据。
 
 ## 2026-10-18 · P1.2 固定验证与交付收尾
 
