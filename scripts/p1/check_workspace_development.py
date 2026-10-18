@@ -63,7 +63,7 @@ from scripts.p1.workspace_development_fixture import (
     workspace_file,
 )
 
-METHOD_REVISION = "p1-2-workspace-development-r1"
+METHOD_REVISION = "p1-2-workspace-development-r2"
 NOTE_TITLE_PREFIX = "cloudhelm-p1-workspace-reset-"
 NOTE_BODY = "Disposable Workspace development reset probe."
 LOCK_COMMENT_VARIANT = importlib.import_module(
@@ -558,7 +558,7 @@ def _run_workspace_chain(probe: EngineeringProbe, runtime, storage_ref: Developm
             and suspend_unknown_operation.observation.stop_fact is not None
             and suspend_unknown_operation.observation.stop_fact.outcome == "confirmed_stopped",
             "workspace_development_unknown_lock_suspend_not_confirmed")
-    resume_unknown = submit_control(probe, workspace_id, environment_id, input_ref, "resume", expected_status=422)
+    resume_unknown = submit_control(probe, workspace_id, environment_id, input_ref, "resume", expected_status=409)
     require(resume_unknown.outcome == "rejected" and resume_unknown.operation_id is None,
             "workspace_development_unknown_lock_not_rejected")
     cache_keys_after_unknown = _workspace_dependency_cache_keys(runtime)

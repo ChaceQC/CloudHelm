@@ -1,0 +1,716 @@
+{
+  "method_revision": "p1-backend-source-input-cache-r2",
+  "builder_boundary_revision": "p1-backend-offline-build-r1",
+  "operation_id": "backend-build-4608a749f5ba41f6a1a1c50d93ecadd2",
+  "started_at": "2026-10-18T06:53:22.578936+00:00",
+  "input_kind": "fixed_candidate",
+  "human_acceptance": null,
+  "environment": {
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "executor": "ubuntu-24-04-wsl-maintenance",
+    "platform": "linux/amd64"
+  },
+  "method_files": {
+    "services/dev-runner/backend_build_inputs.py": "sha256:c0003b102db08e38b805bd0a338a4b54056ef2355cbda5303efde104ba7b9d47",
+    "services/dev-runner/backend_build_boundary.py": "sha256:c51090218da40334738112d4eba03d432ccad769041ad3b3a9fa23d422a88897",
+    "services/dev-runner/backend_build_runtime.py": "sha256:b01dbc3fd0de3a595473ab086275a3fe7cbbd10b88d496c5b8619cd001c8ce02",
+    "infra/p1/reference-build/backend.offline.Dockerfile": "sha256:4dab2ee86603cd2073583a6228a126637f07559da6eb5f31b7e215879cd1f5bc",
+    "scripts/p1/check_backend_build.py": "sha256:4ebcfa5ed6e91b4d4c60cfa2d35d214a88a31a4e8239725e7bd414c999a11005",
+    "scripts/p1/backend_cache_fixture.py": "sha256:0ec85b346149f2a2390b4e21daa0a1cc24b0f7c07e3c8634f861de2666b53c16",
+    "scripts/p1/check_python_dependencies.py": "sha256:6761dfec70b782ce3b5ef672859377c54474ac3c965b959d6caf7550c1a65d90",
+    "services/dev-runner/python_dependencies.py": "sha256:34a6784fe059ca8e9904ac44d2f4c078a80704bdc17fccc9ebdff642704f63d4",
+    "services/dev-runner/python_dependency_runtime.py": "sha256:7500b226deacef057e8ebd20473f5897833b4a1ad3192d2d0211eff61dd17f29",
+    "services/dev-runner/offline_images.py": "sha256:12832babbf2ef75263830b748929d8d64f877d0cc3eb57b6a9de7eb72e869eec",
+    "services/dev-runner/offline_image_runtime.py": "sha256:22267a2fdf7dea606b8e225c23846e04ec3dd4e905a2ef77f2e9553f8549fd42",
+    "services/dev-runner/capabilities.py": "sha256:d3d32a76657274ef5115c6b23c4e16e246e20179b5219891f8bf0746ea0600de",
+    "services/dev-runner/policy.py": "sha256:092b27052445c3e422fffb57a90408d728a4c14e4092e06944936085ca5b0a5b",
+    "services/dev-runner/toolchain.py": "sha256:0760c2b251098bba6e62e1ca583b9f6f4575375583b01e6735c9b057a01fc275",
+    "scripts/p1/probe_runner.py": "sha256:ae4043a08343bd54b9cc124d32520fbd9ee1151c5f66d2184cf39fd347233684",
+    "modules/artifacts/content_store.py": "sha256:f8cda5f69893c220ad5f16439dc8f5a2226d5006b680e975cafcb78a849ea107",
+    "modules/artifacts/content_files.py": "sha256:0dbec80e8bf9217e61123b393462c71bff187c1e3fedd5da417232d9130be193",
+    "modules/artifacts/oci_archive.py": "sha256:44a69c0b9151740f5c8081009bca7b18eecfff9fe3019fafa906c785d01fec95",
+    "packages/contracts/p1/build_artifacts.py": "sha256:d2a9ef5ac5b3d86a62663a7938616d55bc385637b5cc5456b30e6ae3aceb91f4"
+  },
+  "support_scope": "fixed_notes_backend_offline_oci_and_builder_imports_development_only",
+  "cache_method_contract": {
+    "sequence": [
+      "A",
+      "A",
+      "B"
+    ],
+    "builder_cache_policy": "one_private_builder_per_operation",
+    "development_dependency_cache_relation": "separate_private_wheel_seed_cache; not the builder cache under measurement",
+    "fixture_id": "p1-backend-cache-fixture-b-v1",
+    "fixture_source_ref": "fixed-notes-backend-cache-fixture-b-v1",
+    "fixture_route": "/api/cache-fixture"
+  },
+  "failures": [],
+  "all_required_verified": true,
+  "static_only": false,
+  "input_before": {
+    "input_set": "docs/acceptance/p1/input-set-p1-2-r3.json",
+    "source_commit": "799243856d1749d52c15ed9f476c848cc3057bb1",
+    "sha256": "06e3982ddbe384a77b426c482f314c60a4d408bf763e985731091e042fbcf817",
+    "file_count": 319,
+    "matches": true
+  },
+  "seed": {
+    "cache_key": "24c0cd1fc33538a10d6ee316b64c85b2fdd4ad28111cbed58de4db9ac637a26b",
+    "path": "/home/cloudhelm/.local/state/cloudhelm/python-dependency-seeds/24c0cd1fc33538a10d6ee316b64c85b2fdd4ad28111cbed58de4db9ac637a26b",
+    "manifest_digest": "sha256:822d94202c746eb5c9f0b56c7ace295c85b0f32099be318ca95b4756b56e1f89",
+    "wheel_count": 20,
+    "retained_bytes": 106618246,
+    "distributions": {
+      "alembic": "1.20.0",
+      "annotated-doc": "0.0.5",
+      "annotated-types": "0.8.0",
+      "anyio": "4.15.1",
+      "click": "8.5.0",
+      "fastapi": "0.143.0",
+      "h11": "0.16.0",
+      "idna": "3.20",
+      "mako": "1.4.3",
+      "markupsafe": "3.0.4",
+      "opentelemetry-api": "1.45.1",
+      "psycopg": "3.3.6",
+      "psycopg-binary": "3.3.6",
+      "pydantic": "2.14.1",
+      "pydantic-core": "2.50.1",
+      "sqlalchemy": "2.1.4",
+      "starlette": "1.7.0",
+      "typing-extensions": "4.16.0",
+      "typing-inspection": "0.4.4",
+      "uvicorn": "0.54.0"
+    },
+    "cache_hit": true,
+    "downloaded_bytes": 0
+  },
+  "source": {
+    "files": {
+      ".dockerignore": {
+        "sha256": "sha256:08bc12907214f2b0272a6e82f035e3cbbaf7ac16defb4ab4a95302545308d317",
+        "bytes": 43
+      },
+      ".python-version": {
+        "sha256": "sha256:aa0d6581054e6e4ff3f91839deca7a854ad37221b8784d060b42d0f847ff1a3b",
+        "bytes": 8
+      },
+      "Dockerfile": {
+        "sha256": "sha256:b28e48358b722b5bf6bc3e05040e250c44c49c6e9d1d86bde2b6add1fb17cbdf",
+        "bytes": 544
+      },
+      "README.md": {
+        "sha256": "sha256:22fd4c90f4234043320804eb18480b9e6ddef28acaeda82a66ca939e232e5688",
+        "bytes": 1132
+      },
+      "alembic.ini": {
+        "sha256": "sha256:6c18a6befe7a7b2d6866587cd2080a3bff803f82a80d1bdaa66bffe759405036",
+        "bytes": 591
+      },
+      "app/__init__.py": {
+        "sha256": "sha256:ad9e6e2a816f005ad862273c5941cb2fd261ca83bf7a406d54d27dcac7794e60",
+        "bytes": 43
+      },
+      "app/database.py": {
+        "sha256": "sha256:51d5a1d46dc61dcc8af8fe6c0c06d7bb5232b231fdb0945393af32858840549c",
+        "bytes": 1284
+      },
+      "app/main.py": {
+        "sha256": "sha256:437085b28750bc19b50908cd8d51bd32584438388c89c57ecbe39db9cfabded3",
+        "bytes": 1786
+      },
+      "app/models.py": {
+        "sha256": "sha256:de5d75aee0093e812fb5eb081ec6637407a2d1f4a193df0973a4f67b923fbfec",
+        "bytes": 862
+      },
+      "app/readiness.py": {
+        "sha256": "sha256:37174dd7105c56aa1638503ea00f55e14ed5c54dd24c08b8924e3f1b0a3e2de4",
+        "bytes": 741
+      },
+      "app/routes.py": {
+        "sha256": "sha256:79416f4e1932568abc1819d32176ea8abd4f360a648d3243795f9722d1fca197",
+        "bytes": 2361
+      },
+      "app/schemas.py": {
+        "sha256": "sha256:51b4cf3230790f2e18fa6058bc4cff143d6f679e7c1fa63b987937d271e55fa7",
+        "bytes": 1708
+      },
+      "migrations/env.py": {
+        "sha256": "sha256:b051c59170abf1450caf51aa170b533b590d317d9f447263c08705ec1d1a58d8",
+        "bytes": 1633
+      },
+      "migrations/versions/0001_create_notes.py": {
+        "sha256": "sha256:7698b5b5f6554bd89026d808bab8a0acfa07ba02b25a9e28cf65483bf6ef0c6f",
+        "bytes": 1013
+      },
+      "migrations/versions/0002_add_updated_at_index.py": {
+        "sha256": "sha256:5b2961617293966d5b39427ab3a57ddc6bc96ed0ee31d94d997ba07779399f5f",
+        "bytes": 490
+      },
+      "openapi.json": {
+        "sha256": "sha256:05d0a9a87378219d08f3f5a696199271fac9191eb5daf2b52a1a7626302d91e2",
+        "bytes": 10053
+      },
+      "pyproject.toml": {
+        "sha256": "sha256:b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148",
+        "bytes": 361
+      },
+      "uv.lock": {
+        "sha256": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2",
+        "bytes": 33551
+      }
+    },
+    "manifest_digest": "sha256:df3c244b0445ed7795800ed8fb99f0cae725504137997b7b9880ae8f1d9d9c50",
+    "file_count": 18,
+    "bytes": 58204,
+    "source_ref": "fixed-reference-development",
+    "recipe_digest": "sha256:4dab2ee86603cd2073583a6228a126637f07559da6eb5f31b7e215879cd1f5bc",
+    "recipe_variant": "fixed-notes-python-offline-r2",
+    "derived_project_digest": "sha256:6f247d3617fdef03aa420b251437abb12ed7b731f3ef5520fb0f8be177e202ed"
+  },
+  "cache_fixture_b": {
+    "fixture_id": "p1-backend-cache-fixture-b-v1",
+    "source_ref": "fixed-notes-backend-cache-fixture-b-v1",
+    "context_name": "candidate-b",
+    "source_manifest_digest": "sha256:90541ad0cc285214b989660f785bcfc640b35c17f367a2054cf5eb55aea8e91d",
+    "file_count": 18,
+    "changed_source": {
+      "path": "app/main.py",
+      "sha256": "sha256:9f463c9c30ea038b374a3922e1943d2ce3ec199f36ab34fa46cbcdaee6dd98b1",
+      "bytes": 1937
+    },
+    "expected_route_path": "/api/cache-fixture",
+    "expected_response": {
+      "source_marker": "cloudhelm-cache-fixture-b-v1"
+    }
+  },
+  "source_b": {
+    "files": {
+      ".dockerignore": {
+        "sha256": "sha256:08bc12907214f2b0272a6e82f035e3cbbaf7ac16defb4ab4a95302545308d317",
+        "bytes": 43
+      },
+      ".python-version": {
+        "sha256": "sha256:aa0d6581054e6e4ff3f91839deca7a854ad37221b8784d060b42d0f847ff1a3b",
+        "bytes": 8
+      },
+      "Dockerfile": {
+        "sha256": "sha256:b28e48358b722b5bf6bc3e05040e250c44c49c6e9d1d86bde2b6add1fb17cbdf",
+        "bytes": 544
+      },
+      "README.md": {
+        "sha256": "sha256:22fd4c90f4234043320804eb18480b9e6ddef28acaeda82a66ca939e232e5688",
+        "bytes": 1132
+      },
+      "alembic.ini": {
+        "sha256": "sha256:6c18a6befe7a7b2d6866587cd2080a3bff803f82a80d1bdaa66bffe759405036",
+        "bytes": 591
+      },
+      "app/__init__.py": {
+        "sha256": "sha256:ad9e6e2a816f005ad862273c5941cb2fd261ca83bf7a406d54d27dcac7794e60",
+        "bytes": 43
+      },
+      "app/database.py": {
+        "sha256": "sha256:51d5a1d46dc61dcc8af8fe6c0c06d7bb5232b231fdb0945393af32858840549c",
+        "bytes": 1284
+      },
+      "app/main.py": {
+        "sha256": "sha256:9f463c9c30ea038b374a3922e1943d2ce3ec199f36ab34fa46cbcdaee6dd98b1",
+        "bytes": 1937
+      },
+      "app/models.py": {
+        "sha256": "sha256:de5d75aee0093e812fb5eb081ec6637407a2d1f4a193df0973a4f67b923fbfec",
+        "bytes": 862
+      },
+      "app/readiness.py": {
+        "sha256": "sha256:37174dd7105c56aa1638503ea00f55e14ed5c54dd24c08b8924e3f1b0a3e2de4",
+        "bytes": 741
+      },
+      "app/routes.py": {
+        "sha256": "sha256:79416f4e1932568abc1819d32176ea8abd4f360a648d3243795f9722d1fca197",
+        "bytes": 2361
+      },
+      "app/schemas.py": {
+        "sha256": "sha256:51b4cf3230790f2e18fa6058bc4cff143d6f679e7c1fa63b987937d271e55fa7",
+        "bytes": 1708
+      },
+      "migrations/env.py": {
+        "sha256": "sha256:b051c59170abf1450caf51aa170b533b590d317d9f447263c08705ec1d1a58d8",
+        "bytes": 1633
+      },
+      "migrations/versions/0001_create_notes.py": {
+        "sha256": "sha256:7698b5b5f6554bd89026d808bab8a0acfa07ba02b25a9e28cf65483bf6ef0c6f",
+        "bytes": 1013
+      },
+      "migrations/versions/0002_add_updated_at_index.py": {
+        "sha256": "sha256:5b2961617293966d5b39427ab3a57ddc6bc96ed0ee31d94d997ba07779399f5f",
+        "bytes": 490
+      },
+      "openapi.json": {
+        "sha256": "sha256:05d0a9a87378219d08f3f5a696199271fac9191eb5daf2b52a1a7626302d91e2",
+        "bytes": 10053
+      },
+      "pyproject.toml": {
+        "sha256": "sha256:b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148",
+        "bytes": 361
+      },
+      "uv.lock": {
+        "sha256": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2",
+        "bytes": 33551
+      }
+    },
+    "manifest_digest": "sha256:90541ad0cc285214b989660f785bcfc640b35c17f367a2054cf5eb55aea8e91d",
+    "file_count": 18,
+    "bytes": 58355,
+    "source_ref": "fixed-notes-backend-cache-fixture-b-v1",
+    "recipe_digest": "sha256:4dab2ee86603cd2073583a6228a126637f07559da6eb5f31b7e215879cd1f5bc",
+    "recipe_variant": "fixed-notes-python-offline-r2",
+    "derived_project_digest": "sha256:6f247d3617fdef03aa420b251437abb12ed7b731f3ef5520fb0f8be177e202ed"
+  },
+  "source_refusals": [
+    "changed_source",
+    "extra_source",
+    "missing_source",
+    "allowlisted_cache_fixture"
+  ],
+  "dependency_refusals": {
+    "lock_rejects_old_seed": true,
+    "platform_rejects_old_seed": true,
+    "python_rejects_old_seed": true,
+    "uv_rejects_old_seed": true,
+    "project_rejects_old_seed": true,
+    "trust_domain_rejects_old_seed": true,
+    "install_parameters_rejects_old_seed": true,
+    "sdist_rejected_before_io": true,
+    "foreign_host_rejected_before_io": true
+  },
+  "toolchain": {
+    "reference": "moby/buildkit:v0.34.0-rootless@sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359",
+    "image_id": "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359",
+    "platform": "linux/amd64",
+    "manifest_digest": "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359"
+  },
+  "base": {
+    "reference": "python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+    "index_digest": "sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+    "manifest": {
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:6e13e65c55e33adf203d77ee371cf8bf5d81bd4902ef07565721f46bf44917af",
+      "size": 1752
+    },
+    "config": {
+      "mediaType": "application/vnd.oci.image.config.v1+json",
+      "digest": "sha256:64d91f7b885eed272bba87909446b12ff408d4aaa5f1a0e9ca787bbea1a020b9",
+      "size": 5676
+    },
+    "layers": [
+      {
+        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:039e6f9f9752f74a3ff4a6a224f64c7c864da16ed98f882107704328f41b9c42",
+        "size": 28232590
+      },
+      {
+        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:e8e392f3681c10ad9c2b19ab6614fd158f6d5a03e0f71694aea9429d38813dbd",
+        "size": 3520804
+      },
+      {
+        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:8e0b0d5a4a0425bc991b95b78af125c6005a0a82a89011f076802a0265d8ff32",
+        "size": 13667988
+      },
+      {
+        "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:1634f3c69c84a41815c187086e80cf5fdec289c6ce620014ef3ca9b54c019279",
+        "size": 248
+      }
+    ],
+    "layout_bytes": 45429379,
+    "source_export_bytes": 48037888,
+    "platform": "linux/amd64"
+  },
+  "primary_build_input_key": "sha256:79218aca8a565cff05d42aaf461e329a0541bbdc81acd7d0a0b2227b3657b643",
+  "execution_started_at": "2026-10-18T06:54:20.335042+00:00",
+  "limits": {
+    "kernel_limits": {
+      "cpu.max": "300000 100000",
+      "memory.max": "4294967296",
+      "memory.swap.max": "0",
+      "pids.max": "256"
+    },
+    "outer_tmpfs_bytes": {
+      "/home/user/.local/share/buildkit": 2684354560,
+      "/run/user/1000": 16777216,
+      "/tmp": 16777216,
+      "/probe/output": 268435456,
+      "/dev/shm": 1048576
+    },
+    "outer_tmpfs_capacity_sum": 2987393024,
+    "install_tmpfs_bytes": {
+      "/private-cache": 268435456,
+      "/tmp": 67108864
+    },
+    "network": "none",
+    "readonly_root": true,
+    "source_binds_readonly": true,
+    "process_sandbox": true,
+    "snapshotter": "native",
+    "execution_wall_seconds": 420,
+    "security_exceptions": [
+      "seccomp=unconfined",
+      "systempaths=unconfined"
+    ]
+  },
+  "output": {
+    "archive_digest": "sha256:3a34f45ac2fb79e2ef0ff7b0f0a11d39411267b077b090f5b5313e5942b11b9f",
+    "archive_bytes": 65600000,
+    "exporter_manifest_digest": "sha256:0435090be449d69f6b740e98250307ef703bd7b4559111a0335c70d7344d8f66",
+    "exporter_config_digest": "sha256:92baa05838f2ce5da0c6c1f321b0d61c4c7f5a06208868c046e088ead3f9ad69",
+    "input_key": "sha256:79218aca8a565cff05d42aaf461e329a0541bbdc81acd7d0a0b2227b3657b643",
+    "runtime_check_cached": false,
+    "runtime_checks": [
+      {
+        "backend_imported": true,
+        "build_input_key": "sha256:79218aca8a565cff05d42aaf461e329a0541bbdc81acd7d0a0b2227b3657b643",
+        "control_paths_absent": true,
+        "database_unconfigured": true,
+        "migration_head": "0002_add_updated_at_index",
+        "no_ipv4_routes": true,
+        "python": "3.12.13"
+      }
+    ],
+    "build_cache_policy": "private_builder_per_operation",
+    "runtime_loaded": false,
+    "http_checked": false,
+    "archive_path": "/home/cloudhelm/.local/state/cloudhelm/backend-build-check/backend-build-4608a749f5ba41f6a1a1c50d93ecadd2/image.oci.tar"
+  },
+  "runtime_image_contents": {
+    "uvicorn_entrypoint_verified": true,
+    "verified_runtime_source": {
+      "app/.python-version": "sha256:aa0d6581054e6e4ff3f91839deca7a854ad37221b8784d060b42d0f847ff1a3b",
+      "app/alembic.ini": "sha256:6c18a6befe7a7b2d6866587cd2080a3bff803f82a80d1bdaa66bffe759405036",
+      "app/app/__init__.py": "sha256:ad9e6e2a816f005ad862273c5941cb2fd261ca83bf7a406d54d27dcac7794e60",
+      "app/app/database.py": "sha256:51d5a1d46dc61dcc8af8fe6c0c06d7bb5232b231fdb0945393af32858840549c",
+      "app/app/main.py": "sha256:437085b28750bc19b50908cd8d51bd32584438388c89c57ecbe39db9cfabded3",
+      "app/app/models.py": "sha256:de5d75aee0093e812fb5eb081ec6637407a2d1f4a193df0973a4f67b923fbfec",
+      "app/app/readiness.py": "sha256:37174dd7105c56aa1638503ea00f55e14ed5c54dd24c08b8924e3f1b0a3e2de4",
+      "app/app/routes.py": "sha256:79416f4e1932568abc1819d32176ea8abd4f360a648d3243795f9722d1fca197",
+      "app/app/schemas.py": "sha256:51b4cf3230790f2e18fa6058bc4cff143d6f679e7c1fa63b987937d271e55fa7",
+      "app/migrations/env.py": "sha256:b051c59170abf1450caf51aa170b533b590d317d9f447263c08705ec1d1a58d8",
+      "app/migrations/versions/0001_create_notes.py": "sha256:7698b5b5f6554bd89026d808bab8a0acfa07ba02b25a9e28cf65483bf6ef0c6f",
+      "app/migrations/versions/0002_add_updated_at_index.py": "sha256:5b2961617293966d5b39427ab3a57ddc6bc96ed0ee31d94d997ba07779399f5f",
+      "app/pyproject.toml": "sha256:b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148",
+      "app/uv.lock": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2"
+    },
+    "runtime_checks_match_archive": true,
+    "gzip_layers": 7,
+    "attestations": false
+  },
+  "artifact": {
+    "schema_revision": "p1-artifact-content-r1",
+    "storage_id": "oci-3a34f45ac2fb79e2ef0ff7b0f0a11d39411267b077b090f5b5313e5942b11b9f",
+    "archive_digest": "sha256:3a34f45ac2fb79e2ef0ff7b0f0a11d39411267b077b090f5b5313e5942b11b9f",
+    "archive_bytes": 65600000,
+    "platform": "linux/amd64",
+    "manifest": {
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:0435090be449d69f6b740e98250307ef703bd7b4559111a0335c70d7344d8f66",
+      "size_bytes": 1627
+    },
+    "config": {
+      "media_type": "application/vnd.oci.image.config.v1+json",
+      "digest": "sha256:92baa05838f2ce5da0c6c1f321b0d61c4c7f5a06208868c046e088ead3f9ad69",
+      "size_bytes": 8523
+    },
+    "image_id": "sha256:92baa05838f2ce5da0c6c1f321b0d61c4c7f5a06208868c046e088ead3f9ad69",
+    "layers": [
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:039e6f9f9752f74a3ff4a6a224f64c7c864da16ed98f882107704328f41b9c42",
+        "size_bytes": 28232590
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:e8e392f3681c10ad9c2b19ab6614fd158f6d5a03e0f71694aea9429d38813dbd",
+        "size_bytes": 3520804
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:8e0b0d5a4a0425bc991b95b78af125c6005a0a82a89011f076802a0265d8ff32",
+        "size_bytes": 13667988
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:1634f3c69c84a41815c187086e80cf5fdec289c6ce620014ef3ca9b54c019279",
+        "size_bytes": 248
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:1bfa43760914166c9867ee32016c7fb53771eb898231cd30f2701bd32ce83c94",
+        "size_bytes": 93
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:a93f18c6954a25bbe28d1c060d6689a44168f2927560db8a8bd78a9438c1e8f8",
+        "size_bytes": 17374667
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:7192aa637aeeeae24d605b7f0b3fd4134e5b896379ac4cfc7e3a3ce6effc4425",
+        "size_bytes": 2782330
+      }
+    ]
+  },
+  "cache_hit": {
+    "archive_digest": "sha256:400319d2c441364ce12f8d1fe6e71aca1ef1ce6480c3ae950e04fbb1cb850f2a",
+    "archive_bytes": 65600000,
+    "exporter_manifest_digest": "sha256:0435090be449d69f6b740e98250307ef703bd7b4559111a0335c70d7344d8f66",
+    "exporter_config_digest": "sha256:92baa05838f2ce5da0c6c1f321b0d61c4c7f5a06208868c046e088ead3f9ad69",
+    "input_key": "sha256:79218aca8a565cff05d42aaf461e329a0541bbdc81acd7d0a0b2227b3657b643",
+    "runtime_check_cached": true,
+    "runtime_checks": [],
+    "build_cache_policy": "private_builder_per_operation",
+    "runtime_loaded": false,
+    "http_checked": false
+  },
+  "cache_invalidation": {
+    "archive_digest": "sha256:c06f9306bfc762ebd149bd27e5f12180666f93e993e19df780bd553ccef9f99a",
+    "archive_bytes": 65600000,
+    "exporter_manifest_digest": "sha256:59a751dd3745d39f3dd3a1e76643a0a3d0ab9c36094b1a7a9ae0df95e8c4dd7f",
+    "exporter_config_digest": "sha256:ab3b43ddabbc60b02df132abaa7ddccf85fbf89e0462a2de993e2f3426e76262",
+    "input_key": "sha256:be545bef006342cf5d77208fad772630953fa0b7f1109afc26aa45628929a65d",
+    "runtime_check_cached": false,
+    "runtime_checks": [
+      {
+        "backend_imported": true,
+        "build_input_key": "sha256:be545bef006342cf5d77208fad772630953fa0b7f1109afc26aa45628929a65d",
+        "control_paths_absent": true,
+        "database_unconfigured": true,
+        "migration_head": "0002_add_updated_at_index",
+        "no_ipv4_routes": true,
+        "python": "3.12.13"
+      }
+    ],
+    "build_cache_policy": "private_builder_per_operation",
+    "runtime_loaded": false,
+    "http_checked": false,
+    "archive_path": "/home/cloudhelm/.local/state/cloudhelm/backend-build-check/backend-build-4608a749f5ba41f6a1a1c50d93ecadd2/image.oci.tar"
+  },
+  "cache_invalidation_artifact": {
+    "schema_revision": "p1-artifact-content-r1",
+    "storage_id": "oci-c06f9306bfc762ebd149bd27e5f12180666f93e993e19df780bd553ccef9f99a",
+    "archive_digest": "sha256:c06f9306bfc762ebd149bd27e5f12180666f93e993e19df780bd553ccef9f99a",
+    "archive_bytes": 65600000,
+    "platform": "linux/amd64",
+    "manifest": {
+      "media_type": "application/vnd.oci.image.manifest.v1+json",
+      "digest": "sha256:59a751dd3745d39f3dd3a1e76643a0a3d0ab9c36094b1a7a9ae0df95e8c4dd7f",
+      "size_bytes": 1627
+    },
+    "config": {
+      "media_type": "application/vnd.oci.image.config.v1+json",
+      "digest": "sha256:ab3b43ddabbc60b02df132abaa7ddccf85fbf89e0462a2de993e2f3426e76262",
+      "size_bytes": 8528
+    },
+    "image_id": "sha256:ab3b43ddabbc60b02df132abaa7ddccf85fbf89e0462a2de993e2f3426e76262",
+    "layers": [
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:039e6f9f9752f74a3ff4a6a224f64c7c864da16ed98f882107704328f41b9c42",
+        "size_bytes": 28232590
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:e8e392f3681c10ad9c2b19ab6614fd158f6d5a03e0f71694aea9429d38813dbd",
+        "size_bytes": 3520804
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:8e0b0d5a4a0425bc991b95b78af125c6005a0a82a89011f076802a0265d8ff32",
+        "size_bytes": 13667988
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:1634f3c69c84a41815c187086e80cf5fdec289c6ce620014ef3ca9b54c019279",
+        "size_bytes": 248
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:1bfa43760914166c9867ee32016c7fb53771eb898231cd30f2701bd32ce83c94",
+        "size_bytes": 93
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:a3b6e00856c435c4d6c84423edf802129a7053e0595dd421d6b9ba5f999395bb",
+        "size_bytes": 17374678
+      },
+      {
+        "media_type": "application/vnd.oci.image.layer.v1.tar+gzip",
+        "digest": "sha256:54450502750f8a43f13ad0df1bea8378ef8464f78a81d935bd10ac2a86a8b913",
+        "size_bytes": 2782330
+      }
+    ]
+  },
+  "cache_invalidation_runtime_image_contents": {
+    "uvicorn_entrypoint_verified": true,
+    "verified_runtime_source": {
+      "app/.python-version": "sha256:aa0d6581054e6e4ff3f91839deca7a854ad37221b8784d060b42d0f847ff1a3b",
+      "app/alembic.ini": "sha256:6c18a6befe7a7b2d6866587cd2080a3bff803f82a80d1bdaa66bffe759405036",
+      "app/app/__init__.py": "sha256:ad9e6e2a816f005ad862273c5941cb2fd261ca83bf7a406d54d27dcac7794e60",
+      "app/app/database.py": "sha256:51d5a1d46dc61dcc8af8fe6c0c06d7bb5232b231fdb0945393af32858840549c",
+      "app/app/main.py": "sha256:9f463c9c30ea038b374a3922e1943d2ce3ec199f36ab34fa46cbcdaee6dd98b1",
+      "app/app/models.py": "sha256:de5d75aee0093e812fb5eb081ec6637407a2d1f4a193df0973a4f67b923fbfec",
+      "app/app/readiness.py": "sha256:37174dd7105c56aa1638503ea00f55e14ed5c54dd24c08b8924e3f1b0a3e2de4",
+      "app/app/routes.py": "sha256:79416f4e1932568abc1819d32176ea8abd4f360a648d3243795f9722d1fca197",
+      "app/app/schemas.py": "sha256:51b4cf3230790f2e18fa6058bc4cff143d6f679e7c1fa63b987937d271e55fa7",
+      "app/migrations/env.py": "sha256:b051c59170abf1450caf51aa170b533b590d317d9f447263c08705ec1d1a58d8",
+      "app/migrations/versions/0001_create_notes.py": "sha256:7698b5b5f6554bd89026d808bab8a0acfa07ba02b25a9e28cf65483bf6ef0c6f",
+      "app/migrations/versions/0002_add_updated_at_index.py": "sha256:5b2961617293966d5b39427ab3a57ddc6bc96ed0ee31d94d997ba07779399f5f",
+      "app/pyproject.toml": "sha256:b5940017da0d4aa230ccd04353eff3c05e47175f349c46106fa1a74287907148",
+      "app/uv.lock": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2"
+    },
+    "runtime_checks_match_archive": true,
+    "gzip_layers": 7,
+    "attestations": false,
+    "cache_fixture_runtime_check": {
+      "route_path": "/api/cache-fixture",
+      "expected_response": {
+        "source_marker": "cloudhelm-cache-fixture-b-v1"
+      },
+      "observed_response": {
+        "source_marker": "cloudhelm-cache-fixture-b-v1"
+      },
+      "route_endpoint_called": true,
+      "source_origin": "verified_bytes_extracted_from_b_oci_layers"
+    }
+  },
+  "cache_sequence": {
+    "order": [
+      "A",
+      "A",
+      "B"
+    ],
+    "builder_boundary_revision": "p1-backend-offline-build-r1",
+    "builder_cache_policy": "one_private_builder_per_operation",
+    "builder_identity_sha256": "fac3362cd7f6c27498f4e384233e515997af15f7ccdef697c89fd55eb3ceb04b",
+    "all_builds_used_same_private_builder": true,
+    "development_dependency_cache_relation": "separate_private_wheel_seed_cache; not the builder cache under measurement",
+    "candidate_a": {
+      "source_ref": "fixed-reference-development",
+      "source_manifest_digest": "sha256:df3c244b0445ed7795800ed8fb99f0cae725504137997b7b9880ae8f1d9d9c50",
+      "build_input_key": "sha256:79218aca8a565cff05d42aaf461e329a0541bbdc81acd7d0a0b2227b3657b643"
+    },
+    "candidate_b": {
+      "fixture_id": "p1-backend-cache-fixture-b-v1",
+      "source_ref": "fixed-notes-backend-cache-fixture-b-v1",
+      "source_manifest_digest": "sha256:90541ad0cc285214b989660f785bcfc640b35c17f367a2054cf5eb55aea8e91d",
+      "build_input_key": "sha256:be545bef006342cf5d77208fad772630953fa0b7f1109afc26aa45628929a65d"
+    },
+    "a_first_executed": true,
+    "a_repeat_cached": true,
+    "a_repeat_oci_identity_equal": true,
+    "b_source_manifest_changed": true,
+    "b_input_key_changed": true,
+    "b_runtime_step_executed": true,
+    "b_oci_identity_changed": true,
+    "b_source_digest_verified_in_oci": true,
+    "b_route_function_called_from_oci_source": true
+  },
+  "dependencies": {
+    "checks": {
+      "cache_bytes": 268435456,
+      "control_paths_absent": true,
+      "distributions": {
+        "alembic": "1.20.0",
+        "annotated-doc": "0.0.5",
+        "annotated-types": "0.8.0",
+        "anyio": "4.15.1",
+        "click": "8.5.0",
+        "fastapi": "0.143.0",
+        "h11": "0.16.0",
+        "idna": "3.20",
+        "mako": "1.4.3",
+        "markupsafe": "3.0.4",
+        "opentelemetry-api": "1.45.1",
+        "psycopg": "3.3.6",
+        "psycopg-binary": "3.3.6",
+        "pydantic": "2.14.1",
+        "pydantic-core": "2.50.1",
+        "sqlalchemy": "2.1.4",
+        "starlette": "1.7.0",
+        "typing-extensions": "4.16.0",
+        "typing-inspection": "0.4.4",
+        "uvicorn": "0.54.0"
+      },
+      "no_ipv4_routes": true,
+      "psycopg_impl": "binary",
+      "python": "3.12.13",
+      "temp_bytes": 67108864,
+      "wheelhouse_readonly": true
+    },
+    "derived_inputs": {
+      "variant": "linux-amd64-wheelhouse-r1",
+      "environment": "sys_platform == 'linux' and platform_machine == 'x86_64' and implementation_name == 'cpython'",
+      "source_lock_digest": "sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2",
+      "project_digest": "sha256:6f247d3617fdef03aa420b251437abb12ed7b731f3ef5520fb0f8be177e202ed",
+      "lock_digest": "sha256:9b90dbaa73c1d201931b8141e6177b5190592a9f2a3b004fcd28b0127917c647",
+      "lock_arguments": [
+        "lock",
+        "--offline",
+        "--no-build",
+        "--no-index",
+        "--find-links=/wheelhouse",
+        "--python=/usr/local/bin/python",
+        "--no-python-downloads"
+      ],
+      "original_linux_name_versions_match": true,
+      "derived_wheels_reference_verified_seed": true
+    },
+    "derived_project_digest": "sha256:6f247d3617fdef03aa420b251437abb12ed7b731f3ef5520fb0f8be177e202ed",
+    "derived_lock_digest": "sha256:9b90dbaa73c1d201931b8141e6177b5190592a9f2a3b004fcd28b0127917c647",
+    "private_install_cache_removed": true,
+    "cache_observed": true
+  },
+  "input_after": {
+    "input_set": "docs/acceptance/p1/input-set-p1-2-r3.json",
+    "source_commit": "799243856d1749d52c15ed9f476c848cc3057bb1",
+    "sha256": "06e3982ddbe384a77b426c482f314c60a4d408bf763e985731091e042fbcf817",
+    "file_count": 319,
+    "matches": true
+  },
+  "stop": {
+    "confirmation": {
+      "capability": "stop_confirmation",
+      "status": "verified",
+      "reason": "docker_and_host_process_stop_confirmed",
+      "observations": [
+        "tracked_processes=24",
+        "remaining_processes=0",
+        "cgroup_populated=false",
+        "owned_container_removed=true"
+      ]
+    },
+    "process_resources_released": true,
+    "memory_peak_bytes": 2319360000,
+    "private_builder_and_install_cache_removed": true
+  },
+  "cleanup": {
+    "source_layout_removed": true,
+    "source_layout_removed_logical_bytes": 45429379
+  },
+  "finished_at": "2026-10-18T06:55:24.372173+00:00",
+  "static_preparation_verified": true,
+  "retention": {
+    "external_readonly_seed_bytes": 106618246,
+    "published_archive_bytes": 65600000,
+    "collected_archive_remaining": false,
+    "source_layout_remaining": false,
+    "source_context_bundle_remaining": true,
+    "source_context_variants": [
+      "candidate-a",
+      "candidate-b"
+    ],
+    "source_export_remaining": false,
+    "host_retained_content_has_physical_quota": false
+  }
+}
