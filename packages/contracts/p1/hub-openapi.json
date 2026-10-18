@@ -3,7 +3,7 @@
   "info": {
     "title": "CloudHelm Hub API",
     "description": "Identity, Task control and bounded P1.2 engineering intents and queries.",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "paths": {
     "/api/auth/me": {

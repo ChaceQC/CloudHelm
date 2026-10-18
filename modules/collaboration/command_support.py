@@ -136,11 +136,33 @@ def _read_operation_access(context: TaskAccessContext, operation_id: str) -> Non
         task_operation_links.c.operation_id == operation_id,
     )).mappings().one_or_none()
     if link is None:
-        raise IdentityError("permission_denied")
-    owner_task = link["owner_id"] if link["owner_kind"] == "task" else None
+        owner_task = _engineering_operation_owner(context, operation_id)
+    else:
+        owner_task = link["owner_id"] if link["owner_kind"] == "task" else None
     resource = AuthoritativeResource(context.task["project_id"], "operation", operation_id,
                                      task_id=owner_task)
     authorize_current(context.uow, context.actor, resource, "operation.query")
+
+
+def _engineering_operation_owner(context: TaskAccessContext, operation_id: str) -> str:
+    """Resolve a validated domain intent before exposing its ID in Task blockers."""
+    from modules.delivery.queries import read_build_intent
+    from modules.workspaces.operations import read_workspace_operation
+
+    try:
+        if operation_id.startswith("workspace-"):
+            intent, _ = read_workspace_operation(context.uow.connection, operation_id)
+            project_id, task_id = intent.result.binding.project_id, intent.result.task_id
+        elif operation_id.startswith("build-operation-"):
+            _, intent = read_build_intent(context.uow.connection, operation_id)
+            project_id, task_id = intent.project_id, intent.task_id
+        else:
+            raise IdentityError("permission_denied")
+    except TaskBoundaryError:
+        raise IdentityError("permission_denied") from None
+    if (project_id, task_id) != (context.task["project_id"], context.task["task_id"]):
+        raise IdentityError("permission_denied")
+    return task_id
 
 
 def assert_result_read_access(context: TaskAccessContext, result: TaskCommandResult) -> None:

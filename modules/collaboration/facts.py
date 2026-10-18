@@ -15,13 +15,15 @@ from modules.collaboration.fact_reads import FactReader, bounded_rows
 from modules.collaboration.guards import read_task
 from modules.collaboration.human_facts import read_human_fact
 from modules.collaboration.operation_facts import read_operation_facts
+from modules.collaboration.operation_projection import merge_operation_facts
 from modules.collaboration.records import contract_digest, reference_key
 from modules.collaboration.tables import (
     task_completion_reports, task_declarations, task_run_links, task_wait_conditions,
 )
+from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.identity_contracts import Principal
 from packages.contracts.p0.task_control_contracts import (
-    CancellationIntent, CompletionBasis, TaskCompletionReport, TaskControlFacts,
+    CancellationIntent, CompletionBasis, OperationClosureFact, TaskCompletionReport, TaskControlFacts,
 )
 from packages.contracts.p1.task_facts import EvidenceMetadata
 from packages.contracts.p1.task_requests import TaskDeclaration
@@ -34,6 +36,12 @@ class TaskControlSnapshot:
     declaration: TaskDeclaration
     facts: TaskControlFacts
     blockers: tuple[TaskBlocker, ...]
+
+
+_OPERATION_SOURCE_SCOPE_ERRORS = frozenset({
+    "operation_projection_scope_too_large", "engineering_operation_scope_too_large",
+    "workspace_operation_scope_too_large", "build_operation_scope_too_large",
+})
 
 
 def read_declaration(connection: Connection, task: Mapping[str, Any]) -> TaskDeclaration:
@@ -127,6 +135,25 @@ def _run_history(reader: FactReader, task: Mapping[str, Any]) -> tuple[bool, boo
     return fenced, bool(runs)
 
 
+def _read_task_operation_projection(
+    connection: Connection, task: Mapping[str, Any], input_set_ref: EngineeringRef | None, *,
+    for_cancellation: bool = False,
+) -> tuple[OperationClosureFact, ...]:
+    """Combine Task and engineering operations under one complete projection bound."""
+    from modules.collaboration.engineering_operations import read_engineering_operation_blockers
+
+    try:
+        task_operations = read_operation_facts(
+            connection, task, input_set_ref, for_cancellation=for_cancellation,
+        )
+        engineering_operations = read_engineering_operation_blockers(connection, task["task_id"])
+        return merge_operation_facts(task_operations, engineering_operations)
+    except TaskBoundaryError as error:
+        if error.code in _OPERATION_SOURCE_SCOPE_ERRORS:
+            raise TaskBoundaryError("task_fact_projection_scope_too_large") from None
+        raise
+
+
 def _completion_basis(reader: FactReader, inputs, acceptance, human, operations, revision: int):
     if not inputs.current or not acceptance.evidence_refs:
         return None
@@ -160,10 +187,7 @@ def load_task_control_facts(connection: Connection, task_id: str) -> TaskControl
     inputs = read_completion_inputs(reader, task, declaration)
     acceptance = read_acceptance_facts(reader, task, inputs)
     input_ref = inputs.input_set.reference if inputs.input_set else None
-    from modules.collaboration.engineering_operations import read_engineering_operation_blockers
-
-    operations = (*read_operation_facts(connection, task, input_ref),
-                  *read_engineering_operation_blockers(connection, task_id))
+    operations = _read_task_operation_projection(connection, task, input_ref)
     human = read_human_fact(reader, inputs, declaration)
     waits_ready = _waits_satisfied(reader, input_ref)
     history_fenced, usage_unknown = _run_history(reader, task)
@@ -191,10 +215,7 @@ def load_cancellation_facts(connection: Connection, task_id: str) -> TaskControl
     """Cancellation needs physical closure and history, not a completed delivery input."""
     task = read_task(connection, task_id, for_update=True)
     reader = FactReader(connection, task["project_id"], task_id)
-    from modules.collaboration.engineering_operations import read_engineering_operation_blockers
-
-    operations = (*read_operation_facts(connection, task, None, for_cancellation=True),
-                  *read_engineering_operation_blockers(connection, task_id))
+    operations = _read_task_operation_projection(connection, task, None, for_cancellation=True)
     history_fenced, usage_unknown = _run_history(reader, task)
     data = read_control_head(connection, task).model_dump()
     data.update(operation_set_current=True, operations=operations,
