@@ -8,6 +8,7 @@ from packages.contracts.p0.decision_common import Contract, Digest, Identifier, 
 
 EngineeringWorkflowName = Literal[
     "projects.source_import.v1", "workspaces.operation.v1", "delivery.build.v1",
+    "workspaces.development_environment.v1",
 ]
 
 
@@ -28,6 +29,7 @@ class EngineeringWorkflowDispatch(Contract):
         expected = {
             "projects.source_import.v1": "project",
             "workspaces.operation.v1": "workspace",
+            "workspaces.development_environment.v1": "workspace",
             "delivery.build.v1": "build",
         }
         if self.business_kind != expected[self.workflow_name]:

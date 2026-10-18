@@ -31,6 +31,8 @@ WORKSPACE_DEVELOPMENT_CONTROL_COLUMNS = (
 WORKSPACE_DEVELOPMENT_RECEIPT_COLUMNS = (
     "state", "data_revision", "data_generation", "runtime_fact_json", "health_probe_json",
     "ready_probe_json", "stop_fact_json", "updated_at",
+    "workspace_revision", "write_generation", "binding_json", "binding_digest", "source_manifest_digest",
+    "original_lock_digest", "dependency_cache_key", "toolchain_json", "toolchain_digest", "migration_revision",
 )
 WORKSPACE_DEVELOPMENT_OPERATION_RECEIPT_COLUMNS = (
     "operation_state", "observation_json", "observation_digest", "closed_at",

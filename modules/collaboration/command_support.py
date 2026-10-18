@@ -150,7 +150,12 @@ def _engineering_operation_owner(context: TaskAccessContext, operation_id: str) 
     from modules.workspaces.operations import read_workspace_operation
 
     try:
-        if operation_id.startswith("workspace-"):
+        if operation_id.startswith("workspace-dev-env-"):
+            from modules.workspaces.development_queries import read_development_operation_record
+
+            _, _, row, _, _ = read_development_operation_record(context.uow.connection, operation_id)
+            project_id, task_id = row["project_id"], row["task_id"]
+        elif operation_id.startswith("workspace-"):
             intent, _ = read_workspace_operation(context.uow.connection, operation_id)
             project_id, task_id = intent.result.binding.project_id, intent.result.task_id
         elif operation_id.startswith("build-operation-"):

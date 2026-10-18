@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from modules.delivery.commands import BuildApplication
     from modules.projects.source_commands import SourceImportApplication
     from modules.workspaces.application import WorkspaceApplication
+    from modules.workspaces.development_application import WorkspaceDevelopmentApplication
 
 
 class ApiStartupError(RuntimeError):
@@ -34,6 +35,7 @@ class ApiRuntime:
     reference_tasks: "ReferenceTaskApplication"
     workspaces: "WorkspaceApplication"
     builds: "BuildApplication"
+    development: "WorkspaceDevelopmentApplication"
 
     def close(self) -> None:
         try:
@@ -61,8 +63,13 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
         from modules.delivery.commands import BuildApplication
         from modules.projects.source_commands import SourceImportApplication
         from modules.workflow.engineering_enqueuers import build_enqueuer, engineering_enqueuer
+        from modules.workflow.engineering_enqueuers import development_environment_enqueuer
         from modules.workspaces.application import WorkspaceApplication
+        from modules.workspaces.development_application import WorkspaceDevelopmentApplication
         from packages.contracts.p1.workspace_candidates import workspace_runtime_scope_id
+        from importlib import import_module
+
+        development_registry = import_module("services.dev-runner.workspace_development_registry")
 
         selected = settings if settings is not None else load_database_settings("api")
         if selected.role != "api":
@@ -88,6 +95,10 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
                 runtime_scope_for=workspace_runtime_scope_id,
                 enqueue_operation=engineering_enqueuer(client, "workspace")),
             builds=BuildApplication(pools.normal, pools.control, enqueue_operation=build_enqueuer(client)),
+            development=WorkspaceDevelopmentApplication(
+                pools.normal, pools.control, prepared_spec_for=development_registry.registered_development_spec,
+                enqueue_operation=development_environment_enqueuer(client),
+            ),
         )
     except Exception:
         try:

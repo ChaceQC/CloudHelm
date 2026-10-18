@@ -42,6 +42,7 @@ def _start_dbos(application, engine, installation_id: str, engineering) -> None:
     from modules.delivery.workflows import register_build_workflows
     from modules.projects.workflows import register_source_workflows
     from modules.workspaces.workflows import register_workspace_workflows
+    from modules.workspaces.development_workflows import register_development_environment_workflows
 
     DBOS(config=DBOSConfig(
         name=APPLICATION_NAME, application_version=APPLICATION_VERSION,
@@ -56,6 +57,7 @@ def _start_dbos(application, engine, installation_id: str, engineering) -> None:
     register_source_workflows(engineering.source_import)
     register_workspace_workflows(engineering.workspace_operation)
     register_build_workflows(engineering.build)
+    register_development_environment_workflows(engineering.development_environment)
     DBOS.listen_queues(WORKER_QUEUES)
     DBOS.launch()
     for queue in WORKER_QUEUES:
@@ -73,6 +75,7 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
     pools = create_business_pools(settings)
     client = None
     system_engine = None
+    engineering = None
     dbos_attempted = False
     try:
         with UnitOfWork(pools.control) as uow:
@@ -109,8 +112,12 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
             if dbos_attempted:
                 DBOS.destroy(destroy_registry=True, workflow_completion_timeout_sec=shutdown_grace_seconds)
         finally:
-            if client is not None:
-                client.destroy()
-            if system_engine is not None:
-                system_engine.dispose()
-            pools.dispose()
+            try:
+                if engineering is not None:
+                    engineering.close()
+            finally:
+                if client is not None:
+                    client.destroy()
+                if system_engine is not None:
+                    system_engine.dispose()
+                pools.dispose()

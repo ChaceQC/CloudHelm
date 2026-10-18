@@ -18,6 +18,7 @@
 |`build_requests.py`、`build_records.py`|BuildRun 的候选/输入/配方/锁/工具链及运行契约绑定，三角色制品内容与可信执行观察分别登记|
 |`engineering_commands.py`|project/workspace/build 的同事务 DBOS 交接；工作流仅接收稳定 operation_id|
 |`development_storage.py`、`development_environment.py`、`npm_cache.py`|受控开发实例修订、实际存储准入、环境生命周期及缓存键；注册和契约均不代替物理核验|
+|`workspace_development_requests.py`|可变 Workspace 环境的申请、休眠、恢复、数据重建、处置与操作查询；公共请求不提交 Runner 就绪事实|
 |`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
 
 所有固定模型拒绝额外字段。API 还检查原始 JSON 重复键、非法数值和请求边界；真实主体、scope、action、当前授权及请求摘要由服务端解析和构造，不能用客户端自报的 `caller`、角色、`allowed` 或完成布尔值放行。

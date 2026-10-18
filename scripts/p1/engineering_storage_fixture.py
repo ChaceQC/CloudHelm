@@ -43,10 +43,14 @@ def main():
         created = maintenance.create_instance(args.capacity_bytes)
         identity = created["storage_id"]
         report["storage_created"] = created
-        if not args.through_candidate:
+        if not args.through_candidate and args.method != "task-control":
             environment_group = groups.EnvironmentGroup(identity)
             report["environment_parent_prepared"] = environment_group.prepare_unit()
-            report["environment_parent_scope"] = "three services, migration and container helpers; HTTP/Hub/DBOS are platform overhead"
+            report["environment_parent_scope"] = (
+                "development backend, database, migration and dependency preparation; HTTP/Hub/DBOS are platform overhead"
+                if args.method == "workspace-development" else
+                "three services, migration and container helpers; HTTP/Hub/DBOS are platform overhead"
+            )
         module = {"engineering": "scripts.p1.check_engineering",
                   "workspace-development": "scripts.p1.check_workspace_development",
                   "task-control": "scripts.p1.check_engineering_task_control"}[args.method]

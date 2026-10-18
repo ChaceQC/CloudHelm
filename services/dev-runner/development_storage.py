@@ -255,9 +255,10 @@ def observe_storage(instance: int, data: int, image: int,
 class DevelopmentStorage:
     """Trusted host writers share a fixed pool and lock, not a per-call quota.
 
-    Resolve references only from trusted installation records. Keep admission open
-    for every writer and stop those writers before exiting it. Returned paths are
-    valid only in that context; sandboxes must never receive the instance metadata.
+    Resolve references only from trusted installation records. Short writers keep
+    admission open; a registered development service holds pin_ref until its
+    writers stop. The pin protects the mount lifetime without monopolizing the
+    short command lock. Sandboxes must never receive the instance metadata.
     Workspace and candidate purposes deliberately share one root and lock.
     The requested bytes gate free headroom; the filesystem enforces the whole
     instance cap. Retained usage is a submeasurement, not a second capacity charge.
@@ -283,6 +284,22 @@ class DevelopmentStorage:
         with self.admit(expected_instance_revision=reference.instance_revision,
                         requested_bytes=requested_bytes, purpose=reference.purpose) as admission:
             yield admission
+
+    @contextmanager
+    def pin_ref(self, reference: DevelopmentStorageRef, *, requested_bytes: int = 0):
+        """Pin a whole charged pool; individual writers retain their own locks."""
+        from .development_storage_pin import pin_reference
+
+        with pin_reference(self, reference, requested_bytes) as admission:
+            yield admission
+
+    @contextmanager
+    def pin_admission(self, admission: StorageAdmission):
+        """Keep the admitted identities live after the short command returns."""
+        from .development_storage_pin import pin_admission
+
+        with pin_admission(self, admission) as lifetime:
+            yield lifetime
 
     @contextmanager
     def admit(self, *, expected_instance_revision: str, requested_bytes: int, purpose: StoragePurpose):

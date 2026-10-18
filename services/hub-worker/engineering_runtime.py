@@ -26,6 +26,8 @@ from packages.contracts.p1.workspace_candidates import WorkspaceWriterScope, wor
 from packages.contracts.p1.workspace_git import RegisteredGitSource
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
 
+from .engineering_development import EngineeringDevelopmentRuntime
+
 registry_module = importlib.import_module("services.dev-runner.engineering_registry")
 
 
@@ -34,7 +36,7 @@ def _result(operation_id, state, code, **payload):
 
 
 class EngineeringRuntime:
-    def __init__(self, engine, control_engine, registry):
+    def __init__(self, engine, control_engine, registry, *, development_controller_factory=None):
         self.engine, self.control_engine, self.registry = engine, control_engine, registry
         self.instance_id = "engineering-worker-" + uuid4().hex
         self.sources = SourceImportApplication(engine, control_engine)
@@ -42,6 +44,19 @@ class EngineeringRuntime:
             engine, control_engine, admit_operation=self._admitted,
             runtime_scope_for=self.runtime_scope_for, load_mutation_content=self._load_mutation_content,
         )
+        self._development = EngineeringDevelopmentRuntime(
+            engine, control_engine, registry, controller_factory=development_controller_factory,
+        )
+        self.development = self._development.application
+
+    def development_controller_for(self, operation_id):
+        return self._development.controller_for(operation_id)
+
+    def development_environment(self, operation_id):
+        return self._development.execute(operation_id)
+
+    def close(self):
+        self._development.close()
 
     def _admitted(self, operation_id, kind, binding):
         self.registry.current_storage()
@@ -143,9 +158,10 @@ class EngineeringRuntime:
             spec = self.workspaces.resolve_candidate_operation(intent.result.operation_id)
             if scope_id != spec.runtime_scope_id or scope_id != self.runtime_scope_for(spec.binding):
                 raise WorkspaceFileError("workspace_runtime_scope_mismatch")
+            readers = self._development.registered_readers(spec.binding)
             return WorkspaceWriterScope(scope_id=scope_id, binding=spec.binding,
                 service_instance_id=self.instance_id, service_pid=os.getpid(),
-                service_start_ticks=process_start_ticks(os.getpid()), readers=())
+                service_start_ticks=process_start_ticks(os.getpid()), readers=readers)
 
         resolver = lambda value: self.workspaces.resolve_candidate_operation(value, reconciliation=reconciliation)
         return CandidateStore(storage.workspace_root, git, resolver, CandidateFreezeController(resolve_scope))
@@ -202,6 +218,9 @@ class EngineeringRuntime:
         return execute_build(self, operation_id)
 
 
-def create_engineering_runtime(pools, registration=None):
+def create_engineering_runtime(pools, registration=None, *, development_controller_factory=None):
     selected = registry_module.load_registration() if registration is None else registration
-    return EngineeringRuntime(pools.normal, pools.control, registry_module.EngineeringRegistry(selected))
+    return EngineeringRuntime(
+        pools.normal, pools.control, registry_module.EngineeringRegistry(selected),
+        development_controller_factory=development_controller_factory,
+    )

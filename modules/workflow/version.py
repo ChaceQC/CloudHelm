@@ -12,6 +12,7 @@ CONTROL_WORKFLOW: WorkflowName = "collaboration.task_control.v1"
 
 SOURCE_IMPORT_WORKFLOW: EngineeringWorkflowName = "projects.source_import.v1"
 WORKSPACE_WORKFLOW: EngineeringWorkflowName = "workspaces.operation.v1"
+DEVELOPMENT_ENVIRONMENT_WORKFLOW: EngineeringWorkflowName = "workspaces.development_environment.v1"
 BUILD_WORKFLOW: EngineeringWorkflowName = "delivery.build.v1"
 
 WORKFLOW_QUEUES: dict[WorkflowName | EngineeringWorkflowName, str] = {
@@ -19,6 +20,7 @@ WORKFLOW_QUEUES: dict[WorkflowName | EngineeringWorkflowName, str] = {
     CONTROL_WORKFLOW: "control",
     SOURCE_IMPORT_WORKFLOW: "engineering",
     WORKSPACE_WORKFLOW: "engineering",
+    DEVELOPMENT_ENVIRONMENT_WORKFLOW: "engineering",
     BUILD_WORKFLOW: "engineering",
 }
 

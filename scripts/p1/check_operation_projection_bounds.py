@@ -23,7 +23,7 @@ def _require(condition: bool, code: str) -> None:
 def _fact(operation_id: str, *, owner_id: str = "p1-operation-check-owner") -> OperationClosureFact:
     return OperationClosureFact(
         operation_ref=EngineeringRef(kind="operation", object_id=operation_id, revision="check-r1"),
-        owner_kind="task", owner_id=owner_id,
+        owner_kind="task", owner_id=owner_id, affects_completion=True,
     )
 
 
@@ -68,6 +68,7 @@ def run_projection_checks() -> dict[str, bool]:
         "engineering_operation_scope_too_large",
         "workspace_operation_scope_too_large",
         "build_operation_scope_too_large",
+        "workspace_development_operation_scope_too_large",
     ):
         with (
             patch("modules.collaboration.facts.read_operation_facts", return_value=()),
@@ -105,10 +106,12 @@ def run_application_checks(probe) -> dict[str, bool]:
     )
     for label, task_facts, engineering, expected in cases:
         seeded = stage_completion(probe)
+        complete_task_facts = tuple(value.model_copy(update={"owner_id": seeded.task_id}) for value in task_facts)
+        complete_engineering = tuple(value.model_copy(update={"owner_id": seeded.task_id}) for value in engineering)
         with (
-            patch("modules.collaboration.facts.read_operation_facts", return_value=task_facts),
+            patch("modules.collaboration.facts.read_operation_facts", return_value=complete_task_facts),
             patch("modules.collaboration.engineering_operations.read_engineering_operation_blockers",
-                  return_value=engineering),
+                  return_value=complete_engineering),
         ):
             completion = probe.app.complete(
                 probe.actor(), seeded.task_id, probe.complete_request(seeded.task_id),
@@ -124,10 +127,12 @@ def run_application_checks(probe) -> dict[str, bool]:
             idempotency_key=probe.key("operation-projection-cancel-" + label),
         )
         _require(accepted.status_code == 202, "cancellation_projection_not_accepted")
+        cancel_task_facts = tuple(value.model_copy(update={"owner_id": created.task_id}) for value in task_facts)
+        cancel_engineering = tuple(value.model_copy(update={"owner_id": created.task_id}) for value in engineering)
         with (
-            patch("modules.collaboration.facts.read_operation_facts", return_value=task_facts),
+            patch("modules.collaboration.facts.read_operation_facts", return_value=cancel_task_facts),
             patch("modules.collaboration.engineering_operations.read_engineering_operation_blockers",
-                  return_value=engineering),
+                  return_value=cancel_engineering),
         ):
             cancellation = probe.app.run_control(accepted.body.command_id)
         cancel_code = "cancellation_physical_execution_unsettled" if label == "128" else expected

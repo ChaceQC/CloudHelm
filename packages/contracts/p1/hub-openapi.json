@@ -215,6 +215,1175 @@
                 }
               }
             },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspace_id}/development-environments": {
+      "post": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Prepare",
+        "operationId": "prepare_api_workspaces__workspace_id__development_environments_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareWorkspaceDevelopmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Prepare Api Workspaces  Workspace Id  Development Environments Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Prepare Api Workspaces  Workspace Id  Development Environments Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/development-environments/{environment_id}": {
+      "get": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Environment",
+        "operationId": "environment_api_development_environments__environment_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentEnvironmentView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/development-environments/{environment_id}/operations/{operation_id}": {
+      "get": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Operation",
+        "operationId": "operation_api_development_environments__environment_id__operations__operation_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Operation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentOperationView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/development-environments/{environment_id}/suspend": {
+      "post": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Suspend",
+        "operationId": "suspend_api_development_environments__environment_id__suspend_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuspendWorkspaceDevelopmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Suspend Api Development Environments  Environment Id  Suspend Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Suspend Api Development Environments  Environment Id  Suspend Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/development-environments/{environment_id}/resume": {
+      "post": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Resume",
+        "operationId": "resume_api_development_environments__environment_id__resume_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeWorkspaceDevelopmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Resume Api Development Environments  Environment Id  Resume Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Resume Api Development Environments  Environment Id  Resume Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/development-environments/{environment_id}/reset-data": {
+      "post": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Reset Data",
+        "operationId": "reset_data_api_development_environments__environment_id__reset_data_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetWorkspaceDevelopmentDataRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Reset Data Api Development Environments  Environment Id  Reset Data Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Reset Data Api Development Environments  Environment Id  Reset Data Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/development-environments/{environment_id}/dispose": {
+      "post": {
+        "tags": [
+          "workspace development"
+        ],
+        "summary": "Dispose",
+        "operationId": "dispose_api_development_environments__environment_id__dispose_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisposeWorkspaceDevelopmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Dispose Api Development Environments  Environment Id  Dispose Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Dispose Api Development Environments  Environment Id  Dispose Post"
+                }
+              }
+            },
             "description": "Forbidden"
           },
           "404": {
@@ -5809,6 +6978,121 @@
         ],
         "title": "CurrentIdentity"
       },
+      "DevelopmentStorageRef": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-development-storage-ref-r1",
+            "title": "Schema Revision",
+            "default": "p1-development-storage-ref-r1"
+          },
+          "storage_id": {
+            "type": "string",
+            "pattern": "^dev-storage-[a-f0-9]{32}$",
+            "title": "Storage Id"
+          },
+          "instance_revision": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "title": "Instance Revision"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "git",
+              "workspace",
+              "candidate",
+              "cache",
+              "archive",
+              "fixture"
+            ],
+            "title": "Purpose"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "storage_id",
+          "instance_revision",
+          "purpose"
+        ],
+        "title": "DevelopmentStorageRef",
+        "description": "A pinned trusted registration reference; this is not a grant of authority."
+      },
+      "DisposeWorkspaceDevelopmentRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "expected_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Environment Revision"
+          },
+          "expected_data_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Expected Data Revision"
+          },
+          "expected_data_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Data Generation"
+          },
+          "action": {
+            "type": "string",
+            "const": "dispose",
+            "title": "Action",
+            "default": "dispose"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation",
+          "expected_environment_revision",
+          "expected_data_revision",
+          "expected_data_generation"
+        ],
+        "title": "DisposeWorkspaceDevelopmentRequest"
+      },
       "EngineeringRef": {
         "properties": {
           "kind": {
@@ -6407,6 +7691,60 @@
         ],
         "title": "PhysicalCandidateRecord"
       },
+      "PrepareWorkspaceDevelopmentRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "action": {
+            "type": "string",
+            "const": "prepare",
+            "title": "Action",
+            "default": "prepare"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation"
+        ],
+        "title": "PrepareWorkspaceDevelopmentRequest"
+      },
       "Principal": {
         "properties": {
           "kind": {
@@ -6783,6 +8121,86 @@
         ],
         "title": "RequestBuildRequest"
       },
+      "ResetWorkspaceDevelopmentDataRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "expected_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Environment Revision"
+          },
+          "expected_data_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Expected Data Revision"
+          },
+          "expected_data_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Data Generation"
+          },
+          "action": {
+            "type": "string",
+            "const": "reset_data",
+            "title": "Action",
+            "default": "reset_data"
+          },
+          "target_data_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Target Data Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation",
+          "expected_environment_revision",
+          "expected_data_revision",
+          "expected_data_generation",
+          "target_data_revision"
+        ],
+        "title": "ResetWorkspaceDevelopmentDataRequest"
+      },
       "ResourceScope": {
         "properties": {
           "project_id": {
@@ -6812,6 +8230,80 @@
           "resource_id"
         ],
         "title": "ResourceScope"
+      },
+      "ResumeWorkspaceDevelopmentRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "expected_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Environment Revision"
+          },
+          "expected_data_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Expected Data Revision"
+          },
+          "expected_data_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Data Generation"
+          },
+          "action": {
+            "type": "string",
+            "const": "resume",
+            "title": "Action",
+            "default": "resume"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation",
+          "expected_environment_revision",
+          "expected_data_revision",
+          "expected_data_generation"
+        ],
+        "title": "ResumeWorkspaceDevelopmentRequest"
       },
       "RevokeProjectRoleRequest": {
         "properties": {
@@ -7237,6 +8729,80 @@
           "expected_manifest_digest"
         ],
         "title": "SubmitWorkspaceCandidateRequest"
+      },
+      "SuspendWorkspaceDevelopmentRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "expected_workspace_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Workspace Revision"
+          },
+          "expected_write_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Write Generation"
+          },
+          "expected_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Environment Revision"
+          },
+          "expected_data_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Expected Data Revision"
+          },
+          "expected_data_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Data Generation"
+          },
+          "action": {
+            "type": "string",
+            "const": "suspend",
+            "title": "Action",
+            "default": "suspend"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "input_set_ref",
+          "expected_workspace_revision",
+          "expected_write_generation",
+          "expected_environment_revision",
+          "expected_data_revision",
+          "expected_data_generation"
+        ],
+        "title": "SuspendWorkspaceDevelopmentRequest"
       },
       "TaskBlocker": {
         "properties": {
@@ -8068,6 +9634,607 @@
           "input_set_ref"
         ],
         "title": "WorkspaceCommandResult"
+      },
+      "WorkspaceDevelopmentCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Workspace Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "prepare",
+              "suspend",
+              "resume",
+              "reset_data",
+              "dispose"
+            ],
+            "title": "Action"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "environment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^dev-env-[0-9a-f]{32}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment Id"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^workspace-dev-env-(prepare|suspend|resume|reset_data|dispose)-[0-9a-f]{32}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Digest"
+          },
+          "environment_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "task_id",
+          "workspace_id",
+          "action",
+          "outcome",
+          "code",
+          "version",
+          "control_revision",
+          "input_validity_revision"
+        ],
+        "title": "WorkspaceDevelopmentCommandResult"
+      },
+      "WorkspaceDevelopmentEnvironmentObservation": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-workspace-development-observation-r1",
+            "title": "Schema Revision",
+            "default": "p1-workspace-development-observation-r1"
+          },
+          "environment_id": {
+            "type": "string",
+            "pattern": "^dev-env-[0-9a-f]{32}$",
+            "title": "Environment Id"
+          },
+          "operation_id": {
+            "type": "string",
+            "pattern": "^workspace-dev-env-(prepare|suspend|resume|reset_data|dispose)-[0-9a-f]{32}$",
+            "title": "Operation Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "profile_revision": {
+            "type": "string",
+            "const": "notes-backend-dev-r1",
+            "title": "Profile Revision",
+            "default": "notes-backend-dev-r1"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "storage_ref": {
+            "$ref": "#/components/schemas/DevelopmentStorageRef"
+          },
+          "source_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Manifest Digest"
+          },
+          "migration_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Migration Revision"
+          },
+          "data_revision": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$",
+            "title": "Data Revision"
+          },
+          "data_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Data Generation"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "ready",
+              "suspended",
+              "failed",
+              "disposed"
+            ],
+            "title": "State"
+          },
+          "runtime_fact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDevelopmentRuntimeFact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "health_probe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDevelopmentProbeFact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ready_probe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDevelopmentProbeFact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stop_fact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDevelopmentStopFact"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "environment_id",
+          "operation_id",
+          "request_digest",
+          "binding",
+          "storage_ref",
+          "source_manifest_digest",
+          "migration_revision",
+          "data_revision",
+          "data_generation",
+          "state"
+        ],
+        "title": "WorkspaceDevelopmentEnvironmentObservation",
+        "description": "Authenticated Runner facts; never accepted as fields on a user request."
+      },
+      "WorkspaceDevelopmentEnvironmentView": {
+        "properties": {
+          "environment_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Environment Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Workspace Id"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Environment Revision"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "ready",
+              "suspended",
+              "failed",
+              "disposed"
+            ],
+            "title": "State"
+          },
+          "pending_operation_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Pending Operation Ids"
+          },
+          "latest_observation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDevelopmentEnvironmentObservation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "environment_id",
+          "workspace_id",
+          "binding",
+          "environment_revision",
+          "state",
+          "pending_operation_ids"
+        ],
+        "title": "WorkspaceDevelopmentEnvironmentView"
+      },
+      "WorkspaceDevelopmentOperationView": {
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/WorkspaceDevelopmentCommandResult"
+          },
+          "accepted_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Accepted Environment Revision"
+          },
+          "operation_state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "unknown",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Operation State"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "observation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDevelopmentEnvironmentObservation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result",
+          "accepted_environment_revision",
+          "operation_state",
+          "accepted_at"
+        ],
+        "title": "WorkspaceDevelopmentOperationView"
+      },
+      "WorkspaceDevelopmentProbeFact": {
+        "properties": {
+          "probe_revision": {
+            "type": "string",
+            "const": "notes-backend-probes-r1",
+            "title": "Probe Revision",
+            "default": "notes-backend-probes-r1"
+          },
+          "path": {
+            "type": "string",
+            "enum": [
+              "/health",
+              "/ready"
+            ],
+            "title": "Path"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "unknown"
+            ],
+            "title": "Outcome"
+          },
+          "response_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Response Digest"
+          },
+          "process_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Process Id"
+          },
+          "runner": {
+            "$ref": "#/components/schemas/WorkspaceDevelopmentRunnerIdentity"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "source_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Manifest Digest"
+          },
+          "observed_migration_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed Migration Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "outcome",
+          "response_digest",
+          "process_id",
+          "runner",
+          "binding",
+          "source_manifest_digest"
+        ],
+        "title": "WorkspaceDevelopmentProbeFact"
+      },
+      "WorkspaceDevelopmentRunnerIdentity": {
+        "properties": {
+          "trust_source": {
+            "type": "string",
+            "const": "authenticated_dev_runner",
+            "title": "Trust Source",
+            "default": "authenticated_dev_runner"
+          },
+          "runner_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Runner Id"
+          },
+          "runner_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Runner Generation"
+          },
+          "observation_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Observation Id"
+          },
+          "observation_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Observation Digest"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "runner_id",
+          "runner_generation",
+          "observation_id",
+          "observation_digest",
+          "observed_at"
+        ],
+        "title": "WorkspaceDevelopmentRunnerIdentity",
+        "description": "Identity attached after the Runner channel authenticates its sender."
+      },
+      "WorkspaceDevelopmentRuntimeFact": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "stopped",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "process_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process Id"
+          },
+          "runner": {
+            "$ref": "#/components/schemas/WorkspaceDevelopmentRunnerIdentity"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          },
+          "source_manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Manifest Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "process_id",
+          "runner",
+          "binding",
+          "source_manifest_digest"
+        ],
+        "title": "WorkspaceDevelopmentRuntimeFact"
+      },
+      "WorkspaceDevelopmentStopFact": {
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "confirmed_stopped",
+              "still_running",
+              "unknown"
+            ],
+            "title": "Outcome"
+          },
+          "process_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process Id"
+          },
+          "runner": {
+            "$ref": "#/components/schemas/WorkspaceDevelopmentRunnerIdentity"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/WorkspaceBinding"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "outcome",
+          "process_id",
+          "runner",
+          "binding"
+        ],
+        "title": "WorkspaceDevelopmentStopFact"
       },
       "WorkspaceFile": {
         "properties": {

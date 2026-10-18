@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import development_storage as storage
+from .development_storage_pin import assert_no_container_mounts, backing_pin
 from packages.contracts.p1.development_storage import (
     MAX_STORAGE_BYTES, MIN_STORAGE_BYTES, DevelopmentStorageRef, DevelopmentStorageRegistration,
 )
@@ -158,12 +159,21 @@ def create_fixture() -> dict:
     return create_instance(storage.FIXTURE_BYTES, fixture=True)
 
 
+def _unmount_for_maintenance(instance, storage_id):
+    with backing_pin(instance, exclusive=True):
+        registration = storage.registration_at(instance, storage_id)
+        assert_no_container_mounts(storage_id)
+        previous = unmount(instance, storage_id)
+    # Close the backing fd before deletion and byte reclamation measurement.
+    # The caller still holds the short admission lock on the unmounted pool.
+    return registration, previous
+
+
 def change_fixture(storage_id: str, action: str) -> dict:
     if os.getuid() != 0 or action not in ("unmount", "remount", "remove"):
         raise storage.DevelopmentStorageError("storage_explicit_root_maintenance_required")
     with storage.instance_descriptors(storage_id) as (root, instance), storage.instance_lock(instance):
-        registration = storage.registration_at(instance, storage_id)
-        previous = unmount(instance, storage_id)
+        registration, previous = _unmount_for_maintenance(instance, storage_id)
         if action == "unmount":
             return evidence(root, storage_id, "unmount", {"unmounted": previous, "loop_detached": True,
                 "accounted_backing_bytes": registration.backing_file_bytes, "backing_file_retained": True})

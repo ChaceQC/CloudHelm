@@ -14,6 +14,7 @@ from .routes_identity import router as identity_router
 from .routes_projects import router as projects_router
 from .routes_tasks import router as tasks_router
 from .routes_engineering import router as engineering_router
+from .routes_development import router as development_router
 from .runtime import start_runtime
 
 
@@ -42,6 +43,7 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     app.include_router(projects_router)
     app.include_router(tasks_router)
     app.include_router(engineering_router)
+    app.include_router(development_router)
 
     @app.get("/health/live", response_model=Liveness, tags=["health"])
     def liveness():

@@ -41,6 +41,7 @@ class TaskControlSnapshot:
 _OPERATION_SOURCE_SCOPE_ERRORS = frozenset({
     "operation_projection_scope_too_large", "engineering_operation_scope_too_large",
     "workspace_operation_scope_too_large", "build_operation_scope_too_large",
+    "workspace_development_operation_scope_too_large",
 })
 
 
