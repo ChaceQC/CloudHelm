@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import re
 import subprocess
@@ -33,8 +34,8 @@ COMMON = frozenset({
 MANIFEST_PATH = re.compile(r"docs/acceptance/p1/input-set-p1-2-r[1-9][0-9]*\.json")
 
 
-def _git(*args: str) -> bytes:
-    return subprocess.check_output(["git", *args], cwd=ROOT, timeout=30)
+def _git(*args: str, input_bytes: bytes | None = None) -> bytes:
+    return subprocess.check_output(["git", *args], cwd=ROOT, timeout=30, input=input_bytes)
 
 
 def _selected(name: str) -> bool:
@@ -72,17 +73,37 @@ def current_files() -> list[dict[str, str]]:
 def _committed_files(source_commit: str) -> list[dict[str, str]]:
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
         raise ValueError("source_commit_required")
-    raw = _git("ls-tree", "-r", "--name-only", "-z", source_commit)
-    names = sorted(name for name in raw.decode("utf-8").split("\0") if name and _selected(name))
+    raw = _git("ls-tree", "-r", "-z", source_commit)
+    objects = {}
+    for entry in raw.split(b"\0"):
+        if not entry:
+            continue
+        metadata, path = entry.split(b"\t", 1)
+        name = path.decode("utf-8")
+        if _selected(name):
+            objects[name] = metadata.split()[2].decode("ascii")
+    names = sorted(objects)
     if not COMMON.issubset(names):
         raise ValueError("required_public_inputs_missing")
     files = current_files()
     if [item["path"] for item in files] != names:
         raise ValueError("candidate_file_set_changed")
+    requests = "".join(objects[item["path"]] + "\n" for item in files).encode("ascii")
+    stream = io.BytesIO(_git("cat-file", "--batch", input_bytes=requests))
     for item in files:
-        committed = _git("show", f"{source_commit}:{item['path']}")
+        header = stream.readline(256).split()
+        if len(header) != 3 or header[0].decode("ascii") != objects[item["path"]] or header[1] != b"blob":
+            raise ValueError("committed_public_blob_required")
+        size = int(header[2])
+        if size < 0:
+            raise ValueError("committed_public_blob_size_invalid")
+        committed = stream.read(size)
+        if len(committed) != size or stream.read(1) != b"\n":
+            raise ValueError("committed_public_blob_truncated")
         if hashlib.sha256(committed).hexdigest() != item["sha256"]:
             raise ValueError("public_input_differs_from_commit: " + item["path"])
+    if stream.read(1):
+        raise ValueError("committed_public_blob_set_mismatch")
     return files
 
 

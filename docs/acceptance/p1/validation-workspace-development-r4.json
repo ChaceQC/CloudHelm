@@ -1,0 +1,279 @@
+{
+  "environment_parent_prepared": {
+    "kernel_limits": {
+      "cpu.max": "150000 100000",
+      "memory.max": "939524096",
+      "pids.max": "256"
+    },
+    "memory_peak_bytes": 0,
+    "pids_peak": 0,
+    "unit": "cloudhelm_p1_artifact_766d44e759564935b18dc956703f41dd.slice"
+  },
+  "environment_parent_scope": "development backend, database, migration and dependency preparation; HTTP/Hub/DBOS are platform overhead",
+  "failure_code": "engineering_child_stop_unconfirmed",
+  "human_acceptance": null,
+  "method": {
+    "complete_scope": false,
+    "database_and_process_cleanup": "complete",
+    "database_cleanup": "complete",
+    "database_fixture": {
+      "installation_id": "5487993e291d4477971ab0067d3bf08b",
+      "isolated_new_database": true,
+      "port": 55439,
+      "project_name": "cloudhelm-p1-a34a4a3e96bb"
+    },
+    "environment": {
+      "distribution": "Ubuntu-24.04",
+      "interpreter": "/mnt/e/Project/CloudHelm/.venv/bin/python",
+      "kernel": "6.18.33.2-microsoft-standard-WSL2",
+      "mount_namespace": "mnt:[4026532219]",
+      "python": "3.12.13",
+      "repository": "/mnt/e/Project/CloudHelm",
+      "uid": 1000
+    },
+    "failure_code": "workspace_development_method_failed",
+    "failure_location": [
+      {
+        "file": "check_workspace_development.py",
+        "function": "_run_workspace_chain",
+        "line": 322
+      },
+      {
+        "file": "workspace_development_fixture.py",
+        "function": "fixed_reference_file",
+        "line": 64
+      },
+      {
+        "file": "safe_paths.py",
+        "function": "read_regular",
+        "line": 81
+      },
+      {
+        "file": "contextlib.py",
+        "function": "__enter__",
+        "line": 137
+      },
+      {
+        "file": "safe_paths.py",
+        "function": "directory_at",
+        "line": 59
+      },
+      {
+        "file": "safe_paths.py",
+        "function": "_trusted",
+        "line": 36
+      }
+    ],
+    "failure_type": "WorkspaceFileError",
+    "finished_at_utc": "2026-10-18T07:03:20.286751+00:00",
+    "human_acceptance": null,
+    "input_after": {
+      "file_count": 319,
+      "input_set": "docs/acceptance/p1/input-set-p1-2-r4.json",
+      "matches": true,
+      "sha256": "7c6d3f59a2019121c61c69a392e1046165dcc8a114e2287c495d6716ec4c8a4d",
+      "source_commit": "898a06c59b9f0a1bbeaf9498f52aa70a5aa4cb9e"
+    },
+    "input_before": {
+      "file_count": 319,
+      "input_set": "docs/acceptance/p1/input-set-p1-2-r4.json",
+      "matches": true,
+      "sha256": "7c6d3f59a2019121c61c69a392e1046165dcc8a114e2287c495d6716ec4c8a4d",
+      "source_commit": "898a06c59b9f0a1bbeaf9498f52aa70a5aa4cb9e"
+    },
+    "last_stage": "real_http_source_task_workspace",
+    "method_revision": "p1-2-workspace-development-r2",
+    "method_sha256": "c10ba6764faf3d5bf5fda27e8a8c6f136738d023c981362f5b8382ec73932ced",
+    "mode": "fixed_input_set",
+    "p1_2_stage_acceptance": false,
+    "process_cleanup": "complete",
+    "public_inputs_unchanged": true,
+    "scope": "real_source_task_workspace_mutable_development_environment_lifecycle",
+    "started_at_utc": "2026-10-18T07:01:52.946161+00:00",
+    "status": "failed",
+    "storage_after": {
+      "accounted_backing_bytes": 8589934592,
+      "accounting_scope": "whole_backing_file_remains_charged_after_stop",
+      "admission_safety_bytes": 1048576,
+      "allocatable_bytes": 8331759616,
+      "backing_allocated_bytes": 8589938688,
+      "filesystem_available_bytes": 8332808192,
+      "filesystem_capacity_bytes": 8350298112,
+      "filesystem_free_bytes": 8349585408,
+      "hard_boundary": "fixed_regular_file_ext4",
+      "mount_device": "7:0",
+      "mount_id": 408,
+      "mount_namespace": "mnt:[4026532219]",
+      "mount_options": [
+        "nodev",
+        "noexec",
+        "nosuid",
+        "relatime",
+        "rw"
+      ],
+      "mount_source": "/dev/loop0",
+      "observed_at": "2026-10-18T07:02:52.294962Z",
+      "purpose": "workspace",
+      "registration": {
+        "admission_safety_bytes": 1048576,
+        "allowed_purposes": [
+          "git",
+          "workspace",
+          "candidate",
+          "cache",
+          "archive"
+        ],
+        "backing_device": 2096,
+        "backing_file_bytes": 8589934592,
+        "backing_inode": 250158,
+        "created_at": "2026-10-18T07:01:46.872034Z",
+        "filesystem_uuid": "1ecc4833-c3ce-4b4a-9816-88137a7f4d86",
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "method_revision": "p1-development-storage-r2",
+        "owner_uid": 1000,
+        "scope": "local_controlled_development",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      },
+      "retained_bytes_including_metadata": 712704,
+      "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-766d44e759564935b18dc956703f41dd/data"
+    },
+    "storage_before": {
+      "accounted_backing_bytes": 8589934592,
+      "accounting_scope": "whole_backing_file_remains_charged_after_stop",
+      "admission_safety_bytes": 1048576,
+      "allocatable_bytes": 8332431360,
+      "backing_allocated_bytes": 8589938688,
+      "filesystem_available_bytes": 8333479936,
+      "filesystem_capacity_bytes": 8350298112,
+      "filesystem_free_bytes": 8350257152,
+      "hard_boundary": "fixed_regular_file_ext4",
+      "mount_device": "7:0",
+      "mount_id": 408,
+      "mount_namespace": "mnt:[4026532219]",
+      "mount_options": [
+        "nodev",
+        "noexec",
+        "nosuid",
+        "relatime",
+        "rw"
+      ],
+      "mount_source": "/dev/loop0",
+      "observed_at": "2026-10-18T07:02:21.040447Z",
+      "purpose": "workspace",
+      "registration": {
+        "admission_safety_bytes": 1048576,
+        "allowed_purposes": [
+          "git",
+          "workspace",
+          "candidate",
+          "cache",
+          "archive"
+        ],
+        "backing_device": 2096,
+        "backing_file_bytes": 8589934592,
+        "backing_inode": 250158,
+        "created_at": "2026-10-18T07:01:46.872034Z",
+        "filesystem_uuid": "1ecc4833-c3ce-4b4a-9816-88137a7f4d86",
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "method_revision": "p1-development-storage-r2",
+        "owner_uid": 1000,
+        "scope": "local_controlled_development",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      },
+      "retained_bytes_including_metadata": 40960,
+      "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-766d44e759564935b18dc956703f41dd/data"
+    },
+    "storage_pin_check": {
+      "maintenance_exclusive_pin_rejected_while_live": true,
+      "maintenance_pin_available_after_close": true,
+      "shared_pin_allows_serial_command": true,
+      "whole_backing_still_charged_bytes": 8589934592
+    },
+    "storage_release_safe": false,
+    "support_scope": "one WSL Ubuntu-24.04 local controlled development fixture; no Desktop or remote delivery",
+    "worker": {
+      "installation_id": "5487993e291d4477971ab0067d3bf08b",
+      "instances_started_by_method": 1,
+      "pid": 1600
+    }
+  },
+  "method_kind": "workspace-development",
+  "status": "failed",
+  "storage_cleanup": "retained_for_reconciliation",
+  "storage_created": {
+    "backing_allocated_bytes": 8589938688,
+    "backing_file_bytes": 8589934592,
+    "maintenance_mount_namespace": "mnt:[4026532219]",
+    "mount": {
+      "mount_device": "7:0",
+      "mount_id": 408,
+      "mount_namespace": "mnt:[4026532219]",
+      "mount_options": [
+        "nodev",
+        "noexec",
+        "nosuid",
+        "relatime",
+        "rw"
+      ],
+      "mount_source": "/dev/loop0",
+      "source_directory": "/home/cloudhelm/.local/state/cloudhelm/development-storage/dev-storage-766d44e759564935b18dc956703f41dd/data"
+    },
+    "observed_at": "2026-10-18T07:01:46.895074+00:00",
+    "phase": "create",
+    "pid1_mount_namespace": "mnt:[4026532219]",
+    "references": {
+      "archive": {
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "purpose": "archive",
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      },
+      "cache": {
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "purpose": "cache",
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      },
+      "candidate": {
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "purpose": "candidate",
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      },
+      "git": {
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "purpose": "git",
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      },
+      "workspace": {
+        "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+        "purpose": "workspace",
+        "schema_revision": "p1-development-storage-ref-r1",
+        "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+      }
+    },
+    "registration": {
+      "admission_safety_bytes": 1048576,
+      "allowed_purposes": [
+        "git",
+        "workspace",
+        "candidate",
+        "cache",
+        "archive"
+      ],
+      "backing_device": 2096,
+      "backing_file_bytes": 8589934592,
+      "backing_inode": 250158,
+      "created_at": "2026-10-18T07:01:46.872034Z",
+      "filesystem_uuid": "1ecc4833-c3ce-4b4a-9816-88137a7f4d86",
+      "instance_revision": "7c2146d3ef1d45d09f7324ef7e7bfe59",
+      "method_revision": "p1-development-storage-r2",
+      "owner_uid": 1000,
+      "scope": "local_controlled_development",
+      "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+    },
+    "storage_id": "dev-storage-766d44e759564935b18dc956703f41dd"
+  },
+  "storage_reconciliation_required": true
+}

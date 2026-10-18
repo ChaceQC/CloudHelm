@@ -34,6 +34,9 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 新候选：[InputSet r3](docs/acceptance/p1/input-set-p1-2-r3.json) 固定源码 `799243856d1749d52c15ed9f476c848cc3057bb1` 的 319 个公开输入；操作边界方法正在运行，其他真实方法尚未执行。旧 r1/r2 报告原字节保留。
 - r3 实际结果：[操作边界](docs/acceptance/p1/validation-operation-bounds-r3.json)通过 128／129／重复的应用分类与取消待核对，临时数据库已清理；[后端真实输入缓存](docs/acceptance/p1/validation-backend-cache-r3.json)通过 A→A→B、同 builder 身份、A 制品不变、B 源码／key／步骤／制品变化及实际路由函数结果，前后输入匹配，builder/进程停止并清理。
 - 方法纠正：未知锁在 Hub 元数据准入阶段实际应为 HTTP 409，而非方法假设的 422；只修正环境方法的该预期并递增方法修订 r2，不改产品代码。其后新 InputSet 重新绑定环境／Task 方法；r3 操作边界及后端结果保留原绑定，按相关源码／方法字节一致性复核其适用性，避免无变化场景重复重执行。
+- r4 首次环境方法：[失败原记录](docs/acceptance/p1/validation-workspace-development-r4.json)在读取固定参照文件时因 DrvFs 目录不能充当 Linux 私有目录而拒绝，未进入依赖安装／应用服务启动；输入前后匹配，API/worker/数据库已停止。改用既有固定后端读取与独立 P0 manifest 交叉校验，不放宽受控运行目录权限。
+- r4 回收：[定向清理](docs/acceptance/p1/validation-workspace-development-r4-cleanup.json)核对原实例注册及 Docker 命名空间，原父组已消失、loop 已脱离，backing 与目录删除；实际确认回收 8,589,934,592 字节，剩余占账 0。失败原记录未覆盖。
+- 验证方法效率：InputSet 仍核对完整文件集合及每份源码的 Git blob、长度与 SHA-256，Git 对象改为一次 `cat-file --batch` 读取，替代 319 次 `git show`；输入结构与既有 manifest 修订不变。新方法字节将由后续 InputSet 固定。
 
 ## 2026-10-18 · P1.2 固定验证与交付收尾
 

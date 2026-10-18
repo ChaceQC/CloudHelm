@@ -63,7 +63,7 @@ from scripts.p1.workspace_development_fixture import (
     workspace_file,
 )
 
-METHOD_REVISION = "p1-2-workspace-development-r2"
+METHOD_REVISION = "p1-2-workspace-development-r3"
 NOTE_TITLE_PREFIX = "cloudhelm-p1-workspace-reset-"
 NOTE_BODY = "Disposable Workspace development reset probe."
 LOCK_COMMENT_VARIANT = importlib.import_module(

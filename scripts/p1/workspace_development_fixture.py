@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import time
 
 from packages.contracts.p0.engineering_contracts import EngineeringRef
@@ -25,8 +26,7 @@ from packages.contracts.p1.workspace_development_requests import (
     WorkspaceDevelopmentEnvironmentView,
     WorkspaceDevelopmentOperationView,
 )
-from modules.workspaces.reference_seed import REFERENCE_PREFIX, _manifest, _seed_root
-from modules.workspaces.safe_paths import read_regular
+from modules.workspaces.reference_seed import _manifest, _seed_root
 from scripts.p1.engineering_chain import operation
 from scripts.p1.engineering_fixture import ROOT, require
 
@@ -58,11 +58,13 @@ class WorkspaceDevelopmentCheckFailure(AssertionError):
 
 def fixed_reference_file(relative_path: str) -> bytes:
     """Read one fixed reference byte sequence and cross-check its frozen manifest."""
-    relative_path = "backend/" + relative_path
     with _seed_root(ROOT) as root:
         expected = _manifest(root)
-        data = read_regular(root, REFERENCE_PREFIX + "/" + relative_path, MAX_SOURCE_FILE_BYTES)
-    require(relative_path in expected and content_digest(data) == "sha256:" + expected[relative_path],
+    fixed = importlib.import_module("services.dev-runner.backend_build_inputs").reference_inputs()
+    require(relative_path in fixed, "workspace_development_reference_path_unsupported")
+    data = fixed[relative_path]
+    require(len(data) <= MAX_SOURCE_FILE_BYTES and "backend/" + relative_path in expected
+            and content_digest(data) == "sha256:" + expected["backend/" + relative_path],
             "workspace_development_fixed_reference_file_changed")
     return data
 
