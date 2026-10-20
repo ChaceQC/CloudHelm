@@ -1,0 +1,18 @@
+{
+  "storage_id": "dev-storage-b7969272e56c46359b9fb10ef1c38589",
+  "phase": "cleanup",
+  "observed_at": "2026-10-20T07:45:00.113945+00:00",
+  "unmounted": {
+    "already_unmounted": true,
+    "backing_not_attached": true
+  },
+  "loop_detached": true,
+  "backing_file_deleted": true,
+  "instance_directory_deleted": true,
+  "host_free_byte_increase": 8589946880,
+  "host_free_bytes_before": 1045013106688,
+  "host_free_bytes_after": 1053603053568,
+  "host_reclamation_confirmed": true,
+  "reclaimed_backing_file_bytes": 8589934592,
+  "remaining_accounted_bytes": 0
+}

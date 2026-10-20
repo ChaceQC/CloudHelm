@@ -401,9 +401,16 @@ class WorkspaceDevelopmentDocker:
         if (after.get("Running") is True or after.get("Pid") != 0
                 or after.get("Paused") or after.get("Restarting")):
             raise ProbeFailure("workspace_development_physical_stop_unconfirmed")
-        if original_group is not None and (original_group / "cgroup.events").exists():
-            if "populated 0" not in (original_group / "cgroup.events").read_text(encoding="utf-8").splitlines():
-                raise ProbeFailure("workspace_development_stopped_group_populated")
+        if original_group is not None:
+            try:
+                events = (original_group / "cgroup.events").read_text(encoding="utf-8")
+            except FileNotFoundError:
+                pass
+            except OSError:
+                raise ProbeFailure("workspace_development_stopped_group_unavailable") from None
+            else:
+                if "populated 0" not in events.splitlines():
+                    raise ProbeFailure("workspace_development_stopped_group_populated")
         return {"container_id": self.containers[role], "role": role,
                 "pid_zero": True, "running": False, "group_unpopulated_or_removed": True}
 

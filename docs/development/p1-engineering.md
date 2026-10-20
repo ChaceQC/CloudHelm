@@ -1,6 +1,6 @@
 # Git、工作区与受限构建开发
 
-本文对应 [P1.2 实施说明](../implementation/p1-2-engineering.md)。本轮工程链路正在接续实施，实际可用范围以 [P1.2 证据索引](../acceptance/p1/p1-2.md) 为准。Hub 的身份、数据库和进程入口见 [Hub 开发说明](p1-hub.md)。
+本文对应 [P1.2 实施说明](../implementation/p1-2-engineering.md)。工程入口、支持组合和验证范围以 [P1.2 证据索引](../acceptance/p1/p1-2.md) 为准。Hub 的身份、数据库和进程入口见 [Hub 开发说明](p1-hub.md)。
 
 ## 1. 当前基线与隔离范围
 
@@ -48,6 +48,8 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 
 开发存储采用专用、完整分配的 loop/ext4 文件系统，Git、工作文件、候选、缓存和归档共用一个有界实例及排他准入。用途目录保持独立，候选与工作区共用一致性锁。操作全程持有实际准入，停止进程不等于释放保留字节；卸载和删除只有核对后才能清理本实例。维护包装核验 Docker daemon 身份并进入其挂载命名空间创建本项目专用池；消费者保持同一视图，Docker 使用受管路径，目录 FD 全程保持打开并在容器内核对 dev/ino。
 
+验证与收尾期间保持 WSL 发行版运行。发行版退出或挂载命名空间变化后，先按原实例注册、backing 身份和容器引用核对存储；目录仍在不代表专用文件系统仍挂载，不能直接另建操作覆盖原记录。
+
 前后端构建固定配方、锁、Linux/amd64 工具链和已核验下载物；沙箱断网、使用私有可写缓存。BuildRun 保存 frontend/backend/postgres 三角色归档，内容核验与真实执行终结、加载身份分别登记。Docker 29 containerd 的实际 image ID 为 manifest digest，OCI config digest 单独保留。环境运行固定镜像，不将源码交给目标临时构建。
 
 ## 5. 定向开发验证
@@ -61,6 +63,8 @@ wsl -d Ubuntu-24.04 -u root --cd /mnt/e/Project/CloudHelm -- .venv/bin/python -B
 `--development` 明确表示未固定工作树；`--through-candidate` 仅供有关 Git/HTTP/worker 问题的窄验证。正式固定候选使用新的 `--input-set docs/acceptance/p1/input-set-p1-2-rN.json`，代替 `--development`，其中 rN 必须是实际已固定的修订；方法核对运行前后的公共输入。`--method workspace-development` 选择增量环境方法，`--method task-control` 选择四组真实工程 Task 方法；两者均复用相同受控池与维护包装。后端真实输入缓存方法为 `scripts.p1.check_backend_build --input-set <同一固定输入>`。失败或停止未知时保留原身份与阻断，不重启另一套物理操作覆盖原结果。实际记录见 [P1.2 证据索引](../acceptance/p1/p1-2.md)，不要把命令示例当作已通过结论。
 
 可变环境当前只开放 `notes-backend-dev-r1`，固定 Python/uv、离线依赖、只读动态 Workspace 源码、私有安装快照、固定 Uvicorn reload 与独立 PostgreSQL 测试数据。源码继续经文件命令修改；环境 resume 重新绑定当前修订并实际探活，锁变化使旧私有安装键失效。suspend 保留合成数据与依赖快照，reset-data 使用获准数据修订重建并递增 generation；dispose 停止并核对运行资源，保留内容的磁盘占账单独记录。未知结果按原操作查询。
+
+对仍运行的环境执行 resume 时，先确认旧后端停止，再准备当前依赖并重新启动、探活；已核对身份的 PostgreSQL 可继续运行以保留数据。休眠后的 resume 按原 prepare 身份发现资源并重新取得执行锁。依赖准备或停止核对失败时不报告 ready，应按原操作查询原因和物理状态。
 
 正常 worker 关闭会按已登记身份停止其持有的开发服务并写入物理收尾记录，不代替用户提交 Hub suspend/dispose 命令；数据库中的 ready 是上次带时间戳的观测，worker 退出后使用者应显式 resume 重新准入和核验。异常退出后先按原操作与容器身份核对，不能凭进程内对象不存在就重建。当前开发入口不包含完整预览票据、用户访问流程或前端开发服务器。
 

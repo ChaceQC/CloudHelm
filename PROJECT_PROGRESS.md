@@ -22,6 +22,9 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 原证据适用性：只读核对 r3 的操作边界实际执行路径及后端报告的 19 项方法文件、18 项固定源文件，相关行为字节未变；环境列权限、未调用的诊断／环境代码变化不扩张旧证据范围。manifest 的 Git 批量读取优化须在最终新输入下重新校验，r3 旧 InputSet 不声称匹配新代码。
 - S1 提交：`06e0420` 已正常推送 dev；不由静态检查推定生命周期通过。
 - S2 方法修正：Workspace 意图改用刚固定的候选摘要，方法递增 `p1-2-engineering-task-control-r2`；失败也依据数据库夹具实际收尾及空进程登记记录结果，显式关闭方法 runtime。三个脚本 WSL AST 与差异检查通过，未重复开发全方法。首轮保留池已于 `2026-10-20T07:45:00.113945Z` 按实例身份核对并释放 8,589,934,592 字节，剩余占账 0；清理收据 SHA-256 `586412dc64335206eda6212bd75f89fa1b1f24083aec12f096478ca09faeb527`，失败报告 SHA-256 `06f2f8b568e1419450ddb141f37eb17d70fcc5877c3631275d4cd4c33057a818`。下一步固定新 InputSet 并运行两项正式方法。
+- 固定候选：[InputSet r6](docs/acceptance/p1/input-set-p1-2-r6.json)绑定 `bf453a22f94fa17445596c4f39c050ac0d689c2b` 的 319 文件，SHA-256 `c213422a5cef782127282ee1eea237d18adfbf02649ac43beba1ca0888e9410c`；新的批量 Git 校验实际通过。候选及输入均已推送 dev，对应仓库检查成功。
+- S3 r6：UTC `2026-10-20T07:49:35.783593+00:00`～`07:51:26.884096+00:00` 的[原报告](docs/acceptance/p1/validation-workspace-development-r6.json)在休眠／恢复场景以 `workspace_development_stop_unconfirmed` 失败。源码 r1/r2 HTTP、live reader 候选冻结及候选保持已观察，前后输入一致；不能据此判定完整方法通过。API／worker／数据库及父组已停止，因仍有容器挂载，8GiB 池保守保留待核对。下一项为停止确认的定向修正与原池收尾，再绑定新候选。
+- S3 定向修正：`cgroup.events` 的 exists→read 存在退出回收竞态；现直接读取，只有 FileNotFoundError 视为组已移除，其他读取错误或 populated 继续拒绝，容器 Running/Pid 与父组停止检查保持。WSL 窄复现覆盖消失、不可读、仍 populated、空组、容器仍活五分支通过。原池在 WSL namespace 变化后按原注册与 backing 身份核对；[清理收据](docs/acceptance/p1/validation-workspace-development-r6-cleanup.json)确认本环境容器／网络、父组、loop、backing／目录回收，8GiB 占账归零。后续验证及清理保持 WSL 会话存活；下一步为 r7 两项正式方法。
 
 ## 2026-10-18 · P1.2 缺口修正（进行中）
 
