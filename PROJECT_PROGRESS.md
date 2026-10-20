@@ -18,6 +18,7 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 
 - reset 修补：WSL UID1000 使用 r8 原 journal 的真实请求和目标 Spec 核验，数据修订为 `reference-synthetic-r2`，代次从 1 变为 2；旧修订、旧代次、多增一次及错误源码摘要四个负例全部拒绝。修改文件 UTF-8／AST 和 `git diff --check` 通过；没有新增通用测试或重跑已通过业务方法。
 - r8 归档与清理：[失败原报告](docs/acceptance/p1/validation-workspace-development-r8.json)与私有原文件逐字节一致；[清理收据](docs/acceptance/p1/validation-workspace-development-r8-cleanup.json)记录 UTC `2026-10-20T08:31:08.962201+00:00` 核对并删除原环境的两只已停止容器和一张空网络，父组已不存在，loop／backing／实例目录全部回收，8,589,934,592 字节释放且剩余占账 0。原失败结论保持；下一步固定 r9，仅执行完整环境方法。
+- 固定输入：[InputSet r9](docs/acceptance/p1/input-set-p1-2-r9.json)绑定已推送的修补源码 `1ee304039050b148bbd39007e9260482dfbe18a8` 与 319 个公开输入。执行期间候选字节冻结，四组 Task 与其他已通过方法不重复；下一项为 r9 环境生命周期的实际执行及原结果归档。
 
 ## 2026-10-20 · P1.2 修正接续（此前记录）
 
