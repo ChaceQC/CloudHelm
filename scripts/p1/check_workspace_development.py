@@ -63,7 +63,7 @@ from scripts.p1.workspace_development_fixture import (
     workspace_file,
 )
 
-METHOD_REVISION = "p1-2-workspace-development-r4"
+METHOD_REVISION = "p1-2-workspace-development-r5"
 NOTE_TITLE_PREFIX = "cloudhelm-p1-workspace-reset-"
 NOTE_BODY = "Disposable Workspace development reset probe."
 LOCK_COMMENT_VARIANT = importlib.import_module(
@@ -599,7 +599,7 @@ def _run_workspace_chain(probe: EngineeringProbe, runtime, storage_ref: Developm
         "candidate_manifest_digest": candidate.snapshot.manifest_digest,
     }
     report["operation_ids"]["dispose"] = dispose.operation_id
-    require(_workspace_dependency_cache_keys(runtime) == cache_keys_after_b,
+    require(_workspace_dependency_cache_keys(runtime, binding_b) == cache_keys_after_b,
             "workspace_development_dispose_removed_retained_dependency_cache")
     report["required_checks"] = {
         "approved_source_mutation_visible_over_http": True,

@@ -24,6 +24,7 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - r9 收尾：[失败原报告](docs/acceptance/p1/validation-workspace-development-r9.json)逐字节归档；[初次清理](docs/acceptance/p1/validation-workspace-development-r9-cleanup.json)核对两只已停止容器、空网络、父组、loop／backing／目录已删除，但即时空间回收不足，保持待核对。UTC `2026-10-20T08:42:08.946238+00:00` 的[补充收据](docs/acceptance/p1/storage-reconciliation-workspace-development-r9.json)核对同一宿主设备与原基线、sync 后实际空闲增量 8,589,946,880 字节，确认原 8GiB 回收，剩余占账 0；原初次未知记录未覆盖。下一项：固定上传修正候选并继续环境方法。
 - r10 实际结果：获准锁变体已由真实文件入口写入并实际安装、启动，原锁复用与新锁未复用、实际锁摘要变化均已核对；方法随后在 `workspace_development_lock_cache_entry_set_mismatch` 失败。根因为方法读取了 `workspace-python/<Workspace作用域>` 的目录名，而真实依赖键位于该作用域下一层；不是实际缓存命中／失效失败。本次只修正方法按项目／Workspace 规范摘要进入对应目录，保留私有目录、设备、所有权和有界清单校验，方法递增 r4；产品代码不变。下一项为原池窄核对与收尾，再固定新输入完成未知锁拒绝和销毁回收。
 - r10 原池窄核对：修正后的清单读取与原 journal 的两个实际依赖键完全一致，原锁 key `3f60c141…` 两次 resume 均 reused，新锁 key `696c51ef…` 未复用；原报告字节一致，WSL AST 通过。原容器／网络及池按身份清理，实际回收结论见独立收据，不改写原方法失败。
+- r11 实际结果：完整物理流程已推进至 dispose，源码／候选、同锁复用、新锁失效、数据重建、未知锁拒绝、实际停止及候选保留均已有直接记录，父组和整个 8GiB 池实际回收、剩余占账 0。方法最后一处缓存清单调用遗漏新 binding 参数，因 TypeError 未执行最终保留断言，完整方法仍记 failed。此遗漏为本次方法修正造成；只补齐调用并将方法递增 r5，核对全部三个调用点后固定新输入，不改写 r11 原失败结论。
 
 ## 2026-10-20 · P1.2 修正接续（此前记录）
 
