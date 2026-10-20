@@ -63,7 +63,7 @@ from scripts.p1.workspace_development_fixture import (
     workspace_file,
 )
 
-METHOD_REVISION = "p1-2-workspace-development-r3"
+METHOD_REVISION = "p1-2-workspace-development-r4"
 NOTE_TITLE_PREFIX = "cloudhelm-p1-workspace-reset-"
 NOTE_BODY = "Disposable Workspace development reset probe."
 LOCK_COMMENT_VARIANT = importlib.import_module(
@@ -173,20 +173,24 @@ def _find_note(notes: dict, title: str) -> bool:
     return any(item.get("title_digest") == expected for item in notes["notes"] if isinstance(item, dict))
 
 
-def _workspace_dependency_cache_keys(runtime) -> tuple[str, ...]:
+def _workspace_dependency_cache_keys(runtime, binding) -> tuple[str, ...]:
     import re
     import stat
+    import rfc8785
 
     with runtime.registry.admit(0) as storage:
         path = Path(storage.cache_root) / "workspace-python"
-        try:
-            before = path.lstat()
-        except FileNotFoundError:
-            return ()
-        if (not stat.S_ISDIR(before.st_mode) or stat.S_ISLNK(before.st_mode)
-                or before.st_uid != os.getuid() or before.st_mode & 0o077
-                or before.st_dev != os.fstat(storage.admission.directory_fd).st_dev):
-            raise WorkspaceDevelopmentCheckFailure("workspace_development_cache_directory_invalid")
+        namespace = hashlib.sha256(rfc8785.dumps([binding.project_id, binding.workspace_id])).hexdigest()
+        for directory in (path, path / namespace):
+            try:
+                before = directory.lstat()
+            except FileNotFoundError:
+                return ()
+            if (not stat.S_ISDIR(before.st_mode) or stat.S_ISLNK(before.st_mode)
+                    or before.st_uid != os.getuid() or before.st_mode & 0o077
+                    or before.st_dev != os.fstat(storage.admission.directory_fd).st_dev):
+                raise WorkspaceDevelopmentCheckFailure("workspace_development_cache_directory_invalid")
+        path = path / namespace
         descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
         try:
             state = os.fstat(descriptor)
@@ -533,7 +537,7 @@ def _run_workspace_chain(probe: EngineeringProbe, runtime, storage_ref: Developm
             and dependency_b["environment_key"] != dependency_a_first["environment_key"]
             and observed_b.manifest_digest == manifest_b,
             "workspace_development_lock_variant_did_not_invalidate_cache")
-    cache_keys_after_b = _workspace_dependency_cache_keys(runtime)
+    cache_keys_after_b = _workspace_dependency_cache_keys(runtime, binding_b)
     require(set(cache_keys_after_b) == {
         dependency_a_first["environment_key"], dependency_b["environment_key"],
     }, "workspace_development_lock_cache_entry_set_mismatch")
@@ -561,7 +565,7 @@ def _run_workspace_chain(probe: EngineeringProbe, runtime, storage_ref: Developm
     resume_unknown = submit_control(probe, workspace_id, environment_id, input_ref, "resume", expected_status=409)
     require(resume_unknown.outcome == "rejected" and resume_unknown.operation_id is None,
             "workspace_development_unknown_lock_not_rejected")
-    cache_keys_after_unknown = _workspace_dependency_cache_keys(runtime)
+    cache_keys_after_unknown = _workspace_dependency_cache_keys(runtime, binding_b)
     require(set(cache_keys_after_unknown) == set(cache_keys_after_b),
             "workspace_development_unknown_lock_created_cache_entry")
     report["unknown_lock"] = {
