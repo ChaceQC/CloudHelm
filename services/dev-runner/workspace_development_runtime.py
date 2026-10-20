@@ -882,10 +882,16 @@ class WorkspaceDevelopmentRuntime:
         if source.manifest_digest != spec.source_manifest_digest:
             raise ProbeFailure("workspace_development_source_spec_stale")
         if self.group.lock is None:
-            self._observe_existing_group()
+            self._acquire_group(fresh=False)
         operation_id = request.operation_id
         self.latest_operation_id = operation_id
         self.latest_request_digest = workspace_development_operation_digest(request)
+        if "backend" in self.docker.containers:
+            backend = self.docker.inspect("backend")
+            if backend["State"].get("Running") is True or backend["State"].get("Pid") not in (0, None):
+                # Confirm the old backend stopped before preparing replacement dependencies.
+                _invoke_gate(gate, operation_id)
+                self.docker.stop("backend")
         receipt = self._prepare_dependencies(storage, spec, operation_id, gate)
         _invoke_gate(gate, operation_id)
         self.docker.ensure_images()
@@ -894,15 +900,8 @@ class WorkspaceDevelopmentRuntime:
             _invoke_gate(gate, operation_id)
             self.docker.create_database()
         else:
-            postgres = self.docker.inspect("postgres")
-            if postgres["State"].get("Running") is True or postgres["State"].get("Pid") not in (0, None):
-                raise ProbeFailure("workspace_development_resume_found_running_database")
             self.docker.verify_container("postgres", require_running=False)
-        if "backend" in self.docker.containers:
-            backend = self.docker.inspect("backend")
-            if backend["State"].get("Running") is True or backend["State"].get("Pid") not in (0, None):
-                raise ProbeFailure("workspace_development_resume_found_running_backend")
-        else:
+        if "backend" not in self.docker.containers:
             self.docker.snapshot_source = receipt.snapshot_path
             self.docker.snapshot_digest, self.docker.snapshot_bytes = receipt.snapshot_digest, receipt.snapshot_bytes
             self.docker.data_revision = spec.data_revision

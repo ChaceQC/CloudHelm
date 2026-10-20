@@ -80,6 +80,10 @@ def _inventory():
                 raise
             if value["id"] != container_id:
                 raise WorkspaceFileError("workspace_docker_inventory_invalid")
+            # Docker does not guarantee Mounts array order across inspections.
+            value["mounts"] = sorted(value["mounts"], key=lambda mount: (
+                mount["Destination"], mount["Source"], mount["Type"],
+            ))
             observations[container_id] = value
 
         for item in ids:

@@ -642,6 +642,8 @@ class WorkspaceDevelopmentController:
         action, request = intent.request.action, intent.request
         if action == "prepare":
             return runtime.prepare(request, storage, gate=self.gate)
+        if runtime.docker is None:
+            runtime.discover(storage, prepare_operation_id=runtime.prepare_operation_id)
         if action == "resume":
             return runtime.start_existing(request, storage, current_spec=spec, gate=self.gate)
         if action == "reset_data":
@@ -763,7 +765,7 @@ class WorkspaceDevelopmentController:
                 environment = session.read_environment()
                 if existing is not None and environment is None:
                     raise ProbeFailure("workspace_development_journal_environment_missing")
-                if existing is None and environment is not None and request.action != "prepare":
+                if existing is None and environment is None and request.action != "prepare":
                     raise ProbeFailure("workspace_development_environment_not_found")
                 spec = self._new_spec_for(checked, environment)
         prepare_operation_id = (request.operation_id if request.action == "prepare" else
