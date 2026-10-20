@@ -2,17 +2,17 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.2`、D03/D06 `v4.7.1`、D01/D02/D04/D05 `v4.7.0`；设计版本与软件版本分别管理。
 
-P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交付；P1.2 退出结论已纠正为修正中。当前没有完整 P1 阶段、s2413 安装/配额、独立交付或原生/人工验收结论；本轮结果不扩大历史接缝或其它产品组合的支持范围。
+P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交付；P1.2 的 C1～C7 修正已在固定 WSL 参照组合闭合。当前没有完整 P1 阶段、s2413 安装/配额、独立交付或原生/人工验收结论；本轮结果不扩大历史接缝或其它产品组合的支持范围。
 
-任务级 [PROJECT_PLAN.md](PROJECT_PLAN.md) 修订 18 已重新开放 P1.2 的 C1～C7 修正；用户暂时全部使用 s2413 的选择保留，正式独立目标仍属 P1.4/P1 出口前置。以下按记录列出实际工作，较早条目的“下一步”和阻塞描述保留当时状态，以最新记录为准。
+任务级 [PROJECT_PLAN.md](PROJECT_PLAN.md) 修订 22 已记录 P1.2 修正结果，本次最后未完成的 S3／S4 已结项，P1.3～P1.5 未启动；用户暂时全部使用 s2413 的选择保留，正式独立目标仍属 P1.4/P1 出口前置。以下按记录列出实际工作，较早条目的“下一步”和阻塞描述保留当时状态，以最新记录为准。
 
-## 2026-10-20 · P1.2 最后未完成项接续（进行中）
+## 2026-10-20 · P1.2 最后未完成项接续（已完成本轮修正）
 
 - 范围与分工：按用户最新要求仅承接上一聊天最后未完成的 S3／S4，由主会话独立执行，不使用子代理。入口为 `dev / d9c154f`，原工作树仅有未入库的 InputSet r8；四组 Task r7、操作边界及后端缓存的原通过证据按适用范围保留，不重复无变化的方法，不开放 P1.3～P1.5。
 - 已完成：已读取引用聊天和实际 r8 报告。r8 的休眠／恢复、源码 HTTP 变化、候选保持及同锁依赖复用已观察，但完整方法在 `synthetic_data_revision_reset` 因 `workspace_development_reset_request_mismatch` 失败；公共输入前后一致。根因是控制器已构造目标数据修订与递增后代次，Runner 却将此 Spec 与请求中的旧修订／代次比较。
-- 进行中：仅修正 Runner 对 reset 目标 Spec 的一致性校验，代次只递增一次；旧状态／当前授权／停止门禁继续由原接线核对。先归档 r8 失败原字节并按原环境／存储身份收尾，再固定新候选执行环境方法，最后更新退出映射、使用说明与 Git。
-- 阻塞与风险：环境完整通过及清理证据尚缺；r8 两只已停止容器仍保有存储挂载，8GiB 池继续保守占账，核对前不回收。实际投入和剩余估算待估。
-- 主要文件：`services/dev-runner/workspace_development_runtime.py`、`docs/acceptance/p1/`、本计划／进度与使用说明。验证：仅完成引用、状态、失败报告与调用链的只读核对；修补后检查和新候选环境方法尚未执行，人工验收未执行。下一项：reset Spec 窄检查及 r8 残留核对清理。
+- 进行中：无。本轮完成 reset 目标 Spec、实际锁上传上限及缓存清单方法修补；环境 r12 实际方法通过，退出映射、支持矩阵与使用说明已同步，按下列记录完成 dev 交付。
+- 阻塞与风险：本轮修正无剩余实现阻塞；完整 P1、s2413 安装／共享资源、独立交付、Desktop 和人工验收仍不在本次结论内。实际人日与后续估算待估，不按重复方法运行或代理墙钟折算。
+- 主要文件：`services/dev-runner/workspace_development_runtime.py`、`packages/contracts/p1/workspace_uploads.py`／OpenAPI、`scripts/p1/check_workspace_development.py`、`docs/acceptance/p1/`、计划／进度、使用说明与支持矩阵。验证：WSL reset／上传窄检查、契约快照及 r12 固定环境方法通过；原三组证据只读复核适用性，人工验收未执行。下一项：本次范围已结束；后续独立任务入口为 P1.3-01，本轮不启动。
 
 ### 本次小步结果
 
@@ -25,6 +25,11 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - r10 实际结果：获准锁变体已由真实文件入口写入并实际安装、启动，原锁复用与新锁未复用、实际锁摘要变化均已核对；方法随后在 `workspace_development_lock_cache_entry_set_mismatch` 失败。根因为方法读取了 `workspace-python/<Workspace作用域>` 的目录名，而真实依赖键位于该作用域下一层；不是实际缓存命中／失效失败。本次只修正方法按项目／Workspace 规范摘要进入对应目录，保留私有目录、设备、所有权和有界清单校验，方法递增 r4；产品代码不变。下一项为原池窄核对与收尾，再固定新输入完成未知锁拒绝和销毁回收。
 - r10 原池窄核对：修正后的清单读取与原 journal 的两个实际依赖键完全一致，原锁 key `3f60c141…` 两次 resume 均 reused，新锁 key `696c51ef…` 未复用；原报告字节一致，WSL AST 通过。原容器／网络及池按身份清理，实际回收结论见独立收据，不改写原方法失败。
 - r11 实际结果：完整物理流程已推进至 dispose，源码／候选、同锁复用、新锁失效、数据重建、未知锁拒绝、实际停止及候选保留均已有直接记录，父组和整个 8GiB 池实际回收、剩余占账 0。方法最后一处缓存清单调用遗漏新 binding 参数，因 TypeError 未执行最终保留断言，完整方法仍记 failed。此遗漏为本次方法修正造成；只补齐调用并将方法递增 r5，核对全部三个调用点后固定新输入，不改写 r11 原失败结论。
+- r10 后续回收核对：原即时空间观测及第一份 inode 观测均保留未知；[补充 r2](docs/acceptance/p1/storage-reconciliation-workspace-development-r10-r2.json)绑定原收据，证明 inode 在删除后重新分配为小文件，原 8GiB 已回收、剩余占账 0。
+- r12 最终方法：[InputSet r12](docs/acceptance/p1/input-set-p1-2-r12.json)固定已推送源码 `f04e5a7be96e8a54365cd7864720412ce88118d4` 的 319 个公开输入，SHA-256 `fa4e860034677a8d5428e2dbd8ddf90cb8b05a973ff1db70d7ec585dd1313289`；输入提交 `e0314f7`。WSL 维护命令 `engineering_storage_fixture --method workspace-development --input-set docs/acceptance/p1/input-set-p1-2-r12.json --port 55445` 的[原报告](docs/acceptance/p1/validation-workspace-development-r12.json)逐字节归档。UTC `2026-10-20T08:59:51.929493+00:00`～`09:05:33.242185+00:00`，方法 r5 `status=passed`，六项 required_checks 全 true，前后输入一致，未知锁拒绝且缓存不新增、dispose 后候选／依赖缓存仍在。
+- r12 回收：原包装因即时全局空间增量不足记录 `host_reclamation_unconfirmed`，原字节保持；容器／网络／父组、loop／backing／实例目录已停止或删除。[补充核对](docs/acceptance/p1/storage-reconciliation-workspace-development-r12.json)于 UTC `2026-10-20T09:07:10.702632+00:00` 通过 ext4 原 inode 删除后重分配的实际身份核对，确认 8,589,934,592 字节回收、剩余占账 0。
+- 退出映射：[适用性复核 r12](docs/acceptance/p1/evidence-applicability-p1-2-r12.json)确认原操作边界 r3、后端 A→A→B r3 与四组工程 Task r7 的报告 SHA／方法字节及受影响调用范围；313 个 r7 公共输入未变，六项变化逐项说明。仅复用原覆盖范围，没有把旧运行改写为 r12。计划修订 22、[P1.2 退出映射](docs/acceptance/p1/p1-2.md)、支持矩阵 r6 与使用说明同步，C1～C7 和本次 S3／S4 闭合；本轮没有新增阶段、人工验收、s2413 安装或发布。
+- 交付核对：本次 7 份收尾文档／JSON 的 UTF-8、相对链接、原报告字节、报告 SHA 绑定及 r12 的 319 个固定输入均通过只读复核，`git diff --check` 通过；没有重复业务方法。输入提交 `e0314f7` 的[仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/39397423835) completed/success，只支持该工作流覆盖范围；收尾文档按正常 dev 提交推送，后续提交的检查以其实际运行记录为准。
 
 ## 2026-10-20 · P1.2 修正接续（此前记录）
 

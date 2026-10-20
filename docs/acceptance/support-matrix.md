@@ -1,9 +1,10 @@
-# 支持矩阵 r5
+# 支持矩阵 r6
 
-修订日期：2026-10-18（Asia/Shanghai）。r5 新增 [P1.2 固定候选工程记录](p1/p1-2.md)；原 [P1.1 记录](p1/p1-1.md)和 s2413 同机准备事实保持各自历史范围。其余输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[P0 拓扑快照](p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md)、[参照适用决定](../decisions/p0/reference-applicability.md) 和 [P0 出口评审](p0/exit-review.md)。各运行证据绑定各自候选和时间，没有证据的产品组合不自动纳入支持。
+修订日期：2026-10-20（Asia/Shanghai）。r6 补充 [P1.2 增量环境与修正退出记录](p1/p1-2.md)；历史工程链、[P1.1 记录](p1/p1-1.md)和 s2413 同机准备事实保持各自范围。其余输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[P0 拓扑快照](p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md)、[参照适用决定](../decisions/p0/reference-applicability.md) 和 [P0 出口评审](p0/exit-review.md)。各运行证据绑定各自候选和时间，没有证据的产品组合不自动纳入支持。
 
 |组合/能力|本轮实际范围与证据|不支持或未核验时的行为/门禁|
 |---|---|---|
+|P1.2 增量环境与修正|源码 f04e5a7、软件／工作流 0.3.0、业务 head 0004_p1_2_development；[319 个固定输入 r12](p1/input-set-p1-2-r12.json)对应[实际环境方法](p1/validation-workspace-development-r12.json)通过，源码刷新、候选保持、依赖复用／锁失效、休眠恢复、数据重建与销毁有事实；[补充收据](p1/storage-reconciliation-workspace-development-r12.json)闭合包装初次回收未知。原 r3／r7 方法按[适用性复核](p1/evidence-applicability-p1-2-r12.json)保留|仅限本机 WSL、Linux/amd64 固定便签后端 profile。上传内容 48KiB／完整 JSON 64KiB；未知锁拒绝。不是共享资源协议、完整预览、s2413 安装、整机容量、远端或人工验收；旧安装不自动升级|
 |P1.2 固定参照工程链|源码 1182160、软件/工作流 0.2.0、业务 head 0003_p1_2_builds；[290 个固定输入](p1/input-set-p1-2-r2.json)与[完整链结果](p1/validation-p1-2-r2.json)匹配，真实 HTTP/单 worker、来源/修改/候选/断网构建/三 OCI/环境及数据重建通过；8GiB 池实际回收|只支持 Ubuntu-24.04 本机固定参照与 Linux/amd64；运行 profile、父组、可信平台入口及能力例外见 P1.2 记录。不是通用仓库、P1.3 共享资源协议、P2 预览、整机容量、s2413/远端或人工验收|
 |WSL 开发|Ubuntu 24.04.4、x86_64、WSL2 内核，锁定工程 Python 3.12.13；P0 采集器使用系统 Python 3.12.3，Docker 29.1.3/Compose 2.40.3；历史接缝和参照验证按原候选有效，P1.1 另绑定当前源码与新输入|只作为开发环境；P0 可见内存约 7.36 GiB，不宣称 8 GiB light 整机容量通过。P0 PATH 无 Linux Node，Windows npm 被采集器拒绝的记录不影响历史固定容器构建证据|
 |Hub 身份、命令与 Task 基础|`cloudhelm-hub/0.1.0`、PostgreSQL 16.13、DBOS 3.2.0、业务 head 0001_p1_1；[125 个固定输入](p1/input-set-p1-1-r1.json)对应[61 个结果键全部通过](p1/validation-p1-1-r1.json)，覆盖真实角色/HTTP、同库事务、Task 控制竞争与单 worker；API 13 路径/15 操作|完成/封闭正向域事实为 protocol_validation 合成来源，不代表真实开发/人测/执行器验收；模型、构建、Runner/Remote、Desktop 和 s2413 部署未由本行放行。精确 DBOS 系统 schema 数字保持 null，多机 HA/跨版本恢复不支持|
