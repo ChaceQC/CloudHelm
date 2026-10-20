@@ -6,7 +6,20 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 
 任务级 [PROJECT_PLAN.md](PROJECT_PLAN.md) 修订 18 已重新开放 P1.2 的 C1～C7 修正；用户暂时全部使用 s2413 的选择保留，正式独立目标仍属 P1.4/P1 出口前置。以下按记录列出实际工作，较早条目的“下一步”和阻塞描述保留当时状态，以最新记录为准。
 
-## 2026-10-20 · P1.2 修正接续（进行中）
+## 2026-10-20 · P1.2 最后未完成项接续（进行中）
+
+- 范围与分工：按用户最新要求仅承接上一聊天最后未完成的 S3／S4，由主会话独立执行，不使用子代理。入口为 `dev / d9c154f`，原工作树仅有未入库的 InputSet r8；四组 Task r7、操作边界及后端缓存的原通过证据按适用范围保留，不重复无变化的方法，不开放 P1.3～P1.5。
+- 已完成：已读取引用聊天和实际 r8 报告。r8 的休眠／恢复、源码 HTTP 变化、候选保持及同锁依赖复用已观察，但完整方法在 `synthetic_data_revision_reset` 因 `workspace_development_reset_request_mismatch` 失败；公共输入前后一致。根因是控制器已构造目标数据修订与递增后代次，Runner 却将此 Spec 与请求中的旧修订／代次比较。
+- 进行中：仅修正 Runner 对 reset 目标 Spec 的一致性校验，代次只递增一次；旧状态／当前授权／停止门禁继续由原接线核对。先归档 r8 失败原字节并按原环境／存储身份收尾，再固定新候选执行环境方法，最后更新退出映射、使用说明与 Git。
+- 阻塞与风险：环境完整通过及清理证据尚缺；r8 两只已停止容器仍保有存储挂载，8GiB 池继续保守占账，核对前不回收。实际投入和剩余估算待估。
+- 主要文件：`services/dev-runner/workspace_development_runtime.py`、`docs/acceptance/p1/`、本计划／进度与使用说明。验证：仅完成引用、状态、失败报告与调用链的只读核对；修补后检查和新候选环境方法尚未执行，人工验收未执行。下一项：reset Spec 窄检查及 r8 残留核对清理。
+
+### 本次小步结果
+
+- reset 修补：WSL UID1000 使用 r8 原 journal 的真实请求和目标 Spec 核验，数据修订为 `reference-synthetic-r2`，代次从 1 变为 2；旧修订、旧代次、多增一次及错误源码摘要四个负例全部拒绝。修改文件 UTF-8／AST 和 `git diff --check` 通过；没有新增通用测试或重跑已通过业务方法。
+- r8 归档与清理：[失败原报告](docs/acceptance/p1/validation-workspace-development-r8.json)与私有原文件逐字节一致；[清理收据](docs/acceptance/p1/validation-workspace-development-r8-cleanup.json)记录 UTC `2026-10-20T08:31:08.962201+00:00` 核对并删除原环境的两只已停止容器和一张空网络，父组已不存在，loop／backing／实例目录全部回收，8,589,934,592 字节释放且剩余占账 0。原失败结论保持；下一步固定 r9，仅执行完整环境方法。
+
+## 2026-10-20 · P1.2 修正接续（此前记录）
 
 - 已完成：读取引用聊天并核对当前 `dev / f1fd37c`；保留 `candidate_freeze.py`、`engineering_fixture.py`、`workspace_development_lifecycle.py`、`workspace_development_runtime.py` 的 4 个未提交修补。原聊天中断，最后一次 debug-14 未留下报告，不能补记成功。
 - 执行计划：S1 复核恢复与候选冻结修补（仅上述三个产品模块）；S2 完成四组真实 Workspace／Build × Task 完成／取消方法（仅 Task 验证与公共工程夹具）；S3 在两项交回后串行执行增量环境方法，按实际阻断细分修复；S4 固定新源码与 InputSet，核对原操作边界／后端缓存证据的适用文件，同步退出映射和使用说明并提交推送 dev。

@@ -778,18 +778,11 @@ class WorkspaceDevelopmentRuntime:
             if (current_spec.environment_id != self.spec.environment_id
                     or current_spec.binding != request.binding
                     or current_spec.source_manifest_digest != request.source_manifest_digest
-                    or current_spec.data_revision != request.expected_data_revision
-                    or current_spec.data_generation != request.expected_data_generation
+                    or current_spec.data_revision != request.target_data_revision
+                    or current_spec.data_generation != request.expected_data_generation + 1
                     or request.target_data_revision not in DATASET_REVISIONS):
                 raise ProbeFailure("workspace_development_reset_request_mismatch")
-            values = current_spec.model_dump(mode="python")
-            values.update(data_revision=request.target_data_revision,
-                          data_generation=request.expected_data_generation + 1)
-            try:
-                spec = WorkspaceDevelopmentEnvironmentSpec.model_validate(values)
-            except ValueError:
-                raise ProbeFailure("workspace_development_reset_spec_invalid") from None
-            return spec, request.expected_data_generation + 1
+            return current_spec, current_spec.data_generation
         raise ProbeFailure("workspace_development_start_existing_request_invalid")
 
     def _validate_discovered_network(self) -> None:

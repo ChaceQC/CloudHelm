@@ -64,6 +64,8 @@ wsl -d Ubuntu-24.04 -u root --cd /mnt/e/Project/CloudHelm -- .venv/bin/python -B
 
 可变环境当前只开放 `notes-backend-dev-r1`，固定 Python/uv、离线依赖、只读动态 Workspace 源码、私有安装快照、固定 Uvicorn reload 与独立 PostgreSQL 测试数据。源码继续经文件命令修改；环境 resume 重新绑定当前修订并实际探活，锁变化使旧私有安装键失效。suspend 保留合成数据与依赖快照，reset-data 使用获准数据修订重建并递增 generation；dispose 停止并核对运行资源，保留内容的磁盘占账单独记录。未知结果按原操作查询。
 
+`reset-data` 请求的 `expected_data_revision`／`expected_data_generation` 使用最新观测的当前值，`target_data_revision` 单独指定获准目标。成功后观测目标修订，数据代次仅递增一次；相同操作身份的重投先查询原结果，不能再次清空数据或重复递增。
+
 对仍运行的环境执行 resume 时，先确认旧后端停止，再准备当前依赖并重新启动、探活；已核对身份的 PostgreSQL 可继续运行以保留数据。休眠后的 resume 按原 prepare 身份发现资源并重新取得执行锁。依赖准备或停止核对失败时不报告 ready，应按原操作查询原因和物理状态。
 
 正常 worker 关闭会按已登记身份停止其持有的开发服务并写入物理收尾记录，不代替用户提交 Hub suspend/dispose 命令；数据库中的 ready 是上次带时间戳的观测，worker 退出后使用者应显式 resume 重新准入和核验。异常退出后先按原操作与容器身份核对，不能凭进程内对象不存在就重建。当前开发入口不包含完整预览票据、用户访问流程或前端开发服务器。
