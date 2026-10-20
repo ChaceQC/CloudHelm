@@ -45,7 +45,7 @@ from scripts.p1.engineering_task_fixture import (
     close_build_unstarted_after_cancel, control_facts, execute_build_without_hub_receipt,
     refresh_protocol_work_items, stage_protocol_completion, task_application, task_control_worker_running,
 )
-from scripts.p1.runtime_processes import api_running, worker_running
+from scripts.p1.runtime_processes import _ACTIVE, api_running, worker_running
 
 CASE_NAMES = ("workspace_complete", "workspace_cancel", "build_complete", "build_cancel")
 SETTLED_BUILD_CLOSURES = {"closed_unstarted", "ended_reconciled", "safely_stopped"}
@@ -131,7 +131,7 @@ def _workspace_intent(probe, case):
     path = f"cloudhelm-{case['name']}.txt"
     request = MutateWorkspaceFileRequest(
         **workspace_guard(view, input_ref),
-        action="write", path=path, expected_manifest_digest=view.workspace.files.manifest_digest,
+        action="write", path=path, expected_manifest_digest=case["candidate"].snapshot.manifest_digest,
         expected_file=None,
         replacement=WorkspaceFile(path=path, mode="100644", size_bytes=len(content),
                                   content_digest=content_digest(content)),
@@ -433,29 +433,39 @@ def run(args, report):
     storage_api = importlib.import_module("services.dev-runner.development_storage")
     with storage_api.DevelopmentStorage(storage_ref.storage_id).admit_ref(storage_ref, requested_bytes=0) as admitted:
         report["storage_before"] = admitted.observe().model_dump(mode="json")
-    probe = None
-    with database_fixture(port=args.port) as fixture:
-        report["database_fixture"] = {"project_name": fixture.project_name, "port": fixture.port,
-                                       "installation_id": fixture.baseline.installation_id,
-                                       "isolated_new_database": True}
-        try:
-            probe = EngineeringProbe(process_fixture(fixture, storage_ref))
-            probe.open()
-            with api_running(probe.fixture, instance="taskctl") as api:
-                probe.http = api.client
-                grant_engineering(probe)
-                source, source_workflow = accept_source(probe)
-                cases = _case_setup(probe, storage_ref, source, source_workflow)
-                registry_module = importlib.import_module("services.dev-runner.engineering_registry")
-                runtime_module = importlib.import_module("services.hub-worker.engineering_runtime")
-                registration = registry_module.EngineeringRegistration(storage=storage_ref)
-                registry = registry_module.EngineeringRegistry(registration)
-                runtime = runtime_module.EngineeringRuntime(probe.pools.normal, probe.pools.control, registry)
-                _run_cases(probe, storage_ref, runtime, cases, report)
-        finally:
-            if probe is not None:
-                probe.close()
-    report["database_and_process_cleanup"] = "complete"
+    probe = fixture = runtime = None
+    try:
+        with database_fixture(port=args.port) as fixture:
+            report["database_fixture"] = {"project_name": fixture.project_name, "port": fixture.port,
+                                           "installation_id": fixture.baseline.installation_id,
+                                           "isolated_new_database": True}
+            try:
+                probe = EngineeringProbe(process_fixture(fixture, storage_ref))
+                probe.open()
+                with api_running(probe.fixture, instance="taskctl") as api:
+                    probe.http = api.client
+                    grant_engineering(probe)
+                    source, source_workflow = accept_source(probe)
+                    cases = _case_setup(probe, storage_ref, source, source_workflow)
+                    registry_module = importlib.import_module("services.dev-runner.engineering_registry")
+                    runtime_module = importlib.import_module("services.hub-worker.engineering_runtime")
+                    registration = registry_module.EngineeringRegistration(storage=storage_ref)
+                    registry = registry_module.EngineeringRegistry(registration)
+                    runtime = runtime_module.EngineeringRuntime(probe.pools.normal, probe.pools.control, registry)
+                    _run_cases(probe, storage_ref, runtime, cases, report)
+            finally:
+                try:
+                    if runtime is not None:
+                        runtime.close()
+                finally:
+                    if probe is not None:
+                        probe.close()
+    finally:
+        # The database fixture removes this private directory only after Docker
+        # down succeeds; process registrations remain until their stop is known.
+        if (fixture is not None and not fixture.runtime_dir.exists()
+                and not _ACTIVE.get(fixture.project_name)):
+            report["database_and_process_cleanup"] = "complete"
     with storage_api.DevelopmentStorage(storage_ref.storage_id).admit_ref(storage_ref, requested_bytes=0) as admitted:
         report["storage_after"] = admitted.observe().model_dump(mode="json")
 

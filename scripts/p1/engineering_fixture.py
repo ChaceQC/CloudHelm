@@ -182,6 +182,15 @@ class EngineeringProbe:
             state = getattr(value, "state", None)
             require(state not in {"failed", "unknown"}, "engineering_physical_operation_unsettled")
             status = self.workflow_status(workflow_id) if workflow_id else None
+            if status == "ERROR":
+                try:
+                    self.client.retrieve_workflow(workflow_id).get_result()
+                except Exception as error:
+                    code = getattr(error, "code", None) or getattr(error, "category", None)
+                    if not isinstance(code, str):
+                        codes = re.findall(r"\b(?:workspace|task|candidate|storage)_[a-z0-9_]{1,80}\b", str(error))
+                        code = codes[-1] if codes else type(error).__name__.lower()
+                    raise EngineeringCheckFailure("engineering_workflow_" + code) from None
             require(status not in {"ERROR", "CANCELLED", "MAX_RECOVERY_ATTEMPTS_EXCEEDED"},
                     "engineering_worker_workflow_failed")
             if ready(value) and (workflow_id is None or status == "SUCCESS"):

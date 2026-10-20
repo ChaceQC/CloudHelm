@@ -37,7 +37,7 @@ from packages.contracts.p1.task_facts import (
 from scripts.p1.engineering_fixture import PROJECT, require
 from scripts.p1.runtime_processes import RuntimeProcessError, WorkerProcess, _process
 
-METHOD_REVISION = "p1-2-engineering-task-control-r1"
+METHOD_REVISION = "p1-2-engineering-task-control-r2"
 PROTOCOL_CLASSIFICATION = "protocol_validation_input"
 BUILD_WORKSPACE_BYTES = 2 * 1024**3
 
