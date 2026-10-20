@@ -42,7 +42,7 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 |可变开发环境申请、读取状态|`POST /api/workspaces/{workspace_id}/development-environments`；`GET /api/development-environments/{environment_id}`|
 |环境操作与生命周期|`GET /api/development-environments/{environment_id}/operations/{operation_id}`；`POST /api/development-environments/{environment_id}/suspend`、`/resume`、`/reset-data`、`/dispose`|
 
-准确字段见 [HTTP 快照](../../packages/contracts/p1/hub-openapi.json)。修改入口只接受至多 32KiB UTF-8 单文件内容；请求包含 `request`（版本、路径、原内容与替换摘要）和 `content_utf8`，删除时内容为 null。内容在当前授权与版本预检后暂存到受控池，命令及 DBOS 只保留摘要与操作身份；正式接受时重新检查当前门禁。同键重投保留原请求，不用新键重放未知文件操作。
+准确字段见 [HTTP 快照](../../packages/contracts/p1/hub-openapi.json)。修改入口接受至多 48KiB UTF-8 单文件内容，完整 JSON 请求仍受 64KiB 限制；请求包含 `request`（版本、路径、原内容与替换摘要）和 `content_utf8`，删除时内容为 null。内容在当前授权与版本预检后暂存到受控池，命令及 DBOS 只保留摘要与操作身份；正式接受时重新检查当前门禁。同键重投保留原请求，不用新键重放未知文件操作。
 
 当前注册组合只支持固定便签参照和本机 UID 1000。`CLOUDHELM_ENGINEERING_REGISTRY_FILE` 指向 `0600` 的无秘密 UTF-8 JSON，包含实际维护创建的 `DevelopmentStorageRef` 及固定种子引用；API 的文件暂存与 worker 使用同一注册。公共请求不能选择宿主路径、Git 子命令或 Docker 参数。缺少注册、只读种子、当前挂载或实例修订不符时，执行入口明确拒绝。
 

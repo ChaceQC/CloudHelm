@@ -6,10 +6,12 @@ from packages.contracts.p0.decision_common import Contract
 from packages.contracts.p1.workspace_git import content_digest
 from packages.contracts.p1.workspace_requests import MutateWorkspaceFileRequest
 
+MAX_UPLOAD_BYTES = 48 * 1024
+
 
 class WorkspaceMutationUpload(Contract):
     request: MutateWorkspaceFileRequest
-    content_utf8: str | None = Field(default=None, max_length=32768, exclude=True, repr=False)
+    content_utf8: str | None = Field(default=None, max_length=MAX_UPLOAD_BYTES, exclude=True, repr=False)
 
     @model_validator(mode="after")
     def check_payload(self):
@@ -24,7 +26,7 @@ class WorkspaceMutationUpload(Contract):
         except UnicodeError:
             raise ValueError("workspace_content_utf8_invalid") from None
         replacement = self.request.replacement
-        if (len(data) > 32768 or replacement is None or replacement.size_bytes != len(data)
+        if (len(data) > MAX_UPLOAD_BYTES or replacement is None or replacement.size_bytes != len(data)
                 or replacement.content_digest != content_digest(data)):
             raise ValueError("workspace_content_digest_mismatch")
         return self

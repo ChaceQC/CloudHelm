@@ -19,6 +19,9 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - reset 修补：WSL UID1000 使用 r8 原 journal 的真实请求和目标 Spec 核验，数据修订为 `reference-synthetic-r2`，代次从 1 变为 2；旧修订、旧代次、多增一次及错误源码摘要四个负例全部拒绝。修改文件 UTF-8／AST 和 `git diff --check` 通过；没有新增通用测试或重跑已通过业务方法。
 - r8 归档与清理：[失败原报告](docs/acceptance/p1/validation-workspace-development-r8.json)与私有原文件逐字节一致；[清理收据](docs/acceptance/p1/validation-workspace-development-r8-cleanup.json)记录 UTC `2026-10-20T08:31:08.962201+00:00` 核对并删除原环境的两只已停止容器和一张空网络，父组已不存在，loop／backing／实例目录全部回收，8,589,934,592 字节释放且剩余占账 0。原失败结论保持；下一步固定 r9，仅执行完整环境方法。
 - 固定输入：[InputSet r9](docs/acceptance/p1/input-set-p1-2-r9.json)绑定已推送的修补源码 `1ee304039050b148bbd39007e9260482dfbe18a8` 与 319 个公开输入。执行期间候选字节冻结，四组 Task 与其他已通过方法不重复；下一项为 r9 环境生命周期的实际执行及原结果归档。
+- r9 实际结果：数据重建已通过，旧用户数据及旧种子删除，目标 `reference-synthetic-r2` 种子存在，代次从 1 变为 2。随后在 `fixed_lock_variant_cache_invalidation` 收到 `engineering_http_422_request_schema_invalid`；固定原锁 33,551 字节、获准变体 33,625 字节，超过既有 32KiB 上传边界。公共输入前后一致，完整方法仍为 failed；原环境已停止但挂载待按身份清理。计划补齐必要的 48KiB 上传边界，完整 JSON 仍限 64KiB，契约／快照和说明同步后固定新输入，其他已通过方法按实际依赖复核适用性。
+- 上传接缝修正：单文件上限兼容扩展到 49,152 个 UTF-8 字节，完整 JSON 仍限 65,536 字节。真实锁变体 JSON 为 35,690 字节且能通过原严格解析；ASCII／中文恰好到上限可接受、超过上限拒绝，错误摘要及超大 HTTP body 拒绝，内容仍从持久 command dump 排除。WSL 契约快照检查通过（32 路径、34 操作、85 schema）。
+- r9 收尾：[失败原报告](docs/acceptance/p1/validation-workspace-development-r9.json)逐字节归档；[初次清理](docs/acceptance/p1/validation-workspace-development-r9-cleanup.json)核对两只已停止容器、空网络、父组、loop／backing／目录已删除，但即时空间回收不足，保持待核对。UTC `2026-10-20T08:42:08.946238+00:00` 的[补充收据](docs/acceptance/p1/storage-reconciliation-workspace-development-r9.json)核对同一宿主设备与原基线、sync 后实际空闲增量 8,589,946,880 字节，确认原 8GiB 回收，剩余占账 0；原初次未知记录未覆盖。下一项：固定上传修正候选并继续环境方法。
 
 ## 2026-10-20 · P1.2 修正接续（此前记录）
 
