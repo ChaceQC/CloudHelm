@@ -644,6 +644,8 @@ class WorkspaceDevelopmentController:
             return runtime.prepare(request, storage, gate=self.gate)
         if runtime.docker is None:
             runtime.discover(storage, prepare_operation_id=runtime.prepare_operation_id)
+        runtime.latest_operation_id = request.operation_id
+        runtime.latest_request_digest = intent.request_digest
         if action == "resume":
             return runtime.start_existing(request, storage, current_spec=spec, gate=self.gate)
         if action == "reset_data":
