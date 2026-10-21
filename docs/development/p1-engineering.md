@@ -6,6 +6,8 @@
 
 本机开发环境是 WSL `Ubuntu-24.04`，仓库路径 `/mnt/e/Project/CloudHelm`。Python `3.12.13`、uv `0.11.29` 和根 `uv.lock` 固定解释器与依赖；安装和运行在 WSL 内执行。
 
+环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
+
 当前增量环境修正的开发源码为 `0.3.0`，DBOS 工作流应用为 `cloudhelm-hub/0.3.0`，业务迁移 head 为 `0004_p1_2_development`（从 `0003_p1_2_builds` 线性前进）。仅为本轮准备新隔离开发库；旧版安装必须另行完成受控升级，`database.manage initialize` 会拒绝版本不匹配的现有安装。
 
 工作文件、受管 Git 元数据、候选、下载缓存、制品和执行临时目录具有独立位置与用途。受控运行数据放在 Linux 原生私有目录，不能放在 `/mnt/e` 的仓库工作树内；配置仅传受保护文件引用，不向命令参数、日志或公开输出写入密钥。
@@ -22,7 +24,8 @@
 
 ```bash
 cd /mnt/e/Project/CloudHelm
-/home/cloudhelm/.local/bin/uv run --frozen --no-sync python -m scripts.p1.probe_runner
+export UV=/home/cloudhelm/.local/bin/uv
+$UV run --frozen --no-sync python -m scripts.p1.probe_runner
 ```
 
 探针在私有运行目录保存原操作、InputSet 和报告；公开输出只含有界事实与固定错误类别。失败按原操作核对，不使用 privileged、关闭 process sandbox 或挂入宿主 Docker socket 绕过限制。探针仅覆盖其固定限额，真实构建与制品加载需要各自的容量证据。
@@ -54,13 +57,26 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 
 ## 5. 定向开发验证
 
+### 5.1 验证入口
+
 完整工程方法使用新临时数据库、维护生成的短期身份、真实 HTTP 与单 worker，随后运行独立参照 HTTP 资产。存储维护包装只对本项目新实例操作；需要本机 root 维护权限以创建/回收专用文件系统和环境父 cgroup，应用与方法主体仍使用 UID 1000。
 
 ```powershell
 wsl -d Ubuntu-24.04 -u root --cd /mnt/e/Project/CloudHelm -- .venv/bin/python -B -m scripts.p1.engineering_storage_fixture --development
 ```
 
-`--development` 明确表示未固定工作树；`--through-candidate` 仅供有关 Git/HTTP/worker 问题的窄验证。正式固定候选使用新的 `--input-set docs/acceptance/p1/input-set-p1-2-rN.json`，代替 `--development`，其中 rN 必须是实际已固定的修订；方法核对运行前后的公共输入。`--method workspace-development` 选择增量环境方法，`--method task-control` 选择四组真实工程 Task 方法；两者均复用相同受控池与维护包装。后端真实输入缓存方法为 `scripts.p1.check_backend_build --input-set <同一固定输入>`。失败或停止未知时保留原身份与阻断，不重启另一套物理操作覆盖原结果。实际记录见 [P1.2 证据索引](../acceptance/p1/p1-2.md)，不要把命令示例当作已通过结论。
+|参数或方法|用途与输入要求|
+|---|---|
+|`--development`|验证未固定工作树，不生成正式候选结论|
+|`--through-candidate`|仅对 Git/HTTP/worker 问题做窄验证|
+|`--input-set docs/acceptance/p1/input-set-p1-2-rN.json`|代替 `--development`；rN 必须实际已固定，方法核对运行前后的公共输入|
+|`--method workspace-development`|增量环境方法，复用受控池与维护包装|
+|`--method task-control`|四组真实工程 Task 方法，复用相同受控池与维护包装|
+|`scripts.p1.check_backend_build --input-set <同一固定输入>`|后端真实输入缓存方法|
+
+失败或停止未知时保留原身份与阻断，不重启另一套物理操作覆盖原结果。实际记录见 [P1.2 证据索引](../acceptance/p1/p1-2.md)，命令示例本身不构成通过结论。
+
+### 5.2 可变环境语义
 
 可变环境当前只开放 `notes-backend-dev-r1`，固定 Python/uv、离线依赖、只读动态 Workspace 源码、私有安装快照、固定 Uvicorn reload 与独立 PostgreSQL 测试数据。源码继续经文件命令修改；环境 resume 重新绑定当前修订并实际探活，锁变化使旧私有安装键失效。suspend 保留合成数据与依赖快照，reset-data 使用获准数据修订重建并递增 generation；dispose 停止并核对运行资源，保留内容的磁盘占账单独记录。未知结果按原操作查询。
 
@@ -70,7 +86,9 @@ wsl -d Ubuntu-24.04 -u root --cd /mnt/e/Project/CloudHelm -- .venv/bin/python -B
 
 正常 worker 关闭会按已登记身份停止其持有的开发服务并写入物理收尾记录，不代替用户提交 Hub suspend/dispose 命令；数据库中的 ready 是上次带时间戳的观测，worker 退出后使用者应显式 resume 重新准入和核验。异常退出后先按原操作与容器身份核对，不能凭进程内对象不存在就重建。当前开发入口不包含完整预览票据、用户访问流程或前端开发服务器。
 
-## 6. 当前限制
+### 5.3 已知限制
+
+以下低层 Git 与能力边界来自当前实现与固定输入范围。
 
 当前低层 Git 仅支持经受控登记的 managed bare 与独立工作文件；外部认证、LFS、submodule、完整 Git 模式和来源迁移按明确限制拒绝。Git OID 与内容 SHA-256 分别保存，初始文件回执不能表示可变工作区当前状态。
 

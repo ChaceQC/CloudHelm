@@ -1,6 +1,12 @@
 # P0 身份、动作权限与迁移边界决定 r1
 
-日期：2026-10-14（Asia/Shanghai）。工作包：P0.3-01a；契约修订：`p0-decisions-r1`。依据为 [D02 §1.3～1.4](../../design/02-execution-recovery.md)、[D05 §1.1](../../design/05-security-sync-operations.md)、[SDK-01](../../acceptance/p0/SDK-01.md) 和 [A02](../../acceptance/p0/A02.md)。本决定细化首链实现输入，不改变权威专题，也不把 P0 接缝扩写为产品授权、持久去重或跨版本恢复已经实现。
+> 日期：2026-10-14（Asia/Shanghai）
+> 工作包：P0.3-01a。
+> 修订：契约 `p0-decisions-r1`。
+> 权威依据：D02 §1.3～1.4、D05 §1.1；接缝来源见 SDK-01/A02。
+> 性质：本文件只记录决定与边界，不代表已实现或已验收。
+
+本决定依据 [D02 §1.3～1.4](../../design/02-execution-recovery.md)、[D05 §1.1](../../design/05-security-sync-operations.md)、[SDK-01](../../acceptance/p0/SDK-01.md) 和 [A02](../../acceptance/p0/A02.md) 细化首链实现输入。
 
 ## 1. 身份与连续性
 
@@ -29,15 +35,25 @@ Hub 业务模块拥有业务身份与映射；DBOS 拥有工作流执行状态�
 |配置|首链决定|
 |---|---|
 |协议 / 摘要配置|`p0-decisions-r1` / `cloudhelm-jcs-sha256-r1`，与旧 `p0-draft-r1` 和实验协议分开|
-|请求 schema|路由绑定固定 schema 类和准确修订；客户端不能选择任意 schema 或用声明的修订跳过校验|
-|处理顺序|UTF-8 原始 JSON → 拒绝重复键及非法数值 → 固定 schema 校验、物化声明默认值 → 解析并授权不可变引用 → JCS → SHA-256|
+|请求 schema|路由绑定固定类及准确修订|
 |摘要输入|协议/摘要/schema 修订、caller、scope、target、action、expected_resource_revision、规范化请求及统一 EngineeringRef 引用|
-|引用|直接复用 EngineeringRef 的 kind/object_id/revision/authority/digest/digest_algorithm；命令允许 artifact、environment_config、input_set、deployment_plan、secret_version 五类。前四类必须带内容 digest 和 sha256 算法；secret_version 只允许版本化身份与 authority，digest/算法均为空，禁止秘密值及其内容散列|
-|默认与空值|声明的默认值先物化；schema 允许的显式 null 保留。无默认值的可选成员保留缺省/null 区别，不能统一删 null；映射中的成员缺省也不补为 null|
-|序列化|RFC 8785 JCS / UTF-8；对象键按规范排序，数组次序保留；Unicode 不擅自做 NFC/NFKC、大小写或空白归一|
-|数值|有限数按 JCS；负零为零；整数限定 `[-9007199254740991, 9007199254740991]`；拒绝重复键、NaN、Infinity、溢出和非法 Unicode|
-|精确小数|仅 schema 指定字段接受十进制字符串：禁止指数、正号及多余前导零；去小数尾零/末尾点，负零为 `0`；固定位数有业务意义时另存精度或固定 schema，不全局改写文本|
+|引用|统一 EngineeringRef，限定为下述五类|
+|默认与空值|先物化声明默认值，保留合法 null 与缺省的区别|
+|序列化|RFC 8785 JCS / UTF-8|
+|数值|JCS 有限数；整数范围 `[-9007199254740991, 9007199254740991]`|
+|精确小数|仅固定 schema 指定字段接受规范十进制字符串|
 |摘要输出|`sha256:` + JCS UTF-8 字节的 SHA-256 小写十六进制；复用锁定 `rfc8785==0.1.4`，不新增依赖|
+
+处理顺序固定如下，客户端不能自选 schema 或通过声明修订跳过校验：
+
+1. 读取 UTF-8 原始 JSON。
+2. 拒绝重复键、NaN、Infinity、溢出及非法 Unicode；有限数遵循 JCS，负零为零。
+3. 按路由绑定的 schema 校验并物化声明默认值。允许的显式 null 保留；无默认值的可选成员仍区分缺省与 null，不统一删 null，也不把映射缺省成员补为 null。
+4. 解析并授权不可变引用。直接复用 EngineeringRef 的 kind/object_id/revision/authority/digest/digest_algorithm；只允许 artifact、environment_config、input_set、deployment_plan、secret_version。前四类必须带内容 digest 和 sha256 算法；secret_version 只带版本化身份与 authority，digest/算法均为空，禁止秘密值及其内容散列。
+5. 按 JCS 序列化：对象键按规范排序，保留数组次序；不擅自做 Unicode NFC/NFKC、大小写或空白归一。
+6. 对序列化后的 UTF-8 字节计算 SHA-256。
+
+精确小数字符串的规范化属于第 3 步的字段校验：禁止指数、正号和多余前导零，去掉小数尾零及末尾小数点，负零为 `0`。固定位数有业务意义时另存精度或固定 schema，不全局改写文本。
 
 `command_id`、`idempotency_key` 是登记/关联字段，不进入请求摘要。传输时间戳、trace/span、HTTP 连接信息、重投次数、框架 run/tool-call/message ID、worker PID 和授权快照均在传输/审计层，不能混入规范请求。业务有效期、控制修订、真正影响范围的 AgentRun/Operation/输入版本等由该动作的固定请求 schema 明确定义，必须参与摘要；不能把业务期限或控制字段当作瞬态数据丢弃。命令核心模型不接收这些未声明的传输字段。
 

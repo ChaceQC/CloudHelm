@@ -13,7 +13,9 @@ PYTHONUTF8=1 uv run --locked --offline python -m scripts.p0.check_decisions
 
 该命令检查本轮 Python 源码语法、JSON Schema 与 Pydantic 源一致性，以及七个模块的固定正反例。它只使用公开合成值和给定事实，输出各组实际布尔结果、方法修订、依赖/内核与 UTC 时间；失败以非零退出码结束。不得通过 Python `-O` 关闭断言。命令不连接模型、数据库、Docker、目标主机或浏览器，不会获取票据或读取配置秘密。
 
-## 查看契约
+## 契约、快照与固定候选
+
+### 查看契约与结构快照
 
 ```bash
 PYTHONUTF8=1 uv run --locked --offline python -m packages.contracts.p0.decision_schema
@@ -23,7 +25,7 @@ PYTHONUTF8=1 uv run --locked --offline python -m packages.contracts.p0.decision_
 
 `P0DecisionContracts` / 各 `P0*Contracts` 是 schema 集合，不是用户提交的组合对象。不要将其中 `allowed`、`time_evidence_valid` 等可信事实投影作为客户端可自授权限的字段。它们只能由实际身份、领域事务或执行器在当前门禁下生成。
 
-## 固定候选与结果
+### 固定候选与结果
 
 最终候选先提交源码及决定，再通过只读命令生成公开文件 InputSet：
 

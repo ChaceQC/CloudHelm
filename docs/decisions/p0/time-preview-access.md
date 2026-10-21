@@ -1,8 +1,10 @@
 # P0.3-03a 许可时间与 PlanStep 决定
 
-> 决定日期：2026-10-14（Asia/Shanghai）
-> 依据：总体设计 v4.7，[D04 §8.1～8.2.1](../../design/04-release-deployment.md)、[D06 §2.3](../../design/06-implementation-validation.md)、[P0.3 执行切片](../../../PROJECT_PLAN.md)。
-> 契约修订：`p0-decisions-r1`；它是独立的 P0 决定输入，不是软件发布版本，也不替代历史 `p0-draft-r1` 或 `cloudhelm.p0.experimental`。
+> 日期：2026-10-14（Asia/Shanghai）
+> 工作包：P0.3-03a。
+> 修订：契约 `p0-decisions-r1`；独立于软件版本及历史 `p0-draft-r1`、`cloudhelm.p0.experimental`。
+> 权威依据：总体设计 v4.7、[D04 §8.1～8.2.1](../../design/04-release-deployment.md)、[D06 §2.3](../../design/06-implementation-validation.md)、[P0.3 执行切片](../../../PROJECT_PLAN.md)。
+> 性质：本文件只记录决定与边界，不代表已实现或已验收。
 > 决定范围：固定一种时间域、字段、算法、数值门禁与有限步骤边界。实际 Hub—Remote Agent 认证链路、硬件误差依据和暂停检测尚未取证，普通远端新步骤入口保持关闭。
 
 预览客户端路线、票据兑换、网络入口和逐代理撤销确认由 [preview-access.md](preview-access.md) 独立冻结。本文不以许可时间契约代替预览隔离或撤销证据。

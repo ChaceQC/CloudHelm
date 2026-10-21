@@ -1,6 +1,12 @@
 # P0-G02a 固定参照与首链适用决定 r1
 
-日期：2026-10-15（Asia/Shanghai）。方法修订：`p0-reference-applicability-r1`。依据 [D04 §1.1～2、§3～8](../../design/04-release-deployment.md)、[D03 §4.2～4.4](../../design/03-workspace-build-resources.md)、[首链规格](../../implementation/reference-chain.md) 和 [P0-G02a](../../../PROJECT_PLAN.md)。本决定消费 `p0-decisions-r1`，不修改历史实验协议、参照候选或 InputSet，也不开放 P1。
+> 日期：2026-10-15（Asia/Shanghai）
+> 工作包：P0-G02a。
+> 修订：方法 `p0-reference-applicability-r1`；消费契约 `p0-decisions-r1`。
+> 权威依据：D04 §1.1～2、§3～8；D03 §4.2～4.4；首链规格。
+> 性质：本文件只记录决定与边界，不代表已实现或已验收。
+
+方法修订：`p0-reference-applicability-r1`。依据 [D04 §1.1～2、§3～8](../../design/04-release-deployment.md)、[D03 §4.2～4.4](../../design/03-workspace-build-resources.md)、[首链规格](../../implementation/reference-chain.md) 和 [P0-G02a](../../../PROJECT_PLAN.md)。本决定消费 `p0-decisions-r1`，不修改历史实验协议、参照候选或 InputSet，也不开放 P1。
 
 结论：固定参照适合作为首链的源码、构建和独立方法输入；**原开发 Compose 拒绝直接进入产品部署入口**。P0 冻结本文件的保留、编译和拒绝边界；P1.2/P1.3 才实现受控编译，P1.4 才形成经批准的完整计划并取得实际交付证据。不能删除资源、只读、网络或超时字段后将旧解析器接受的另一个输入称为参照已支持。
 
@@ -25,34 +31,34 @@
 
 下表覆盖原 Compose 的全部映射字段；列表项的固定内容随原文件摘要校验。脚本逐个输出实际路径，复用表中相同规则的字段不会从清单中消失。未列出的字段、任一新增字段或源文件变化均需要新决定及输入，不能靠通配规则扩展支持。
 
-|实际字段路径（`services.` 前缀按表中服务展开）|分类|固定决定与 P1 边界|
-|---|---|---|
-|`name`|受控编译|开发名称仅作来源；目标 Compose project 从受控 EnvironmentBinding/installation 身份生成并持久保存，不能用用户可改显示名接管资源|
-|`services`；`services.postgres/backend/frontend`|可复用|保留恰好三个稳定 service key；Release 包含全部三个制品，不能漏掉数据库或隐式增加服务|
-|`volumes`；`volumes.reference_db`|受控编译|空的命名卷声明仍需实际属主、安装命名空间、受控路径、配额、兼容及保留策略；不默认接管同名旧卷|
-|`postgres.image`|可复用|保留现有 PostgreSQL 16.13 的固定 manifest digest；归档交付另固定 archive SHA-256、image/config digest 和 linux/amd64，不混用三类摘要|
-|`backend.image`；`frontend.image`|受控编译|当前 `p0.2-r1` 标签是可变开发名；只能由 P1.2 的固定 BuildRun/制品身份替换，不能将标签当作不可变摘要|
-|`backend.build`；`frontend.build`|受控编译|只在 P1.2 受限构建端消费；目标运行声明和 Remote Agent 一律拒绝 build、源码上传后临时构建及自动 pull|
-|`backend.build.context`；`frontend.build.context`|受控编译|分别固定为 backend/frontend 候选目录，校验真实路径与完整上下文摘要；不包含仓库外内容或 `docs/acceptance/` 正式资产|
-|`backend.build.args`；`frontend.build.args`|受控编译|显式构建参数进入 build_input/variant，不从 shell 或 dotenv 继承；未知参数拒绝|
-|`backend.build.args.PYTHON_BASE_IMAGE`；`frontend.build.args.NODE_IMAGE/NGINX_IMAGE`|受控编译|固定三个已有 digest 及对应工具链；不能回退为 Dockerfile 中未附 digest 的默认标签；修改构建参数产生新变体和证据|
-|`postgres.environment`；`backend.environment`|受控编译|原开发映射改由固定配置 schema、参数槽及 secret 版本引用绑定；不将开发值作为未声明的目标默认值|
-|`postgres.environment.POSTGRES_DB`|受控编译|首链固定当前数据库逻辑名及目标实例/schema，不开放单字段改名；健康检查中的对应名称也属于同一运行契约，修改时重出契约和证据|
-|`postgres.environment.POSTGRES_USER`|受控编译|固定运行、迁移和数据库管理角色边界；不能把示例初始化角色直接当作业务最小权限凭据|
-|`postgres.environment.POSTGRES_HOST_AUTH_METHOD`|拒绝|原 `trust` 只属于合成数据的开发环境。目标必须具备受控数据库认证与角色证据；删掉该字段不能证明认证已建立|
-|`backend.environment.DATABASE_URL`|受控编译|运行参数按配置 schema 和版本化 secret 引用解析；模型、公开计划和诊断不保存连接串或秘密值。迁移步骤的权限/引用单独绑定，不借应用运行身份取得迁移权|
-|`postgres.volumes`|受控编译|当前短语法保留 `/var/lib/postgresql/data` 的持久化目的，编译为明确的受管 named-volume 长语法；未知卷、外部卷、bind 或无配额路径拒绝|
-|`postgres.healthcheck`；`backend.healthcheck`|可复用|固定容器内健康语义；不是部署成功或完整业务验收。`pg_isready` 不证明迁移 head，backend `/ready` 仍须数据库/修订实际检查|
-|上述两服务的 `healthcheck.test`|可复用|保留本候选固定的 CMD-SHELL/CMD 测试，不推广为可运行任意宿主 shell；固定镜像内执行且受预算限制|
-|上述两服务的 `healthcheck.interval/timeout/retries`|可复用|保留各自 2 秒间隔、固定超时和 20 次重试；P1 另外固定服务健康观察窗口，不能将容器首次 healthy 当作业务持续健康|
-|三服务的 `mem_limit`|受控编译|保留每个服务的硬上限，完整资源组申请、占账和内存硬限一致；单容器上限不能替代父组硬限|
-|三服务的 `cpus`|受控编译|按精确毫核及明确 quota/period 固定，全部子组硬限合计不得超过父级占账；不用 shares 替代配额|
-|`backend.dns_opt`|受控编译|首链只选择当前 `timeout:1`、`attempts:1` 的有界声明；目标 DNS 能力与实际故障边界须重新核验。不能删除它后继承旧 readiness 故障耗时证据|
-|`backend.depends_on`；`backend.depends_on.postgres`；其 `condition`|受控编译|原 `service_healthy` 依赖编译为固定前后置及步骤顺序；数据库健康和迁移完成分别核对，不让 Compose 代行迁移|
-|`frontend.depends_on`；`frontend.depends_on.backend`；其 `condition`|受控编译|原 `service_started` 只表示启动依赖，不提升为 readiness 或部署成功。计划必须另含应用健康检查|
-|`backend.read_only`|受控编译|必须保留根文件系统只读；若适配器无法保证则拒绝，不能为了让旧解析器接受而删除|
-|`backend.tmpfs`|受控编译|保留 `/tmp` 可写层用途，首链要求显式有界大小并计入组级内存；原无 size 的简写不能原样进入目标声明，不能以可写根盘替代|
-|`frontend.ports`|受控编译|保留仅 loopback 接入和容器端口 80。实际宿主端口由受控配置/宿主冲突账本绑定；开发 58080 不自动成为目标授权，不扩为 0.0.0.0|
+|实际字段路径（`services.` 前缀按表中服务展开）|分类|固定决定|P1 边界|
+|---|---|---|---|
+|`name`|受控编译|Compose project 从受控 EnvironmentBinding/installation 身份生成并持久保存|开发名称仅作来源；不能用用户可改显示名接管资源|
+|`services`；`services.postgres/backend/frontend`|可复用|保留恰好三个稳定 service key；Release 包含全部三个制品|不能漏掉数据库或隐式增加服务|
+|`volumes`；`volumes.reference_db`|受控编译|空命名卷也须固定属主、安装命名空间、受控路径、配额、兼容及保留策略|不默认接管同名旧卷|
+|`postgres.image`|可复用|保留 PostgreSQL 16.13 的固定 manifest digest|归档另固定 archive SHA-256、image/config digest 和 linux/amd64；三类摘要不混用|
+|`backend.image`；`frontend.image`|受控编译|由 P1.2 固定 BuildRun/制品身份替换 `p0.2-r1` 开发标签|可变标签不能当作不可变摘要|
+|`backend.build`；`frontend.build`|受控编译|只在 P1.2 受限构建端消费|目标运行声明和 Remote Agent 拒绝 build、源码上传后临时构建及自动 pull|
+|`backend.build.context`；`frontend.build.context`|受控编译|固定 backend/frontend 候选目录，校验真实路径及完整上下文摘要|不包含仓库外内容或 `docs/acceptance/` 正式资产|
+|`backend.build.args`；`frontend.build.args`|受控编译|显式参数进入 build_input/variant|不从 shell 或 dotenv 继承；未知参数拒绝|
+|`backend.build.args.PYTHON_BASE_IMAGE`；`frontend.build.args.NODE_IMAGE/NGINX_IMAGE`|受控编译|固定三个已有 digest 及对应工具链|不回退到无 digest 的默认标签；修改参数产生新变体和证据|
+|`postgres.environment`；`backend.environment`|受控编译|由固定配置 schema、参数槽及 secret 版本引用绑定|开发值不能成为未声明的目标默认值|
+|`postgres.environment.POSTGRES_DB`|受控编译|固定数据库逻辑名、目标实例/schema 和健康检查对应名称|不开放单字段改名；改变时重出运行契约和证据|
+|`postgres.environment.POSTGRES_USER`|受控编译|固定运行、迁移及数据库管理角色边界|示例初始化角色不能直接充当业务最小权限凭据|
+|`postgres.environment.POSTGRES_HOST_AUTH_METHOD`|拒绝|原 `trust` 仅用于合成数据开发环境|目标须有受控认证与角色证据；删除字段不证明认证已建立|
+|`backend.environment.DATABASE_URL`|受控编译|按配置 schema 及版本化 secret 引用解析；迁移权限/引用单独绑定|模型、公开计划和诊断不保存连接串或秘密值；不借应用身份取得迁移权|
+|`postgres.volumes`|受控编译|保留 `/var/lib/postgresql/data` 持久化目的，生成受管 named-volume 长语法|拒绝未知卷、外部卷、bind 及无配额路径|
+|`postgres.healthcheck`；`backend.healthcheck`|可复用|固定容器内健康语义|不代替部署/业务验收；`pg_isready` 不证明迁移 head，`/ready` 仍须核对数据库/修订|
+|上述两服务的 `healthcheck.test`|可复用|保留候选固定的 CMD-SHELL/CMD 测试|限固定镜像内及预算内执行；不开放任意宿主 shell|
+|上述两服务的 `healthcheck.interval/timeout/retries`|可复用|保留各自 2 秒间隔、固定超时和 20 次重试|P1 另固定服务观察窗口；首次 healthy 不代表持续业务健康|
+|三服务的 `mem_limit`|受控编译|保留各服务硬上限，完整资源组申请、占账和内存硬限一致|单容器上限不能替代父组硬限|
+|三服务的 `cpus`|受控编译|按精确毫核与 quota/period 固定|子组硬限合计不得超过父级占账；不用 shares 替代配额|
+|`backend.dns_opt`|受控编译|只采用 `timeout:1`、`attempts:1` 的有界声明|重新核验目标 DNS/故障边界；删字段后不能继承旧 readiness 耗时证据|
+|`backend.depends_on`；`backend.depends_on.postgres`；其 `condition`|受控编译|将 `service_healthy` 编译为固定前后置与步骤顺序|数据库健康与迁移完成分别核对；Compose 不代行迁移|
+|`frontend.depends_on`；`frontend.depends_on.backend`；其 `condition`|受控编译|`service_started` 只表示启动依赖|不提升为 readiness 或部署成功；计划另含应用健康检查|
+|`backend.read_only`|受控编译|保留根文件系统只读|无法保证则拒绝，不能为适配旧解析器而删除|
+|`backend.tmpfs`|受控编译|保留 `/tmp` 可写层，显式限大小并计入组级内存|无 size 简写不能原样用于目标；不能改用可写根盘|
+|`frontend.ports`|受控编译|仅 loopback 接入、容器端口 80；宿主端口绑定受控配置/冲突账本|开发 58080 不自动授予目标权限；不扩为 0.0.0.0|
 
 原 Compose **没有** `networks`、任何服务级 `networks`、`x-cloudhelm` 或其他 `x-*` 扩展，也没有 `restart`、显式 PID/磁盘额度。不存在的字段不能列为当前支持证据：
 

@@ -1,15 +1,20 @@
 # Hub 基础开发与维护
 
-本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；完整构建、Agent 开发、Desktop、远程交付及恢复支持按后续工作包接入。
+本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；构建与增量开发的支持范围见工程说明，完整 Agent 开发、Desktop、远程交付及恢复支持按后续工作包接入。
+
+环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
 
 ## 1. 环境与配置
 
 本仓库的本机工程运行在 WSL `Ubuntu-24.04`，路径为 `/mnt/e/Project/CloudHelm`。解释器固定 Python `3.12.13`，依赖通过根目录 `uv.lock` 管理；PostgreSQL 固定 `16.13`，DBOS 固定 `3.2.0`。
 
+先在当前 WSL shell 定义 uv 路径，本文后续命令统一使用 `$UV`。另开终端运行 API 或 worker 时也要执行该定义。
+
 ```bash
 cd /mnt/e/Project/CloudHelm
 export LANG=C.UTF-8 PYTHONUTF8=1
-/home/cloudhelm/.local/bin/uv sync --locked
+export UV=/home/cloudhelm/.local/bin/uv
+$UV sync --locked
 ```
 
 为各进程提供独立的 PostgreSQL 认证配置。推荐使用下列环境变量引用受保护的 UTF-8 文件，文件内容是该角色的连接 URL；同一角色只能选择 URL 或 URL_FILE 一个来源。
@@ -29,8 +34,8 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 以下命令只对当前显式配置的开发数据库执行；首次初始化须是已准备的受控目标。普通 API 和 worker 不执行迁移。
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m database.manage status
-/home/cloudhelm/.local/bin/uv run --locked python -m database.manage initialize
+$UV run --locked python -m database.manage status
+$UV run --locked python -m database.manage initialize
 ```
 
 初始化保存安装身份和原操作身份，执行业务线性迁移至 `0004_p1_2_development`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.3.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。旧 `0001_p1_1`/`0.1.0`、`0002_p1_2` 或 `0003_p1_2_builds`/`0.2.0` 安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。
@@ -42,11 +47,11 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 维护 CLI 使用 migrator 身份，并记录实际本机 UID 和维护会话。没有默认用户或万能管理员；创建项目必须显式指定已存在的所有者。
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m modules.identity.cli create-user \
+$UV run --locked python -m modules.identity.cli create-user \
   --user-id owner --display-name '项目所有者'
-/home/cloudhelm/.local/bin/uv run --locked python -m modules.identity.cli create-project \
+$UV run --locked python -m modules.identity.cli create-project \
   --project-id example --owner-user-id owner --name '示例项目'
-/home/cloudhelm/.local/bin/uv run --locked python -m modules.identity.cli issue-session \
+$UV run --locked python -m modules.identity.cli issue-session \
   --user-id owner \
   --credential-file /home/cloudhelm/.local/share/cloudhelm/credentials/owner-session \
   --lifetime-seconds 28800
@@ -57,9 +62,9 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 数据库提交不确定时，程序保留已交付文件并返回 `session_issue_unconfirmed` 与核对标识；先沿该身份核对，不把错误当作签发成功。普通 HTTP 不提供凭据签发、用户注册或跨项目创建入口。
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m modules.identity.cli revoke-session \
+$UV run --locked python -m modules.identity.cli revoke-session \
   --session-id '<已有会话标识>'
-/home/cloudhelm/.local/bin/uv run --locked python -m modules.identity.cli disable-user \
+$UV run --locked python -m modules.identity.cli disable-user \
   --user-id '<已有用户标识>'
 ```
 
@@ -67,15 +72,15 @@ export LANG=C.UTF-8 PYTHONUTF8=1
 
 ## 4. API 与单 worker
 
-完成受控数据库和身份初始化后，在同一仓库的两个 WSL 终端分别启动服务；各进程只消费自己的角色配置。
+完成受控数据库和身份初始化后，在同一仓库的两个 WSL 终端分别启动服务；各进程只消费自己的角色配置，角色与连接预算见 §1。
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m services.hub-api \
+$UV run --locked python -m services.hub-api \
   --uds /home/cloudhelm/.local/share/cloudhelm/api/api.sock
 ```
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m services.hub-worker
+$UV run --locked python -m services.hub-worker
 ```
 
 API socket 的父目录为 `0700`，socket 为 `0600`，程序检查 Linux 原生文件系统与符号链接。需要本机 TCP 联调时，显式选择 `--dev-loopback-port 19080`，只绑定 `127.0.0.1`；实际 TLS、s2413 网络入口及 Desktop 通道另有安装与验证门禁。
@@ -101,7 +106,7 @@ Task 声明引用必须已由受控内部来源登记。普通 HTTP 不接受完
 ## 5. 开发验证
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m scripts.p1.check_database
+$UV run --locked python -m scripts.p1.check_database
 ```
 
 该方法使用固定 PostgreSQL 镜像，在 WSL 启动独立、临时、有资源上限的 Compose 项目，loopback 端口为 `55433`，冲突时拒绝。凭据由程序随机生成并存放在本次 Linux 私有目录，数据库数据使用 tmpfs；方法结束后定向清理本次项目及目录。
@@ -111,13 +116,13 @@ Task 声明引用必须已由受控内部来源登记。普通 HTTP 不接受完
 HTTP 快照核对不进入服务 lifespan，不读取凭据或连接数据库：
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m scripts.p1.check_public_contracts
+$UV run --locked python -m scripts.p1.check_public_contracts
 ```
 
 最终候选通过以下入口在一套隔离数据库内顺序验证四组行为，运行前后均核对公开源码/依赖/方法与 InputSet：
 
 ```bash
-/home/cloudhelm/.local/bin/uv run --locked python -m scripts.p1.check_foundation \
+$UV run --locked python -m scripts.p1.check_foundation \
   --input-set docs/acceptance/p1/input-set-p1-1-r1.json
 ```
 

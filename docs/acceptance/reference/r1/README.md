@@ -1,8 +1,12 @@
 # Reference HTTP acceptance r1
 
+## 入口与修订
+
 Method revision: `reference-http-r1.1`. Requirement revision: `reference-requirements-r1`.
 
 This independent checker is authored from [`reference-requirements-r1`](../../../implementation/reference-requirements-r1.md). It targets a disposable local reference instance through HTTP. It does not import or inspect candidate source, migration files, or build context.
+
+## 运行方式
 
 Run from the repository root with Python 3.10 or later:
 
@@ -25,7 +29,11 @@ python3 docs/acceptance/reference/r1/verify_http.py --base-url http://127.0.0.1:
 
 Each invocation requires `/health` to return 200 and `/ready` to return 503. The harness observes those statuses; the operator must bind each saved result to the actual database or migration fault setup. Do not run fault setup against user data.
 
+## 结果绑定
+
 The process prints one compact JSON result with the method and requirement revisions, case totals, and passed/failed case names. A failed case exits nonzero. Response bodies and exception text are not printed. The checker screens returned HTTP bodies for a small set of credential-shaped literals; this is a narrow leak check, not proof that all possible secrets are absent.
+
+## 断言范围与限制
 
 Coverage and limits:
 

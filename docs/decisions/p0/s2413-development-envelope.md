@@ -1,6 +1,10 @@
 # s2413 同机开发环境控制决定 r1
 
-> 日期：2026-10-15（Asia/Shanghai）；工作包：P0-G01b；决定修订：`p0-s2413-envelope-r1`。
+> 日期：2026-10-15（Asia/Shanghai）
+> 工作包：P0-G01b。
+> 修订：决定 `p0-s2413-envelope-r1`。
+> 权威依据：D03 §4.2～4.4、D05；具体来源见下方依据。
+> 性质：本文件只记录决定与边界，不代表已实现或已验收。
 > 状态：冻结首批实施方案与拒绝边界，尚未配置或启用。本文件不分配实际预算、不生成身份/域名/证书，不单独裁决 P0 整体出口。
 
 依据：[G01a 最终快照](../../acceptance/p0/topology-s2413-r2.md)、[D03 §4.2～4.4](../../design/03-workspace-build-resources.md)、[D05](../../design/05-security-sync-operations.md)、[资源决定](resources-task-control.md)、[身份决定](identity-permissions-migrations.md)、[许可决定](time-preview-access.md)、[预览决定](preview-access.md) 和 [首链适用决定](reference-applicability.md)。本决定落实这些规则，不修改其契约、历史输入或证据范围。

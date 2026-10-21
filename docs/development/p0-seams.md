@@ -51,11 +51,9 @@ uv run --frozen python scripts/p0/input_manifest.py
 
 ## 3. 获准的真实模型探测
 
-本轮新增的当前门禁/费用、安全检查点和等待续接方法分别为 `check_admission.py`、`check_checkpoint.py`、`check_continuation.py`，均在同一 WSL 隔离数据库执行；具体命令和有限支持见 [A01 报告](../acceptance/p0/A01.md)。正式产品入口仍须经过 [受支持薄适配决定](../decisions/p0/admitted-runtime.md) 和 P0.3/P1 门禁。
+### 3.1 当前可执行的定向检查
 
-`uv run --frozen python scripts/p0/probe_admitted_stream.py --live` 为固定 SDK-A01-C1 的 4 次获准供应商流输入，已执行；同输入再启动由本地 journal 拒绝收费重放。`connect_live_continuation.py` 查询该输入的原 Operation 并接到同库等待/新 Run，新增供应商请求为 0。查询/费用 journal、未知记录和恢复引用不能为重跑而删除；环境重建后缺少原对象时该查询应失败，不能补造成功。
-
-2026-10-14 的 P0.1-A02 更新了断流方法；旧 `--live` 命令不会隐式开启新输入，严格 r2 必须显式给出 `--live-revision r2`。恢复使用独立固定批次：四个场景分别保留一条本地尝试，其中仅 allow 允许一条真实 HTTP；取消、撤权和 unknown 占账导致预算不足必须零 HTTP。原 r1 journal 与未知记录保持原身份，不删除以绕过上限。方法和实际支持范围见 [A02](../acceptance/p0/A02.md)。
+先列出不连接供应商的本地检查，随后单列需要当次授权的真实请求入口。具体有限支持范围见 [A01 报告](../acceptance/p0/A01.md) 与 [A02 报告](../acceptance/p0/A02.md)；正式产品入口仍须经过 [受支持薄适配决定](../decisions/p0/admitted-runtime.md) 和 P0.3/P1 门禁。
 
 ```bash
 # 不收费：断流判定方法的定向拒绝检查
@@ -66,7 +64,11 @@ uv run --locked --offline python scripts/p0/check_admitted_paths.py
 
 # 消费瞬态输入后的成功/异常检查点；需要上述隔离 PostgreSQL
 uv run --locked --offline python scripts/p0/check_checkpoint.py
+```
 
+以下两条会因固定授权而发出真实供应商请求，仅在具备当次服务、模型、用途和预算授权时执行；重复调用同一批次会在 HTTP 前由本地 journal 阻断，不得删除 journal 绕过上限。
+
+```bash
 # 固定授权输入：自身 worker 崩溃恢复后，最多 1 条真实新模型请求
 uv run --locked --offline python scripts/p0/probe_admitted_recovery.py --live
 
@@ -74,13 +76,22 @@ uv run --locked --offline python scripts/p0/probe_admitted_recovery.py --live
 uv run --locked --offline python scripts/p0/probe_admitted_stream.py --live --live-revision r2
 ```
 
-恢复脚本只杀自身创建的 worker，并确认退出后重新启动；不结束其他 worker 或 WSL。SDK 路径夹具的 usage 不作为供应商证据；受控摘要 Agent 的压缩请求和后续请求均经过同一门禁，不宣称 SDK 内建自动压缩能力。DBOS 3.2.0 公共 step 查询不提供输入内容，检查点方法只把仅引用的 step 入参签名作为静态约束。临时数据库清理前保留脱敏运行结果、账本快照与仍需核对的 unknown 引用。
+恢复脚本只杀自身创建的 worker，并确认退出后重新启动；不结束其他 worker 或 WSL。默认入口不发送收费模型请求；`--fault-check` 只验证本地故障输入。SDK 路径夹具的 usage 不作为供应商证据；受控摘要 Agent 的压缩请求和后续请求均经过同一门禁，不宣称 SDK 内建自动压缩能力。DBOS 3.2.0 公共 step 查询不提供输入内容，检查点方法只把仅引用的 step 入参签名作为静态约束。临时数据库清理前保留脱敏运行结果、账本快照与仍需核对的 unknown 引用。
 
-当前任务已由用户授权读取当前 Codex 自定义 Responses 服务配置，仅使用 `gpt-6-luna`、reasoning `max`。配置路径由本机调用提供，不进入公开版本控制。凭据只在获准请求步骤内解析，禁止打印配置、环境变量值、HTTP Authorization、完整异常或响应正文。
+价格、金额或 usage 缺失保留 unknown/null，不用 token 数估算成已知费用。
 
-默认入口不发送收费模型请求；`--fault-check` 只验证本地故障输入。本任务的非流式真实批次已执行，固定 C2 journal 记录 6 条预留；再次调用同一 `--live` 批次会在 HTTP 前阻断重放，不应删除 journal 绕过界限。实际每次输出上限为 512 tokens，首轮 12 次加 C2 的 6 次均为非流式；这些是主会话制定的探测界限，不是用户提供的金额限额。
+### 3.2 历史已执行批次说明
 
-真实供应商流式入口使用单独的 `--live-stream` 固定批次，要求实际 `stream=true`、SSE 事件及完成 usage，不能以异步 Python 调用代替流式证据。已执行批次及其 journal 不反复发送；新增输入/批次须有对应服务、模型、用途和预算授权。具体版本、请求计数和覆盖限制见 [SDK-02](../acceptance/p0/SDK-02.md)。价格、金额或 usage 缺失保留 unknown/null，不用 token 数估算成已知费用。
+以下批次已在各自固定输入下执行完毕，结果与原 journal 一并保留，仅用于按原身份核对，不重复发送：
+
+- P0.1-A01 的供应商流式批次绑定 `SDK-A01-C1`；同输入再启动由本地 journal 拒绝收费重放。`connect_live_continuation.py` 查询原 Operation 并接到同库等待/新 Run，新增供应商请求为 0。
+- 历史非流式批次与另行授权的真实流式批次分别使用各自 journal，实际计数及界限见 SDK-02，不合并为同一批次或统一请求上限。
+- P0.1-A01 的门禁/检查点/续接定向检查：`check_admission.py`、`check_checkpoint.py`、`check_continuation.py` 在同一 WSL 隔离数据库通过。
+- 2026-10-14 的 P0.1-A02 断流批次：严格 r2 必须显式给出 `--live-revision r2`；旧 `--live` 命令不会隐式开启新输入。恢复使用独立固定批次：四个场景分别保留一条本地尝试，其中仅 allow 允许一条真实 HTTP；取消、撤权和 unknown 占账导致预算不足必须零 HTTP。原 r1 journal 与未知记录保持原身份，不删除以绕过上限。
+
+查询/费用 journal、未知记录和恢复引用不能为重跑而删除；环境重建后缺少原对象时该查询应失败，不能补造成功。实际请求计数、金额和覆盖限制见 [A01](../acceptance/p0/A01.md)、[A02](../acceptance/p0/A02.md) 和 [SDK-02](../acceptance/p0/SDK-02.md)，不在本页重复登记。
+
+供应商配置由当次任务授权提供：只读取获准的本机自定义 Responses 服务配置，具体服务地址、模型名和推理档位按该次授权使用，不写入本页、不进入公开版本控制。凭据只在获准请求步骤内解析；禁止打印配置、环境变量值、HTTP Authorization、完整异常或响应正文。输出上限、场景次数和预算上界由主会话在方法中定义，不是用户提供的金额限额。
 
 ## 4. 故障处置和清理
 
@@ -97,6 +108,8 @@ docker compose -f infra/p0/compose.yaml down
 关闭临时数据库会删除 tmpfs 运行数据；重跑时重新建立本轮专属 schema，既有卡片事实和公共输入哈希保留。版本推进后按 AGENTS.md 清理本项目已替代且无当前任务/验证/回滚引用的旧开发镜像；先核对具体标签和摘要，不使用全局 prune。固定基础镜像可供同版本实验复现，不将它误认成早期 CloudHelm 开发镜像。
 
 ## 5. 同机准备与参照适用性
+
+环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
 
 P0-G01/G02 只需要环境事实与固定参照的适用性证据时，不启动数据库或重跑上述收费批次。对应入口为 [本轮快照](../acceptance/p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md) 和 [参照适用决定](../decisions/p0/reference-applicability.md)。在已有 WSL 环境按实际需要运行：
 

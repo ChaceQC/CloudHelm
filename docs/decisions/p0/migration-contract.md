@@ -1,6 +1,12 @@
 # P0 迁移与结果查询决定 r1
 
-日期：2026-10-14（Asia/Shanghai）。工作包：P0.3-01b；契约修订：`p0-decisions-r1`。权威依据为 [D04 §9.1～9.2](../../design/04-release-deployment.md)，身份、摘要和权限沿用 [身份权限决定](identity-permissions-migrations.md)，步骤许可沿用 [时间与许可决定](time-preview-access.md)。本文件冻结首链实现选择，不修改 D04 的五类查询结果，也不声明真实迁移执行器、持久账本或故障恢复已经验证。
+> 日期：2026-10-14（Asia/Shanghai）
+> 工作包：P0.3-01b。
+> 修订：契约 `p0-decisions-r1`。
+> 权威依据：D04 §9.1～9.2；身份、摘要、权限及许可见相关决定。
+> 性质：本文件只记录决定与边界，不代表已实现或已验收。
+
+首链实现选择依据 [D04 §9.1～9.2](../../design/04-release-deployment.md)；身份、摘要和权限沿用 [身份权限决定](identity-permissions-migrations.md)，步骤许可沿用 [时间与许可决定](time-preview-access.md)。D04 的五类查询结果继续作为权威分类。
 
 ## 1. 首批支持范围
 
@@ -8,14 +14,24 @@
 
 |项目|本次决定|
 |---|---|
-|数据库与目标|一个经认证的 PostgreSQL 16.13 实例、一个目标业务 schema；实例 ID 是受控资源引用，不是含凭据的连接串|
-|链与方向|完整制品只有单根、单 head、无分叉/合并/跨链依赖的线性 Alembic 链；单次只向一个准确目标 revision upgrade，起点必须为空基线或链上严格前驱|
-|首链两条路径|新空目标 `null → 0002_add_updated_at_index`；已有便签基线 `0001_create_notes → 0002_add_updated_at_index`。其他项目/修订须先固定自身制品和适用证据，模型形状合法不开放执行|
-|执行步骤|显式 `database_migrate`，在服务更新前执行；适配器仅以固定制品内的受审查入口传入准确目标 revision。开发参照的 `alembic upgrade head` 先在计划编译时解析成固定 head，执行时不再解析动态 head，也不借应用启动自动建表|
-|事务与 DDL|`transactional_ddl` / `single_transaction`：本次升级跨越的全部 revision、Alembic version 更新和成功账本记录在同一 PostgreSQL 事务中提交；不能逐 revision 自动提交|
-|允许的变更|当前只接受已审查的 `create_table` 和非 concurrent 的 `create_index`。迁移代码、环境入口和制品摘要共同固定；声明 change_kinds 不能替代源码/SQL 和事务能力核验|
-|有界执行|单步骤最多 600 秒，锁等待最多 5 秒，单数据库语句最多 300 秒；与许可决定的 `database_migrate` 一致。这些是准入上限，不是已测性能承诺|
-|显式拒绝|任意 shell/宿主脚本、未固定代码或不可核验账本、跨数据库、多目标、多 root/head、分支/合并/depends_on、自动 downgrade、破坏数据的 drop/重写、特殊非事务步骤，以及不能在上述边界内完成的长时任务|
+|数据库与目标|经认证的 PostgreSQL 16.13 单实例、单业务 schema|
+|链与方向|单根、单 head 的线性 Alembic 链；只向固定目标 upgrade|
+|首链路径一|新空目标 `null → 0002_add_updated_at_index`|
+|首链路径二|已有便签基线 `0001_create_notes → 0002_add_updated_at_index`|
+|执行步骤|显式 `database_migrate`，在服务更新前执行|
+|事务与 DDL|`transactional_ddl` / `single_transaction`|
+|允许的变更|已审查的 `create_table`、非 concurrent 的 `create_index`|
+|有界执行|步骤 ≤ 600 秒；锁等待 ≤ 5 秒；单条语句 ≤ 300 秒|
+
+上述配置的执行约束如下：
+
+1. 实例 ID 必须是受控资源引用，不能使用含凭据的连接串。完整制品中的迁移链不得有分叉、合并或跨链依赖；起点必须为空基线或目标的链上严格前驱。
+2. 两条路径只适用于已固定的便签参照。其他项目/修订须先固定自身制品及适用证据，模型形状合法不开放执行。
+3. 适配器只调用固定制品内的受审查入口，并传入准确目标 revision。开发参照中的 `alembic upgrade head` 在计划编译时解析为固定 head；执行时不再解析动态 head，也不借应用启动自动建表。
+4. 本次升级跨越的全部 revision、Alembic version 更新及成功账本记录在同一 PostgreSQL 事务中提交，不能逐 revision 自动提交。
+5. 迁移代码、环境入口与制品摘要共同固定；声明 change_kinds 不能替代源码/SQL 和事务能力核验。时长与许可决定的 `database_migrate` 一致，均为准入上限，不是实测性能承诺。
+
+首链显式拒绝任意 shell/宿主脚本、未固定代码或不可核验账本、跨数据库、多目标、多 root/head、分支/合并/depends_on、自动 downgrade、破坏数据的 drop/重写、特殊非事务步骤，以及不能在上述边界内完成的长时任务。
 
 普通 PostgreSQL 事务 DDL 包括本参照的建表与普通建索引。`CREATE INDEX CONCURRENTLY`、VACUUM、数据库创建、autocommit block、外部副作用、分批回填或长时间重写不进入首批模式；计划编译时拒绝，不能退化为 shell 或仅给警告后执行。扩大事务能力集合、步骤种类或时长须先给出新决定与独立证据。迁移脚本里存在的未批准 downgrade 路径不可作为失败处理。
 

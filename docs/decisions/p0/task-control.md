@@ -1,6 +1,12 @@
 # P0 Task 完成与取消决定 r1
 
-日期：2026-10-14（Asia/Shanghai）。工作包：P0.3-02b；决定修订：`p0-task-control-r1`；契约修订：`p0-decisions-r1`。依据为 [D01 v4.7.0 §2.1～2.2](../../design/01-domain-collaboration.md)、[D02 v4.7.0 §7/§11/§12.5](../../design/02-execution-recovery.md) 和 [D03 v4.7.1 §2.3](../../design/03-workspace-build-resources.md)。本决定细化现有规则，不改变权威生命周期，也不建立数据库、队列、执行器或 P1 业务服务。
+> 日期：2026-10-14（Asia/Shanghai）
+> 工作包：P0.3-02b。
+> 修订：决定 `p0-task-control-r1`；契约 `p0-decisions-r1`。
+> 权威依据：D01 v4.7.0 §2.1～2.2、D02 v4.7.0 §7/§11/§12.5、D03 v4.7.1 §2.3。
+> 性质：本文件只记录决定与边界，不代表已实现或已验收。
+
+本决定按 [D01 §2.1～2.2](../../design/01-domain-collaboration.md)、[D02 §7、§11、§12.5](../../design/02-execution-recovery.md) 和 [D03 §2.3](../../design/03-workspace-build-resources.md) 固定 P0 Task 控制的实现输入。
 
 身份、摘要和当前动作权限继承 [身份与权限决定](identity-permissions-migrations.md)；资源事实与释放继承 [资源决定](resources-task-control.md)。旧 `p0-draft-r1`、实验协议、历史 InputSet 与历史完成记录保持原语义，不能凭本次 schema 校验自动迁移。
 
@@ -30,7 +36,7 @@ Task 状态完整保留 `draft、active、paused、waiting_input、completed、f
 
 ## 2. 完成裁决顺序与短事务
 
-所有分支先执行本次当前授权，随后按以下顺序在持久去重与 Task 条件更新的同一串行化边界中裁决：
+完成来源、唯一报告、版本门禁和竞争裁决的权威规则见 [D01 §2.1](../../design/01-domain-collaboration.md#21-首条链路的-task-完成边界)。下表只固定该规则在 `p0-task-control-r1` 中的分支及业务码；所有分支先执行本次当前授权，再在持久去重与 Task 条件更新的同一串行化边界中裁决。
 
 |顺序与请求|固定行为|业务结果|
 |---|---|---|
@@ -44,7 +50,7 @@ Task 状态完整保留 `draft、active、paused、waiting_input、completed、f
 
 不得在上述分支前调用会先校验新转换版本的通用业务入口；本模块承接身份层的当前判权投影，专门保留 D01 的“新键命中 completed 先返回报告”语义。竞争后重读去重与当前 Task，再按此顺序判断。原结果或报告缺失时返回 `idempotency_result_missing` / `legacy_completion_report_missing`，保留历史，不尝试“补跑一次完成”来生成替代报告。
 
-新转换还须核对业务版本、控制修订和输入有效性版本，均为当前值；没有取消意图，普通推进尚未被关闭；必需工作项、验收、等待及当前候选证据满足。具体失败结果是 `resource_revision_conflict`、`control_revision_conflict`、`input_validity_revision_conflict`、`task_progress_closed`、`input_not_current`、`required_work_items_unaccepted`、`required_acceptance_unsatisfied`、`required_waits_unresolved` 或 `evidence_not_applicable`。达到公共修订类型上限时拒绝 `revision_exhausted`，不能回绕。
+新转换沿用 D01 §2.1 的全部当前版本、控制、输入、工作项、验收、等待及证据门禁。对应失败码固定为 `resource_revision_conflict`、`control_revision_conflict`、`input_validity_revision_conflict`、`task_progress_closed`、`input_not_current`、`required_work_items_unaccepted`、`required_acceptance_unsatisfied`、`required_waits_unresolved` 或 `evidence_not_applicable`。达到公共修订类型上限时拒绝 `revision_exhausted`，不能回绕。
 
 P1 应用命令处理器负责以下**一次短事务**，`decide_completion()` 不执行这些动作：
 
@@ -58,6 +64,8 @@ P1 应用命令处理器负责以下**一次短事务**，`decide_completion()` 
 本决定冻结业务码的 HTTP 适配语义：新完成实际提交与新键读取既有报告为 200；同键重投返回原持久响应；当前权限失败为 403；请求 schema/字段/摘要验证失败为 422；幂等、来源、版本、缺失证据及各门禁阻塞为 409，并给出稳定业务码及获准读取的阻塞对象。取消意图可靠提交可返回 202，但只表示已登记请求。当前没有这些业务 HTTP 路由，JSON Schema 收集的是命令、报告与纯裁决形状。
 
 ## 3. 写 Operation、封闭与完成后的入口
+
+执行关闭及收尾的权威规则见 [D02 §7.2](../../design/02-execution-recovery.md#72-task-完成关闭与在途执行收尾)；本节冻结执行模块交给 Task 的事实投影、证据字段及拒绝码。
 
 `OperationClosureFact` 是执行模块提供的事实投影，不改变 D02 的 Operation 生命周期。`operation_ref` 沿用统一 `EngineeringRef`；执行证据必须绑定原 Operation、attempt、step、执行器与代次、影响范围、启动锁和当前控制修订。`closure` 的三个可收尾值具有下列证据含义：
 
@@ -77,6 +85,8 @@ P1 应用命令处理器负责以下**一次短事务**，`decide_completion()` 
 
 ## 4. 唯一报告与真实人测
 
+完成报告及人测门槛沿用 D01 §2.1，人测资源与结论适用范围见 D03 §2.3；本节只固定报告及人测事实的契约形状。
+
 `TaskCompletionReport` 冻结 Task、报告身份、完整原完成命令、提交时业务版本/控制修订、UTC 提交时间与 `CompletionBasis`。后者保存需求、独立验收资产、最终候选、完整 Git 集成提交、InputSet 及有效性版本、必需检查身份和适用证据引用。全部工程引用直接复用 `engineering_contracts.EngineeringRef`，不另造一份引用协议。源码引用必须使用完整的 40 或 64 位提交身份，不能使用可漂移分支名。
 
 报告模型要求提交后的两个修订分别等于原命令预期值加一；不可变模型和引用上限只是结构约束。全库一 Task 一报告、唯一约束冲突后的重读、原命令响应保存、事务不变量和报告内容真实性仍须 P1 数据库实现与并发验证。
@@ -93,6 +103,8 @@ P1 应用命令处理器负责以下**一次短事务**，`decide_completion()` 
 Task 完成后另行选择的人测、Release、Deployment 和 Incident 按自身权限与生命周期继续；反馈要修改代码时创建关联修复 Task。既有完成不代表发布、正式环境批准、部署完成或事故恢复。
 
 ## 5. 取消登记、传播与终态
+
+取消归属与终态判定见 [D01 §2.2](../../design/01-domain-collaboration.md#22-task-取消命令与终态判定)，执行传播及受限控制见 [D02 §7.1](../../design/02-execution-recovery.md#71-task-取消传播与受限控制)。以下固定 `CancellationIntent`、传播分类与纯函数拒绝结果，不另定义生命周期。
 
 `CancellationIntent` 持久保留原 `command_id`、`cancel_requested_at`、`cancel_requested_by`、公开 `cancel_reason` 与登记后的 `control_revision`。时间由服务端 UTC 时钟提供，实际主体来自本次认证/委托，不能由 Agent 代填另一个人。取消请求同样先判当前权限，再查完整 scope/幂等键；重复提交返回原结果，同键异摘要拒绝。新取消意图与普通推进条件更新竞争，成功登记时 Task 业务版本及控制修订各增加一次；新键也不得覆盖已生效的取消事实。
 

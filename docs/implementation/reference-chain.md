@@ -21,6 +21,8 @@
 
 ## 2. 候选与运行约定
 
+以下版本属于已固定的参照输入，按 InputSet、锁文件和镜像摘要核对。版本变化须建立新输入并更新对应规格，不能仅手工改写版本号或沿用旧运行证据。
+
 Python 3.12.13、FastAPI 0.143.0、SQLAlchemy 2.1.4、Alembic 1.20.0、psycopg 3.3.6、Pydantic 2.14.1、Uvicorn 0.54.0；前端依 package-lock 固定 React/TypeScript/Vite 6.4.4，构建 Node 22.23.2；PostgreSQL 16.13。Node、Python、Nginx 与 PostgreSQL 基础镜像 digest 在参照开发 Compose 固定，最终候选镜像 ID 由 validation-r1 记录。
 
 `compose.yaml` 是本机参照建设/故障取证入口，含 build、depends_on、健康检查、资源上限及 loopback 映射；不是已经实现的 CloudHelm Release 运行声明。产品解析器当前实验子集只接受 image/environment/networks/volumes/restart/healthcheck，拒绝其他字段；P1.2/P1.3 必须从固定构建生成制品及受限运行声明，不能把开发 Compose 原样提交到部署入口绕过拒绝。DNS 选项也只属于本轮开发环境，产品是否支持须独立评审。
