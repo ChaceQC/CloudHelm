@@ -7,6 +7,11 @@ from modules.identity.audit import record_denial
 
 _LOGGER = logging.getLogger("cloudhelm.hub_api")
 _ACTIONS = {
+    "delivery.release.create": "project.manage", "delivery.release.query": "resource.read",
+    "delivery.environment.create": "project.manage", "delivery.environment.query": "resource.read",
+    "delivery.configuration.create": "project.manage", "delivery.configuration.query": "resource.read",
+    "delivery.plan.create": "project.manage", "delivery.plan.query": "resource.read",
+    "delivery.plan.approve": "deployment.approve", "delivery.plan.preflight": "deployment.approve",
     "identity.current": "auth.authenticate",
     "projects.list": "resource.read", "projects.get": "resource.read",
     "projects.roles": "project.manage", "projects.rename": "project.manage",

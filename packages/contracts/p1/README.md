@@ -17,9 +17,10 @@
 |`source_requests.py`、`source_records.py`、`reference_requests.py`|固定参照导入意图、可信来源回执和初次真实工程 Task 输入；公共调用者不提交实物成功声明|
 |`workspace_requests.py`、`workspace_uploads.py`、`workspace_candidates.py`|工作区版本/写入代次、32KiB UTF-8 文件入口及物理候选冻结；源码 bytes 只进入受控 staging，命令保存内容摘要|
 |`build_requests.py`、`build_records.py`|BuildRun 的候选/输入/配方/锁/工具链及运行契约绑定，三角色制品内容与可信执行观察分别登记|
-|`engineering_commands.py`|project/workspace/build 的同事务 DBOS 交接；工作流仅接收稳定 operation_id|
+|`engineering_commands.py`|project/workspace/build/deployment 的同事务 DBOS 交接；工作流仅接收稳定 operation_id|
 |`development_storage.py`、`development_environment.py`、`npm_cache.py`|受控开发实例修订、实际存储准入、环境生命周期及缓存键；注册和契约均不代替物理核验|
 |`compose_contracts.py`|`p1-compose-parser-r1` 的受限 Compose Release、环境配置和 DeploymentPlan 结构；只保存参数契约与 secret 版本引用，不保存 secret 值或授予部署权限|
+|`delivery_records.py`、`delivery_requests.py`|`p1-release-manifest-r1`、`p1-environment-config-r1`、`p1-deployment-plan-r1`、人类批准与可信目标观察；运行验证用现有 Candidate EvidenceMetadata 的 fact_digest 固定构建/归档/测试配置。实际入口及边界见[交付说明](../../../docs/development/p1-delivery.md)|
 |`workspace_development_requests.py`|可变 Workspace 环境的申请、休眠、恢复、数据重建、处置与操作查询；公共请求不提交 Runner 就绪事实|
 |`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
 

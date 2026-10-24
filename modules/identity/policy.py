@@ -11,13 +11,14 @@ _TASK_CONTROL = frozenset({
     "task.command", "task.cancel", "operation.query", "operation.stop",
     "operation.reconcile", "fact.archive",
 })
-# The implicit owner grant stays at the P1.1 baseline. New request choices must
-# never extend bootstrap ownership or already stored role/delegation actions.
-OWNER_ACTIONS = _TASK_CONTROL | {"resource.read", "project.manage"}
+# D04 permits human owners to approve their own deployment. Engineering and
+# stored delegation ceilings stay separate; agents cannot inherit approval.
+OWNER_ACTIONS = _TASK_CONTROL | {"resource.read", "project.manage", "deployment.approve"}
 ENGINEERING_ACTIONS = frozenset({"workspace.write", "candidate.submit", "operation.request"})
 ROLE_ACTIONS = {
     "developer": _TASK_CONTROL | {"resource.read"} | ENGINEERING_ACTIONS,
     "reviewer": frozenset({"resource.read"}),
+    "deployment_approver": frozenset({"resource.read", "deployment.approve"}),
 }
 AGENT_ACTIONS = ROLE_ACTIONS["developer"]
 SUPPORTED_ACTIONS = OWNER_ACTIONS | AGENT_ACTIONS

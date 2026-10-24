@@ -10,6 +10,7 @@ IMMUTABLE_TABLES = (
     "task_inputs", "task_completion_reports", "task_reference_records", "task_evidence_links",
     "task_operation_links", "task_operation_observations",
     "build_runs",
+    "releases", "environment_configs", "deployment_plans", "deployment_approvals", "environment_revisions",
 )
 TASK_MUTABLE_TABLES = ("tasks", "work_items", "task_wait_conditions", "task_run_links")
 WORKSPACE_INSERTS = {
@@ -97,6 +98,12 @@ def apply_runtime_permissions(connection: Connection) -> None:
             )
         if role == "api":
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.role_bindings TO {name}")
+            connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.environment_bindings TO {name}")
+            connection.exec_driver_sql(f"GRANT UPDATE (config_revision) ON cloudhelm.environment_bindings TO {name}")
+        if role == "worker":
+            connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.delivery_target_observations TO {name}")
+            connection.exec_driver_sql("GRANT UPDATE (environment_revision, release_id, config_revision_id, active_operation_id) "
+                                      f"ON cloudhelm.environment_bindings TO {name}")
     connection.exec_driver_sql(f"REVOKE ALL ON ALL TABLES IN SCHEMA dbos FROM {DBOS_RUNTIME_ROLE}")
     connection.exec_driver_sql(f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA dbos TO {DBOS_RUNTIME_ROLE}")
     connection.exec_driver_sql(f"REVOKE ALL ON ALL SEQUENCES IN SCHEMA dbos FROM {DBOS_RUNTIME_ROLE}")

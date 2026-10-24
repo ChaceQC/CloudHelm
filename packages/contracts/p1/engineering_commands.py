@@ -9,6 +9,7 @@ from packages.contracts.p0.decision_common import Contract, Digest, Identifier, 
 EngineeringWorkflowName = Literal[
     "projects.source_import.v1", "workspaces.operation.v1", "delivery.build.v1",
     "workspaces.development_environment.v1",
+    "delivery.deployment_stage.v1",
 ]
 
 
@@ -18,7 +19,7 @@ class EngineeringWorkflowDispatch(Contract):
     command_id: Identifier
     operation_id: Identifier
     workflow_id: Identifier
-    business_kind: Literal["project", "workspace", "build"]
+    business_kind: Literal["project", "workspace", "build", "deployment"]
     business_id: Identifier
     advance_revision: Revision
     workflow_name: EngineeringWorkflowName
@@ -31,6 +32,7 @@ class EngineeringWorkflowDispatch(Contract):
             "workspaces.operation.v1": "workspace",
             "workspaces.development_environment.v1": "workspace",
             "delivery.build.v1": "build",
+            "delivery.deployment_stage.v1": "deployment",
         }
         if self.business_kind != expected[self.workflow_name]:
             raise ValueError("engineering_workflow_domain_mismatch")

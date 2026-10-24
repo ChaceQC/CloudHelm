@@ -11,6 +11,7 @@ GrantableAction = Literal[
     "resource.read", "task.command", "task.cancel", "operation.query",
     "operation.stop", "operation.reconcile", "fact.archive",
     "workspace.write", "candidate.submit", "operation.request",
+    "deployment.approve",
 ]
 
 

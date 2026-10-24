@@ -10,6 +10,7 @@ from database.settings import DatabaseSettings, load_database_settings
 from database.uow import UnitOfWork
 from modules.projects.commands import ProjectApplication
 from modules.execution.application import ResourceApplication
+from modules.delivery.deployment_application import DeliveryApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class ApiRuntime:
     builds: "BuildApplication"
     development: "WorkspaceDevelopmentApplication"
     resources: ResourceApplication
+    delivery: DeliveryApplication
 
     def close(self) -> None:
         try:
@@ -102,6 +104,8 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
                 enqueue_operation=development_environment_enqueuer(client),
             ),
             resources=ResourceApplication(pools.normal, pools.control),
+            delivery=DeliveryApplication(pools.normal, pools.control,
+                enqueue_deployment=engineering_enqueuer(client, "deployment")),
         )
     except Exception:
         try:

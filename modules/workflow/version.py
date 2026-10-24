@@ -4,7 +4,7 @@ from packages.contracts.p1.commands import WorkflowName
 from packages.contracts.p1.engineering_commands import EngineeringWorkflowName
 
 APPLICATION_NAME = "cloudhelm-hub"
-APPLICATION_VERSION = "0.5.0"
+APPLICATION_VERSION = "0.6.0"
 DBOS_SDK_VERSION = "3.2.0"
 DBOS_SCHEMA = "dbos"
 INITIAL_WORKFLOW: WorkflowName = "collaboration.task_initial.v1"
@@ -14,6 +14,7 @@ SOURCE_IMPORT_WORKFLOW: EngineeringWorkflowName = "projects.source_import.v1"
 WORKSPACE_WORKFLOW: EngineeringWorkflowName = "workspaces.operation.v1"
 DEVELOPMENT_ENVIRONMENT_WORKFLOW: EngineeringWorkflowName = "workspaces.development_environment.v1"
 BUILD_WORKFLOW: EngineeringWorkflowName = "delivery.build.v1"
+DEPLOYMENT_STAGE_WORKFLOW: EngineeringWorkflowName = "delivery.deployment_stage.v1"
 
 WORKFLOW_QUEUES: dict[WorkflowName | EngineeringWorkflowName, str] = {
     INITIAL_WORKFLOW: "orchestration",
@@ -22,6 +23,7 @@ WORKFLOW_QUEUES: dict[WorkflowName | EngineeringWorkflowName, str] = {
     WORKSPACE_WORKFLOW: "engineering",
     DEVELOPMENT_ENVIRONMENT_WORKFLOW: "engineering",
     BUILD_WORKFLOW: "engineering",
+    DEPLOYMENT_STAGE_WORKFLOW: "control",
 }
 
 

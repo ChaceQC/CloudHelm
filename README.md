@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-**Hub 开发源码 `0.5.0` · 数据库迁移 `0006` · 尚无正式发布、tag 或 Release**
+**Hub 开发源码 `0.6.0` · 数据库迁移 `0007` · 尚无正式发布、tag 或 GitHub Release**
 
 仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、历史接缝记录和全栈参照项目**，已具备的能力为：
 
@@ -12,7 +12,8 @@
 - 独立运行的 API 与单 worker 进程；
 - 固定参照的 Git 工作区、候选、离线构建和制品记录；
 - 共享宿主资源预留、Runner 注册、本地持久确认、受限 scratch 及固定工程资源组；
-- 受管构建/开发环境、进程与磁盘分维释放，以及 backing 持续占账。
+- 受管构建/开发环境、进程与磁盘分维释放，以及 backing 持续占账；
+- 固定参照的归档 Release、独立环境配置、部署计划、人类摘要批准和启动前复核。
 
 当前增量开发环境的实现与适用证据见[工程说明](docs/development/p1-engineering.md)。v4.7 是设计文档版本，与软件版本分开管理。
 
@@ -25,6 +26,7 @@ Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说
 |[Hub 开发与维护](./docs/development/p1-hub.md)|在 WSL 安装锁定依赖、配置独立数据库角色、初始化用户/项目并启动 API 与单 worker|
 |[Git、工作区与受限构建](./docs/development/p1-engineering.md)|工程入口、已实现能力和限制|
 |[共享宿主资源与 Runner](./docs/development/p1-resources.md)|池注册、资源申请、受控执行和未知结果核对|
+|[归档交付与计划批准](./docs/development/p1-delivery.md)|Release/配置/计划、可信目标事实和当前远端接入边界|
 |[日常定向检查](./docs/development/checks.md)|契约、Git/OCI 边界及按需数据库、存储和参照 HTTP 检查|
 |[P0 历史接缝复现](./docs/development/p0-seams.md)|按原提交取回历史实验；兼容范围见[组件基线](./docs/decisions/p0/component-baseline.md)和[接缝结论](./docs/acceptance/p0/seam-summary.md)|
 |[契约查看与窄检查](./docs/development/p0-decisions.md)|查看 [P0 决定模型与 JSON Schema](./packages/contracts/p0/README.md)及 [Hub HTTP/内部交接类型](./packages/contracts/p1/README.md)，按各自范围校验|

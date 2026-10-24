@@ -40,6 +40,7 @@ def _local_environment() -> None:
 def _start_dbos(application, engine, installation_id: str, engineering) -> None:
     from modules.collaboration.workflows import register_task_workflows
     from modules.delivery.workflows import register_build_workflows
+    from modules.delivery.deployment_workflows import register_deployment_workflows
     from modules.projects.workflows import register_source_workflows
     from modules.workspaces.workflows import register_workspace_workflows
     from modules.workspaces.development_workflows import register_development_environment_workflows
@@ -57,6 +58,7 @@ def _start_dbos(application, engine, installation_id: str, engineering) -> None:
     register_source_workflows(engineering.source_import)
     register_workspace_workflows(engineering.workspace_operation)
     register_build_workflows(engineering.build)
+    register_deployment_workflows(application.control_engine)
     register_development_environment_workflows(engineering.development_environment)
     DBOS.listen_queues(WORKER_QUEUES)
     DBOS.launch()

@@ -6,7 +6,7 @@ from packages.contracts.p1.engineering_commands import EngineeringWorkflowDispat
 
 def engineering_enqueuer(client, business_kind):
     names = {"project": "projects.source_import.v1", "workspace": "workspaces.operation.v1",
-             "build": "delivery.build.v1"}
+             "build": "delivery.build.v1", "deployment": "delivery.deployment_stage.v1"}
     if business_kind not in names:
         raise ValueError("engineering_workflow_domain_invalid")
 
