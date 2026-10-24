@@ -39,6 +39,21 @@ Git commit 与 SHA-256 内容摘要分别保存。既有 `EngineeringRef` 继续
 
 低层初始接口为 `inspect_commit(source, base_commit)` 和 `materialize(binding, operation_id)`；后续 `status/diff` 只接收有界受控路径，`capture_candidate(binding, frozen_handle)` 只接受实际 Runner 冻结作用域内取得的能力。低层函数不独自授予业务权限，应用适配须先解析已登记操作、核对当前门禁及实际开发限额。
 
+### 3.1 Git 写入边界与保留决定
+
+当前受管来源导入和物理候选保留 `reference_seed._write_object/_write_tree` 与 `candidate_git.retain`；`git_process.run_git` 继续只接受原有固定读命令。对象写入复用 fd 相对的无链接路径校验、独占新建、既存对象原始内容核验和文件/目录 fsync；tree 与 commit 保留确定性字节，候选支持 SHA-1/SHA-256，固定参照导入仍只支持 SHA-1。对象不可变，私有 ref 只在持有现有服务锁时创建；已有相同值关联原结果，异值报冲突，不在此处更新项目目标分支。
+
+T-SIM-05a 对照固定 `hash-object -t <kind> -w --stdin`、`mktree -z` 和带预期旧值的 `update-ref --no-deref`。原型沿用受控目录 fd、环境和禁用 hooks/外部配置的选项，额外限定 stdin/输出、截止时间、进程组停止与回收，并显式设置 loose-object/reference fsync。候选使用原 `commit_bytes`，不使用会引入默认时间或身份的 `commit-tree`。原型只用于隔离评估，不是产品的新命令入口或通用 Git adapter。
+
+|职责|保留实现与系统 Git 替换的比较|
+|---|---|
+|对象与 tree|现有实现已有短小的原始对象写入和既存内容冲突校验；系统 Git 可消除压缩与部分 tree 编码，但仍需路径树组装、输入/摘要校验及输出 OID 核对|
+|执行边界|现有写入不启动子进程；系统 Git 需扩展封闭命令、双向有界 I/O、超时停止和写后未知分类，逐对象及子树启动进程增加典型候选开销|
+|私有 ref 与恢复|系统 Git 的预期旧值更新不能替代操作身份、异摘要拒绝、当前授权及发布核对；锁遗留仍须阻止普通推进，丢回执仍须先按原身份查询，不能盲目重做或自动删锁|
+|适用范围|本项不实现目标分支集成、外部权威写入、批量导入协议或新的对象格式；相应能力变化需要另立任务和必要证据|
+
+本轮未取得净简化收益，按计划保留现有产品实现，05b/05c 不启动。现有候选 `_reconcile` 继续核验原阶段内容、commit 和私有 ref 后再发布；来源导入仍按原 intent/claim/receipt 核对，异常不被重新解释为可安全重放。固定输入、一次性方法、实际结果与未验证范围只记在 [T-SIM-05 进度](../../PROJECT_PROGRESS.md#2026-10-24源码简化专项-t-sim-05)，不扩用为产品切换或完整恢复验收。
+
 ## 4. 短事务、工程权限与 Task 输入
 
 来源登记使用 `project.manage`。工作区修改、固定候选和构建申请分别使用 P0 已定义的 `workspace.write`、`candidate.submit`、`operation.request`。P1.1 现有授权不会因更新全局动作集合自动得到新动作；原角色/委托保持原列表，开发动作按既有 P0 角色上界显式授予，不能用 `task.command` 或所有者身份替代。
