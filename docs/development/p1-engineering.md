@@ -80,7 +80,7 @@ cd /mnt/e/Project/CloudHelm
 
 入口只接受该 ID 格式，从原受控根下读取一个 `cache`，核对历史固定 manifest `sha256:1763287887271b7713a4d0764739b73bf592d37b6cab85535546d0b3f15c98d0`、锁与全部 tarball，复制后重新核验。Python 已按内容键定位，只验证并复用；缺失时先执行 `prepare`。已准备的新 npm 内容若等价则保留新副本，不覆盖其准备时间。导入不联网、不扫描、不删除原目录，重复执行复用同一内容。该历史 ID 只用于显式迁移，不再作为构建配置。
 
-### 4.1 固定 Python wheel 清单
+### 4.2 固定 Python wheel 清单
 
 受支持组合为 `linux/amd64`、CPython `3.12.13`、uv `0.11.29` 和固定 Python 基础镜像。依赖闭包与 wheel 兼容性由该版本 uv 实际离线解析、安装及安装后 distribution 清单复核；运行时不再维护依赖遍历、marker、ABI 或 manylinux 筛选规则。
 

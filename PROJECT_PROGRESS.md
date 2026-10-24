@@ -14,7 +14,7 @@
 - 规模与交付检查：Python 依赖模块由 409 降为 367 个物理行，保留固定输入/种子获取与两类核验边界，函数均不超过 58 行；本轮不为 300 行建议机械拆分。Workspace 输入模块 216 行，既有集中输入验证与身份组装函数 76 行（原 74 行），仍属单一输入资格职责；未扩展产品或配方。两份 Python AST、6 份改动文件 UTF-8、新增进度锚点、清单固定摘要、原锁及独立资产差异、`git diff --check` 均通过；一次性方法与基线被忽略，不入库，按仓库流程交付 `dev`。
 - 进行中：无；02a～02c 已完成实现与本机定向开发验证。
 - 阻塞与风险：本任务范围无阻塞；旧缓存、backing、持久操作引用保留。固定清单只支持当前锁与 Linux/amd64 工具链，变更时需新修订及安装复核；派生离线配方保留，未扩大为通用解析器。未执行 HTTP/worker/数据库全链路、其它平台或历史全量测试，原生 Desktop、独立机器及人工验收未执行。
-- 主要文件：`services/dev-runner/python_dependencies.py`、`infra/p1/reference-build/python-wheels.linux-amd64.r1.json`、`workspace_development_inputs.py`、`docs/development/p1-engineering.md`、本计划与进度。下一项具体任务为后续承接 T-SIM-03a；本轮止于 02，不自动开放 03～07 或 P1.3-02，实际投入及剩余工作量待估。
+- 主要文件：`services/dev-runner/python_dependencies.py`、`infra/p1/reference-build/python-wheels.linux-amd64.r1.json`、`workspace_development_inputs.py`、`docs/development/p1-engineering.md` §4.2、本计划与进度。下一项具体任务为后续承接 T-SIM-03a；本轮止于 02，不自动开放 03～07 或 P1.3-02，实际投入及剩余工作量待估。
 
 ## 2026-10-24：源码简化专项 T-SIM-01
 
