@@ -2,6 +2,22 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-25：P1.3-02 两阶段 Compose 解析
+
+- 原因与授权：用户要求根据文档快速完成 P1.3-02 剩余部分，不使用子代理、不做大量测试。当前入口为 `dev`；开始时工作树已有用户对 `PROJECT_PLAN.md` 的未提交表格格式改动，本轮保留该改动，不重置或覆盖。
+- 范围与边界：资源调整、分维释放和磁盘保留已由 R1～R3/T-SIM-06 交付，本轮只补两阶段 Compose 解析。第一阶段固定 UTF-8 源文本和受限 Compose 子集，第二阶段绑定声明参数与版本化 secret 引用；不接入 Docker/Remote Agent 执行、审批、数据库迁移或独立机器部署。
+- 已实现：新增 `packages/contracts/p1/compose_contracts.py`，固定 `p1-compose-release-r1`、`p1-compose-deployment-r1`、`cloudhelm.p1.compose-r1` 和 `p1-compose-parser-r1` 的 Release、环境配置、DeploymentPlan、服务、端口、卷、健康检查及参数/secret 槽契约。
+- 已实现：新增 `modules/delivery/compose.py`。严格 YAML 装载拒绝重复键、锚点/别名、合并继承和标签；源阶段拒绝插值、未知字段、外部文件、build/特权/host network、bind/device/Docker socket、非摘要镜像、非 loopback 端口和敏感明文，并生成稳定源/Release 摘要。
+- 已实现：环境阶段要求参数和 secret 集合完全匹配源契约，枚举值和 `secret://...@vN` 引用通过校验后才替换对应环境槽；计划再次校验镜像、拓扑和运行字段，计算 `config_digest`、`plan_digest`，错误只返回路径与原因码，不回显输入值。
+- 文档同步：新增 [P1.3-02 Compose 实施说明](docs/implementation/p1-3-compose.md)，补充 `packages/contracts/p1/README.md`、`PROJECT_PLAN.md` 的入口、支持/拒绝边界和后续入口；未改设计基线或历史验收资产。
+- 定向验证：WSL Ubuntu-24.04 使用锁定离线环境执行 `uv run --frozen --offline python -B -m py_compile packages/contracts/p1/compose_contracts.py modules/delivery/compose.py`，通过；同一环境执行一次内联窄检查，验证一份参数/secret Compose 成功生成 Release/Plan，以及插值、未知字段、敏感明文、bind mount 和越界参数均拒绝，通过。
+- 未执行：未运行数据库、Docker/Compose CLI、worker、HTTP、浏览器、全量测试、历史验收或人工验收；上述结果只覆盖本模块纯解析和契约边界，不能扩张为 P1.3 或部署出口已验收。
+- 代码规模评估：Compose 解析模块当前 535 个物理行，超过普通 300 行评估线，原因是同一模块集中表达固定字段、危险输入和两阶段完整校验；函数职责仍按源解析、字段校验、环境绑定分组，本轮不为行数机械拆分。契约模块 120 行，为声明式模型集合。
+- 静态收尾：UTC `2026-10-24T17:52:01Z` 核对本轮 6 份文本均可按 UTF-8 读取，`git diff --check` 通过；最终候选尚未提交或推送，未改冻结参照、历史资产、依赖锁或数据库迁移。
+- 进行中：无本轮实现工作；未提交、未推送，待交付前按仓库流程核对最终差异。下一项具体任务为 P1.4，在线扩额、自动 GC、独立机器和完整 P1 出口保持未开放。
+- 阻塞与风险：本范围无新增阻塞。当前解析器只支持文档列出的受限子集，不读取外部 Compose 文件或环境继承，也不证明标准 Compose CLI、目标资源容量、物理执行和 secret 存储可用；扩展字段需递增契约/解析器修订并取得新证据。
+- 主要文件：`modules/delivery/compose.py`、`packages/contracts/p1/compose_contracts.py`、`docs/implementation/p1-3-compose.md`、`packages/contracts/p1/README.md`、`PROJECT_PLAN.md`、本文件。
+
 ## 2026-10-25：源码简化专项 T-SIM-07
 
 - 原因与授权：用户要求根据文档快速完成 T-SIM-07，不使用子代理、不做大量测试。入口为 `dev / a30b4c431c3a552814d72a8dc834d127fcb9f056`，工作树干净。
