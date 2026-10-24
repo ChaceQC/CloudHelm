@@ -2,6 +2,17 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-24：历史 JSON 精简 T-DOC-01（已完成本轮清理）
+
+- 已完成：按用户授权删除 80 份历史 JSON（P0 7 份、P1 73 份），共 1,488,417 字节；包括 54 份运行/失败/清理回收报告和 26 份历史 InputSet/跨轮适用性记录，没有搬入其他目录。入口 `dev / b20a5e3`，工作树原先干净。
+- 留存边界：当前业务读取的参照 InputSet、独立验收资产、契约及历史设计归档保留。旧 JSON 原字节按提交 `b20a5e30fd0f3ddea50b7a7dc9b8e0fc3fbe1df1` 查询，方法见 [历史记录入口](docs/development/p0-seams.md#取回历史方法)；阶段最终结论、失败/未知及人工未验收边界不变。
+- 已完成：同步摘要、计划、规范与开发入口，清理指向已删 JSON 的本地链接；后续历史进度中的“保留原字节”描述当时状态，现按本条留存边界解释。
+- 静态验证：UTC `2026-10-24T11:06:38.847329+00:00`，在 WSL、已有 Python 3.12.13 环境用只读脚本逐项核对 Git 删除清单、UTF-8、相对链接及保留文件与删除前提交的字节一致性：80 份删除符合清单，18 份修改 Markdown 可按 UTF-8 读取；62 份当前 Markdown 的 471 个本地链接没有已删 JSON 引用或新增失效链接；52 份参照/独立资产与历史设计文件字节不变，业务源码无改动。`git diff --check` 通过。
+- 未执行：业务、模型、数据库或容器重验；本次只删除历史资料及同步文档，不改变阶段验证或人工验收结论。
+- 进行中：无文档或本地验证任务；本条随正常 `dev` 提交交付，提交及远端状态以实际 Git 引用为准。
+- 阻塞与风险：无新增产品阻塞；当前检出不再直接提供被删原始报告，追溯需要上述 Git 提交。主要文件：`docs/acceptance/`、`docs/development/`、`AGENTS.md`、`PROJECT_PLAN.md` 及本文件。
+- 下一项：本轮停止在历史文档精简；后续产品工作包由独立任务承接，P1.3-02 及产品验收继续保持未开放。
+
 ## 2026-10-24：测试代码精简 T-TEST-01（已完成本轮精简）
 
 - 原因与授权：用户要求测试代码尽量降至原来的 10%，特别指出历史产物测试可直接删除。入口 `dev / 09cf13c`，工作树原先干净；基线为 91 个直接测试/验证文件、20,284 个非空行，统计包括注释/文档字符串，排除依赖、构建产物、JSON、锁文件和文档。
@@ -24,9 +35,9 @@
 - 已实现：同宿主 Runner 共用 SQLite/启动锁，接受和启动标记先持久化；原身份查询恢复丢回执，关闭未启动分配后晚到不复活。受控 dispatcher/CLI 查询回执并同步占账/观察事件；未知保持全额额度，不声称跨机器原子事务。
 - 已实现：固定镜像/配方、UID65534、只读根、断网、无宿主挂载/日志和 cgroup v2/systemd 父级 CPU、内存、swap、PID 硬限；两处 tmpfs 覆盖全部沙箱可写文件。初版范围为 scratch，不把历史 P1.2 构建/缓存自动纳入新池。
 - 环境：已只读核对 WSL Ubuntu-24.04、仓库 `/mnt/e/Project/CloudHelm`、UID1000、Python 3.12.13、Docker 29.1.3 与 cgroup v2；配置秘密未输出。
-- 自动验证：UTC `2026-10-24T10:00:02.831423+00:00`～`10:00:17.232211+00:00`，WSL root 执行 `python -B -m scripts.p1.check_resources --port 55446`，最终方法 r2 固定 [280 个公开输入](docs/acceptance/p1/input-set-p1-3-01-r2.json)摘要 `sha256:114eef8dfcd986d971a7ee88112f952978a18946b385f9b24a4165c4de844dec`；[完整结果](docs/acceptance/p1/validation-resources-r2.json) passed，前后输入一致，保存实际操作/预留/进程绑定、容器/父组及内核/工具链引用。此前 [r1 输入](docs/acceptance/p1/input-set-p1-3-01-r1.json)与[通过结果](docs/acceptance/p1/validation-resources-r1.json)保留原字节；r2 补齐引用并清除一个未用导入，重绑定新输入验证。
+- 自动验证：UTC `2026-10-24T10:00:02.831423+00:00`～`10:00:17.232211+00:00`，WSL root 执行 `python -B -m scripts.p1.check_resources --port 55446`，最终方法 r2 固定 280 个公开输入摘要 `sha256:114eef8dfcd986d971a7ee88112f952978a18946b385f9b24a4165c4de844dec`；完整结果 passed，前后输入一致，保存实际操作/预留/进程绑定、容器/父组及内核/工具链引用。此前 r1 输入与通过结果保留原字节；r2 补齐引用并清除一个未用导入，重绑定新输入验证。
 - 自动验证：两用户/项目、两 Runner 的并发申请只接受一组；命令重投/异摘要、调用方回滚、期限/能力不匹配、双进程重复投递、账本重开恢复及取消后的晚到启动封闭通过。实际 `cpu.max=50000 100000`、memory.max=128MiB、swap=0、pids.max=32；8MiB tmpfs 实际 ENOSPC、线程超限拒绝、只读根/无宿主 socket 成立。真实进程停止通道未知时 Hub 保留全额占账，原绑定核对后停止并回收容器/父组/tmpfs，剩余占账 0；数据库及私有夹具清理 complete。
-- 前序修正：首次方法停在迁移约束命名不一致；第二次因 PostgreSQL 行锁所需 UPDATE 权限不足而停止；第三次已启动真实组，观测侧误用 UID1000 的旧 Docker 客户端目录。均保留[原报告 1](docs/acceptance/p1/validation-resources-r1-attempt1.json)、[原报告 2](docs/acceptance/p1/validation-resources-r1-attempt2.json)、[原报告 3](docs/acceptance/p1/validation-resources-r1-attempt3.json)，未改写失败结论；最后一轮用新输入完整通过。物理未确认时的方法清理会保留账本现场。
+- 前序修正：首次方法停在迁移约束命名不一致；第二次因 PostgreSQL 行锁所需 UPDATE 权限不足而停止；第三次已启动真实组，观测侧误用 UID1000 的旧 Docker 客户端目录。均保留原报告 1、原报告 2、原报告 3，未改写失败结论；最后一轮用新输入完整通过。物理未确认时的方法清理会保留账本现场。
 - 验证范围：依赖锁离线检查、Hub OpenAPI 快照通过（34 路径、36 操作、91 schema）。未运行模型、前端/浏览器、历史 P1.2 全方法；人工验收未执行。原实现和证据按其原输入适用，不用本轮结果扩张。
 - 规模与静态核对：新增资源领域、契约、Runner/HTTP 普通源码为 10～170 行；定向方法主入口不足 300 行，最大函数 45 行，无需再拆职责。统计不含依赖、构建、JSON 快照和迁移声明；已核对改动文件 UTF-8/AST/JSON、182 个当前本地文档链接，以及暂存区全部 280 个源码文件与 InputSet 的字节一致性。
 - 进行中：无。实现、本机定向验证、文档和固定证据已同步；本轮交付在 dev，Git 提交及远端状态按实际分支引用核对。
@@ -62,18 +73,18 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 ### 本次小步结果
 
 - reset 修补：WSL UID1000 使用 r8 原 journal 的真实请求和目标 Spec 核验，数据修订为 `reference-synthetic-r2`，代次从 1 变为 2；旧修订、旧代次、多增一次及错误源码摘要四个负例全部拒绝。修改文件 UTF-8／AST 和 `git diff --check` 通过；没有新增通用测试或重跑已通过业务方法。
-- r8 归档与清理：[失败原报告](docs/acceptance/p1/validation-workspace-development-r8.json)与私有原文件逐字节一致；[清理收据](docs/acceptance/p1/validation-workspace-development-r8-cleanup.json)记录 UTC `2026-10-20T08:31:08.962201+00:00` 核对并删除原环境的两只已停止容器和一张空网络，父组已不存在，loop／backing／实例目录全部回收，8,589,934,592 字节释放且剩余占账 0。原失败结论保持；下一步固定 r9，仅执行完整环境方法。
-- 固定输入：[InputSet r9](docs/acceptance/p1/input-set-p1-2-r9.json)绑定已推送的修补源码 `1ee304039050b148bbd39007e9260482dfbe18a8` 与 319 个公开输入。执行期间候选字节冻结，四组 Task 与其他已通过方法不重复；下一项为 r9 环境生命周期的实际执行及原结果归档。
+- r8 归档与清理：失败原报告与私有原文件逐字节一致；清理收据记录 UTC `2026-10-20T08:31:08.962201+00:00` 核对并删除原环境的两只已停止容器和一张空网络，父组已不存在，loop／backing／实例目录全部回收，8,589,934,592 字节释放且剩余占账 0。原失败结论保持；下一步固定 r9，仅执行完整环境方法。
+- 固定输入：InputSet r9绑定已推送的修补源码 `1ee304039050b148bbd39007e9260482dfbe18a8` 与 319 个公开输入。执行期间候选字节冻结，四组 Task 与其他已通过方法不重复；下一项为 r9 环境生命周期的实际执行及原结果归档。
 - r9 实际结果：数据重建已通过，旧用户数据及旧种子删除，目标 `reference-synthetic-r2` 种子存在，代次从 1 变为 2。随后在 `fixed_lock_variant_cache_invalidation` 收到 `engineering_http_422_request_schema_invalid`；固定原锁 33,551 字节、获准变体 33,625 字节，超过既有 32KiB 上传边界。公共输入前后一致，完整方法仍为 failed；原环境已停止但挂载待按身份清理。计划补齐必要的 48KiB 上传边界，完整 JSON 仍限 64KiB，契约／快照和说明同步后固定新输入，其他已通过方法按实际依赖复核适用性。
 - 上传接缝修正：单文件上限兼容扩展到 49,152 个 UTF-8 字节，完整 JSON 仍限 65,536 字节。真实锁变体 JSON 为 35,690 字节且能通过原严格解析；ASCII／中文恰好到上限可接受、超过上限拒绝，错误摘要及超大 HTTP body 拒绝，内容仍从持久 command dump 排除。WSL 契约快照检查通过（32 路径、34 操作、85 schema）。
-- r9 收尾：[失败原报告](docs/acceptance/p1/validation-workspace-development-r9.json)逐字节归档；[初次清理](docs/acceptance/p1/validation-workspace-development-r9-cleanup.json)核对两只已停止容器、空网络、父组、loop／backing／目录已删除，但即时空间回收不足，保持待核对。UTC `2026-10-20T08:42:08.946238+00:00` 的[补充收据](docs/acceptance/p1/storage-reconciliation-workspace-development-r9.json)核对同一宿主设备与原基线、sync 后实际空闲增量 8,589,946,880 字节，确认原 8GiB 回收，剩余占账 0；原初次未知记录未覆盖。下一项：固定上传修正候选并继续环境方法。
+- r9 收尾：失败原报告逐字节归档；初次清理核对两只已停止容器、空网络、父组、loop／backing／目录已删除，但即时空间回收不足，保持待核对。UTC `2026-10-20T08:42:08.946238+00:00` 的补充收据核对同一宿主设备与原基线、sync 后实际空闲增量 8,589,946,880 字节，确认原 8GiB 回收，剩余占账 0；原初次未知记录未覆盖。下一项：固定上传修正候选并继续环境方法。
 - r10 实际结果：获准锁变体已由真实文件入口写入并实际安装、启动，原锁复用与新锁未复用、实际锁摘要变化均已核对；方法随后在 `workspace_development_lock_cache_entry_set_mismatch` 失败。根因为方法读取了 `workspace-python/<Workspace作用域>` 的目录名，而真实依赖键位于该作用域下一层；不是实际缓存命中／失效失败。本次只修正方法按项目／Workspace 规范摘要进入对应目录，保留私有目录、设备、所有权和有界清单校验，方法递增 r4；产品代码不变。下一项为原池窄核对与收尾，再固定新输入完成未知锁拒绝和销毁回收。
 - r10 原池窄核对：修正后的清单读取与原 journal 的两个实际依赖键完全一致，原锁 key `3f60c141…` 两次 resume 均 reused，新锁 key `696c51ef…` 未复用；原报告字节一致，WSL AST 通过。原容器／网络及池按身份清理，实际回收结论见独立收据，不改写原方法失败。
 - r11 实际结果：完整物理流程已推进至 dispose，源码／候选、同锁复用、新锁失效、数据重建、未知锁拒绝、实际停止及候选保留均已有直接记录，父组和整个 8GiB 池实际回收、剩余占账 0。方法最后一处缓存清单调用遗漏新 binding 参数，因 TypeError 未执行最终保留断言，完整方法仍记 failed。此遗漏为本次方法修正造成；只补齐调用并将方法递增 r5，核对全部三个调用点后固定新输入，不改写 r11 原失败结论。
-- r10 后续回收核对：原即时空间观测及第一份 inode 观测均保留未知；[补充 r2](docs/acceptance/p1/storage-reconciliation-workspace-development-r10-r2.json)绑定原收据，证明 inode 在删除后重新分配为小文件，原 8GiB 已回收、剩余占账 0。
-- r12 最终方法：[InputSet r12](docs/acceptance/p1/input-set-p1-2-r12.json)固定已推送源码 `f04e5a7be96e8a54365cd7864720412ce88118d4` 的 319 个公开输入，SHA-256 `fa4e860034677a8d5428e2dbd8ddf90cb8b05a973ff1db70d7ec585dd1313289`；输入提交 `e0314f7`。WSL 维护命令 `engineering_storage_fixture --method workspace-development --input-set docs/acceptance/p1/input-set-p1-2-r12.json --port 55445` 的[原报告](docs/acceptance/p1/validation-workspace-development-r12.json)逐字节归档。UTC `2026-10-20T08:59:51.929493+00:00`～`09:05:33.242185+00:00`，方法 r5 `status=passed`，六项 required_checks 全 true，前后输入一致，未知锁拒绝且缓存不新增、dispose 后候选／依赖缓存仍在。
-- r12 回收：原包装因即时全局空间增量不足记录 `host_reclamation_unconfirmed`，原字节保持；容器／网络／父组、loop／backing／实例目录已停止或删除。[补充核对](docs/acceptance/p1/storage-reconciliation-workspace-development-r12.json)于 UTC `2026-10-20T09:07:10.702632+00:00` 通过 ext4 原 inode 删除后重分配的实际身份核对，确认 8,589,934,592 字节回收、剩余占账 0。
-- 退出映射：[适用性复核 r12](docs/acceptance/p1/evidence-applicability-p1-2-r12.json)确认原操作边界 r3、后端 A→A→B r3 与四组工程 Task r7 的报告 SHA／方法字节及受影响调用范围；313 个 r7 公共输入未变，六项变化逐项说明。仅复用原覆盖范围，没有把旧运行改写为 r12。计划修订 22、[P1.2 退出映射](docs/acceptance/p1/p1-2.md)、支持矩阵 r6 与使用说明同步，C1～C7 和本次 S3／S4 闭合；本轮没有新增阶段、人工验收、s2413 安装或发布。
+- r10 后续回收核对：原即时空间观测及第一份 inode 观测均保留未知；补充 r2绑定原收据，证明 inode 在删除后重新分配为小文件，原 8GiB 已回收、剩余占账 0。
+- r12 最终方法：InputSet r12固定已推送源码 `f04e5a7be96e8a54365cd7864720412ce88118d4` 的 319 个公开输入，SHA-256 `fa4e860034677a8d5428e2dbd8ddf90cb8b05a973ff1db70d7ec585dd1313289`；输入提交 `e0314f7`。WSL 维护命令 `engineering_storage_fixture --method workspace-development --input-set docs/acceptance/p1/input-set-p1-2-r12.json --port 55445` 的原报告逐字节归档。UTC `2026-10-20T08:59:51.929493+00:00`～`09:05:33.242185+00:00`，方法 r5 `status=passed`，六项 required_checks 全 true，前后输入一致，未知锁拒绝且缓存不新增、dispose 后候选／依赖缓存仍在。
+- r12 回收：原包装因即时全局空间增量不足记录 `host_reclamation_unconfirmed`，原字节保持；容器／网络／父组、loop／backing／实例目录已停止或删除。补充核对于 UTC `2026-10-20T09:07:10.702632+00:00` 通过 ext4 原 inode 删除后重分配的实际身份核对，确认 8,589,934,592 字节回收、剩余占账 0。
+- 退出映射：适用性复核 r12确认原操作边界 r3、后端 A→A→B r3 与四组工程 Task r7 的报告 SHA／方法字节及受影响调用范围；313 个 r7 公共输入未变，六项变化逐项说明。仅复用原覆盖范围，没有把旧运行改写为 r12。计划修订 22、[P1.2 退出映射](docs/acceptance/p1/p1-2.md)、支持矩阵 r6 与使用说明同步，C1～C7 和本次 S3／S4 闭合；本轮没有新增阶段、人工验收、s2413 安装或发布。
 - 交付核对：本次 7 份收尾文档／JSON 的 UTF-8、相对链接、原报告字节、报告 SHA 绑定及 r12 的 319 个固定输入均通过只读复核，`git diff --check` 通过；没有重复业务方法。输入提交 `e0314f7` 的[仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/39397423835) completed/success，只支持该工作流覆盖范围；收尾文档按正常 dev 提交推送，后续提交的检查以其实际运行记录为准。
 
 ## 2026-10-20 · P1.2 修正接续（此前记录）
@@ -92,11 +103,11 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 原证据适用性：只读核对 r3 的操作边界实际执行路径及后端报告的 19 项方法文件、18 项固定源文件，相关行为字节未变；环境列权限、未调用的诊断／环境代码变化不扩张旧证据范围。manifest 的 Git 批量读取优化须在最终新输入下重新校验，r3 旧 InputSet 不声称匹配新代码。
 - S1 提交：`06e0420` 已正常推送 dev；不由静态检查推定生命周期通过。
 - S2 方法修正：Workspace 意图改用刚固定的候选摘要，方法递增 `p1-2-engineering-task-control-r2`；失败也依据数据库夹具实际收尾及空进程登记记录结果，显式关闭方法 runtime。三个脚本 WSL AST 与差异检查通过，未重复开发全方法。首轮保留池已于 `2026-10-20T07:45:00.113945Z` 按实例身份核对并释放 8,589,934,592 字节，剩余占账 0；清理收据 SHA-256 `586412dc64335206eda6212bd75f89fa1b1f24083aec12f096478ca09faeb527`，失败报告 SHA-256 `06f2f8b568e1419450ddb141f37eb17d70fcc5877c3631275d4cd4c33057a818`。下一步固定新 InputSet 并运行两项正式方法。
-- 固定候选：[InputSet r6](docs/acceptance/p1/input-set-p1-2-r6.json)绑定 `bf453a22f94fa17445596c4f39c050ac0d689c2b` 的 319 文件，SHA-256 `c213422a5cef782127282ee1eea237d18adfbf02649ac43beba1ca0888e9410c`；新的批量 Git 校验实际通过。候选及输入均已推送 dev，对应仓库检查成功。
-- S3 r6：UTC `2026-10-20T07:49:35.783593+00:00`～`07:51:26.884096+00:00` 的[原报告](docs/acceptance/p1/validation-workspace-development-r6.json)在休眠／恢复场景以 `workspace_development_stop_unconfirmed` 失败。源码 r1/r2 HTTP、live reader 候选冻结及候选保持已观察，前后输入一致；不能据此判定完整方法通过。API／worker／数据库及父组已停止，因仍有容器挂载，8GiB 池保守保留待核对。下一项为停止确认的定向修正与原池收尾，再绑定新候选。
-- S3 定向修正：`cgroup.events` 的 exists→read 存在退出回收竞态；现直接读取，只有 FileNotFoundError 视为组已移除，其他读取错误或 populated 继续拒绝，容器 Running/Pid 与父组停止检查保持。WSL 窄复现覆盖消失、不可读、仍 populated、空组、容器仍活五分支通过。原池在 WSL namespace 变化后按原注册与 backing 身份核对；[清理收据](docs/acceptance/p1/validation-workspace-development-r6-cleanup.json)确认本环境容器／网络、父组、loop、backing／目录回收，8GiB 占账归零。后续验证及清理保持 WSL 会话存活；下一步为 r7 两项正式方法。
-- r7 固定与 Task 结果：[InputSet r7](docs/acceptance/p1/input-set-p1-2-r7.json)固定 `ef8dd026ac255a2642b4d4115f55f62225d10b91` 的 319 个公开输入；[四组 Task 原报告](docs/acceptance/p1/validation-engineering-task-control-r7.json)于 UTC `2026-10-20T08:06:18.756703+00:00`～`08:11:33.663020+00:00` 全部通过，前后输入一致。Workspace／Build 完成先因 `writes_unsettled` 返回 409 且无完成报告，真实回执后 completed；取消先待物理核对，随后 cancelled，Build 取消核对为 closed_unstarted。真实 Build 完成 succeeded、ended_reconciled、exit 0 且内容核验通过。数据库／API／worker／原池回收均 complete，无剩余占账；其余完成条件仍标为协议验证输入，不是人工验收。
-- r7 环境：首次在启动前遇端口占用，空池已回收，保留[原记录](docs/acceptance/p1/validation-workspace-development-r7-port.json)及[清理](docs/acceptance/p1/validation-workspace-development-r7-port-cleanup.json)。换用 55440 后仍在休眠失败，[固定输入原报告](docs/acceptance/p1/validation-workspace-development-r7.json)及[清理](docs/acceptance/p1/validation-workspace-development-r7-cleanup.json)保留。直接诊断表明停止及绑定可通过；调用链确认 stop_services 误用上一次已完成 resume 的 latest_operation_id，Hub 当前门禁按 `operation_not_pending` 拒绝，被外层归类为 stop_unconfirmed。现生命周期统一在新操作前绑定当前 operation_id／request_digest；仅该接线改动，WSL AST 通过。四组 Task 不执行环境生命周期，保留 r7 结果；下一步 r8 只重验环境。
+- 固定候选：InputSet r6绑定 `bf453a22f94fa17445596c4f39c050ac0d689c2b` 的 319 文件，SHA-256 `c213422a5cef782127282ee1eea237d18adfbf02649ac43beba1ca0888e9410c`；新的批量 Git 校验实际通过。候选及输入均已推送 dev，对应仓库检查成功。
+- S3 r6：UTC `2026-10-20T07:49:35.783593+00:00`～`07:51:26.884096+00:00` 的原报告在休眠／恢复场景以 `workspace_development_stop_unconfirmed` 失败。源码 r1/r2 HTTP、live reader 候选冻结及候选保持已观察，前后输入一致；不能据此判定完整方法通过。API／worker／数据库及父组已停止，因仍有容器挂载，8GiB 池保守保留待核对。下一项为停止确认的定向修正与原池收尾，再绑定新候选。
+- S3 定向修正：`cgroup.events` 的 exists→read 存在退出回收竞态；现直接读取，只有 FileNotFoundError 视为组已移除，其他读取错误或 populated 继续拒绝，容器 Running/Pid 与父组停止检查保持。WSL 窄复现覆盖消失、不可读、仍 populated、空组、容器仍活五分支通过。原池在 WSL namespace 变化后按原注册与 backing 身份核对；清理收据确认本环境容器／网络、父组、loop、backing／目录回收，8GiB 占账归零。后续验证及清理保持 WSL 会话存活；下一步为 r7 两项正式方法。
+- r7 固定与 Task 结果：InputSet r7固定 `ef8dd026ac255a2642b4d4115f55f62225d10b91` 的 319 个公开输入；四组 Task 原报告于 UTC `2026-10-20T08:06:18.756703+00:00`～`08:11:33.663020+00:00` 全部通过，前后输入一致。Workspace／Build 完成先因 `writes_unsettled` 返回 409 且无完成报告，真实回执后 completed；取消先待物理核对，随后 cancelled，Build 取消核对为 closed_unstarted。真实 Build 完成 succeeded、ended_reconciled、exit 0 且内容核验通过。数据库／API／worker／原池回收均 complete，无剩余占账；其余完成条件仍标为协议验证输入，不是人工验收。
+- r7 环境：首次在启动前遇端口占用，空池已回收，保留原记录及清理。换用 55440 后仍在休眠失败，固定输入原报告及清理保留。直接诊断表明停止及绑定可通过；调用链确认 stop_services 误用上一次已完成 resume 的 latest_operation_id，Hub 当前门禁按 `operation_not_pending` 拒绝，被外层归类为 stop_unconfirmed。现生命周期统一在新操作前绑定当前 operation_id／request_digest；仅该接线改动，WSL AST 通过。四组 Task 不执行环境生命周期，保留 r7 结果；下一步 r8 只重验环境。
 
 ## 2026-10-18 · P1.2 缺口修正（进行中）
 
@@ -123,23 +134,23 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 规模评估：已拆 source、probe、bootstrap、Docker、journal、Hub 命令／查询／回执；Runner runtime、Docker、依赖与生命周期控制器仍超过建议行数。包含集中安全边界及嵌入执行脚本，本轮在当前功能范围内集中验证，不以机械行数继续引入重构；大型模块的集成风险保留在当前候选检查范围。
 - 下一项具体任务：冻结新实现与 InputSet，依次执行操作边界、后端 A→A→B、增量环境及四组真实工程 Task 方法；只有实际方法通过后才重裁退出。
 - 集成前核对：OpenAPI 的多处漂移最终定位为主会话生成 JSON 时使用的模糊补丁定位，已通过 apply_patch 完整替换真实导出结果；WSL `scripts.p1.check_public_contracts` 通过，32 路径、34 操作、85 schema，旧路径未移除。两处新增文件的 EOF 空行已清除；首个实现提交的格式检查失败未阻止提交，后续提交纠正，不沿用该次通过结论。
-- 新候选：[InputSet r3](docs/acceptance/p1/input-set-p1-2-r3.json) 固定源码 `799243856d1749d52c15ed9f476c848cc3057bb1` 的 319 个公开输入；操作边界方法正在运行，其他真实方法尚未执行。旧 r1/r2 报告原字节保留。
-- r3 实际结果：[操作边界](docs/acceptance/p1/validation-operation-bounds-r3.json)通过 128／129／重复的应用分类与取消待核对，临时数据库已清理；[后端真实输入缓存](docs/acceptance/p1/validation-backend-cache-r3.json)通过 A→A→B、同 builder 身份、A 制品不变、B 源码／key／步骤／制品变化及实际路由函数结果，前后输入匹配，builder/进程停止并清理。
+- 新候选：InputSet r3 固定源码 `799243856d1749d52c15ed9f476c848cc3057bb1` 的 319 个公开输入；操作边界方法正在运行，其他真实方法尚未执行。旧 r1/r2 报告原字节保留。
+- r3 实际结果：操作边界通过 128／129／重复的应用分类与取消待核对，临时数据库已清理；后端真实输入缓存通过 A→A→B、同 builder 身份、A 制品不变、B 源码／key／步骤／制品变化及实际路由函数结果，前后输入匹配，builder/进程停止并清理。
 - 方法纠正：未知锁在 Hub 元数据准入阶段实际应为 HTTP 409，而非方法假设的 422；只修正环境方法的该预期并递增方法修订 r2，不改产品代码。其后新 InputSet 重新绑定环境／Task 方法；r3 操作边界及后端结果保留原绑定，按相关源码／方法字节一致性复核其适用性，避免无变化场景重复重执行。
-- r4 首次环境方法：[失败原记录](docs/acceptance/p1/validation-workspace-development-r4.json)在读取固定参照文件时因 DrvFs 目录不能充当 Linux 私有目录而拒绝，未进入依赖安装／应用服务启动；输入前后匹配，API/worker/数据库已停止。改用既有固定后端读取与独立 P0 manifest 交叉校验，不放宽受控运行目录权限。
-- r4 回收：[定向清理](docs/acceptance/p1/validation-workspace-development-r4-cleanup.json)核对原实例注册及 Docker 命名空间，原父组已消失、loop 已脱离，backing 与目录删除；实际确认回收 8,589,934,592 字节，剩余占账 0。失败原记录未覆盖。
+- r4 首次环境方法：失败原记录在读取固定参照文件时因 DrvFs 目录不能充当 Linux 私有目录而拒绝，未进入依赖安装／应用服务启动；输入前后匹配，API/worker/数据库已停止。改用既有固定后端读取与独立 P0 manifest 交叉校验，不放宽受控运行目录权限。
+- r4 回收：定向清理核对原实例注册及 Docker 命名空间，原父组已消失、loop 已脱离，backing 与目录删除；实际确认回收 8,589,934,592 字节，剩余占账 0。失败原记录未覆盖。
 - 验证方法效率：InputSet 仍核对完整文件集合及每份源码的 Git blob、长度与 SHA-256，Git 对象改为一次 `cat-file --batch` 读取，替代 319 次 `git show`；输入结构与既有 manifest 修订不变。新方法字节将由后续 InputSet 固定。
 - 后续开发接线（未冻结工作树）：修正 prepare 命令摘要不能包含新生成的环境 ID、操作查询误读环境字段、API `updated_at` 列权限；修正只读 wheel 种子定位、原锁到离线配方、uv 版本输出、日志驱动、归档权限与 tmpfs 采集、私有安装键表示。临时目录按实测 uv 二进制大小及离线参照配方调整，容器 768MiB 与父组 896MiB 硬上限不变。
-- 独立依赖[开发记录](docs/acceptance/p1/validation-development-workspace-dependencies-r1.json)：20 个分布、Python 3.12.13/uv 0.11.29、归档 13,529,252 字节和同键复用已实测，实际 tmpfs 上限由容器内核核对，父组停止；仅技术切片结果，不是完整环境或阶段验收。
+- 独立依赖开发记录：20 个分布、Python 3.12.13/uv 0.11.29、归档 13,529,252 字节和同键复用已实测，实际 tmpfs 上限由容器内核核对，父组停止；仅技术切片结果，不是完整环境或阶段验收。
 - 后端服务开发观测：修正生成脚本的转义及 gzip 逆序反复解压后，真实迁移到 `0002_add_updated_at_index`，`/health`、`/ready`、源码标记与便签写入均通过。修正候选冻结时 reader 查询重复取工作区锁；debug-9 已生成带 live reader 的独立候选，随后在恢复 API 的列权限处失败。debug-10 正继续；所有失败保留在私有原记录，最终固定候选未形成完整通过结论。
 
 ## 2026-10-18 · P1.2 固定验证与交付收尾
 
 - 已完成：P1.2-01～02 的 Git 来源、独立工作区、受控文件修改、候选冻结、离线依赖/构建、BuildRun/三角色 OCI、受控存储与环境/数据重建，以及真实 HTTP/DBOS 单 worker 接线。契约、迁移、使用说明与 [退出映射](docs/acceptance/p1/p1-2.md)齐备。
-- 已完成：[InputSet r2](docs/acceptance/p1/input-set-p1-2-r2.json)绑定源码 `118216079d2c0d7579443f4b297d67971b89c545` 的 290 文件；[完整结果 r2](docs/acceptance/p1/validation-p1-2-r2.json)于 `2026-10-17T20:13:53.211867Z`～`20:18:41.586038Z` 通过，前后输入完全匹配，`end_to_end_chain_complete=true`。该源码已推送 dev，[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/39065652760)成功。
+- 已完成：InputSet r2绑定源码 `118216079d2c0d7579443f4b297d67971b89c545` 的 290 文件；完整结果 r2于 `2026-10-17T20:13:53.211867Z`～`20:18:41.586038Z` 通过，前后输入完全匹配，`end_to_end_chain_complete=true`。该源码已推送 dev，[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/39065652760)成功。
 - 自动验证：真实导入/Task/物化/文件写入/候选/继续开发/构建链贯通；候选保持不变，BuildRun `build-5620ffeff3294eeda798be0e689037b4` 为 succeeded，frontend/backend/postgres 三份制品核验并加载。独立 HTTP 136 个断言全部通过，覆盖重启持久性、数据库不可用、暂停恢复及数据 generation 1→2；这是重复分段断言数，不是产品覆盖率。
 - 回收：API、worker、观察器、隔离数据库、应用容器和父组均停止；本次 8GiB 池卸载、loop 脱离、backing/目录删除，实测回收 8,589,934,592 字节，剩余占账 0。早期 4GiB 的即时未知回收已由补充 ext4 核对解除；历史失败和收尾收据均保留。
-- 镜像清理：按标签和完整镜像 ID 核对无容器引用后，仅删除旧 `cloudhelm-reference-backend:p0.2-r1` 与 `cloudhelm-reference-frontend:p0.2-r1`，使用 `image rm --no-prune`；[清理记录](docs/acceptance/p1/development-image-cleanup-r1.json)保留结果。当前验证镜像、固定公共工具链/数据库镜像和内容证据保留，没有全局 prune。
+- 镜像清理：按标签和完整镜像 ID 核对无容器引用后，仅删除旧 `cloudhelm-reference-backend:p0.2-r1` 与 `cloudhelm-reference-frontend:p0.2-r1`，使用 `image rm --no-prune`；清理记录保留结果。当前验证镜像、固定公共工具链/数据库镜像和内容证据保留，没有全局 prune。
 - 进行中：无 P1.2 实现或运行验证任务；本条及固定证据作为收尾文档提交。阻塞与风险：本轮退出无阻塞；支持限于固定受控 WSL 组合，实际人日与后续投入待估。
 - 人工验收：未执行，保持 null；未发布 tag/Release，未合并 main，未进行 s2413 安装、独立交付或 Desktop 验收。
 - 主要文件：`modules/projects/`、`modules/workspaces/`、`modules/delivery/`、`services/dev-runner/`、Hub API/worker、`packages/contracts/p1/`、`scripts/p1/`、`docs/acceptance/p1/`。下一项具体任务：P1.3-01 共享宿主资源准入，当前尚未启动。
@@ -157,17 +168,17 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 
 - R1：候选冻结、只读内容、稳定操作核对及私有 Git refs 已实现；WSL `check_workspace_candidates` 于 `2026-10-17T19:05:21.888720Z` 通过 27 个检查标签。正常采集使用真实 Docker 库存，相关拒绝部分为隔离 fixture；不提供任意宿主编辑器冻结。
 - R2：工作区命令/查询/可信回执、当前版本与权限及 Task 完成/取消 pending 已接入；`check_workspace_application --development --port 55439` 于 `2026-10-17T19:09:04.391355+00:00`～`19:09:21.501612+00:00` 通过并清理。初次文件回执原字节保留，当前 binding 独立递增；尚不由此证明 worker/资源执行链。
-- R3：后端断网构建于 `2026-10-17T19:00:47.093205+00:00`～`19:01:35.735652+00:00` 通过；20 项锁定依赖安装、入口及迁移 head、缓存命中/失效、OCI 和停止事实已核验。[原字节报告](docs/acceptance/p1/validation-development-backend-build-r1.json) SHA-256 为 `df122d1507eadf848b883d2789da0b1b0e3372406ed231b50c2b2ce2796e7f2d`。此前两次发现 native 快照空间不足及检查方法不兼容 FastAPI 惰性路由，修正配方/方法后通过，没有扩大限额。
-- R4：主会话复用并重新核验 npm seed，运行前端方法；`2026-10-17T19:02:38.878904+00:00`～`19:04:28.244261+00:00` 通过断网编译、OCI 各层及最终 dist、缓存拒绝和停止确认。[原字节报告](docs/acceptance/p1/validation-development-frontend-build-r2.json) SHA-256 为 `ed62ac5f1ad54349ea92878977feb99f2ed4a92ac002ef1ac35928c942c74718`，内存峰值 3,111,583,744 字节，121 个跟踪进程全部退出；不包含镜像加载或 HTTP。
-- R5：可配置专用存储提供者 r2 已实现；`verify-pool` 于 `2026-10-17T18:56:25.004726+00:00`～`18:56:27.770514+00:00` 实际验证 64MiB 池的 ENOSPC、停止保留、remount、文件及 backing 回收。[原字节报告](docs/acceptance/p1/validation-development-storage-r2.json) SHA-256 为 `b3ea6d1b1eb5fe7e69403c4d735b984debc263b13eee3761ca0d9ad8c64907ad`；实例已移除，应用写入路径待集成，不扩大到任意容量/主机。
+- R3：后端断网构建于 `2026-10-17T19:00:47.093205+00:00`～`19:01:35.735652+00:00` 通过；20 项锁定依赖安装、入口及迁移 head、缓存命中/失效、OCI 和停止事实已核验。原字节报告 SHA-256 为 `df122d1507eadf848b883d2789da0b1b0e3372406ed231b50c2b2ce2796e7f2d`。此前两次发现 native 快照空间不足及检查方法不兼容 FastAPI 惰性路由，修正配方/方法后通过，没有扩大限额。
+- R4：主会话复用并重新核验 npm seed，运行前端方法；`2026-10-17T19:02:38.878904+00:00`～`19:04:28.244261+00:00` 通过断网编译、OCI 各层及最终 dist、缓存拒绝和停止确认。原字节报告 SHA-256 为 `ed62ac5f1ad54349ea92878977feb99f2ed4a92ac002ef1ac35928c942c74718`，内存峰值 3,111,583,744 字节，121 个跟踪进程全部退出；不包含镜像加载或 HTTP。
+- R5：可配置专用存储提供者 r2 已实现；`verify-pool` 于 `2026-10-17T18:56:25.004726+00:00`～`18:56:27.770514+00:00` 实际验证 64MiB 池的 ENOSPC、停止保留、remount、文件及 backing 回收。原字节报告 SHA-256 为 `b3ea6d1b1eb5fe7e69403c4d735b984debc263b13eee3761ca0d9ad8c64907ad`；实例已移除，应用写入路径待集成，不扩大到任意容量/主机。
 - R6：BuildRun、三角色内容与执行观察、pending 及线性迁移 `0003_p1_2_builds` 已实现；`check_build_records --port 55438` 于 `2026-10-17T19:07:40.694562+00:00`～`19:07:50.671935+00:00` 通过并清理。覆盖真实数据库约束/权限/UoW与合成执行协议，未以合成成功代替 Runner。
 - 主会话已接 HTTP 工程申请/查询与 DBOS 同事务交接；API factory/OpenAPI 可在无数据库 lifespan 下导出。R7 正接真实 worker、完整制品运行及新 InputSet 方法，完整 P1.2 退出尚未判定。
 - 主会话定向回归 `check_foundation --development --group tasks` 于 `2026-10-17T19:37:55.131742+00:00`～`19:38:36.454195+00:00` 通过 32 个 Task 结果键，覆盖新增 pending 汇总后的完成/取消/竞态和真实 worker 控制；夹具 `cloudhelm-p1-0eae1a15ed98` 已清理，非完整 P1.1 重验。当前 OpenAPI 快照核对为 25 路径、27 操作、71 schema；123 个变更公开文本的 UTF-8、103 个 Python AST、9 个 JSON 和 69 个 Markdown 本地链接检查无失败。
-- R7 开发接线：真实 HTTP/同事务入队/单 worker 已跑通来源、Task、文件修改、候选和恢复开发，候选保持不变；[前半链记录](docs/acceptance/p1/validation-development-engineering-candidate-r2.json)及[定向清理记录](docs/acceptance/p1/validation-development-engineering-candidate-cleanup-r1.json)分别保留运行与回收事实。该次存在并行无关构建文件漂移，只作为开发接线证据。
-- R7 制品环境：复用已生成的前后端归档并核验 PostgreSQL 依赖，真实完成三角色加载、迁移/就绪、独立 HTTP、重启持久性、数据库不可用、暂停恢复及数据重建；[原字节报告](docs/acceptance/p1/validation-development-artifact-environment-r1.json)记录全部容器/父组停止删除、池卸载、loop 脱离与 backing 删除，但当次宿主空间增量不足，仍保守占账 4GiB 待核对。此前失败定位并修复了 Docker 29 manifest/config 身份差别、挂载命名空间、PostgreSQL shm、固定镜像的文件权限与内部网络入口；没有将失败写成成功或删除写成额度释放。
+- R7 开发接线：真实 HTTP/同事务入队/单 worker 已跑通来源、Task、文件修改、候选和恢复开发，候选保持不变；前半链记录及定向清理记录分别保留运行与回收事实。该次存在并行无关构建文件漂移，只作为开发接线证据。
+- R7 制品环境：复用已生成的前后端归档并核验 PostgreSQL 依赖，真实完成三角色加载、迁移/就绪、独立 HTTP、重启持久性、数据库不可用、暂停恢复及数据重建；原字节报告记录全部容器/父组停止删除、池卸载、loop 脱离与 backing 删除，但当次宿主空间增量不足，仍保守占账 4GiB 待核对。此前失败定位并修复了 Docker 29 manifest/config 身份差别、挂载命名空间、PostgreSQL shm、固定镜像的文件权限与内部网络入口；没有将失败写成成功或删除写成额度释放。
 - 当前固定运行组合：数据库 UID1000、64MiB shm；后端沿镜像 UID0 且 drop ALL；Nginx master UID0，仅保留 SETUID/SETGID/CHOWN，三服务均只读 root。三服务与迁移处于 896MiB/1.5CPU/256PID 父组，平台控制进程另计；独立验收使用只连当前前端的有界 loopback 入口，不构成 P2 预览或整机容量验收。下一步固定实现提交与新 InputSet，运行完整工程链。
-- 实现提交 `ff8056744a95db3fbf1fc2421afcdbc51eb47e15` 已推送 dev，对应[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/39065135382)成功。InputSet r1 固定 290 文件；首次完整方法的前后输入均匹配，但在 Build 申请前暴露固定前端来源 12 文件与离线配方 10 文件的成员接缝，尚未启动 Builder；[失败原记录](docs/acceptance/p1/validation-p1-2-r1.json)及[8GiB 池清理收据](docs/acceptance/p1/validation-p1-2-r1-cleanup.json)保留。修复仅核验原 Dockerfile/.dockerignore 的固定摘要后选择离线配方输入，未知文件和字节变化继续拒绝；该改动将由新输入重新绑定。
-- 早期环境验证的 4GiB 保守占账已通过[补充只读核对 r2](docs/acceptance/p1/storage-reconciliation-development-r2.json)解除：绑定原报告 SHA-256、原 backing 设备/inode，确认实例与 loop 均消失，ext4 inode 已在原删除之后重新分配且当前 bitmap 空闲、blockcount 为 0；原文件已无分配块。r1 无法排除 inode 复用的核对记录保留，不改写原未知结论。该核对仅说明 WSL ext4 可复用空间，不声称 Windows VHD 文件已缩小。
+- 实现提交 `ff8056744a95db3fbf1fc2421afcdbc51eb47e15` 已推送 dev，对应[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/39065135382)成功。InputSet r1 固定 290 文件；首次完整方法的前后输入均匹配，但在 Build 申请前暴露固定前端来源 12 文件与离线配方 10 文件的成员接缝，尚未启动 Builder；失败原记录及8GiB 池清理收据保留。修复仅核验原 Dockerfile/.dockerignore 的固定摘要后选择离线配方输入，未知文件和字节变化继续拒绝；该改动将由新输入重新绑定。
+- 早期环境验证的 4GiB 保守占账已通过补充只读核对 r2解除：绑定原报告 SHA-256、原 backing 设备/inode，确认实例与 loop 均消失，ext4 inode 已在原删除之后重新分配且当前 bitmap 空闲、blockcount 为 0；原文件已无分配块。r1 无法排除 inode 复用的核对记录保留，不改写原未知结论。该核对仅说明 WSL ext4 可复用空间，不声称 Windows VHD 文件已缩小。
 
 ## 2026-10-17 · school-docs 本地目录忽略
 
@@ -189,7 +200,7 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - OCI 内容层完成单架构归档核验、内容寻址、原子只读保存及同一已核验 fd 的读取；它不管理 BuildRun，不将内容校验写成实际镜像启动。Runner 最终能力报告和八引用 InputSet 已原字节归档到 `docs/acceptance/p1/`。
 - 开发源码版本更新为 `0.2.0`，工作流应用独立更新为 `cloudhelm-hub/0.2.0`；业务迁移为 `0002_p1_2`，SDK 仍为 `3.2.0`。同步根锁文件和当前 OpenAPI 增量，未创建 tag 或 Release。
 - 固定参照导入已交付：从原固定 commit 的子树生成新的受管 bare 初始提交，仅包含 32 个源码文件；原历史、remote、hooks 和独立需求/验收资产不进入新仓库。来源导入意图、当前权限 resolver 和查询已持久化，尚未开放物理 worker 入口或声明已经入队。
-- 固定 Python 基础镜像已通过断网 rootless BuildKit 的实际版本命令、OCI 导出及可信内容存储核对；报告原字节归档为 [离线镜像开发证据](docs/acceptance/p1/validation-development-offline-image-r1.json)。显式执行 tmpfs 合计 1,108,344,832 字节，组内内存峰值 902,615,040 字节；停止后进程/cgroup/容器均确认退出，保留内容另记 136,325,763 字节，不声称宿主归档已获物理磁盘配额。
+- 固定 Python 基础镜像已通过断网 rootless BuildKit 的实际版本命令、OCI 导出及可信内容存储核对；报告原字节归档为 离线镜像开发证据。显式执行 tmpfs 合计 1,108,344,832 字节，组内内存峰值 902,615,040 字节；停止后进程/cgroup/容器均确认退出，保留内容另记 136,325,763 字节，不声称宿主归档已获物理磁盘配额。
 - 已验证的工程基础以 `90d35d1` 提交并成功推送 `origin/dev`；这是 P1.2 中间小步，完整退出条件仍未满足。
 
 ### 进行中
@@ -272,14 +283,14 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - Task 03a/03b 源码已交付：12 张领域/消费事实表、受控字节/摘要登记、完整事实合取、创建/启动/完成/取消/核对/查询、输入失效与原意图关联、两个业务 workflow/step 和持久内部 invocation 去重。WSL 的导入、无 I/O 构造/注册及纯条件检查通过；运行层面已在上述身份组使用真实 Task 创建，其余完成/并发/worker 消费等待本组方法。
 - 主会话新增固定输入、HTTP 快照与分组集成验证入口，维护开发/契约说明；AGENTS.md 和 GitHub 协作说明同步真实 Hub 源码/版本与 CI 覆盖。CI 仍只承担已列结构/源码/契约/参照构建检查，实际 P1 数据库/流程证据单独记录。
 - 两个指定模型代理完成小范围只读交叉审查：身份/项目/API 的当前权、重投和秘密边界，以及共享事务、worker 版本/进程锁/连接预算均未发现具体阻断；没有代替实际运行验证或扩大到完整安全验收。
-- 主会话于 `2026-10-14T20:29:20.704567+00:00～20:30:18.682270+00:00` 执行 `scripts.p1.check_foundation --development --group runtime`，7 项运行入口检查通过：双 API 存活且没有 worker 连接/版本写入、单 worker/重复实例拒绝/SIGTERM 后实际重启、连接预算采样、恢复与版本门禁及基线恢复。[开发运行结果](docs/acceptance/p1/validation-development-runtime-r1.json) 明确 `complete_scope=false`、未冻结工作树；不是最终候选全组结论。fixture `cloudhelm-p1-85f2161c6b06` 已清理。
-- 主会话于 `2026-10-14T20:33:49.644281+00:00～20:34:53.022186+00:00` 执行 `scripts.p1.check_foundation --development --group identity`，18 项真实维护/身份/HTTP 检查通过，使用真正 developer Task 创建命令验证当前权先于原结果、角色/用户撤销与原主体恢复；未伪造成功命令。[开发身份结果](docs/acceptance/p1/validation-development-identity-r1.json) 同样是未冻结工作树的部分覆盖，fixture `cloudhelm-p1-4ba64c2acbc3` 已清理。
-- 主会话于 `2026-10-14T21:13:22.104213+00:00～21:14:00.545837+00:00` 执行 `scripts.p1.check_foundation --development --group tasks`，32 项 Task 检查通过：五处真实写入/公开 SDK 后故障整体回滚、完成来源/固定报告、七场双控制池竞争、unknown/合成封闭、真实 initial/control 消费及业务 step 重投。没有伪造成功命令、HTTP 或 worker；合成事实仅证明控制协议。[开发 Task 结果](docs/acceptance/p1/validation-development-tasks-r1.json) 的 fixture `cloudhelm-p1-45f4ed06f6bd` 已清理，尚不替代最终固定候选全组结果。
+- 主会话于 `2026-10-14T20:29:20.704567+00:00～20:30:18.682270+00:00` 执行 `scripts.p1.check_foundation --development --group runtime`，7 项运行入口检查通过：双 API 存活且没有 worker 连接/版本写入、单 worker/重复实例拒绝/SIGTERM 后实际重启、连接预算采样、恢复与版本门禁及基线恢复。开发运行结果 明确 `complete_scope=false`、未冻结工作树；不是最终候选全组结论。fixture `cloudhelm-p1-85f2161c6b06` 已清理。
+- 主会话于 `2026-10-14T20:33:49.644281+00:00～20:34:53.022186+00:00` 执行 `scripts.p1.check_foundation --development --group identity`，18 项真实维护/身份/HTTP 检查通过，使用真正 developer Task 创建命令验证当前权先于原结果、角色/用户撤销与原主体恢复；未伪造成功命令。开发身份结果 同样是未冻结工作树的部分覆盖，fixture `cloudhelm-p1-4ba64c2acbc3` 已清理。
+- 主会话于 `2026-10-14T21:13:22.104213+00:00～21:14:00.545837+00:00` 执行 `scripts.p1.check_foundation --development --group tasks`，32 项 Task 检查通过：五处真实写入/公开 SDK 后故障整体回滚、完成来源/固定报告、七场双控制池竞争、unknown/合成封闭、真实 initial/control 消费及业务 step 重投。没有伪造成功命令、HTTP 或 worker；合成事实仅证明控制协议。开发 Task 结果 的 fixture `cloudhelm-p1-45f4ed06f6bd` 已清理，尚不替代最终固定候选全组结果。
 - 主会话核对 99 个本轮工程文件，其中 94 个 Python 语法及 1 个 JSON 通过；工作树差异格式通过。再次 fetch 后 `dev` 与 `origin/dev` 仍同为入口 `8c81ea74686a738b0ba1ec5ca26352304ff88d36`，GitHub 仍为公开 `ChaceQC/CloudHelm`、默认分支 main。
 - 暂存审查限定本任务 113 个文件，UTF-8、入库范围和凭据形态检查通过；清除首迁移末尾一个多余空行后，暂存差异检查通过。该格式修正不改变迁移语句或运行行为。
 - 实现与方法提交 `43a04f7abe36faf49233ccc4267b657ff7ba99a0` 已正常推送 origin/dev；对应[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/38640037561) 为 completed/success，全部工作流步骤成功。该 CI 只覆盖既定结构/源码/契约/参照构建范围。
-- [P1.1 InputSet r1](docs/acceptance/p1/input-set-p1-1-r1.json) 于 `2026-10-14T21:25:46+00:00` 固定上述源码的 125 个公开输入，清单 SHA-256 为 `ab48769593b9ccf86d2371e14c93af10a10e53723c9670eadab4c658fbbab691`。没有改写旧 P0 InputSet。
-- [最终四组结果](docs/acceptance/p1/validation-p1-1-r1.json) 于 `2026-10-14T21:27:40.091129+00:00～21:30:19.409940+00:00` 完成：database 4、identity 18、tasks 32、runtime 7，共 61 个有限检查结果键全部 true；`complete_scope=true`，运行前后 125 个输入与源码/清单匹配，`cleanup=complete`。这些键包含组合断言，不当作独立用户验收场景数或覆盖率。
+- P1.1 InputSet r1 于 `2026-10-14T21:25:46+00:00` 固定上述源码的 125 个公开输入，清单 SHA-256 为 `ab48769593b9ccf86d2371e14c93af10a10e53723c9670eadab4c658fbbab691`。没有改写旧 P0 InputSet。
+- 最终四组结果 于 `2026-10-14T21:27:40.091129+00:00～21:30:19.409940+00:00` 完成：database 4、identity 18、tasks 32、runtime 7，共 61 个有限检查结果键全部 true；`complete_scope=true`，运行前后 125 个输入与源码/清单匹配，`cleanup=complete`。这些键包含组合断言，不当作独立用户验收场景数或覆盖率。
 - [P1.1 记录](docs/acceptance/p1/p1-1.md) 已逐项映射 P1.1-01～03 的实现、契约、使用说明和固定候选证据；计划修订 12、支持矩阵 r4 已同步。本轮工作包无未完成实现或开发验证项，下一待启动为 P1.2-01；实际人日和剩余总量待估，不按代理墙钟折算。
 
 ### 进行中
@@ -322,7 +333,7 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 主会话核对两个方法和私有快照的当前 SHA-256 与报告相符，同步拓扑索引、支持矩阵 r3、参照规格 r2 和只读使用说明；新增 `closure_manifest.py`，准备独立收尾清单及历史来源核对，不修改旧 InputSet。
 - G03a [最终覆盖复核](docs/acceptance/p0/remaining-scope-review-r1.md) 已完成：15 个工作包与 5 条出口均接入 G01/G02，未发现剩余 P0 准备方案缺口或新增权威冲突。该审查不代填最终来源绑定、CI 或统一裁决。
 - 源码与决定提交 `2a371501cf93b7ef7547bbd0581830719fa97138` 已正常推送 origin/dev；其[仓库验证 / check](https://github.com/ChaceQC/CloudHelm/actions/runs/38611170547) 为 completed/success。该 CI 覆盖既有结构/UTF-8/锁/语法/契约/OpenAPI/前端构建，不代替环境/部署或人工验收。
-- [收尾 InputSet](docs/acceptance/p0/input-set-closure-r1.json) 于 `2026-10-14T17:59:17+00:00` 固定该源码的 75 个公开输入；[最终结果](docs/acceptance/p0/validation-closure-r1.json) 于 `2026-10-14T18:00:44+00:00` 完成来源绑定。当前字节均匹配，四份历史清单的 20/25/36/62 条记录与各自源码一致；原 r1 的 17 条摘要因未记录 source_commit 保留该限制，不补造来源。
+- 收尾 InputSet 于 `2026-10-14T17:59:17+00:00` 固定该源码的 75 个公开输入；最终结果 于 `2026-10-14T18:00:44+00:00` 完成来源绑定。当前字节均匹配，四份历史清单的 20/25/36/62 条记录与各自源码一致；原 r1 的 17 条摘要因未记录 source_commit 保留该限制，不补造来源。
 - 冻结后 `2026-10-14T18:00:39Z～18:00:42Z` 的参照核验仍为 36 个固定文件、14 文件历史来源和 52 个映射字段，原解析器实际拒绝 mem_limit，产品部署支持仍为 false。采集器、私有白名单 JSON、G01b 决定和独立审查的摘要与记录一致；没有重采拓扑或重跑历史接缝。
 - [出口评审 r2](docs/acceptance/p0/exit-review.md) 完成 5 条当前准备出口裁决，P0 当前范围无剩余工作包。计划修订 10 指向下一待启动的 P1.1-01；累计实际人日及后续产品实施/取证量仍待估，不将代理墙钟或 P0 方案决定当作已完成的产品工作。
 
@@ -393,7 +404,7 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 第一批提交 `e493db2a40e3f5833ecd0a4350d965484af0d6af` 已正常推送 dev，[仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/38556156274) completed/success。它只对应该提交和当时 CI 覆盖范围；后续集成输入另行固定。
 - 用户补充 Hub 与开发 Runner 也使用 `s2413`。已在拓扑/参照规格/支持矩阵明确记录同机组合与单宿主计量，现有交付候选不再被当作相对 Hub 的独立机器；另台正式交付目标与真实配额/网络/注册证据仍待后续安排。未执行 s2413 安装、部署或配置变更。
 - 第二批迁移查询、Task 完成取消、预览访问已分别交付；主会话核对跨域字段，补上计划/配置修订/许可起始状态的一致性检查，导出包含 76 个定义的 JSON Schema。已准备只读 InputSet 冻结与统一窄检查入口，并将该入口接入既有“仓库验证 / check”；工作流范围说明同步更新，业务/原生/部署验收范围不扩大。
-- 最终源码 `c8b5dfbc4aa554b943934548f192603739984636` 已正常推送 dev，其 [仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/38558633071) completed/success。[本轮 InputSet](docs/acceptance/p0/input-set-decisions-r1.json) 于 `2026-10-14T11:44:39+00:00` 固定 62 个公开输入，再于 `2026-10-14T11:45:50+00:00` 取得 [最终结果](docs/acceptance/p0/validation-decisions-r1.json)：7 个模块、83 项固定检查全部通过，源码/清单/当前字节一致。
+- 最终源码 `c8b5dfbc4aa554b943934548f192603739984636` 已正常推送 dev，其 [仓库验证](https://github.com/ChaceQC/CloudHelm/actions/runs/38558633071) completed/success。本轮 InputSet 于 `2026-10-14T11:44:39+00:00` 固定 62 个公开输入，再于 `2026-10-14T11:45:50+00:00` 取得 最终结果：7 个模块、83 项固定检查全部通过，源码/清单/当前字节一致。
 - [统一出口评审](docs/acceptance/p0/exit-review.md) 已逐项覆盖 P0.3、三组接缝/六卡、计划出口和 R21～R27，并记录第一次重估。P0.3 本轮决定/契约工作无剩余；人工人日未统计，可核验环境/验证窗口为 `2026-10-14T10:56:23Z～11:45:50Z`，不将代理墙钟折算人日。原 P0 5～8 人日的直接复用/现成资产/拓扑前提不全部成立，新总量及统一出口剩余保持待估。
 
 ### 进行中
@@ -430,7 +441,7 @@ P0 已按用户选定的 s2413 同机准备范围结项，P1.1 保留既有交�
 - 核对基线为干净的 `dev / 009863bb268af106c453b0ef6443d8842ecd0923`，确认三项审查与实际代码一致。计划修订 6 明确 P0.1 完整出口未闭合，保留 P0.2 准备/冻结完成状态。
 - 实施前记录原因和影响范围：旧恢复只重取完成结果，失败检查点未消费输入，断流通过条件过宽。预期保持当前业务身份、权限/费用不变量和历史证据，仅补齐新方法与组合证据。
 - 五项方法已集成。WSL 锁定环境完成 25 个公开输入的 UTF-8/AST 和五个方法模块导入，无数据库或供应商出站；差异格式检查通过。SDK 结构化夹具按锁定版本的 `final_result` 工具输出修正，窄解析核对通过。
-- 源码提交 `e7eded85a1ad24fbbcd1abc227cb667f94abda8f` 已推送 dev；新 [InputSet](docs/acceptance/p0/input-set-a02-r1.json) 于 `2026-10-14T04:09:51+00:00` 固定 25 个公开输入，再执行对应组合验证。完整结果见 [A02](docs/acceptance/p0/A02.md)。
+- 源码提交 `e7eded85a1ad24fbbcd1abc227cb667f94abda8f` 已推送 dev；新 InputSet 于 `2026-10-14T04:09:51+00:00` 固定 25 个公开输入，再执行对应组合验证。完整结果见 [A02](docs/acceptance/p0/A02.md)。
 - 四个 worker SIGKILL/同 executor 恢复场景通过：原 workflow/固定实验 Run 恢复、屏障 attempts=2；允许场景新 HTTP 1 次并取得 200/完整流/usage，取消、撤权、预算不足各 HTTP 0 次。旧 scope 修订不自动升级；合成 unknown 0.100 USD 保留。
 - 消费合成 canary/25 MiB 后的异常安全验证、六组 SDK 二次请求门禁、14 个严格断流判定及 r2 真实流全部通过。r2 两场景各准确两请求、一 Operation/一 effect/counter=1；第二响应 200 后指定 ReadError、未完成流、缺失 usage 和 unknown 预留被严格核对。
 - 实际新供应商 HTTP 合计 5 条；四条已知计算金额合计 0.0000817 USD，一条 unknown 保留 0.016768 USD，账单均为 null。旧 A01 四个原 ID 与一条 unknown 仍在；夹具和合成预算 hold 不混入供应商统计。

@@ -119,4 +119,4 @@ HTTP 快照核对不进入服务 lifespan，不读取凭据或连接数据库：
 $UV run --locked python -m scripts.p1.check_public_contracts
 ```
 
-原 `check_foundation` 四组全流程、Task 故障/竞争和相应夹具不再常驻当前分支。需要复核旧结果时，按 InputSet 的 `source_commit` 独立检出，见 [历史方法复现](p0-seams.md#取回历史方法)。保留检查及其实际范围见[精简验证入口](checks.md)；本次删减不构成当前业务流程重验。
+原 `check_foundation` 四组全流程、Task 故障/竞争和相应夹具不再常驻当前分支。需要复核旧结果时，先从 Git 查询原 InputSet，再按候选绑定独立检出，见 [历史方法复现](p0-seams.md#取回历史方法)。保留检查及其实际范围见[精简验证入口](checks.md)；本次删减不构成当前业务流程重验。

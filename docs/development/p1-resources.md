@@ -34,6 +34,6 @@ $UV run --locked python -m modules.execution.cli stop --registration-file /priva
 
 本适配器只执行配置固定、只读根、断网、无宿主卷的 scratch 资源组；`/work` 与 `/dev/shm` 总字节硬限同时受父组内存/PID/CPU 硬限约束。现有 P1.2 构建、持久数据和缓存不自动变成该池的受管写入者；通用后端必须先补齐覆盖全部写入路径的适配与重新核验，不共用未经登记的空闲额度。
 
-历史 `check_resources` 的 PostgreSQL/SQLite/cgroup 整套方法及专用夹具已从当前分支删除。实际结果与固定输入继续见 [P1.3-01 记录](../acceptance/p1/p1-3-01.md)，复现时按 InputSet 的 `source_commit` [独立检出](p0-seams.md#取回历史方法)。
+历史 `check_resources` 的 PostgreSQL/SQLite/cgroup 整套方法及专用夹具已从当前分支删除。[P1.3-01 记录](../acceptance/p1/p1-3-01.md)保留实际结果与支持限制；原始 JSON 从 Git 查询，复现时按输入和方法绑定[独立检出](p0-seams.md#取回历史方法)。
 
 当前决定契约检查保留资源准入、未知调整与物理释放的纯函数边界，命令见[精简验证入口](checks.md)；它不运行实际容器、内核限额或共享宿主竞争，不能替代历史物理方法。P1.3-02 的调整、分维释放、磁盘保留和 Compose 解析，以及 s2413/独立机器/原生和人工验收仍有各自前置。

@@ -16,6 +16,6 @@ uv run --locked --offline --no-sync python -B -m scripts.p0.check_decisions
 
 ## 收尾输入与历史证据
 
-历史 InputSet、结构快照与报告不修改。原 `decision_manifest`、`closure_manifest` 及 `check_decisions --input-set` 冻结/验重包装已从当前分支删除；当前命令只运行工作树中的精简检查，不创建或验证历史验收结论。
+当前结构快照继续维护，历史 InputSet 与运行报告已从当前树移除，原字节从 Git 查询。原 `decision_manifest`、`closure_manifest` 及 `check_decisions --input-set` 冻结/验重包装已从当前分支删除；当前命令只运行工作树中的精简检查，不创建或验证历史验收结论。
 
-需要重现旧固定候选时，使用相应 InputSet 的 `source_commit` 建立独立检出，具体方法见 [P0 历史复现](p0-seams.md)。方法或代码变化不沿用旧通过状态。其它常驻检查及其覆盖限制见[精简验证入口](checks.md)。
+需要重现旧固定候选时，先从删除前提交查询相应 InputSet，再按候选绑定建立独立检出，具体方法见 [P0 历史复现](p0-seams.md)。方法或代码变化不沿用旧通过状态。其它常驻检查及其覆盖限制见[精简验证入口](checks.md)。

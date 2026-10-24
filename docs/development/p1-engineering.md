@@ -55,7 +55,7 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 
 当前保留 Git 文件视图、OCI 内容边界、数据库基础及独立参照 HTTP 检查，具体命令与范围见[精简验证入口](checks.md)。运行时存储维护仍调用的 `probe_development_storage` 保留。
 
-原 `engineering_storage_fixture`、工程链、可变环境全方法、Task 控制与后端缓存重验脚本及专用夹具已移除；真实 HTTP/worker/构建、容器恢复和故障场景不再由当前常驻测试覆盖。原输入和结果继续见 [P1.2 证据索引](../acceptance/p1/p1-2.md)，完整方法按其 `source_commit` 独立检出。新行为变化仍需相应新证据，不能以旧通过结果替代。
+原 `engineering_storage_fixture`、工程链、可变环境全方法、Task 控制与后端缓存重验脚本及专用夹具已移除；真实 HTTP/worker/构建、容器恢复和故障场景不再由当前常驻测试覆盖。[P1.2 退出摘要](../acceptance/p1/p1-2.md)保留结果和支持限制，原始输入与运行 JSON 从 Git 查询，完整方法按候选绑定[独立检出](p0-seams.md#取回历史方法)。新行为变化仍需相应新证据，不能以旧通过结果替代。
 
 ### 5.2 可变环境语义
 
