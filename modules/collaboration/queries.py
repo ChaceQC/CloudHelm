@@ -6,7 +6,7 @@ from modules.collaboration.command_support import visible_blockers
 from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.fact_reads import FactReader, bounded_rows
 from modules.collaboration.facts import (
-    load_cancellation_facts, load_task_control_facts, read_control_head, read_declaration,
+    project_cancellation_facts, project_task_control_facts, read_control_head, read_declaration,
 )
 from modules.collaboration.records import reference_key
 from modules.collaboration.tables import work_items
@@ -14,18 +14,18 @@ from packages.contracts.p0.task_control_contracts import cancellation_readiness
 from packages.contracts.p1.task_results import TaskBlocker, TaskView, WorkItemView
 
 
-def _control_blockers(context):
+def _control_blockers(context, declaration, head):
     task = context.task
     if task["state"] in {"completed", "cancelled"}:
         return ()
     if task["cancel_requested_at"] is not None:
-        decision = cancellation_readiness(load_cancellation_facts(context.uow.connection, task["task_id"]))
+        decision = cancellation_readiness(project_cancellation_facts(context.uow.connection, task, head))
         if decision.outcome == "cancellation_eligible":
             return ()
         blocks = tuple(TaskBlocker(code=decision.code, object_kind="operation", object_id=identity)
                        for identity in decision.blocking_operation_ids)
         return blocks or (TaskBlocker(code=decision.code, object_id=task["task_id"]),)
-    return load_task_control_facts(context.uow.connection, task["task_id"]).blockers
+    return project_task_control_facts(context.uow.connection, task, declaration, head).blockers
 
 
 def task_view(context) -> TaskView:
@@ -51,7 +51,7 @@ def task_view(context) -> TaskView:
             required=row["required"], goal=row["goal"], blocked_reason=row["blocked_reason"],
             accepted_input_set_ref=accepted_ref,
         ))
-    blockers = tuple(dict.fromkeys((*_control_blockers(context), *reader.blockers)))
+    blockers = tuple(dict.fromkeys((*_control_blockers(context, declaration, head), *reader.blockers)))
     if len(blockers) > 128:
         raise TaskBoundaryError("task_fact_projection_scope_too_large")
     return TaskView(

@@ -184,6 +184,18 @@ def load_task_control_facts(connection: Connection, task_id: str) -> TaskControl
     """
     task = read_task(connection, task_id, for_update=True)
     declaration = read_declaration(connection, task)
+    return project_task_control_facts(connection, task, declaration, read_control_head(connection, task))
+
+
+def project_task_control_facts(
+    connection: Connection, task: Mapping[str, Any], declaration: TaskDeclaration, head: TaskControlFacts,
+) -> TaskControlSnapshot:
+    """Reuse inputs read under this transaction's Task lock; always read live facts anew.
+
+    The caller must keep the same row lock and versions, with no intervening writes.
+    These inputs belong to this call, never a request or workflow-step cache.
+    """
+    task_id = task["task_id"]
     reader = FactReader(connection, task["project_id"], task_id)
     inputs = read_completion_inputs(reader, task, declaration)
     acceptance = read_acceptance_facts(reader, task, inputs)
@@ -198,7 +210,7 @@ def load_task_control_facts(connection: Connection, task_id: str) -> TaskControl
         } or not operation.effects_recorded or operation.closure_evidence_ref is None):
             reader.block("writes_unsettled", operation.operation_ref.object_id, "operation")
     basis = _completion_basis(reader, inputs, acceptance, human, operations, task["input_validity_revision"])
-    data = read_control_head(connection, task).model_dump()
+    data = head.model_dump()
     data.update(
         basis=basis, input_current=inputs.current,
         required_work_items_accepted=acceptance.required_work_items_accepted,
@@ -215,10 +227,18 @@ def load_task_control_facts(connection: Connection, task_id: str) -> TaskControl
 def load_cancellation_facts(connection: Connection, task_id: str) -> TaskControlFacts:
     """Cancellation needs physical closure and history, not a completed delivery input."""
     task = read_task(connection, task_id, for_update=True)
+    return project_cancellation_facts(connection, task, read_control_head(connection, task))
+
+
+def project_cancellation_facts(
+    connection: Connection, task: Mapping[str, Any], head: TaskControlFacts,
+) -> TaskControlFacts:
+    """Reuse the same locked row/control head only; re-read physical closure and history."""
+    task_id = task["task_id"]
     reader = FactReader(connection, task["project_id"], task_id)
     operations = _read_task_operation_projection(connection, task, None, for_cancellation=True)
     history_fenced, usage_unknown = _run_history(reader, task)
-    data = read_control_head(connection, task).model_dump()
+    data = head.model_dump()
     data.update(operation_set_current=True, operations=operations,
                 run_history_saved_and_fenced=history_fenced, unknown_model_usage_present=usage_unknown)
     return TaskControlFacts.model_validate(data)

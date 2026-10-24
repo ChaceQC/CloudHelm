@@ -119,6 +119,8 @@ class ProjectApplication:
         with UnitOfWork(self.engine) as uow:
             resource = _target_and_locks(uow, actor, project_id, request)
             authorization = authorize_current(uow, actor, resource, "project.manage")
+            # Keep the separate read decision/audit for the returned projection.
+            # T-SIM-07b retains both actions; policy does not imply one from the other.
             authorize_current(uow, actor, resource, "resource.read")
             project = uow.connection.execute(select(projects).where(
                 projects.c.project_id == project_id,
