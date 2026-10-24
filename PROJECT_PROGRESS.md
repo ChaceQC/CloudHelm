@@ -2,6 +2,20 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-24：源码简化专项 T-SIM-01
+
+- 原因与授权：用户要求根据文档快速完成 T-SIM-01，不使用子代理、不做大量测试。入口 `dev / 77634686287b1c7a65bb667cfdd0bf3fd1ef1efc`，工作树干净；本轮开放 01a～01d，由主会话执行。
+- 重构范围与预期行为：将 npm 种子从历史探针目录扫描改为固定内容身份直达；复用既有 npm/Python 有界下载与只读发布，增加唯一可信维护命令及显式旧 npm 导入。保留注册字段、锁字节、离线构建、存储准入与复制后验证；不更改业务状态、DBOS 步骤、正式验收资产或其它 T-SIM 工作包。
+- 已完成：01a 固定内容身份、受控位置、来源及维护权限；01b 增加唯一维护入口 `engineering_seed_maintenance` 的 `prepare`/`verify`/`import-legacy`，复用既有 npm/Python 有界下载与逐项摘要验证，Python 新准备先验证只读暂存再以 no-replace 原子发布；01c 构建经既有 `prepare_build_seeds` 接缝按固定身份读取，保留实际存储准入、原子复制及复制后验证；01d 显式旧 ID 导入并退役 `_find_npm_seed` 的历史目录扫描，开发说明可从无探针目录开始。Python 保留原内容键和所有既有消费者，不引入通用缓存框架。
+- 环境与固定输入：WSL Ubuntu-24.04，仓库 `/mnt/e/Project/CloudHelm`，UID 1000，Python 3.12.13/uv 0.11.29、Docker 29.1.3；本轮开始时未列出运行容器，不能据此证明无持久引用。npm ID `npm-seed-72117acaa92f3ff38c200f28e222b8f7bf37d47f2e9bdef42b1741676f0dbe7f`，正式准备清单 `sha256:fb39c80c89e9c0faeb0c268c7971dbc7bd24fd77d96b87bf466001454c7762b5`；Python key `24c0cd1fc33538a10d6ee316b64c85b2fdd4ad28111cbed58de4db9ac637a26b`，清单 `sha256:822d94202c746eb5c9f0b56c7ace295c85b0f32099be318ca95b4756b56e1f89`。源锁摘要仍为 npm `21b2a52e6e77526a24821f558a7a34b7b02766a0917c5a95d980f879c88e4ad4`、Python `ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2`；正式 r1 资产、InputSet、源码/工作流应用/迁移版本不改写。
+- 自动验证：WSL 执行 `.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance prepare`，在全新的正式 npm 根取得 119 个 tarball、122 文件、139,166,275 字节；Python 核验并复用既有 20 个 wheel、106,618,246 字节。`verify` 离线通过，重复 `prepare` 两类内容均复用且零下载；实际 CLI `import-legacy --npm-probe-id npm-check-d31e8406b1784f9ca2dfc1b9b62176ea` 核验旧内容后保留新正式副本，原目录保留。
+- 定向方法：本轮一次性方法 `.thesis-work/t-sim-01/verify.py`（不入库），SHA-256 `010efdab03456ac7bbbd0ced26c12de58402a7c88267c34698d2f669fa86fd66`；WSL 以 UID 1000 执行 `checks`，隔离临时目录中首次旧内容导入/复制后核验、重复导入、缺失/损坏拒绝、损坏不自动修复及越界 ID 拒绝均通过。运行记录从 `2026-10-24T11:45:03Z` 开始；复制目录 fsync 收尾后在 `2026-10-24T11:48:13Z` 用最终版重跑该窄范围检查。构建消费的 tarball、清单、源锁、配方与构建运行时代码均未因 fsync 收尾改变；离线构建证据只复用于这些相同输入，不扩大为最终工程全链路通过。
+- 真实执行：同一方法的 `root` 进入 Docker daemon 挂载命名空间，创建本任务专属 1GiB 实例 `dev-storage-3971ff4bbe27463bb2acb26d66546072`；经真实 `EngineeringRegistry.admit` 复制并核验 npm/Python，再次调用复用。仅在该新副本中放入旧 npm 清单，证明正式新种子与旧已准入副本内容等价、旧摘要保留。随后调用现有 `build_frontend` 完成一条真实离线构建：Node 22.23.2/npm 10.9.8、种子只读、`network=none`、无 IPv4 路由、控制面路径不可见，OCI 归档 26,081,792 字节，内容及出口身份核验通过，`all_required_verified=true`。manifest `sha256:40d5caf905d3d476b151d025a4ff71ff1ea4155383cdbf87e46468075d1fea81`；原始报告 `/home/cloudhelm/.local/state/cloudhelm/t-sim-01-frontend-report.json`，SHA-256 `889aa5f201f6006a43f2e9ee7f7c6c37654a29d4a6950c1ecaf8e5e9d13c2b9c`。
+- 收尾与静态检查：构建器观察到 130 个受跟踪进程，停止后剩余 0、cgroup 空且容器移除；`2026-10-24T11:47:31Z` 原维护入口确认新临时实例已卸载、loop 分离、backing/目录移除，实际回收 1,073,741,824 字节，剩余占账 0。没有加载新的交付镜像或清理其它项目镜像。8 份改动文件 UTF-8、5 份 Python AST 及 `git diff --check` 通过；未改正式独立资产。Python 依赖模块 409 个物理行，包含现有锁解析/获取/验证边界，解析替换归 T-SIM-02，本轮保持职责以避免无关拆分；其余改动源码 112～182 行，没有超过 60 行的函数。
+- 进行中：无；01a～01d 已完成本轮实现与定向开发验证。
+- 阻塞与风险：本任务范围无阻塞；旧缓存、backing 和持久操作引用尚未全面核对，全部保留。新增 npm manifest 含真实准备时间，内容身份由固定 spec、锁与逐包摘要决定，构建继续绑定实际不可变副本摘要。未重跑后端完整构建、开发环境快照、HTTP/worker/数据库全链路及历史全量测试；Python 既有种子逐字节复用，不宣称本轮重新从零下载或重验完整安装。共享资源、独立机器、原生 Desktop 和人工验收仍按原计划待交付。
+- 主要文件：`services/dev-runner/engineering_seeds.py`、`engineering_registry.py`、`npm_downloads.py`、`python_dependencies.py`、`engineering_seed_maintenance.py`、`docs/development/p1-engineering.md`、本计划与进度。下一项具体任务：后续承接 T-SIM-02a，确定成熟工具的依赖闭包/wheel 清单取得方式；本轮止于 01，不自动开放 02 或 P1.3-02。实际投入及剩余工作量待估，人工验收未执行。
+
 ## 2026-10-24：源码简化专项 T-SIM-00
 
 - 原因与授权：用户要求直接执行 T-SIM-00，将已讨论的源码简化改进方案落为任务计划及兼容/验证边界。入口 `dev / 9a67e26ef45992573dd23a8f48745f6d9bb058e4`，工作树干净；只负责 `PROJECT_PLAN.md` 和本文件，由主会话执行。

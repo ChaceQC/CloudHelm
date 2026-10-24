@@ -49,6 +49,37 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 
 前后端构建固定配方、锁、Linux/amd64 工具链和已核验下载物；沙箱断网、使用私有可写缓存。BuildRun 保存 frontend/backend/postgres 三角色归档，内容核验与真实执行终结、加载身份分别登记。Docker 29 containerd 的实际 image ID 为 manifest digest，OCI config digest 单独保留。环境运行固定镜像，不将源码交给目标临时构建。
 
+### 4.1 固定依赖种子准备
+
+在启动工程 worker 前，由可信维护者以 WSL 本机 `cloudhelm` 用户（UID 1000）执行以下命令。入口只准备固定便签参照，不接受自定义下载源、工具命令或宿主目标目录；不经 HTTP 开放。它不读取供应商或应用配置，输出只包含无秘密的内容身份、摘要、数量、字节和复用状态。
+
+```bash
+cd /mnt/e/Project/CloudHelm
+.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance prepare
+.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance verify
+```
+
+`prepare` 可在没有任何历史探针目录的环境运行。npm 仅从固定锁指定的 `registry.npmjs.org` 匿名 HTTPS 下载，Python/uv 仅从固定的 `files.pythonhosted.org` wheel 地址下载；拒绝重定向，沿用既有大小、时限与摘要校验。完成后先校验只读暂存内容，再原子发布到固定身份；重复准备核验并复用，不重新下载。已存在的损坏内容拒绝，不自动覆盖或隐式修复；维护者须先核对引用，再另行安排处置。
+
+|注册引用|固定定位及内容身份|边界|
+|---|---|---|
+|`reference-notes-npm-r1`|`/home/cloudhelm/.local/state/cloudhelm/engineering-seeds/npm/<npm_seed_id(NpmDownloadSpec)>`；spec 固定项目 `reference-notes`、信任域 `controlled-development`、锁、平台及 npm 安装选项|119 个 tarball、122 个文件；tarball 合计至多 256MiB，另含固定输入及至多 1MiB 清单|
+|`reference-notes-python-r1`|`/home/cloudhelm/.local/state/cloudhelm/python-dependency-seeds/<PythonDependencyInput.cache_key>`；保留现有项目/信任域、Python/uv、基镜像及锁身份|至多 32 个依赖 wheel，单下载至多 64MiB，含 uv 的最终种子至多 256MiB；只允许 wheel|
+
+上述为逻辑下载/内容上限，不是物理磁盘配额。原有开发存储准入仍负责构建副本的实际占用；种子准备不会清理旧缓存、运行记录或 backing。下载中断遗留的私有暂存也需按原引用核对，不能直接清空整个目录。
+
+构建按固定身份直达种子，只读核验，不扫描 `npm-check-*`，不调用准备命令，不因缺失或损坏而联网。种子复制到已准入开发存储后再次验证；构建固定实际副本的清单摘要。npm 清单的准备时间可不同，但锁、逐包来源/内容及其余清单字段必须一致，旧副本保持原字节与原摘要。Python 的固定路径和内容身份沿用现有规则，既有开发环境/快照消费者继续使用同一登记。
+
+`verify` 不创建目录或下载；npm 缺失返回 `engineering_npm_seed_unavailable`，存在但校验失败返回 `engineering_npm_seed_invalid`。Python 缺失返回 `python_dependency_seed_unavailable`，损坏返回既有内容/边界错误或 `python_dependency_seed_invalid`；错误不会变成成功回执。
+
+已有历史 npm 种子的机器可选择一次性导入，维护者须显式提供已核对的目录 ID：
+
+```bash
+.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance import-legacy --npm-probe-id npm-check-<32位小写十六进制ID>
+```
+
+入口只接受该 ID 格式，从原受控根下读取一个 `cache`，核对历史固定 manifest `sha256:1763287887271b7713a4d0764739b73bf592d37b6cab85535546d0b3f15c98d0`、锁与全部 tarball，复制后重新核验。Python 已按内容键定位，只验证并复用；缺失时先执行 `prepare`。已准备的新 npm 内容若等价则保留新副本，不覆盖其准备时间。导入不联网、不扫描、不删除原目录，重复执行复用同一内容。该历史 ID 只用于显式迁移，不再作为构建配置。
+
 ## 5. 定向开发验证
 
 ### 5.1 验证入口

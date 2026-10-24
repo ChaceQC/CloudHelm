@@ -20,8 +20,7 @@ from .development_storage import DevelopmentStorage
 REGISTRY_ENV = "CLOUDHELM_ENGINEERING_REGISTRY_FILE"
 SCOPE = "cloudhelm-wsl-controlled-development-r1"
 REPOSITORY = Path(__file__).resolve().parents[2]
-NPM_DOWNLOAD_ROOT = Path("/home/cloudhelm/.local/state/cloudhelm/npm-download-seed")
-NPM_MANIFEST = "sha256:1763287887271b7713a4d0764739b73bf592d37b6cab85535546d0b3f15c98d0"
+NPM_DOWNLOAD_ROOT = Path("/home/cloudhelm/.local/state/cloudhelm/engineering-seeds/npm")
 
 
 class EngineeringRegistryError(ValueError):

@@ -21,7 +21,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from uuid import uuid4
 
-from modules.workspaces.safe_paths import PrivateRoot, directory_at, read_regular
+from modules.artifacts.content_files import publish_directory
+from modules.workspaces.safe_paths import PrivateRoot, WorkspaceFileError, directory_at, read_regular
 
 from .offline_images import SOURCE_DIGEST
 from .toolchain import ProbeFailure, private_directory
@@ -253,7 +254,7 @@ def _manifest(inputs: PythonDependencyInput, wheels: list[dict], binary: bytes) 
 
 def _checked_file(path: Path, digest: str, size: int) -> None:
     state = path.lstat()
-    if (not stat.S_ISREG(state.st_mode) or state.st_uid != os.getuid()
+    if (not stat.S_ISREG(state.st_mode) or state.st_uid != os.getuid() or state.st_nlink != 1
             or state.st_mode & 0o222 or state.st_size != size):
         raise ProbeFailure("python_dependency_seed_file_boundary_invalid")
     with path.open("rb") as stream:
@@ -267,6 +268,18 @@ def verify_seed(path: Path, inputs: PythonDependencyInput, *,
     inputs.require_supported()
     if path != CACHE_ROOT / inputs.cache_key:
         raise ProbeFailure("python_dependency_seed_key_mismatch")
+    if not os.path.lexists(path):
+        raise ProbeFailure("python_dependency_seed_unavailable")
+    try:
+        return _verify_seed_contents(path, inputs, source_files=source_files)
+    except (OSError, WorkspaceFileError, ValueError):
+        raise ProbeFailure("python_dependency_seed_invalid") from None
+
+
+def _verify_seed_contents(path: Path, inputs: PythonDependencyInput, *, source_files=None) -> dict:
+    """Also verify a new private stage before it becomes the immutable seed."""
+    root = PrivateRoot(path)
+    root.close()
     wheels = wheel_plan(source_files)
     expected_files = {"manifest.json", "uv", "uv.whl"} | {"wheels/" + item["filename"] for item in wheels}
     actual_files = set()
@@ -363,7 +376,7 @@ def prepare_seed(inputs: PythonDependencyInput, *, source_files: Mapping[str, by
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         target = CACHE_ROOT / inputs.cache_key
-        if target.exists():
+        if os.path.lexists(target):
             return verify_seed(target, inputs, source_files=source_files) | {"cache_hit": True, "downloaded_bytes": 0}
         stage = CACHE_ROOT / ("prepare-" + uuid4().hex)
         stage.mkdir(mode=0o700)
@@ -377,7 +390,12 @@ def prepare_seed(inputs: PythonDependencyInput, *, source_files: Mapping[str, by
         _new_file(stage / "manifest.json", _encoded(_manifest(inputs, wheels, binary)))
         (stage / "wheels").chmod(0o500)
         stage.chmod(0o500)
-        os.rename(stage, target)
+        _verify_seed_contents(stage, inputs, source_files=source_files)
+        root = PrivateRoot(CACHE_ROOT)
+        try:
+            publish_directory(root.fd, stage.name, target.name)
+        finally:
+            root.close()
         stage = None
         return verify_seed(target, inputs, source_files=source_files) | {"cache_hit": False,
             "downloaded_bytes": sum(item["size"] for item in wheels + [UV_WHEEL])}

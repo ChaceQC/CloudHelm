@@ -116,6 +116,10 @@ class NpmDownloadStore:
         spec = self._spec(spec, cache_id)
         try:
             with self.root.exclusive() as root:
+                try:
+                    os.stat(npm_seed_id(spec), dir_fd=root, follow_symlinks=False)
+                except FileNotFoundError:
+                    raise NpmDownloadError("npm_seed_unavailable") from None
                 with directory_at(root, npm_seed_id(spec), readonly=True) as directory:
                     return self._verify_directory(directory, spec, cache_hit=True,
                         expected_manifest_digest=expected_manifest_digest)
