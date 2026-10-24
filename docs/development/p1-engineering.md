@@ -80,6 +80,16 @@ cd /mnt/e/Project/CloudHelm
 
 入口只接受该 ID 格式，从原受控根下读取一个 `cache`，核对历史固定 manifest `sha256:1763287887271b7713a4d0764739b73bf592d37b6cab85535546d0b3f15c98d0`、锁与全部 tarball，复制后重新核验。Python 已按内容键定位，只验证并复用；缺失时先执行 `prepare`。已准备的新 npm 内容若等价则保留新副本，不覆盖其准备时间。导入不联网、不扫描、不删除原目录，重复执行复用同一内容。该历史 ID 只用于显式迁移，不再作为构建配置。
 
+### 4.1 固定 Python wheel 清单
+
+受支持组合为 `linux/amd64`、CPython `3.12.13`、uv `0.11.29` 和固定 Python 基础镜像。依赖闭包与 wheel 兼容性由该版本 uv 实际离线解析、安装及安装后 distribution 清单复核；运行时不再维护依赖遍历、marker、ABI 或 manylinux 筛选规则。
+
+`infra/p1/reference-build/python-wheels.linux-amd64.r1.json` 固定 20 个 wheel 的名称、版本、文件名、公开来源、SHA-256 与大小，并绑定原始项目/锁/Python pin 摘要、平台、解释器、uv、基础镜像及安装参数。`python_dependencies.wheel_plan()` 有界读取并校验源码固定的清单摘要与全部输入身份，保留原返回字段和排序；缺失、损坏或目标身份不符直接拒绝。准备、构建、安装核验与 Workspace 快照共同消费该清单，构建不临时生成清单或联网补齐。
+
+固定 uv 的公开 `export --format requirements-txt` 可复核依赖声明与 marker，但导出包含 Windows 条件项，且不提供目标 wheel 文件选择；不能把它当作 wheel 选择结果。此处采用经实际安装复核的固定清单，不依赖私有工具输出。变更锁、平台或工具链时，维护者须重新用目标工具链解析并安装、核对 wheel 来源/摘要/大小与安装集合，再评审新清单修订及其源码摘要；不能只改固定摘要使旧证据继续生效。
+
+原始 `uv.lock` 保持原字节。现有受限 Linux 派生项目与 wheelhouse 离线锁配方继续保留，由 uv 处理语义并核对实际安装集合；本次不更改安装参数或配方身份。清单逐项等价时，既有种子内容键、种子 manifest 字节及 Workspace 原锁/固定注释变体的快照键均保持兼容；旧缓存与持久引用按原规则保留。
+
 ## 5. 定向开发验证
 
 ### 5.1 验证入口

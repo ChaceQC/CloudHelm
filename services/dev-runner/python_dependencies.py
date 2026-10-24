@@ -29,6 +29,8 @@ from .toolchain import ProbeFailure, private_directory
 
 ROOT = Path(__file__).resolve().parents[2]
 REFERENCE = ROOT / "examples/standalone-project/backend"
+WHEEL_MANIFEST = ROOT / "infra/p1/reference-build/python-wheels.linux-amd64.r1.json"
+WHEEL_MANIFEST_DIGEST = "sha256:d5d189d0ac6ab6d77cf5cc7579441a66e9df9e8f52d9222bdeb2eaa1022e1f11"
 CACHE_ROOT = Path("/home/cloudhelm/.local/state/cloudhelm/python-dependency-seeds")
 UV_FILENAME = "uv-0.11.29-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
 UV_WHEEL = {"filename": UV_FILENAME, "name": "uv", "version": "0.11.29",
@@ -100,68 +102,24 @@ def reference_inputs(source_files: Mapping[str, bytes] | None = None) -> dict[st
     return result
 
 
-def _compatible(filename: str) -> bool:
-    if not filename.endswith(".whl"):
-        return False
-    parts = filename[:-4].rsplit("-", 3)
-    if len(parts) != 4:
-        return False
-    _, python, abi, platforms = parts
-    if abi == "none" and "py3" in python.split(".") and platforms == "any":
-        return True
-    if python != "cp312" or abi not in ("cp312", "abi3"):
-        return False
-    for platform in platforms.split("."):
-        match = re.fullmatch(r"manylinux_2_([0-9]+)_x86_64", platform)
-        if platform in {"manylinux2014_x86_64", "manylinux2010_x86_64", "manylinux1_x86_64"}:
-            return True
-        if match and 5 <= int(match[1]) <= 36:
-            return True
-    return False
-
-
-def _selected_packages(lock: dict) -> list[dict]:
-    packages = {item["name"]: item for item in lock["package"]}
-    if len(packages) != len(lock["package"]) or lock.get("requires-python") != "==3.12.*":
-        raise ProbeFailure("python_dependency_lock_shape_unsupported")
-    pending, visited, names = [("cloudhelm-reference-notes-backend", ())], set(), set()
-    markers = {"sys_platform == 'win32'": False, "implementation_name != 'pypy'": True}
-    while pending:
-        name, extras = pending.pop()
-        if (name, extras) in visited:
-            continue
-        visited.add((name, extras))
-        package = packages[name]
-        if package.get("source") != {"virtual": "."}:
-            if package.get("source") != {"registry": "https://pypi.org/simple"}:
-                raise ProbeFailure("python_dependency_source_unsupported")
-            names.add(name)
-        dependencies = list(package.get("dependencies", []))
-        for extra in extras:
-            dependencies += package.get("optional-dependencies", {})[extra]
-        for item in dependencies:
-            marker = item.get("marker")
-            if marker is not None and marker not in markers:
-                raise ProbeFailure("python_dependency_marker_unsupported")
-            if marker is None or markers[marker]:
-                pending.append((item["name"], tuple(item.get("extra", []))))
-    return [packages[name] for name in sorted(names)]
-
-
 def wheel_plan(source_files: Mapping[str, bytes] | None = None) -> list[dict]:
-    lock = tomllib.loads(reference_inputs(source_files)["uv.lock"].decode("utf-8"))
-    result = []
-    for package in _selected_packages(lock):
-        wheels = []
-        for wheel in package.get("wheels", []):
-            filename = urllib.parse.urlsplit(wheel["url"]).path.rsplit("/", 1)[-1]
-            if _compatible(filename):
-                wheels.append(wheel | {"filename": filename})
-        if not wheels:
-            raise ProbeFailure("python_dependency_compatible_wheel_required_no_sdist")
-        wheel = sorted(wheels, key=lambda item: ("-py" in item["filename"], item["filename"]))[0]
-        result.append({key: wheel[key] for key in ("filename", "url", "hash", "size")}
-                      | {"name": package["name"], "version": package["version"]})
+    """Load the installed-and-reviewed fixed wheel set; never resolve packages here."""
+    reference_inputs(source_files)
+    try:
+        descriptor = os.open(WHEEL_MANIFEST, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, "rb") as stream:
+            if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                raise ProbeFailure("python_dependency_wheel_manifest_invalid")
+            raw = stream.read(64 * 1024 + 1)
+    except OSError:
+        raise ProbeFailure("python_dependency_wheel_manifest_unavailable") from None
+    if len(raw) > 64 * 1024 or _digest(raw) != WHEEL_MANIFEST_DIGEST:
+        raise ProbeFailure("python_dependency_wheel_manifest_invalid")
+    manifest = json.loads(raw.decode("utf-8"))
+    if (manifest["schema"] != "p1-reference-python-wheels-r1"
+            or manifest["input_identity"] != json.loads(_encoded(asdict(PythonDependencyInput())))):
+        raise ProbeFailure("python_dependency_wheel_manifest_input_mismatch")
+    result = manifest["wheels"]
     if len(result) > 32 or sum(item["size"] for item in result + [UV_WHEEL]) > MAX_SEED_BYTES:
         raise ProbeFailure("python_dependency_download_set_exceeded")
     return result

@@ -173,8 +173,10 @@ def validate_workspace_dependency_inputs(binding: WorkspaceBinding, source_files
             or roots[0].get("version") != project_fields["version"]):
         raise ProbeFailure("workspace_python_lock_project_identity_mismatch")
 
-    packages = python_dependencies._selected_packages(lock)
-    distributions = tuple(sorted((item["name"], item["version"]) for item in packages))
+    # Both accepted lock variants have the same dependencies; their bytes still
+    # produce distinct snapshot keys below. Only the fixed manifest selects wheels.
+    wheels = python_dependencies.wheel_plan()
+    distributions = tuple((item["name"], item["version"]) for item in wheels)
     expected_distributions = seed_receipt.get("distributions")
     if (not isinstance(expected_distributions, dict)
             or dict(distributions) != expected_distributions

@@ -2,6 +2,20 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-24：源码简化专项 T-SIM-02
+
+- 原因与授权：用户要求根据文档快速完成 T-SIM-02，不使用子代理、不做大量测试。入口 `dev / 39aef8aa748275b4fe0e334a204f3f302c1ab331`，工作树干净；本轮只开放 02a～02c，由主会话执行。
+- 重构范围与预期行为：以绑定源锁、目标平台、Python/uv 版本及文件来源/摘要/大小的版本化 wheel 清单替换手写依赖遍历、marker 与 ABI/platform 筛选；保持 `wheel_plan()` 返回约定、原锁字节、离线安装、种子/快照身份与既有消费者。保留已支持的派生离线配方，不在未证明可移除前改变安装行为。
+- 已完成：02a 固定 uv 的公开 requirements 导出确认保留 Windows marker 且不选择目标 wheel，因此采用实际安装复核的固定清单；02b `infra/p1/reference-build/python-wheels.linux-amd64.r1.json` 绑定完整输入身份与 20 个 wheel 字段，清单 SHA-256 `d5d189d0ac6ab6d77cf5cc7579441a66e9df9e8f52d9222bdeb2eaa1022e1f11`，`wheel_plan()` 无链接、有界读取并核验源码固定摘要和输入；02c Workspace 改为同一清单，种子/准入副本、Python 安装 Runtime、后端构建及快照准备的既有调用均经该入口核验，删除 `_selected_packages` 和 `_compatible`，没有遗留引用。
+- 环境与固定输入：WSL Ubuntu-24.04，内核 `6.18.33.2-microsoft-standard-WSL2`，仓库 `/mnt/e/Project/CloudHelm`，UID 1000，CPython 3.12.13、种子 uv 0.11.29。原锁 `sha256:ee1eaa6cb0a358d724f8a553265cf59b411248ece569d9bca05f44ae649e7bd2`、Python key `24c0cd1fc33538a10d6ee316b64c85b2fdd4ad28111cbed58de4db9ac637a26b`、种子 manifest `sha256:822d94202c746eb5c9f0b56c7ace295c85b0f32099be318ca95b4756b56e1f89` 及 20 项完整 wheel 描述与改造前完全一致；未改正式 r1 资产、InputSet、软件/工作流应用/迁移版本。
+- 定向方法与拒绝路径：一次性方法 `.thesis-work/t-sim-02/verify.py`（不入库），SHA-256 `a0f1cffa3fafe4e7b0a4d3227ccf9b9656cb536e2ac16d641ff5b84cb0dc63c3`；原实现的 wheel/种子与两种锁的快照键保存于同目录 `baseline.json`，SHA-256 `5e88cd0f8a57064ac26fbe029071916931142a5b9d10d57113a7a35cd13c1631`。`2026-10-24T12:02:44Z` WSL UID 1000 执行 `checks`：逐项等价、种子复用零下载、清单缺失/损坏/超长、错误平台/Python/uv/锁绑定及源锁漂移拒绝均通过。原锁快照键 `e2184038d4b7f1f3ff13ac363783d8285675611898ce49599eb33b3402a3996e`，固定注释变体 `9f9a9305dd2029839f0500d59b26b94f47ac5f1c9635347254e1fb93dc386cf0`，均与旧实现一致。
+- 真实离线执行：`2026-10-24T12:03:12Z` 同一方法以 root 进入 Docker daemon 挂载命名空间，仅创建本任务 1GiB 实例 `dev-storage-5483abdaf6d94eb0893594edac4d5f38`；UID 1000 经真实存储准入复制/核验正式种子，无历史探针目录扫描。现有 `build_backend` 完成一条后端离线构建、安装与最终 OCI 内容核验，`all_required_verified=true`、无失败；原配方强制 `network=none`、只读 wheelhouse、`--no-build`，实际检查无 IPv4 路由、20 项 distribution 一致及 psycopg binary。OCI 归档 65,600,512 字节，manifest `sha256:ac2a2b566e1ddb669bf3b3f563a32f81f4a8898b405789553d8e6f0172cc3b95`；报告 `/home/cloudhelm/.local/state/cloudhelm/t-sim-02-backend-report.json`，SHA-256 `af86161b50a60f9e2aeb1a2617550243ea525e2a0b901541d54536b61d39639e`。
+- 快照与收尾：相同隔离实例内调用真实 `prepare_workspace_dependencies`，首次离线安装、归档及第二次缓存复用通过；20 项 distribution 相同且原环境键保留。快照 1,251 个成员、13,529,218 字节，SHA-256 `848b895c66e3e7402788c99cfce84cfc752d901612c16ac0964434f577c8975c`。后端 17 个受跟踪进程收尾后剩余 0、cgroup 空且容器移除；快照组无残留进程、root 停止并移除 transient slice。`2026-10-24T12:04:31Z` 原维护入口确认仅本次实例卸载、loop 分离、backing/目录移除，回收 1,073,741,824 字节，剩余占账 0；没有加载新交付镜像或清理其它项目镜像。
+- 规模与交付检查：Python 依赖模块由 409 降为 367 个物理行，保留固定输入/种子获取与两类核验边界，函数均不超过 58 行；本轮不为 300 行建议机械拆分。Workspace 输入模块 216 行，既有集中输入验证与身份组装函数 76 行（原 74 行），仍属单一输入资格职责；未扩展产品或配方。两份 Python AST、6 份改动文件 UTF-8、新增进度锚点、清单固定摘要、原锁及独立资产差异、`git diff --check` 均通过；一次性方法与基线被忽略，不入库，按仓库流程交付 `dev`。
+- 进行中：无；02a～02c 已完成实现与本机定向开发验证。
+- 阻塞与风险：本任务范围无阻塞；旧缓存、backing、持久操作引用保留。固定清单只支持当前锁与 Linux/amd64 工具链，变更时需新修订及安装复核；派生离线配方保留，未扩大为通用解析器。未执行 HTTP/worker/数据库全链路、其它平台或历史全量测试，原生 Desktop、独立机器及人工验收未执行。
+- 主要文件：`services/dev-runner/python_dependencies.py`、`infra/p1/reference-build/python-wheels.linux-amd64.r1.json`、`workspace_development_inputs.py`、`docs/development/p1-engineering.md`、本计划与进度。下一项具体任务为后续承接 T-SIM-03a；本轮止于 02，不自动开放 03～07 或 P1.3-02，实际投入及剩余工作量待估。
+
 ## 2026-10-24：源码简化专项 T-SIM-01
 
 - 原因与授权：用户要求根据文档快速完成 T-SIM-01，不使用子代理、不做大量测试。入口 `dev / 77634686287b1c7a65bb667cfdd0bf3fd1ef1efc`，工作树干净；本轮开放 01a～01d，由主会话执行。
