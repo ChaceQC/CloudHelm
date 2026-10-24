@@ -13,6 +13,7 @@ from database.readiness import DatabaseNotReady
 from database.uow import DatabaseFailure
 from modules.collaboration.errors import TaskBoundaryError
 from modules.identity.errors import IdentityError
+from modules.execution.errors import ResourceError
 from modules.projects.source_operations import SourceImportError
 from .contracts import ApiErrorResponse
 from .denials import store_identity_denial
@@ -32,6 +33,10 @@ def error_response(code: str, status: int, *, object_ids=()) -> JSONResponse:
 
 
 def install_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(ResourceError)
+    async def resource_error(request: Request, error: ResourceError):
+        return error_response(error.code, error.status_code)
+
     @app.exception_handler(IdentityError)
     async def identity_error(request: Request, error: IdentityError):
         await run_in_threadpool(store_identity_denial, request, error)

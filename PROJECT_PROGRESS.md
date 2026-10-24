@@ -2,6 +2,23 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-24：P1.3-01 共享宿主资源执行（已完成本轮交付）
+
+- 范围：用户授权完成 P1.3-01，不使用子代理，少测试；入口 `dev / 3801ce8`，工作树原先干净。仅开放共享宿主预留、Runner 注册/能力匹配、本地持久确认和整组硬限制；P1.3-02、P1.4 及产品验收保持未开放。
+- 实现边界：沿用 P0 的资源身份、整数向量和保守占账语义，新增 `modules/execution/`、执行器资源协议及线性迁移；不重构 P1.2 工程执行，不改历史固定输入/报告。Hub 与执行器分别提交，不声称跨机器原子事务。
+- 已实现：`0.4.0` / 工作流应用 `cloudhelm-hub/0.4.0` / 迁移 `0005_p1_3_resources` / 协议 `p1-resources-r1` 分别固定；三张资源表、维护角色注册、API 申请/查询、当前授权/Task/期限门禁、共享池行锁及命令/预留/事件/Outbox 同事务贯通。运行角色只获池锁列 UPDATE，不获预算配置写权限。
+- 已实现：同宿主 Runner 共用 SQLite/启动锁，接受和启动标记先持久化；原身份查询恢复丢回执，关闭未启动分配后晚到不复活。受控 dispatcher/CLI 查询回执并同步占账/观察事件；未知保持全额额度，不声称跨机器原子事务。
+- 已实现：固定镜像/配方、UID65534、只读根、断网、无宿主挂载/日志和 cgroup v2/systemd 父级 CPU、内存、swap、PID 硬限；两处 tmpfs 覆盖全部沙箱可写文件。初版范围为 scratch，不把历史 P1.2 构建/缓存自动纳入新池。
+- 环境：已只读核对 WSL Ubuntu-24.04、仓库 `/mnt/e/Project/CloudHelm`、UID1000、Python 3.12.13、Docker 29.1.3 与 cgroup v2；配置秘密未输出。
+- 自动验证：UTC `2026-10-24T10:00:02.831423+00:00`～`10:00:17.232211+00:00`，WSL root 执行 `python -B -m scripts.p1.check_resources --port 55446`，最终方法 r2 固定 [280 个公开输入](docs/acceptance/p1/input-set-p1-3-01-r2.json)摘要 `sha256:114eef8dfcd986d971a7ee88112f952978a18946b385f9b24a4165c4de844dec`；[完整结果](docs/acceptance/p1/validation-resources-r2.json) passed，前后输入一致，保存实际操作/预留/进程绑定、容器/父组及内核/工具链引用。此前 [r1 输入](docs/acceptance/p1/input-set-p1-3-01-r1.json)与[通过结果](docs/acceptance/p1/validation-resources-r1.json)保留原字节；r2 补齐引用并清除一个未用导入，重绑定新输入验证。
+- 自动验证：两用户/项目、两 Runner 的并发申请只接受一组；命令重投/异摘要、调用方回滚、期限/能力不匹配、双进程重复投递、账本重开恢复及取消后的晚到启动封闭通过。实际 `cpu.max=50000 100000`、memory.max=128MiB、swap=0、pids.max=32；8MiB tmpfs 实际 ENOSPC、线程超限拒绝、只读根/无宿主 socket 成立。真实进程停止通道未知时 Hub 保留全额占账，原绑定核对后停止并回收容器/父组/tmpfs，剩余占账 0；数据库及私有夹具清理 complete。
+- 前序修正：首次方法停在迁移约束命名不一致；第二次因 PostgreSQL 行锁所需 UPDATE 权限不足而停止；第三次已启动真实组，观测侧误用 UID1000 的旧 Docker 客户端目录。均保留[原报告 1](docs/acceptance/p1/validation-resources-r1-attempt1.json)、[原报告 2](docs/acceptance/p1/validation-resources-r1-attempt2.json)、[原报告 3](docs/acceptance/p1/validation-resources-r1-attempt3.json)，未改写失败结论；最后一轮用新输入完整通过。物理未确认时的方法清理会保留账本现场。
+- 验证范围：依赖锁离线检查、Hub OpenAPI 快照通过（34 路径、36 操作、91 schema）。未运行模型、前端/浏览器、历史 P1.2 全方法；人工验收未执行。原实现和证据按其原输入适用，不用本轮结果扩张。
+- 规模与静态核对：新增资源领域、契约、Runner/HTTP 普通源码为 10～170 行；定向方法主入口不足 300 行，最大函数 45 行，无需再拆职责。统计不含依赖、构建、JSON 快照和迁移声明；已核对改动文件 UTF-8/AST/JSON、182 个当前本地文档链接，以及暂存区全部 280 个源码文件与 InputSet 的字节一致性。
+- 进行中：无。实现、本机定向验证、文档和固定证据已同步；本轮交付在 dev，Git 提交及远端状态按实际分支引用核对。
+- 阻塞与风险：本轮支持范围内无新增阻塞。真实独立机器、s2413 安装/配额、通用构建/持久数据后端、跨机传输与原生/人工验收尚无本轮证据；P1.3-02 的调整、分维释放、磁盘保留与 Compose 不提前放行。实际投入及后续估算待估。
+- 主要文件：`packages/contracts/p1/resource_protocol.py`、`modules/execution/`、`services/dev-runner/resource_*`、`services/hub-api/routes_resources.py`、`database/`、`scripts/p1/*resource*` 和对应实施/使用/退出记录。下一项：独立任务授权后进入 P1.3-02，本轮停止在 P1.3-01。
+
 ## 2026-10-21：接续文档文字与结构整理
 
 - 已完成：保留上一会话的文档改动，补齐 AGENTS 的版本、协作和不变量分组，整理总体设计长句、拓扑与研究口径；计划修订 23 集中阶段状态、估算和交付步骤，并折叠已交付轮次。

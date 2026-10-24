@@ -85,6 +85,15 @@ def apply_runtime_permissions(connection: Connection) -> None:
             )
         for table in WORKSPACE_DEVELOPMENT_INSERTS[role]:
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
+        connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.resource_reservations TO {name}")
+        # PostgreSQL requires UPDATE on at least one column for SELECT FOR
+        # UPDATE. Capacity and registration columns remain maintenance-only.
+        connection.exec_driver_sql(f"GRANT UPDATE (lock_revision) ON cloudhelm.resource_pools TO {name}")
+        if role == "worker":
+            connection.exec_driver_sql(
+                "GRANT UPDATE (allocation_json, receipt_json, receipt_sequence) "
+                f"ON cloudhelm.resource_reservations TO {name}"
+            )
         if role == "api":
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.role_bindings TO {name}")
     connection.exec_driver_sql(f"REVOKE ALL ON ALL TABLES IN SCHEMA dbos FROM {DBOS_RUNTIME_ROLE}")

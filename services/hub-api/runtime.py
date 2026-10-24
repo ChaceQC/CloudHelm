@@ -9,6 +9,7 @@ from database.readiness import assert_runtime_ready
 from database.settings import DatabaseSettings, load_database_settings
 from database.uow import UnitOfWork
 from modules.projects.commands import ProjectApplication
+from modules.execution.application import ResourceApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class ApiRuntime:
     workspaces: "WorkspaceApplication"
     builds: "BuildApplication"
     development: "WorkspaceDevelopmentApplication"
+    resources: ResourceApplication
 
     def close(self) -> None:
         try:
@@ -99,6 +101,7 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
                 pools.normal, pools.control, prepared_spec_for=development_registry.registered_development_spec,
                 enqueue_operation=development_environment_enqueuer(client),
             ),
+            resources=ResourceApplication(pools.normal, pools.control),
         )
     except Exception:
         try:

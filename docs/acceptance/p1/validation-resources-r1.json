@@ -1,0 +1,60 @@
+{
+  "method_revision": "p1-3-01-shared-resources-r1",
+  "status": "passed",
+  "started_at_utc": "2026-10-24T09:51:02.373173+00:00",
+  "source_tree_digest": "sha256:6050dffca65defce0279b94c5ff37062d1a105f1301ea13b45d5ac9f2bcb1e57",
+  "input_file_count": 280,
+  "environment": "WSL Ubuntu-24.04 Linux/amd64; root maintenance; PostgreSQL 16.13; cgroup v2/systemd; Docker 29.1.3",
+  "human_acceptance": null,
+  "independent_machine_acceptance": null,
+  "structure": {
+    "single_pool_per_host": true,
+    "linear_migration_matches_metadata": true,
+    "maintenance_only_registration": true
+  },
+  "admission": {
+    "two_users_projects_and_runners_shared_one_pool": true,
+    "concurrent_admissions": 1,
+    "atomic_command_reservation_event_outbox": true,
+    "same_identity_replays_original_result": true,
+    "changed_digest_rejected": true
+  },
+  "local_confirmation": {
+    "two_processes_one_durable_acceptance": true,
+    "lost_receipt_restored_after_reopen": true,
+    "other_runner_cannot_duplicate_host_capacity": true,
+    "altered_request_digest_rejected": true
+  },
+  "physical": {
+    "parent_kernel_limits": {
+      "cpu.max": "50000 100000",
+      "memory.max": "134217728",
+      "memory.swap.max": "0",
+      "pids.max": "32",
+      "pid": 1226,
+      "process_descends_from_group": true,
+      "scratch_limit_bytes": 8388608,
+      "readonly_root": true
+    },
+    "actual_pressure": {
+      "writable_limit_bytes": 8388608,
+      "enospc": true,
+      "pid_limit_rejected_additional_threads": true,
+      "read_only_root": true,
+      "host_socket_absent": true
+    },
+    "unknown_stop_kept_full_charge_and_real_process": true,
+    "reconciled_original_process": true,
+    "container_group_and_tmpfs_removed": true
+  },
+  "gates": {
+    "caller_rollback_removes_all_four_records": true,
+    "expired_and_unmatched_runner_rejected": true,
+    "current_task_cancel_closes_unstarted_allocation": true,
+    "late_start_stays_fenced": true
+  },
+  "remaining_accounted_allocations": 0,
+  "database_and_private_fixture_cleanup": "complete",
+  "public_inputs_unchanged": true,
+  "ended_at_utc": "2026-10-24T09:51:17.250336+00:00"
+}

@@ -1,9 +1,10 @@
 # Hub 基础契约
 
-本目录维护 Hub 的固定请求、公共投影与内部交接类型。设计依据为 [P1.1 实施说明](../../../docs/implementation/p1-1-foundation.md) 与 [P1.2 工程实施说明](../../../docs/implementation/p1-2-engineering.md)，运行与维护入口见 [开发说明](../../../docs/development/p1-hub.md)。实现、开发验证和产品验收分别记录，类型校验不授予权限或证明执行事实。
+本目录维护 Hub 的固定请求、公共投影与内部交接类型。设计依据为 [P1.1 实施说明](../../../docs/implementation/p1-1-foundation.md)、[P1.2 工程实施说明](../../../docs/implementation/p1-2-engineering.md)与 [P1.3 资源实施说明](../../../docs/implementation/p1-3-resources.md)，运行与维护入口见 [开发说明](../../../docs/development/p1-hub.md)。实现、开发验证和产品验收分别记录，类型校验不授予权限或证明执行事实。
 
 |文件|职责|
 |---|---|
+|`resource_protocol.py`|`p1-resources-r1` 的池/Runner 注册、Task 绑定整组申请、创建结果与执行器序列回执；沿用 P0 整数资源向量和稳定身份，新增 HTTP 只接收申请/查询，不接受公共成功回执或任意执行参数|
 |`commands.py`|有界持久命令结果、事件信封和两类 Task workflow 的交接身份；持久结果上限为 65536 个 UTF-8 字节|
 |`identity_contracts.py`、`identity_requests.py`|当前身份、项目/角色投影、项目管理与受控维护请求；公共投影排除凭据及摘要|
 |`task_requests.py`|Task 创建声明和启动/完成/取消/核对请求；目标、准确来源、预算与资源范围显式固定|

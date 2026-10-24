@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "CloudHelm Hub API",
-    "description": "Identity, Task control and bounded P1.2 engineering intents and queries.",
-    "version": "0.3.0"
+    "description": "Identity, Task control, bounded engineering and shared resource intents and queries.",
+    "version": "0.4.0"
   },
   "paths": {
     "/api/auth/me": {
@@ -1145,16 +1145,6 @@
           }
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "OK"
-          },
           "201": {
             "description": "Successful Response",
             "content": {
@@ -1164,16 +1154,6 @@
                 }
               }
             }
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Accepted"
           },
           "400": {
             "content": {
@@ -1306,6 +1286,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
           }
         }
       }
@@ -1635,26 +1635,6 @@
           }
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
           "202": {
             "description": "Successful Response",
             "content": {
@@ -1796,6 +1776,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
           }
         }
       }
@@ -1856,26 +1856,6 @@
                 }
               }
             }
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Accepted"
           },
           "400": {
             "content": {
@@ -2008,6 +1988,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
           }
         }
       }
@@ -2059,26 +2059,6 @@
           }
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
           "202": {
             "description": "Successful Response",
             "content": {
@@ -2220,6 +2200,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
           }
         }
       }
@@ -2280,26 +2280,6 @@
                 }
               }
             }
-          },
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Created"
-          },
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskCommandResult"
-                }
-              }
-            },
-            "description": "Accepted"
           },
           "400": {
             "content": {
@@ -2432,6 +2412,26 @@
               }
             },
             "description": "Service Unavailable"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommandResult"
+                }
+              }
+            },
+            "description": "Accepted"
           }
         }
       }
@@ -5560,6 +5560,305 @@
         }
       }
     },
+    "/api/tasks/{task_id}/resource-reservations": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Resources.Reserve",
+        "operationId": "resources_reserve_api_tasks__task_id__resource_reservations_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveResourcesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/resource-reservations/{reservation_id}": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Resources.Query",
+        "operationId": "resources_query_api_resource_reservations__reservation_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reservation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Reservation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceAllocation"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "tags": [
@@ -5684,6 +5983,88 @@
   },
   "components": {
     "schemas": {
+      "AllocationIdentity": {
+        "properties": {
+          "reservation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reservation Id"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "resource_group_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Resource Group Id"
+          },
+          "resource_group_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Resource Group Digest"
+          },
+          "host_resource_pool_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Host Resource Pool Id"
+          },
+          "executor_instance_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance Id"
+          },
+          "hub_incarnation": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Hub Incarnation"
+          },
+          "resource_generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Resource Generation"
+          },
+          "cpu_period_us": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cpu Period Us"
+          },
+          "conflict_keys": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Conflict Keys",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reservation_id",
+          "operation_id",
+          "resource_group_id",
+          "resource_group_digest",
+          "host_resource_pool_id",
+          "executor_instance_id",
+          "hub_incarnation",
+          "resource_generation",
+          "cpu_period_us"
+        ],
+        "title": "AllocationIdentity"
+      },
       "ApiErrorResponse": {
         "properties": {
           "code": {
@@ -5736,8 +6117,8 @@
           },
           "archive_bytes": {
             "type": "integer",
-            "maximum": 2147483648,
-            "minimum": 1024,
+            "maximum": 2147483648.0,
+            "minimum": 1024.0,
             "title": "Archive Bytes"
           },
           "platform": {
@@ -5798,20 +6179,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "outcome": {
@@ -6145,8 +6526,8 @@
           },
           "executor_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Executor Generation"
           },
           "previous_observation_id": {
@@ -6177,8 +6558,8 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 255,
-                "minimum": -255
+                "maximum": 255.0,
+                "minimum": -255.0
               },
               {
                 "type": "null"
@@ -6331,20 +6712,20 @@
           },
           "accepted_task_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Accepted Task Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "request_digest": {
@@ -6438,14 +6819,14 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "cancel_reason": {
@@ -6488,8 +6869,8 @@
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           }
         },
@@ -6545,14 +6926,14 @@
           },
           "file_count": {
             "type": "integer",
-            "maximum": 4096,
-            "minimum": 0,
+            "maximum": 4096.0,
+            "minimum": 0.0,
             "title": "File Count"
           },
           "total_bytes": {
             "type": "integer",
-            "maximum": 67108864,
-            "minimum": 0,
+            "maximum": 67108864.0,
+            "minimum": 0.0,
             "title": "Total Bytes"
           },
           "observed_at": {
@@ -6684,8 +7065,8 @@
           },
           "expected_resource_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Resource Revision"
           },
           "references": {
@@ -6734,20 +7115,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           }
         },
@@ -6779,8 +7160,8 @@
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "required_check_ids": {
@@ -6832,8 +7213,8 @@
           },
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "title": {
@@ -6867,8 +7248,8 @@
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "declaration": {
@@ -6887,20 +7268,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -7023,20 +7404,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -7044,20 +7425,20 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "expected_environment_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Environment Revision"
           },
           "expected_data_revision": {
@@ -7067,8 +7448,8 @@
           },
           "expected_data_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Data Generation"
           },
           "action": {
@@ -7247,14 +7628,14 @@
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "expected_permission_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Permission Revision"
           },
           "user_id": {
@@ -7420,8 +7801,8 @@
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "reference_revision": {
@@ -7499,20 +7880,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -7520,14 +7901,14 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "kind": {
@@ -7553,20 +7934,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -7574,14 +7955,14 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "kind": {
@@ -7695,20 +8076,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -7722,14 +8103,14 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           }
         },
@@ -7899,20 +8280,20 @@
           },
           "revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Revision"
           },
           "permission_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Permission Revision"
           },
           "policy_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Policy Revision"
           }
         },
@@ -7932,14 +8313,14 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "purpose": {
@@ -8000,8 +8381,8 @@
           },
           "source_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Source Revision"
           },
           "kind": {
@@ -8057,8 +8438,8 @@
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "name": {
@@ -8080,20 +8461,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "candidate_id": {
@@ -8121,24 +8502,103 @@
         ],
         "title": "RequestBuildRequest"
       },
-      "ResetWorkspaceDevelopmentDataRequest": {
+      "ReservationResult": {
         "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "allocation": {
+            "$ref": "#/components/schemas/ResourceAllocation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "task_id",
+          "allocation"
+        ],
+        "title": "ReservationResult"
+      },
+      "ReserveResourcesRequest": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p1-resources-r1",
+            "title": "Protocol Revision",
+            "default": "p1-resources-r1"
+          },
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "expires_at_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At Utc"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/ResourceRequest"
+          },
+          "backend": {
+            "type": "string",
+            "const": "linux-systemd-docker-scratch-r1",
+            "title": "Backend",
+            "default": "linux-systemd-docker-scratch-r1"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "expires_at_utc",
+          "resources"
+        ],
+        "title": "ReserveResourcesRequest"
+      },
+      "ResetWorkspaceDevelopmentDataRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -8146,20 +8606,20 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "expected_environment_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Environment Revision"
           },
           "expected_data_revision": {
@@ -8169,8 +8629,8 @@
           },
           "expected_data_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Data Generation"
           },
           "action": {
@@ -8200,6 +8660,102 @@
           "target_data_revision"
         ],
         "title": "ResetWorkspaceDevelopmentDataRequest"
+      },
+      "ResourceAllocation": {
+        "properties": {
+          "accounted_vector": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "hard_limits": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/AllocationIdentity"
+          },
+          "creation_request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Creation Request Digest"
+          },
+          "allocation_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Allocation Revision"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "reserved",
+              "active",
+              "releasing",
+              "orphaned",
+              "released"
+            ],
+            "title": "State"
+          },
+          "pending_resource_adjustment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Resource Adjustment Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "accounted_vector",
+          "hard_limits",
+          "identity",
+          "creation_request_digest",
+          "allocation_revision",
+          "state"
+        ],
+        "title": "ResourceAllocation"
+      },
+      "ResourceRequest": {
+        "properties": {
+          "accounted_vector": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "hard_limits": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/AllocationIdentity"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "request_vector": {
+            "$ref": "#/components/schemas/ResourceVector"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "accounted_vector",
+          "hard_limits",
+          "identity",
+          "request_digest",
+          "request_vector"
+        ],
+        "title": "ResourceRequest"
       },
       "ResourceScope": {
         "properties": {
@@ -8231,24 +8787,73 @@
         ],
         "title": "ResourceScope"
       },
+      "ResourceVector": {
+        "properties": {
+          "memory_mib": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Memory Mib",
+            "default": 0
+          },
+          "cpu_millicores": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Cpu Millicores",
+            "default": 0
+          },
+          "disk_bytes": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Disk Bytes",
+            "default": 0
+          },
+          "pids": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Pids",
+            "default": 0
+          },
+          "heavy_slots": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Heavy Slots",
+            "default": 0
+          },
+          "preview_slots": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Preview Slots",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResourceVector"
+      },
       "ResumeWorkspaceDevelopmentRequest": {
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -8256,20 +8861,20 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "expected_environment_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Environment Revision"
           },
           "expected_data_revision": {
@@ -8279,8 +8884,8 @@
           },
           "expected_data_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Data Generation"
           },
           "action": {
@@ -8309,14 +8914,14 @@
         "properties": {
           "expected_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Project Revision"
           },
           "expected_permission_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Permission Revision"
           },
           "binding_id": {
@@ -8427,8 +9032,8 @@
           },
           "revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Revision"
           },
           "revoked": {
@@ -8465,8 +9070,8 @@
           },
           "project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Project Revision"
           },
           "outcome": {
@@ -8608,8 +9213,8 @@
           },
           "accepted_project_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Accepted Project Revision"
           },
           "accepted_at": {
@@ -8644,20 +9249,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           }
         },
@@ -8674,20 +9279,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -8695,14 +9300,14 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "kind": {
@@ -8734,20 +9339,20 @@
         "properties": {
           "expected_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Version"
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Input Validity Revision"
           },
           "input_set_ref": {
@@ -8755,20 +9360,20 @@
           },
           "expected_workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Workspace Revision"
           },
           "expected_write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Write Generation"
           },
           "expected_environment_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Environment Revision"
           },
           "expected_data_revision": {
@@ -8778,8 +9383,8 @@
           },
           "expected_data_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Data Generation"
           },
           "action": {
@@ -8922,20 +9527,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "completion_report_id": {
@@ -9049,14 +9654,14 @@
           },
           "committed_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Committed Version"
           },
           "committed_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Committed Control Revision"
           },
           "committed_at_utc": {
@@ -9110,16 +9715,16 @@
           },
           "expected_control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Expected Control Revision"
           },
           "expected_input_validity_revision": {
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 9007199254740991,
-                "minimum": 0
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -9271,20 +9876,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "declaration": {
@@ -9370,8 +9975,8 @@
           },
           "revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Revision"
           },
           "state": {
@@ -9473,8 +10078,8 @@
           },
           "source_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Source Revision"
           },
           "base_commit": {
@@ -9484,14 +10089,14 @@
           },
           "workspace_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Workspace Revision"
           },
           "write_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Write Generation"
           }
         },
@@ -9552,20 +10157,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "input_set_ref": {
@@ -9682,20 +10287,20 @@
           },
           "version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "environment_id": {
@@ -9738,8 +10343,8 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 9007199254740991,
-                "minimum": 0
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
@@ -9815,8 +10420,8 @@
           },
           "data_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Data Generation"
           },
           "state": {
@@ -9920,8 +10525,8 @@
           },
           "environment_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Environment Revision"
           },
           "state": {
@@ -9975,8 +10580,8 @@
           },
           "accepted_environment_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Accepted Environment Revision"
           },
           "operation_state": {
@@ -10116,8 +10721,8 @@
           },
           "runner_generation": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Runner Generation"
           },
           "observation_id": {
@@ -10252,8 +10857,8 @@
           },
           "size_bytes": {
             "type": "integer",
-            "maximum": 16777216,
-            "minimum": 0,
+            "maximum": 16777216.0,
+            "minimum": 0.0,
             "title": "Size Bytes"
           },
           "content_digest": {
@@ -10295,14 +10900,14 @@
           },
           "file_count": {
             "type": "integer",
-            "maximum": 4096,
-            "minimum": 0,
+            "maximum": 4096.0,
+            "minimum": 0.0,
             "title": "File Count"
           },
           "total_bytes": {
             "type": "integer",
-            "maximum": 67108864,
-            "minimum": 0,
+            "maximum": 67108864.0,
+            "minimum": 0.0,
             "title": "Total Bytes"
           }
         },
@@ -10487,8 +11092,8 @@
           },
           "registered_task_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Registered Task Version"
           }
         },
@@ -10617,26 +11222,26 @@
           },
           "task_version": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Task Version"
           },
           "control_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Control Revision"
           },
           "input_validity_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Input Validity Revision"
           },
           "work_item_revision": {
             "type": "integer",
-            "maximum": 9007199254740991,
-            "minimum": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
             "title": "Work Item Revision"
           },
           "work_item_state": {
