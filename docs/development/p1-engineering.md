@@ -39,6 +39,8 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 |可变开发环境申请、读取状态|`POST /api/workspaces/{workspace_id}/development-environments`；`GET /api/development-environments/{environment_id}`|
 |环境操作与生命周期|`GET /api/development-environments/{environment_id}/operations/{operation_id}`；`POST /api/development-environments/{environment_id}/suspend`、`/resume`、`/reset-data`、`/dispose`|
 
+固定参照 Task 的独立检查项由 [版本化目录](../acceptance/reference/README.md) 登记：加载器核验固定目录摘要、50 个唯一 ID、脚本/方法及 bundle 绑定，直接生成既有 AcceptanceMetadata，不再用运行时 AST 推导。当前公开资产修订为 `reference-public-assets-r2`，将既有 README 摘要变化显式登记；目录本身纳入新 bundle，创建新的工程引用与 Task InputSet，旧记录及通过结果不自动适用新输入。该入口只登记方法，实际执行结果仍须另行绑定；旧冻结 InputSet 与 `r1/` 文件保持原字节。
+
 准确字段见 [HTTP 快照](../../packages/contracts/p1/hub-openapi.json)。修改入口接受至多 48KiB UTF-8 单文件内容，完整 JSON 请求仍受 64KiB 限制；请求包含 `request`（版本、路径、原内容与替换摘要）和 `content_utf8`，删除时内容为 null。内容在当前授权与版本预检后暂存到受控池，命令及 DBOS 只保留摘要与操作身份；正式接受时重新检查当前门禁。同键重投保留原请求，不用新键重放未知文件操作。
 
 当前注册组合只支持固定便签参照和本机 UID 1000。`CLOUDHELM_ENGINEERING_REGISTRY_FILE` 指向 `0600` 的无秘密 UTF-8 JSON，包含实际维护创建的 `DevelopmentStorageRef` 及固定种子引用；API 的文件暂存与 worker 使用同一注册。公共请求不能选择宿主路径、Git 子命令或 Docker 参数。缺少注册、只读种子、当前挂载或实例修订不符时，执行入口明确拒绝。

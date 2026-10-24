@@ -2,6 +2,19 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-24：源码简化专项 T-SIM-03
+
+- 原因与授权：用户要求根据文档快速完成 T-SIM-03，不使用子代理、不做大量测试。入口 `dev / 8225782b1e0bcbb60b5af3d469a378692c858da0`，工作树干净；本轮只开放 03a～03b，由主会话执行。
+- 重构范围与预期行为：从独立验收脚本及其 manifest、固定 InputSet 整理版本化检查项目录，替换 `modules/projects/reference_assets.py` 的运行时 AST 推导。保留原 50 项 ID、排序与 AcceptanceMetadata 契约；加载时验证目录固定摘要、方法/脚本/bundle 绑定、唯一 ID 和数量上限，只登记方法，不生成通过结论。
+- 既有输入问题：修改前直接调用原加载器失败于 `reference_asset_digest_mismatch`，隔离 Git 字节视图同样失败；核对确认只有 r1 README 与旧 InputSet 不符，当前摘要 `5ce65632a8162b5e39ca25d71241b37f5a9bafa3e57e39398147631a10da1ac5`，旧登记为 `d6f93dc9c2968d4a47d38389de65a8d1a79198cc1f77793986e76bfca5fe38c0`，来源为历史文档整理 `3801ce8`。不改旧冻结文件/InputSet；新目录显式登记新公开资产修订及 bundle，生成新引用，不将旧证据扩用于当前输入。
+- 已完成：03a 在 `docs/acceptance/reference/check-catalog-r1.json` 固定 `reference-http-checks-r1` / `reference-public-assets-r2`，目录 SHA-256 `85cd4706f3acc9e92b5b774724a125aff6ed66b645537cc4109b1438d6f9abc7`，绑定旧来源 InputSet、原需求/方法与四文件 bundle；清单仅按独立验收资产整理，没有读取参照候选实现或降低原要求。03b 加载器复用原有界无链接读取，验证目录固定摘要、资产/方法/bundle 绑定、1～64 个唯一且有界的 ID，直接构造原 AcceptanceMetadata，移除 `ast` 导入及 `_required_checks`。
+- 新登记边界：HTTP 方法仍为 `reference-http-r1.1`，四文件 bundle 为 `sha256:243157984c880154a62a79d53b1368f3a252fde281e414cdd39bd16d027e2b74`；加入目录后的登记 bundle 为 `sha256:5142b355dcf055da498e8705864c789e82c15b656f1ffe3e4ca8c7afc5b0855f`，冻结时间 `2026-10-24T12:17:12+00:00`。既有消费者自动生成新的方法/验收引用及 Task InputSet，不回写旧 Task 或持久记录；软件 `0.4.0`、工作流应用及迁移 head 不变。
+- 定向验证：一次性方法 `.thesis-work/t-sim-03/verify.py`（不入库），SHA-256 `d13dfe630a685c69014e2c3a11a891263db5c6625f0a5ffc3508e783965d1985`。WSL Ubuntu-24.04、UID 1000、CPython 3.12.13、内核 `6.18.33.2-microsoft-standard-WSL2`，仓库 `/mnt/e/Project/CloudHelm`；首轮因方法导入位置错误未进入断言，修正后于 `2026-10-24T12:19:40.282227+00:00` 一次完整通过：当前真实加载、隔离副本加载、50 项与旧 AST 输出完全一致，原冻结视图的 AcceptanceMetadata 相同，需求与 HTTP 方法修订不变，登记 bundle/冻结时间确为新输入；脚本变化、目录损坏/缺失、重复/缺失/空/超量 ID、错误方法与 bundle 共 9 项拒绝通过。临时副本自动清理，无常驻测试增加。
+- 资产保护与交付检查：原 InputSet、需求和 r1 三份文件共 5 份与入口 Git 字节一致；未改独立脚本、旧清单或历史结果。6 份改动文件 UTF-8、目录 JSON、加载器语法、当前说明/计划的本地文档链接、一次性方法忽略范围和 `git diff --check` 通过。加载器 140 个物理行，最长函数 39 行，无需新增抽象或拆模块；按仓库流程提交并推送 `dev`。
+- 进行中：无；03a～03b 已完成实现与本机定向开发验证。
+- 阻塞与风险：本任务范围无阻塞；旧 InputSet 对当前 README 的适用性仍失效，仅作固定来源追溯，新资产由新目录绑定。未执行 HTTP/worker/数据库/容器全链路、历史全量测试、Desktop、独立机器或人工验收，不产生产品通过结论。
+- 主要文件：独立参照目录新增清单及说明、`modules/projects/reference_assets.py`、工程开发说明、项目计划与进度。下一项具体任务为后续承接 T-SIM-04a；本轮止于 03，不自动开放 04～07 或 P1.3-02，实际投入及剩余工作量待估。
+
 ## 2026-10-24：源码简化专项 T-SIM-02
 
 - 原因与授权：用户要求根据文档快速完成 T-SIM-02，不使用子代理、不做大量测试。入口 `dev / 39aef8aa748275b4fe0e334a204f3f302c1ab331`，工作树干净；本轮只开放 02a～02c，由主会话执行。
