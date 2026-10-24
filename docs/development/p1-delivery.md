@@ -1,7 +1,7 @@
 # 归档 Release、环境配置与部署计划
 
-当前源码为 `0.6.0`，DBOS 工作流应用为 `cloudhelm-hub/0.6.0`，新隔离库的线性业务迁移为
-`0007_p1_4_delivery`（前驱 `0006_p1_3_resource_lifecycle`）。使用 [Hub 开发入口](p1-hub.md)
+当前源码为 `0.7.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
+`0008_p1_4_remote`（前驱 `0007_p1_4_delivery`）。使用 [Hub 开发入口](p1-hub.md)
 准备 WSL 锁定环境和独立数据库角色；`initialize` 不升级旧安装。
 
 ## 1. 当前支持范围
@@ -14,9 +14,9 @@
 工具链、Compose/Descriptor/迁移及配置 schema 来源，另生成交付运行契约；原本地制品验证模板及其
 `deployment_entry_enabled: false` 不改写、不当作远程部署开关。
 
-当前工作流只可靠记录“等待远端接入”。Remote Agent 通道、归档实际传输/load、逐步骤在线许可、真实目标本地锁、
-磁盘加载/解包并存空间及全部写入者硬限、迁移/数据库身份初始化、服务切换和健康事实由 P1.4-02 接入。
-批准、预检或工作流返回都不表示部署成功；本入口不提供独立机器部署或产品安装包。
+工作流保留可靠暂存；P1.4-02 新增主动认证通道、目标持久账本、逐步骤许可及固定物理适配，见
+[Remote Agent 说明](p1-remote-agent.md)。默认普通入口因缺少适用时钟证明保持关闭。
+批准、预检、方法合成输入或单个真实数据库容器不表示完整部署成功；当前不提供产品安装包。
 
 ## 2. Release 的前提
 
@@ -89,7 +89,7 @@ developer/reviewer 的原动作上限和 Agent 委托不增加批准权限。
 `modules.delivery.target_facts` 的 `TargetFactProducer` 只由受信 composition root 注入。
 维护角色用 `collect_target_registration` / `register_target` 登记目标；受信采集器在事务外查询实际账本，
 用 `collect_target_observation` / `register_observation` 写入不可变观察。API 角色不能写目标观察；公开请求不能提交
-“目标为空”“状态已核对”或能力声明。P1.4-02 尚未连接时，不以本机 Docker 或手写假成功替代目标事实。
+“目标为空”“状态已核对”或能力声明。P1.4-02 只接受受认证的目标账本事实，不以本机 Docker 或手写假成功替代。
 
 编制、批准和预检都要求与绑定一致且最近 60 秒内的已核对观察。首次安装必须证明没有服务、数据库修订或未登记资源；
 缺少历史 Release 不作为空目标证明。观察中的 secret 版本可用集合必须覆盖配置引用，执行器支持全部具名步骤。

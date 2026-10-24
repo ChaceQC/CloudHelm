@@ -12,6 +12,7 @@ TABLE_MODULES = (
     "modules.projects.source_tables", "modules.projects.source_import_tables", "modules.workspaces.tables",
     "modules.workspaces.development_tables", "modules.delivery.tables", "modules.execution.tables",
     "modules.delivery.deployment_tables",
+    "modules.delivery.remote_tables",
 )
 
 

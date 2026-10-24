@@ -1,4 +1,4 @@
-"""Durably stage approved plans; remote physical progression belongs to P1.4-02."""
+"""Durably stage approved plans; the Remote Agent owns physical progression."""
 
 from dbos import DBOS, WorkflowSerializationFormat
 from sqlalchemy import select
@@ -36,7 +36,7 @@ def _stage(operation_id: str):
             return existing
         try:
             approved_preflight(context, row["plan_id"], approval.plan_digest)
-            code = "remote_agent_transport_not_connected"
+            code = "remote_agent_claim_pending"
         except TaskBoundaryError as error:
             code = error.code
         result = DeploymentStagedEvent(operation_id=operation_id, plan_id=row["plan_id"], blocking_code=code)

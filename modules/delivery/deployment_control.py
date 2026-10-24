@@ -86,11 +86,20 @@ def approved_preflight(context, plan_id, digest):
     if digest != plan.digest or approval.plan_digest != plan.digest:
         raise TaskBoundaryError("deployment_approval_digest_mismatch", status_code=422)
     _, now = validate_preflight(context, plan)
+    check_approval_current(context, plan, approval, now)
+    return DeploymentPreflight(plan_id=plan_id, operation_id=approval.operation_id,
+        plan_digest=plan.digest, checked_at=now)
+
+
+def check_approval_current(context, plan, approval, now):
+    """Also used after execution registration; do not re-require the initial state."""
+    if approval.plan_digest != plan.digest or now >= plan.value.start_before:
+        raise TaskBoundaryError("deployment_plan_expired_or_changed")
     if not approval.approved_at <= now < approval.expires_at:
         raise TaskBoundaryError("deployment_approval_expired")
     # An operator's access cannot replace the original human approver's current access.
     row = context.uow.connection.execute(select(deployment_approvals.c.command_id).where(
-        deployment_approvals.c.plan_id == plan_id)).one()
+        deployment_approvals.c.plan_id == plan.object_id)).one()
     actor = actor_for_command(context.uow, row.command_id)
     decision = authorize_current(context.uow, actor, AuthoritativeResource(
         context.project_id, "project", context.project_id), "deployment.approve")
@@ -103,8 +112,6 @@ def approved_preflight(context, plan_id, digest):
     if (session is None or session["user_id"] != approval.approver_user_id or session["revoked_at"] is not None
             or not session["issued_at"] <= now < session["expires_at"]):
         raise TaskBoundaryError("deployment_approval_credential_not_current")
-    return DeploymentPreflight(plan_id=plan_id, operation_id=approval.operation_id,
-        plan_digest=plan.digest, checked_at=now)
 
 
 def begin_deployment(context, plan_id, digest):

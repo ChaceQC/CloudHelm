@@ -3,7 +3,7 @@
   "info": {
     "title": "CloudHelm Hub API",
     "description": "Identity, Task control, bounded engineering and shared resource intents and queries.",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "paths": {
     "/api/auth/me": {
@@ -10281,7 +10281,10 @@
             "enum": [
               "approval_pending",
               "awaiting_remote_agent",
-              "execution_registered"
+              "execution_registered",
+              "needs_reconciliation",
+              "failed_known",
+              "succeeded"
             ],
             "title": "Status"
           },

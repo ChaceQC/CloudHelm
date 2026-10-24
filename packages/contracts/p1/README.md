@@ -23,6 +23,7 @@
 |`delivery_records.py`、`delivery_requests.py`|`p1-release-manifest-r1`、`p1-environment-config-r1`、`p1-deployment-plan-r1`、人类批准与可信目标观察；运行验证用现有 Candidate EvidenceMetadata 的 fact_digest 固定构建/归档/测试配置。实际入口及边界见[交付说明](../../../docs/development/p1-delivery.md)|
 |`workspace_development_requests.py`|可变 Workspace 环境的申请、休眠、恢复、数据重建、处置与操作查询；公共请求不提交 Runner 就绪事实|
 |`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
+|`remote_delivery.py`、`remote-openapi.json`|执行器认证通道的完整计划、样本、具名许可及步骤事实；默认启动关闭，边界见 [Remote Agent 说明](../../../docs/development/p1-remote-agent.md)|
 
 所有固定模型拒绝额外字段。API 还检查原始 JSON 重复键、非法数值和请求边界；真实主体、scope、action、当前授权及请求摘要由服务端解析和构造，不能用客户端自报的 `caller`、角色、`allowed` 或完成布尔值放行。
 

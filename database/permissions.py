@@ -68,6 +68,7 @@ def apply_runtime_permissions(connection: Connection) -> None:
         for table in WORKSPACE_INSERTS[role]:
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
         if role == "worker":
+            connection.exec_driver_sql(f"GRANT UPDATE (lock_revision) ON cloudhelm.delivery_remote_credentials TO {name}")
             connection.exec_driver_sql(
                 f"GRANT UPDATE ({', '.join(WORKSPACE_RECEIPT_COLUMNS)}) ON cloudhelm.workspaces TO {name}"
             )
@@ -101,6 +102,8 @@ def apply_runtime_permissions(connection: Connection) -> None:
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.environment_bindings TO {name}")
             connection.exec_driver_sql(f"GRANT UPDATE (config_revision) ON cloudhelm.environment_bindings TO {name}")
         if role == "worker":
+            for table in ("delivery_remote_samples", "delivery_remote_grants", "delivery_remote_results"):
+                connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.delivery_target_observations TO {name}")
             connection.exec_driver_sql("GRANT UPDATE (environment_revision, release_id, config_revision_id, active_operation_id) "
                                       f"ON cloudhelm.environment_bindings TO {name}")

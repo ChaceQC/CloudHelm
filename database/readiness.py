@@ -16,7 +16,7 @@ from database.tables import BUSINESS_REVISION, POSTGRESQL_VERSION_NUM, runtime_b
 from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION, DBOS_SCHEMA, DBOS_SDK_VERSION
 
 ROLE_NAMES = {"api": "cloudhelm_api", "worker": "cloudhelm_worker", "migrator": "cloudhelm_migrator"}
-ROLE_CONNECTION_LIMITS = {"api": 6, "worker": 8, "migrator": 4}
+ROLE_CONNECTION_LIMITS = {"api": 6, "worker": 10, "migrator": 4}
 
 
 class DatabaseNotReady(RuntimeError):

@@ -1,6 +1,6 @@
 [project]
 name = "cloudhelm-hub"
-version = "0.6.0"
+version = "0.7.0"
 description = "CloudHelm Hub development source and isolated integration probes"
 requires-python = "==3.12.*"
 dependencies = [

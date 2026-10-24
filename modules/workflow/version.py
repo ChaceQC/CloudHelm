@@ -4,7 +4,7 @@ from packages.contracts.p1.commands import WorkflowName
 from packages.contracts.p1.engineering_commands import EngineeringWorkflowName
 
 APPLICATION_NAME = "cloudhelm-hub"
-APPLICATION_VERSION = "0.6.0"
+APPLICATION_VERSION = "0.7.0"
 DBOS_SDK_VERSION = "3.2.0"
 DBOS_SCHEMA = "dbos"
 INITIAL_WORKFLOW: WorkflowName = "collaboration.task_initial.v1"

@@ -195,7 +195,7 @@ class DeploymentView(Contract):
     plan: DeliveryObject
     approval: DeploymentApproval | None
     operation_id: Identifier | None
-    status: Literal["approval_pending", "awaiting_remote_agent", "execution_registered"]
+    status: Literal["approval_pending", "awaiting_remote_agent", "execution_registered", "needs_reconciliation", "failed_known", "succeeded"]
     environment_revision: Revision
 
 

@@ -2,6 +2,36 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-25：P1.4-02 Remote Agent 与原身份迁移核对
+
+- 用户后续澄清：完整交付和时钟验证均允许执行，只禁止整机重启。主会话继续这两项工作；此前把它们提前列为仅待后续的收尾判断已撤回。已只读确认目标为无虚拟化的 Intel i5-8400 裸机、TSC/ART/constant_tsc/nonstop_tsc，Hub 为 AMD 6800H 的 WSL2 TSC 组合；实际支持依据和端到端交付正在取证，下面已有切片结果不扩大为新验证结论。
+- 真实链路前置复核：发现 P1.4-01 的 Release 核验过度依赖 Task 完成投影中的 candidate_key/CompletionInputs，当前真实参照工程只绑定初始输入，尚未进入 P2 的最终完成输入流程。修正范围限定为按真实 BuildRun 固定候选、当前 InputSet 和产品来源独立证据核验 Release；仍核对原 Task 控制修订、人测策略及需要时的真实人测结论，不写入或伪造 Task 完成状态。
+- 完整链连接预算：实际运行核对 worker 角色已占 8 个连接（DBOS 5、普通业务 1、控制 2），原 8 连接上限未计入独立资源控制入口和新远端 facade。保持单 DBOS worker 与各池上限，按峰值 `2 normal + 1 control + 4 DBOS + 1 listener + 1 resource host + 1 remote facade = 10` 明确更新角色总上限；定向验证控制进程只使用一个控制连接，未扩展业务并发或借用维护角色运行业务。
+
+- 原因与授权：用户要求按文档快速完成 P1.4-02，不使用子代理、不做大量测试。入口为 `dev / 813fca4`，工作树干净；用户提供独立目标 SSH 连接信息，授权专属目录/容器及空闲端口的隔离测试，明确禁止整机重启。私钥仅交 SSH 使用，不读取/输出内容。
+- 影响范围与预期边界：在现有归档/配置/完整计划/批准上接 Remote Agent 的本地主动推进、持久许可/步骤账本、有限物理步骤和迁移原身份查询；Hub 只授权和接收事实，不逐步下发执行。未知保持冲突锁，不自动回滚；普通许可缺少适用支持证据时拒绝。
+- 执行安排：认证与持久账本 → 时间/当前授权及恢复门禁 → 归档/迁移/服务/健康适配 → 一次窄范围独立目标验证 → 文档/契约/Git。
+- 只读环境核对：目标为 Debian 13.7 / Linux 6.12.107、6 核、16,653,258,752 bytes 内存，Docker 26.1.5、Compose 2.39.4，现有 Elect/数据库/实验容器；其运行范围不属本次操作。WSL 继续使用 Ubuntu-24.04、仓库映射 `/mnt/e/Project/CloudHelm` 和现有锁定环境。
+- 已实现：独立 `remote/v1` 主动认证通道，维护登记的执行器 token 与人类 DeviceSession 分离；四张表及线性迁移 `0008_p1_4_remote` 保存凭据和不可变样本/许可/结果，worker 仅有凭据锁列更新权，API 无远端事实写权限。完整计划/Manifest/批准按原 Operation 拉取，归档限定计划内的已验证 inode；HTTP 正文/响应有界，拒绝重复键、非有限值和输入/异常回显。
+- 已完成真实制品与 Release：真实来源导入、Task 启动、候选冻结、P1.2 受管 Runner 三角色构建成功；backend 65,600,512 bytes、frontend 26,081,792 bytes、postgres 160,163,840 bytes，实际 BuildRun 绑定候选 commit `585f9a24572a2bc859db8c779598eeb8667e9b23`。固定归档配方在 WSL 受管 Docker 中真实执行五步：归档/输入/迁移/服务/30 秒健康；独立 HTTP `baseline 43/43`、`seed 3/3`、重启持久化 `2/2`、not-ready `2/2` 全部通过。真实 Release `release-dadf6225a90c22f24bc5257a5f10316798ca8dae7836e4331460912de67e4af5`，manifest digest `sha256:142b6fac959eb84756cb7504bfa7125647f23690f758a3ce96106f79393694f0`。
+- 已完成真实时钟证据：Windows HCS 管理员只读见证 `p14-native-witness-r2` 已启动，签名状态为 Running、生命周期事件与电源事件计数 0；WSL↔目标连续采样 1263 次、715.522278674 秒，观测相对速率区间 `[-13.23361868976012652271558583629410790000, 52.53912857845165142170959342480142000000] ppm`，在冻结 ±100 ppm 界内；profile digest `sha256:62ea7568bf0937e5ab9c4d5e4dae14e68591ff326e0481bbc5c945f98515c99c`。`ContinuousClockEvidence` 已接入 permit root：boot ID、clocksource、suspend counter、boottime/monotonic offset、签名 witness generation、watchdog gap 任一变化即永久关闭，不重建旧许可。该证据适用范围只绑定本次固定 WSL/裸机目标组合，不推广到任意虚拟机/硬件；整机重启未执行。
+- 已实现：本地 SQLite FULL/WAL 账本、显式安装 lineage、绑定互斥/持久占用、不可变首次许可接受与步骤 intent。相同 Operation 异摘要拒绝；未知步骤查询原结果，不重放；重启封闭未启动旧 grant，缺失账本拒绝初始化推断。未知/已过期工作不会无条件阻断其他绑定的可运行计划，跨项目同 installation 的资源按原子准入及逐维较大值保守占账。
+- 已实现：复用 P0 的 RAW 单调时间、完整 RTT 误差区间、30 秒有效期/2 秒不确定度/5 秒接受窗口；认证样本绑定 nonce/身份/通道/纪元，重投不生成新样本，失信时钟对象永久关闭。当前批准人权限/原设备凭据、计划期限、配置/secret、实际中间状态与前序事实逐步重查；普通入口必须由受控 composition root 提供实际 `ClockSupport`，默认不具备、保持拒绝，不以测试合成值启用目标机。
+- 已实现：固定配方重新编译核对、真实归档传输/OCI 校验与 classic/containerd 加载、RootFS 与解压/并存空间检查；目标核对专属有界文件系统、Agent/daemon/容器的 systemd 资源组；固定数据库/应用身份、线性迁移单事务成功账本、具名服务更新及启动后 30 秒连续健康窗口。服务齐全不独自推进新修订，必须具有更新 intent、当前配置及实际身份；未知/漂移不记成功。以上物理处理源码未获得本轮完整产品交付验证。
+- 已实现：迁移固定 PostgreSQL 16.13、Alembic 1.20.0 和独立已审查脚本摘要，按实例取得 session advisory lock；DDL、version、三组后置与成功账本单事务提交，应用角色不能改控制账本。丢回执按原身份查询；缺记录、异摘要、锁/数据库未知不重放、不自动回滚。当前仅固定新安装和同版 schema 核对，已有数据升级、数据库秘密轮换及完整恢复不因源码存在自动开放。
+- 版本与兼容：源码 `0.7.0`、工作流应用 `cloudhelm-hub/0.7.0` 和业务 head `0008_p1_4_remote` 分别维护；SDK/依赖版本不变，`uv.lock` 同步工程版本。包括 `0.6.0` / `0007` 在内的旧安装不会被 initialize 自动升级，未部署现有 Hub，也未生成 tag/Release。
+- 固定输入：最终协议方法运行输入按既有“路径 + NUL + 文件 SHA-256”排序规则摘要为 `9c1add3b89d7144ea74933418b8c7f955060db212fc9b663b9573af1711be0ec`，方法前后相同。`.thesis-work/p1-4-02/verify.py` SHA-256 `16fb7de59b41726f3c7f66dbdb44d322f600ef65070303d03d56188f62c3b07f`，仅从历史 `09cf13c` 复用 Task 夹具 helper；构建/物理/时钟生产者明确为合成输入，没有恢复历史全量测试或正式验收资产。
+- 协议实际验证：WSL Ubuntu-24.04、Python 3.12.13 和锁定依赖，`uv run --locked --offline --no-sync python -B .thesis-work/p1-4-02/verify.py` 于 `2026-10-24T20:01:33.447885+00:00` 至 `2026-10-24T20:01:50.710275+00:00` passed；22 个断言及 2 条预期拒绝诊断，覆盖真实 PostgreSQL/HTTP/SQLite、完整计划、五步授权/事实投影、重投零新增执行、最终绑定释放、配置漂移、过期等号、5 秒窗口、失信/重启旧接受拒绝、未知原步骤查询和缺账本拒绝。时间边界及物理步骤使用合成输入，不能证明实际时钟/暂停或远端完整执行支持。
+- 独立目标实际验证：`.thesis-work/p1-4-02/remote_smoke.py` SHA-256 `440866c6ee37e60c7475f36f5cfd4fcef425add464d574a5551a1ab68ec75393`，SSH 专属夹具 helper SHA-256 `c0ace1732b8dd9cca2b199dd14025a314e1337773c683f3f8084fe9c2f114d86`；实际 `migration.py` SHA-256 `a07486bbc292423cfc60fa64b124c0eefb1259be4dbc90ae2061cf9eb44cf1c6`。WSL 锁定 Python 执行迁移适配，通过 VPN 连接独立 Debian 目标的专属 PostgreSQL 16.13，SSH 仅引导/重启/清理测试容器，不作为产品日常通道。容器限额 0.5 CPU/256MiB/128 PID，专用测试端口 55458；于 `2026-10-24T19:44:48.932687+00:00` 至 `2026-10-24T19:44:58.669377+00:00` passed，共 11 个断言，覆盖实际修订/三组后置/唯一账本、丢回执先查、异摘要拒绝、合法应用写入及仅该数据库容器重启后的账本/数据保持。
+- 调试与方法边界：凭据共享锁所需的专用锁列授权在首次协议接线失败后补齐；中间两轮轮询/观察拒绝未保存具体响应类别，不追认根因或通过，随后开启仅固定错误码诊断。独立目标旧 uv 0.8.22 未完成当前 Python/依赖安装，未替换系统工具；大归档传输中止，改用目标直接取得 PostgreSQL 16.13 和 WSL 客户端执行适配。首次目标方法末次查询复用了重启前连接，补 pool_pre_ping 后上述固定方法通过。仅在接线/方法/实现变化后复跑关联方法，没有运行历史套件、模型或完整构建。
+- 静态验证：`static_check.py` 于 `2026-10-24T20:01:44.330953+00:00` 通过当时 45 个变更文本 UTF-8、30 个 Python 语法和 143 个本地文档链接；Hub 45 paths/47 operations/125 schemas、独立远端 7 paths/41 schemas 均与快照一致，检查入口已同步维护两个快照。`uv lock --check --offline`、`git diff --check` 通过；后续仅文档/交付差异继续做相应静态检查，不重跑业务方法。
+- 代码规模评估：按物理行含空行/注释统计变更 Python，排除生成 JSON/锁/忽略方法；模块均不超过 300 行。普通业务函数未超过 60 行；`apply_runtime_permissions` 69 行为集中角色声明、远端 `create_app` 102 行为统一路由/错误边界装配，按单一声明职责保留。实际观察职责拆入 `observations.py`，清除本次引入的无用导入。
+- 清理：协议 fixture 定向移除其临时数据库/容器/网络；独立目标的两轮专属 PostgreSQL 容器、匿名业务卷和临时凭据由方法 finally 清理。额外版本探测容器已自动移除；核对目标无 `cloudhelm-p14` 容器后，校验本轮源归档摘要和目录成员范围，定向删除 `/opt/cloudhelm-p14-check-20261025`；本机未用完的大归档也已删除。没有构建或替换应用开发镜像、没有旧 CloudHelm 应用镜像待淘汰；固定 PostgreSQL 基础镜像缓存保留，未全局 prune、重启整机或操作其他项目。
+- 进行中：完整目标计划已创建环境/配置，目标隔离 Docker daemon 与 8GiB 有界盘已启动；Remote Agent 接入继续使用真实 HTTPS Hub facade、预加载归档与上述签名时钟。归档分片传输在目标上仍有未完成/需核对的文件，未把传输中的目标事实写成部署成功。
+- 阻塞与风险：目标为 6 核约 16GB，不是 4 核 8GB；整机重启仍未执行。目标的 Remote Agent 需要 Hub TLS facade 可从目标访问，当前 Hub facade 仍在 WSL loopback 准备，目标完整步骤尚未取得物理成功回报；未确认前保持 waiting/unknown，不自动重放。目标 Docker daemon 为本任务专属 systemd 单元，其他现有服务未改动。
+- 下一步：完成目标专属归档核对/预加载、启动受认证 Hub facade，随后按原 Operation 获取逐步许可并核对服务/迁移/健康事实；只在所有物理事实、原账本和健康窗口齐全后记录 succeeded。整机重启及 4 核 8GB 容量仍单独保留支持边界。
+- 主要文件：`modules/delivery/remote_*`、`permit_clock.py`、`services/remote-agent/`、`packages/contracts/p1/remote_delivery.py` 和双 OpenAPI、迁移/权限、版本入口、[交付说明](docs/development/p1-delivery.md)、[远端说明](docs/development/p1-remote-agent.md)、计划/支持矩阵及本进度。
+
 ## 2026-10-25：P1.4-01 Release、环境配置与部署计划
 
 - 原因与授权：用户要求根据文档快速完成 P1.4-01，不使用子代理、不做大量测试；用户随后解除 `PROJECT_PLAN.md` 现有改动的保留约束。入口为 `dev / b81cacb651a1b9ec2920ed8347ae896c87fb8f2a`，初始仅该计划的表格格式有未提交改动。

@@ -1,0 +1,2934 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CloudHelm Remote Agent channel",
+    "version": "0.7.0"
+  },
+  "paths": {
+    "/remote/v1/sample": {
+      "post": {
+        "summary": "Sample",
+        "operationId": "sample_remote_v1_sample_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteHello"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteTimeSample"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote/v1/poll": {
+      "post": {
+        "summary": "Poll",
+        "operationId": "poll_remote_v1_poll_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemotePoll"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemotePollResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote/v1/bindings": {
+      "post": {
+        "summary": "Bindings",
+        "operationId": "bindings_remote_v1_bindings_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemotePoll"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteBindings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote/v1/observations": {
+      "post": {
+        "summary": "Observe",
+        "operationId": "observe_remote_v1_observations_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteObservationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote/v1/permits": {
+      "post": {
+        "summary": "Permit",
+        "operationId": "permit_remote_v1_permits_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemotePermitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemotePermit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote/v1/results": {
+      "post": {
+        "summary": "Result",
+        "operationId": "result_remote_v1_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteStepResult"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote/v1/artifacts/{operation}/{storage_id}": {
+      "get": {
+        "summary": "Artifact",
+        "operationId": "artifact_remote_v1_artifacts__operation___storage_id__get",
+        "parameters": [
+          {
+            "name": "operation",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Operation"
+            }
+          },
+          {
+            "name": "storage_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Storage Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BuildArtifactRecord": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "frontend",
+              "backend",
+              "postgres"
+            ],
+            "title": "Role"
+          },
+          "storage_id": {
+            "type": "string",
+            "pattern": "^oci-[0-9a-f]{64}$",
+            "title": "Storage Id"
+          },
+          "content_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "archive_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Archive Digest"
+          },
+          "archive_bytes": {
+            "type": "integer",
+            "maximum": 2147483648,
+            "minimum": 1024,
+            "title": "Archive Bytes"
+          },
+          "platform": {
+            "type": "string",
+            "const": "linux/amd64",
+            "title": "Platform",
+            "default": "linux/amd64"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          },
+          "config_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Digest"
+          },
+          "image_id": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Image Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "storage_id",
+          "content_ref",
+          "archive_digest",
+          "archive_bytes",
+          "manifest_digest",
+          "config_digest",
+          "image_id"
+        ],
+        "title": "BuildArtifactRecord"
+      },
+      "BuildDefinition": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-build-definition-r1",
+            "title": "Schema Revision",
+            "default": "p1-build-definition-r1"
+          },
+          "recipes": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFileInput"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Recipes"
+          },
+          "locks": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFileInput"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Locks"
+          },
+          "toolchain_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Toolchain Refs"
+          },
+          "base_image_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Base Image Refs"
+          },
+          "platform": {
+            "type": "string",
+            "const": "linux/amd64",
+            "title": "Platform",
+            "default": "linux/amd64"
+          },
+          "descriptor": {
+            "$ref": "#/components/schemas/BuildFileInput"
+          },
+          "compose": {
+            "$ref": "#/components/schemas/BuildFileInput"
+          },
+          "runtime_contract_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "config_schema": {
+            "$ref": "#/components/schemas/BuildFileInput"
+          },
+          "migrations": {
+            "items": {
+              "$ref": "#/components/schemas/BuildFileInput"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "Migrations"
+          },
+          "acceptance_assets_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "parameter_set_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "output_roles": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "frontend",
+                "backend",
+                "postgres"
+              ]
+            },
+            "type": "array",
+            "title": "Output Roles",
+            "default": [
+              "frontend",
+              "backend",
+              "postgres"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recipes",
+          "locks",
+          "toolchain_refs",
+          "base_image_refs",
+          "descriptor",
+          "compose",
+          "runtime_contract_ref",
+          "config_schema",
+          "migrations",
+          "acceptance_assets_ref"
+        ],
+        "title": "BuildDefinition"
+      },
+      "BuildFileInput": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "controlled_recipe"
+            ],
+            "title": "Origin",
+            "default": "candidate"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "digest"
+        ],
+        "title": "BuildFileInput",
+        "description": "A relative file in the candidate or the controlled recipe bundle."
+      },
+      "ComposeDeploymentPlan": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-compose-deployment-r1",
+            "title": "Schema Revision",
+            "default": "p1-compose-deployment-r1"
+          },
+          "contract": {
+            "type": "string",
+            "const": "cloudhelm.p1.compose-r1",
+            "title": "Contract",
+            "default": "cloudhelm.p1.compose-r1"
+          },
+          "parser_revision": {
+            "type": "string",
+            "const": "p1-compose-parser-r1",
+            "title": "Parser Revision",
+            "default": "p1-compose-parser-r1"
+          },
+          "plan_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Plan Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "release_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Release Id"
+          },
+          "release_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Release Digest"
+          },
+          "config_revision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Config Revision Id"
+          },
+          "config_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Digest"
+          },
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeService"
+            },
+            "type": "object",
+            "maxProperties": 16,
+            "minProperties": 1,
+            "title": "Services"
+          },
+          "networks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeNetwork"
+            },
+            "type": "object",
+            "maxProperties": 32,
+            "title": "Networks"
+          },
+          "volumes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeVolume"
+            },
+            "type": "object",
+            "maxProperties": 32,
+            "title": "Volumes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id",
+          "plan_digest",
+          "release_id",
+          "release_digest",
+          "config_revision_id",
+          "config_digest",
+          "services",
+          "networks",
+          "volumes"
+        ],
+        "title": "ComposeDeploymentPlan"
+      },
+      "ComposeEnvironmentConfig": {
+        "properties": {
+          "config_revision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Config Revision Id"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "maxProperties": 64,
+            "title": "Parameters"
+          },
+          "secret_refs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "maxProperties": 64,
+            "title": "Secret Refs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "config_revision_id"
+        ],
+        "title": "ComposeEnvironmentConfig"
+      },
+      "ComposeHealthcheck": {
+        "properties": {
+          "test": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Test"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "timeout": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout"
+          },
+          "retries": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100,
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retries"
+          },
+          "start_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Period"
+          },
+          "disable": {
+            "type": "boolean",
+            "title": "Disable",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "test"
+        ],
+        "title": "ComposeHealthcheck"
+      },
+      "ComposeNetwork": {
+        "properties": {
+          "driver": {
+            "type": "string",
+            "const": "bridge",
+            "title": "Driver",
+            "default": "bridge"
+          },
+          "internal": {
+            "type": "boolean",
+            "const": true,
+            "title": "Internal",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ComposeNetwork"
+      },
+      "ComposeParameterSlot": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Service"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^environment\\.[A-Z][A-Z0-9_]{0,63}$",
+            "title": "Target"
+          },
+          "kind": {
+            "type": "string",
+            "const": "enum",
+            "title": "Kind",
+            "default": "enum"
+          },
+          "allowed_values": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Allowed Values"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service",
+          "target",
+          "allowed_values"
+        ],
+        "title": "ComposeParameterSlot"
+      },
+      "ComposePort": {
+        "properties": {
+          "host_ip": {
+            "type": "string",
+            "const": "127.0.0.1",
+            "title": "Host Ip"
+          },
+          "published": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Published"
+          },
+          "target": {
+            "type": "integer",
+            "maximum": 65535,
+            "minimum": 1,
+            "title": "Target"
+          },
+          "protocol": {
+            "type": "string",
+            "const": "tcp",
+            "title": "Protocol",
+            "default": "tcp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "host_ip",
+          "published",
+          "target"
+        ],
+        "title": "ComposePort"
+      },
+      "ComposeReleaseSpec": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-compose-release-r1",
+            "title": "Schema Revision",
+            "default": "p1-compose-release-r1"
+          },
+          "contract": {
+            "type": "string",
+            "const": "cloudhelm.p1.compose-r1",
+            "title": "Contract",
+            "default": "cloudhelm.p1.compose-r1"
+          },
+          "parser_revision": {
+            "type": "string",
+            "const": "p1-compose-parser-r1",
+            "title": "Parser Revision",
+            "default": "p1-compose-parser-r1"
+          },
+          "release_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Release Id"
+          },
+          "release_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Release Digest"
+          },
+          "project_name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Name"
+          },
+          "source_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Source Digest"
+          },
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeService"
+            },
+            "type": "object",
+            "maxProperties": 16,
+            "minProperties": 1,
+            "title": "Services"
+          },
+          "networks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeNetwork"
+            },
+            "type": "object",
+            "maxProperties": 32,
+            "title": "Networks"
+          },
+          "volumes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeVolume"
+            },
+            "type": "object",
+            "maxProperties": 32,
+            "title": "Volumes"
+          },
+          "parameter_contract": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeParameterSlot"
+            },
+            "type": "object",
+            "maxProperties": 64,
+            "title": "Parameter Contract"
+          },
+          "secret_reference_contract": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComposeSecretSlot"
+            },
+            "type": "object",
+            "maxProperties": 64,
+            "title": "Secret Reference Contract"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "release_id",
+          "release_digest",
+          "project_name",
+          "source_digest",
+          "services",
+          "networks",
+          "volumes",
+          "parameter_contract",
+          "secret_reference_contract"
+        ],
+        "title": "ComposeReleaseSpec"
+      },
+      "ComposeSecretSlot": {
+        "properties": {
+          "service": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Service"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^environment\\.[A-Z][A-Z0-9_]{0,63}$",
+            "title": "Target"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "service",
+          "target"
+        ],
+        "title": "ComposeSecretSlot"
+      },
+      "ComposeService": {
+        "properties": {
+          "image": {
+            "type": "string",
+            "pattern": "^.+@sha256:[0-9a-f]{64}$",
+            "title": "Image"
+          },
+          "environment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Environment"
+          },
+          "networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Networks",
+            "default": []
+          },
+          "volumes": {
+            "items": {
+              "$ref": "#/components/schemas/ComposeVolumeMount"
+            },
+            "type": "array",
+            "title": "Volumes",
+            "default": []
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/ComposePort"
+            },
+            "type": "array",
+            "title": "Ports",
+            "default": []
+          },
+          "command": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Command"
+          },
+          "restart": {
+            "type": "string",
+            "enum": [
+              "no",
+              "always",
+              "on-failure",
+              "unless-stopped"
+            ],
+            "title": "Restart",
+            "default": "no"
+          },
+          "healthcheck": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComposeHealthcheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "ComposeService"
+      },
+      "ComposeVolume": {
+        "properties": {
+          "driver": {
+            "type": "string",
+            "const": "local",
+            "title": "Driver",
+            "default": "local"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ComposeVolume"
+      },
+      "ComposeVolumeMount": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "volume",
+            "title": "Type",
+            "default": "volume"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9][A-Za-z0-9._/-]*$",
+            "title": "Target"
+          },
+          "read_only": {
+            "type": "boolean",
+            "title": "Read Only",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "ComposeVolumeMount"
+      },
+      "DeploymentApproval": {
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Approval Id"
+          },
+          "plan_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Plan Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "config_revision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Config Revision Id"
+          },
+          "approver_user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Approver User Id"
+          },
+          "authorization_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Authorization Revision"
+          },
+          "policy_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Policy Revision"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Approved At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "approval_id",
+          "plan_id",
+          "plan_digest",
+          "binding_id",
+          "config_revision_id",
+          "approver_user_id",
+          "authorization_revision",
+          "policy_revision",
+          "approved_at",
+          "expires_at",
+          "operation_id"
+        ],
+        "title": "DeploymentApproval"
+      },
+      "DeploymentPlan": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-deployment-plan-r1",
+            "title": "Schema Revision",
+            "default": "p1-deployment-plan-r1"
+          },
+          "plan_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Plan Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "release_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Release Id"
+          },
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          },
+          "variant_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Variant Digest"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/EnvironmentBinding"
+          },
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Generation"
+          },
+          "platform": {
+            "type": "string",
+            "const": "linux/amd64",
+            "title": "Platform",
+            "default": "linux/amd64"
+          },
+          "docker_identity_kind": {
+            "type": "string",
+            "enum": [
+              "oci_config",
+              "oci_manifest"
+            ],
+            "title": "Docker Identity Kind"
+          },
+          "expected_state": {
+            "$ref": "#/components/schemas/EnvironmentState"
+          },
+          "expected_state_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Expected State Digest"
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/EnvironmentConfigRevision"
+          },
+          "normalized_spec": {
+            "$ref": "#/components/schemas/ComposeDeploymentPlan"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PlanStep"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "minItems": 1,
+            "title": "Steps"
+          },
+          "step_inputs": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "maxProperties": 16,
+            "minProperties": 1,
+            "title": "Step Inputs"
+          },
+          "start_before": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Before"
+          },
+          "max_runtime_seconds": {
+            "type": "integer",
+            "maximum": 1860,
+            "minimum": 60,
+            "title": "Max Runtime Seconds"
+          },
+          "health_window_seconds": {
+            "type": "integer",
+            "const": 30,
+            "title": "Health Window Seconds",
+            "default": 30
+          },
+          "policy_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Policy Revision"
+          },
+          "authorization_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Authorization Revision"
+          },
+          "required_approval_action": {
+            "type": "string",
+            "const": "deployment.approve",
+            "title": "Required Approval Action",
+            "default": "deployment.approve"
+          },
+          "new_steps_require_online_permit": {
+            "type": "boolean",
+            "const": true,
+            "title": "New Steps Require Online Permit",
+            "default": true
+          },
+          "on_disconnect": {
+            "type": "string",
+            "const": "wait_and_reconcile",
+            "title": "On Disconnect",
+            "default": "wait_and_reconcile"
+          },
+          "compensation": {
+            "type": "string",
+            "const": "stop_and_reconcile",
+            "title": "Compensation",
+            "default": "stop_and_reconcile"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_id",
+          "project_id",
+          "release_id",
+          "manifest_digest",
+          "variant_digest",
+          "binding",
+          "executor_instance",
+          "generation",
+          "docker_identity_kind",
+          "expected_state",
+          "expected_state_digest",
+          "configuration",
+          "normalized_spec",
+          "steps",
+          "step_inputs",
+          "start_before",
+          "max_runtime_seconds",
+          "policy_revision",
+          "authorization_revision"
+        ],
+        "title": "DeploymentPlan"
+      },
+      "EngineeringRef": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "session",
+              "run",
+              "operation",
+              "operation_result",
+              "wait_condition",
+              "context",
+              "input_set",
+              "history",
+              "messages",
+              "deferred_results",
+              "tool_request",
+              "delivery",
+              "requirement",
+              "contract",
+              "source",
+              "build",
+              "artifact",
+              "environment",
+              "environment_config",
+              "parameter_set",
+              "resource_binding",
+              "secret_version",
+              "evidence",
+              "acceptance_assets",
+              "method",
+              "candidate",
+              "release",
+              "deployment_plan",
+              "deployment_spec",
+              "policy",
+              "descriptor",
+              "compose",
+              "runtime",
+              "config_schema",
+              "migration",
+              "approval",
+              "variant"
+            ],
+            "title": "Kind"
+          },
+          "object_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Object Id"
+          },
+          "revision": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Revision"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest"
+          },
+          "digest_algorithm": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "sha256"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Digest Algorithm"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "object_id",
+          "revision"
+        ],
+        "title": "EngineeringRef"
+      },
+      "EnvironmentBinding": {
+        "properties": {
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "environment_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Environment Id"
+          },
+          "target_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Target Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Installation Id"
+          },
+          "namespace": {
+            "type": "string",
+            "pattern": "^ch-[0-9a-f]{32}$",
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding_id",
+          "project_id",
+          "environment_id",
+          "target_id",
+          "installation_id",
+          "namespace"
+        ],
+        "title": "EnvironmentBinding"
+      },
+      "EnvironmentConfigRevision": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-environment-config-r1",
+            "title": "Schema Revision",
+            "default": "p1-environment-config-r1"
+          },
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Revision"
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/ComposeEnvironmentConfig"
+          },
+          "parameter_contract_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Parameter Contract Digest"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/ResourceVector"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding_id",
+          "revision",
+          "configuration",
+          "parameter_contract_digest",
+          "resources"
+        ],
+        "title": "EnvironmentConfigRevision"
+      },
+      "EnvironmentState": {
+        "properties": {
+          "environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Environment Revision"
+          },
+          "release_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Id"
+          },
+          "config_revision_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Revision Id"
+          },
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ObservedService"
+            },
+            "type": "object",
+            "maxProperties": 16,
+            "title": "Services"
+          },
+          "database_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database Revision"
+          },
+          "unregistered_resources": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Unregistered Resources",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "environment_revision"
+        ],
+        "title": "EnvironmentState"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InputSet": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "input_set_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Input Set Id"
+          },
+          "canonicalization": {
+            "type": "string",
+            "const": "rfc8785-reference-set-r1",
+            "title": "Canonicalization",
+            "default": "rfc8785-reference-set-r1"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "minItems": 1,
+            "title": "References"
+          },
+          "set_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Set Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "input_set_id",
+          "references",
+          "set_digest"
+        ],
+        "title": "InputSet"
+      },
+      "ObservedService": {
+        "properties": {
+          "manifest_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Manifest Digest"
+          },
+          "config_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Config Digest"
+          },
+          "loaded_image_id": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Loaded Image Id"
+          },
+          "docker_identity_kind": {
+            "type": "string",
+            "enum": [
+              "oci_config",
+              "oci_manifest"
+            ],
+            "title": "Docker Identity Kind"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "stopped"
+            ],
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "manifest_digest",
+          "config_digest",
+          "loaded_image_id",
+          "docker_identity_kind",
+          "state"
+        ],
+        "title": "ObservedService"
+      },
+      "PermitBinding": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "step_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Step Id"
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Digest"
+          },
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "hub_incarnation": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Hub Incarnation"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Generation"
+          },
+          "environment_execution_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Environment Execution Id"
+          },
+          "environment_config_revision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Environment Config Revision Id"
+          },
+          "expected_environment_revision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Expected Environment Revision Id"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Control Revision"
+          },
+          "authorization_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Authorization Revision"
+          },
+          "predecessor_results_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Predecessor Results Digest"
+          },
+          "actual_state_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Actual State Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_digest",
+          "step_id",
+          "input_digest",
+          "executor_instance",
+          "hub_incarnation",
+          "generation",
+          "environment_execution_id",
+          "environment_config_revision_id",
+          "expected_environment_revision_id",
+          "control_revision",
+          "authorization_revision",
+          "predecessor_results_digest",
+          "actual_state_digest"
+        ],
+        "title": "PermitBinding"
+      },
+      "PlanStep": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "step_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Step Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "artifact_prepare",
+              "runtime_input_check",
+              "database_migrate",
+              "service_update",
+              "health_verify",
+              "approved_compensation"
+            ],
+            "title": "Kind"
+          },
+          "type_revision": {
+            "type": "string",
+            "const": "1",
+            "title": "Type Revision",
+            "default": "1"
+          },
+          "input_ref": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Input Ref"
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Digest"
+          },
+          "preconditions_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Preconditions Digest"
+          },
+          "postconditions_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Postconditions Digest"
+          },
+          "max_runtime_seconds": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "title": "Max Runtime Seconds"
+          },
+          "stop_mode": {
+            "type": "string",
+            "enum": [
+              "cancel_transfer_then_reconcile",
+              "stop_read_only",
+              "database_transaction_boundary",
+              "reconcile_service_transition"
+            ],
+            "title": "Stop Mode"
+          },
+          "result_query_ref": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Result Query Ref"
+          },
+          "on_failure": {
+            "type": "string",
+            "enum": [
+              "stop_and_reconcile",
+              "approved_compensation"
+            ],
+            "title": "On Failure",
+            "default": "stop_and_reconcile"
+          },
+          "compensation_step_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compensation Step Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step_id",
+          "kind",
+          "input_ref",
+          "input_digest",
+          "preconditions_digest",
+          "postconditions_digest",
+          "max_runtime_seconds",
+          "stop_mode",
+          "result_query_ref"
+        ],
+        "title": "PlanStep"
+      },
+      "ReleaseManifest": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-release-manifest-r1",
+            "title": "Schema Revision",
+            "default": "p1-release-manifest-r1"
+          },
+          "release_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Release Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "build_run_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Build Run Id"
+          },
+          "build_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Build Operation Id"
+          },
+          "build_input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Build Input Digest"
+          },
+          "source_commit": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+            "title": "Source Commit"
+          },
+          "input_set": {
+            "$ref": "#/components/schemas/InputSet"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/BuildDefinition"
+          },
+          "variant": {
+            "type": "string",
+            "const": "reference-notes-archive-linux-amd64-r1",
+            "title": "Variant",
+            "default": "reference-notes-archive-linux-amd64-r1"
+          },
+          "variant_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Variant Digest"
+          },
+          "artifacts": {
+            "items": {
+              "$ref": "#/components/schemas/BuildArtifactRecord"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Artifacts"
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/ComposeReleaseSpec"
+          },
+          "build_observation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Build Observation Id"
+          },
+          "build_method_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "verification_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Verification Refs"
+          },
+          "verification_configuration": {
+            "$ref": "#/components/schemas/ComposeEnvironmentConfig"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "release_id",
+          "project_id",
+          "task_id",
+          "build_run_id",
+          "build_operation_id",
+          "build_input_digest",
+          "source_commit",
+          "input_set",
+          "definition",
+          "variant_digest",
+          "artifacts",
+          "runtime",
+          "build_observation_id",
+          "build_method_ref",
+          "verification_refs",
+          "verification_configuration"
+        ],
+        "title": "ReleaseManifest"
+      },
+      "RemoteBindings": {
+        "properties": {
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/EnvironmentBinding"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Bindings",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RemoteBindings"
+      },
+      "RemoteHello": {
+        "properties": {
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Generation"
+          },
+          "mapping_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Mapping Epoch"
+          },
+          "clock_continuity_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Clock Continuity Id"
+          },
+          "sample_nonce": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Sample Nonce"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "executor_instance",
+          "generation",
+          "mapping_epoch",
+          "clock_continuity_id",
+          "sample_nonce"
+        ],
+        "title": "RemoteHello"
+      },
+      "RemoteObservationRequest": {
+        "properties": {
+          "observation": {
+            "$ref": "#/components/schemas/TargetObservation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observation"
+        ],
+        "title": "RemoteObservationRequest"
+      },
+      "RemotePermit": {
+        "properties": {
+          "grant": {
+            "$ref": "#/components/schemas/StepPermit"
+          },
+          "environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Environment Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "grant",
+          "environment_revision"
+        ],
+        "title": "RemotePermit"
+      },
+      "RemotePermitRequest": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "step_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Step Id"
+          },
+          "mapping": {
+            "$ref": "#/components/schemas/TimeMapping"
+          },
+          "actual_state_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Actual State Digest"
+          },
+          "predecessor_results_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Predecessor Results Digest"
+          },
+          "closed_unstarted_grants": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Closed Unstarted Grants",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_digest",
+          "step_id",
+          "mapping",
+          "actual_state_digest",
+          "predecessor_results_digest"
+        ],
+        "title": "RemotePermitRequest"
+      },
+      "RemotePlan": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/DeploymentPlan"
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/ReleaseManifest"
+          },
+          "approval": {
+            "$ref": "#/components/schemas/DeploymentApproval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_digest",
+          "plan",
+          "manifest",
+          "approval"
+        ],
+        "title": "RemotePlan"
+      },
+      "RemotePoll": {
+        "properties": {
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Generation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "executor_instance",
+          "generation"
+        ],
+        "title": "RemotePoll"
+      },
+      "RemotePollResult": {
+        "properties": {
+          "deployment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RemotePlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "ready",
+              "waiting_authorization"
+            ],
+            "title": "Status"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "code"
+        ],
+        "title": "RemotePollResult"
+      },
+      "RemoteStepResult": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "step_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Step Id"
+          },
+          "input_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Input Digest"
+          },
+          "grant_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Grant Id"
+          },
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Generation"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed_known",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EnvironmentState"
+          },
+          "evidence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Evidence Digest"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "database_operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database Operation Id"
+          },
+          "database_input_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database Input Digest"
+          },
+          "database_postchecks": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "schema_integrity",
+                "data_integrity",
+                "application_probe"
+              ]
+            },
+            "type": "array",
+            "title": "Database Postchecks",
+            "default": []
+          },
+          "health_started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health Started At"
+          },
+          "health_finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Health Finished At"
+          },
+          "health_samples": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 0,
+            "title": "Health Samples",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_digest",
+          "step_id",
+          "input_digest",
+          "grant_id",
+          "executor_instance",
+          "generation",
+          "status",
+          "state",
+          "evidence_digest",
+          "observed_at"
+        ],
+        "title": "RemoteStepResult"
+      },
+      "RemoteTimeSample": {
+        "properties": {
+          "hello": {
+            "$ref": "#/components/schemas/RemoteHello"
+          },
+          "hub_incarnation": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Hub Incarnation"
+          },
+          "time_domain": {
+            "type": "string",
+            "const": "hub-monotonic-us-v1",
+            "title": "Time Domain",
+            "default": "hub-monotonic-us-v1"
+          },
+          "time_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Time Epoch"
+          },
+          "channel_binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Channel Binding Id"
+          },
+          "hub_sample_us": {
+            "type": "integer",
+            "minimum": 0,
+            "title": "Hub Sample Us"
+          },
+          "support_evidence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Support Evidence Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hello",
+          "hub_incarnation",
+          "time_epoch",
+          "channel_binding_id",
+          "hub_sample_us",
+          "support_evidence_digest"
+        ],
+        "title": "RemoteTimeSample"
+      },
+      "ResourceVector": {
+        "properties": {
+          "memory_mib": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Memory Mib",
+            "default": 0
+          },
+          "cpu_millicores": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Cpu Millicores",
+            "default": 0
+          },
+          "disk_bytes": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Disk Bytes",
+            "default": 0
+          },
+          "pids": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Pids",
+            "default": 0
+          },
+          "heavy_slots": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Heavy Slots",
+            "default": 0
+          },
+          "preview_slots": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Preview Slots",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ResourceVector"
+      },
+      "StepPermit": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "grant_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Grant Id"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/PermitBinding"
+          },
+          "time_domain": {
+            "type": "string",
+            "const": "hub-monotonic-us-v1",
+            "title": "Time Domain",
+            "default": "hub-monotonic-us-v1"
+          },
+          "time_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Time Epoch"
+          },
+          "mapping_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Mapping Epoch"
+          },
+          "clock_continuity_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Clock Continuity Id"
+          },
+          "channel_binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Channel Binding Id"
+          },
+          "issued_at": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Issued At"
+          },
+          "expires_at": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "grant_id",
+          "binding",
+          "time_epoch",
+          "mapping_epoch",
+          "clock_continuity_id",
+          "channel_binding_id",
+          "issued_at",
+          "expires_at"
+        ],
+        "title": "StepPermit"
+      },
+      "TargetObservation": {
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Observation Id"
+          },
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "target_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Target Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Installation Id"
+          },
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Generation"
+          },
+          "reconciled": {
+            "type": "boolean",
+            "title": "Reconciled"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EnvironmentState"
+          },
+          "available_secret_refs": {
+            "items": {
+              "type": "string",
+              "pattern": "^secret://[A-Za-z0-9._/-]+@v[0-9]+$"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Available Secret Refs",
+            "default": []
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observation_id",
+          "binding_id",
+          "target_id",
+          "installation_id",
+          "executor_instance",
+          "generation",
+          "reconciled",
+          "state",
+          "observed_at"
+        ],
+        "title": "TargetObservation"
+      },
+      "TimeMapping": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "time_domain": {
+            "type": "string",
+            "const": "hub-monotonic-us-v1",
+            "title": "Time Domain",
+            "default": "hub-monotonic-us-v1"
+          },
+          "time_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Time Epoch"
+          },
+          "mapping_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Mapping Id"
+          },
+          "mapping_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Mapping Epoch"
+          },
+          "clock_continuity_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Clock Continuity Id"
+          },
+          "hub_incarnation": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Hub Incarnation"
+          },
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "channel_binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Channel Binding Id"
+          },
+          "sample_nonce": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Sample Nonce"
+          },
+          "support_evidence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Support Evidence Digest"
+          },
+          "sent_mono_us": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Sent Mono Us"
+          },
+          "received_mono_us": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Received Mono Us"
+          },
+          "hub_sample_us": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "title": "Hub Sample Us"
+          },
+          "hub_sample_error_us": {
+            "type": "integer",
+            "maximum": 10000,
+            "minimum": 1,
+            "title": "Hub Sample Error Us"
+          },
+          "local_read_error_us": {
+            "type": "integer",
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Local Read Error Us"
+          },
+          "relative_rate_ppm": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Relative Rate Ppm"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "time_epoch",
+          "mapping_id",
+          "mapping_epoch",
+          "clock_continuity_id",
+          "hub_incarnation",
+          "executor_instance",
+          "channel_binding_id",
+          "sample_nonce",
+          "support_evidence_digest",
+          "sent_mono_us",
+          "received_mono_us",
+          "hub_sample_us",
+          "hub_sample_error_us",
+          "local_read_error_us",
+          "relative_rate_ppm"
+        ],
+        "title": "TimeMapping"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

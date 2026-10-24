@@ -140,6 +140,16 @@ class DeliveryApplication:
             status = "approval_pending" if approval is None else "awaiting_remote_agent"
             if approval is not None and row["active_operation_id"] == approval.operation_id:
                 status = "execution_registered"
+            if approval is not None:
+                from modules.delivery.remote_store import step_results
+
+                results = step_results(uow.connection, approval.operation_id)
+                if any(value.status == "unknown" for value in results.values()):
+                    status = "needs_reconciliation"
+                elif any(value.status == "failed_known" for value in results.values()):
+                    status = "failed_known"
+                elif all(step.step_id in results and results[step.step_id].status == "succeeded" for step in plan.value.steps):
+                    status = "succeeded"
             return DeploymentView(plan=plan, approval=approval, operation_id=approval.operation_id if approval else None,
                 status=status, environment_revision=row["environment_revision"])
 
