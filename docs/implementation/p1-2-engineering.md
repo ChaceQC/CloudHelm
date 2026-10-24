@@ -99,7 +99,7 @@ Runner 只接受封闭的注册操作，`RunnerOperationSpec` 绑定原操作/�
 
 首个受限 profile 为 `notes-backend-dev-r1`：固定 Python/uv、linux/amd64 和既有便签后端；Workspace 源码只读挂载，源码修改继续由共同排他锁保护的受控文件服务执行。工作区内私有依赖按项目／Workspace、工具链、锁文件实际摘要、平台和安装参数分键；已核验 wheel 下载种子只读。不得把 `generation` 当作真实依赖变化的替身。原锁及明确获准的固定锁变体分别核验字节，未知依赖继续拒绝。
 
-允许的开发动作仅为离线准备依赖、参考项目 Alembic `upgrade head`、固定 Uvicorn 开发服务、合成数据初始化／重置及停止。启动使用私有环境的 Python 执行 `-m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /workspace/backend/app`，工作目录为只读挂载内的 `backend`。PostgreSQL 使用已有固定镜像与独立测试数据目录；容器网络和实际父级限额沿用受控开发基础。请求不接受任意 shell、挂载或探针参数。
+允许的开发动作仅为离线准备依赖、参考项目 Alembic `upgrade 0002_add_updated_at_index`、固定 Uvicorn 开发服务、合成数据初始化／重置及停止。启动使用私有环境的 Python 执行 `-m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /workspace/backend/app`，工作目录为只读挂载内的 `backend`。PostgreSQL 使用已有固定镜像与独立测试数据目录；容器网络和实际父级限额沿用受控开发基础。请求不接受任意 shell、挂载或探针参数。
 
 ready 至少核对实际容器／进程、运行时依赖、`/health`、`/ready`、数据库迁移 head 与当前源码清单；源码修改后等待 reload 并用预期 HTTP 行为及源码摘要核对运行修订，未确认前保持 pending/stale。服务入口仅供独立开发方法受限访问，完整预览、票据和用户访问流程仍属 P2。
 
@@ -108,6 +108,21 @@ prepare／suspend／resume／reset_data／dispose 均登记稳定操作与规范
 开发服务长驻期间以共享 backing pin 固定实例修订、挂载和打开 FD；短时命令仍经排他 admission 锁核对，源码、依赖与数据各按所属锁和私有目录写入。整池文件系统硬上限及持续占账不变，pin 不是额外容量预留。维护卸载／换挂载／删除必须取得 backing 独占 pin 并确认无相关容器挂载；服务进程崩溃丢失 pin 后仍先核对物理容器，不因锁已释放就回收。
 
 worker 正常关闭先停止本执行器持有的已登记开发服务并核对，再释放 pin；只保存物理收尾记录，不伪造用户 suspend/dispose 命令或改写旧命令结果。重新使用时以新 resume 意图重新核对当前输入与实际就绪。异常退出的旧进程／挂载仍按原身份查询，未确认停止继续阻断回收。
+
+### 8.1 固定便签配方与执行职责
+
+便签语义集中在 [workspace_development_recipe.py](../../services/dev-runner/workspace_development_recipe.py)，仅保存固定值与纯转换。它不持有生命周期状态、凭据值、执行器或存储，不接受公共请求提供的镜像、命令、SQL 或探针；当前只有 `notes-backend-dev-r1`，不预建插件注册。
+
+|原调用与保留入口|配方提供的内容|保持的观察与边界|
+|---|---|---|
+|Docker `ensure_images`、`create_database`、`create_migration`、`create_backend`|原 Python/PostgreSQL 镜像引用与摘要、数据库命令/公开环境、工作目录/端口和 Uvicorn/Alembic argv|镜像 ID、原 labels、容器/网络/操作身份和配置字节等价；挂载、限额、容器创建/停止与秘密注入仍归 Docker/Runtime|
+|bootstrap `bootstrap_command`|只允许 serve 或固定迁移修订的 argv|原有界解包、归档 SHA-256、成员/字节/链接拒绝及 exec 脚本不变；依赖/快照 key 不变|
+|Runtime `_run_migration`、`_migration_head`|固定迁移修订与 head 查询|启动前原门禁、迁移退出码和数据库实际修订仍共同核对；超时/旧迁移未知不重放|
+|Runtime `_prepare_data`、`observe_current` 与 registry/spec 校验|r1/r2 合成种子、初始化 SQL 模板、种子/旧种子/权限后置查询|Runtime 私下替换密码占位；原种子数量、非 trust 认证和最小角色权限检查不变；数据 generation 仍由原生命周期决定|
+|probe `probe_workspace_backend`、Runtime `_wait_ready` / `probe_notes` / `probe_devmarker`|固定 GET 脚本及响应解析，使用同一份种子定义|保留 health/ready/notes 的 status/digest、notes 的 id/title_digest/body_digest、seed_verified、devmarker_status/digest；进程身份、源码前后稳定性和 reload 观察仍由 Runtime/probe 执行|
+|Controller `apply` / `query`、journal|journal 统一解码 intent/observation 并校验规范摘要；配方只提供允许的数据修订|沿用 `p1-workspace-development-journal-r1` 和既有记录字节；apply 持原门禁编排，query 仅回读/核对 may_have_started，不安装、启动、迁移或重置；accepted 尚未执行、停止未知和 pin 保留语义不变|
+
+Runtime 继续持有操作/环境身份、长期 pin、秘密文件、门禁和物理事实；Controller 继续在原 journal 锁下登记、推进及归档，journal 不执行命令。registry 只读解析当前输入，直接使用源码观察模块，不通过导入 Runtime 获取该函数。该职责调整不改变 HTTP/schema、DBOS 步骤、日志版本或缓存身份，也不使历史证据适用于当前源码；实际定向结果见 [T-SIM-04 记录](../../PROJECT_PROGRESS.md#2026-10-24源码简化专项-t-sim-04)。
 
 后端缓存方法使用同一私有 builder 的 A→A→B：A 为固定源码，第二次字节完全相同；B 是获准且独立固定源码摘要的新候选，实际参与构建。核对输入 key、步骤缓存／执行、完整制品身份与预期产物变化。该方法只证明单 builder 内部缓存，Workspace 私有依赖复用由开发环境方法单独证明。
 

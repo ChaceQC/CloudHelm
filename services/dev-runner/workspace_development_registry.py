@@ -2,7 +2,7 @@
 
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p1.development_environment import (
-    DATA_REVISION, MIGRATION_REVISION, WorkspaceDevelopmentEnvironmentSpec, WorkspaceDevelopmentToolchain,
+    WorkspaceDevelopmentEnvironmentSpec, WorkspaceDevelopmentToolchain,
 )
 
 from .engineering_registry import EngineeringRegistry, EngineeringRegistryError, load_registration
@@ -11,12 +11,12 @@ from .toolchain import ProbeFailure
 from .workspace_development_inputs import (
     read_workspace_backend_inputs, validate_workspace_dependency_inputs,
 )
+from .workspace_development_recipe import DATA_REVISION, DATASET_REVISIONS, MIGRATION_REVISION
+from .workspace_development_source import observe_workspace_source
 
 
 def registered_development_spec(*, binding, request, command_id, environment_id, current_environment):
     """Do no installation, container creation, network acquisition or business write."""
-    from .workspace_development_runtime import observe_workspace_source
-
     registration = load_registration()
     if registration is None:
         raise EngineeringRegistryError("engineering_execution_not_configured")
@@ -43,7 +43,7 @@ def registered_development_spec(*, binding, request, command_id, environment_id,
         data_revision = DATA_REVISION if current_environment is None else current_environment["data_revision"]
         if request.action == "reset_data":
             data_revision = request.target_data_revision
-        if data_revision not in {DATA_REVISION, "reference-synthetic-r2"}:
+        if data_revision not in DATASET_REVISIONS:
             raise ProbeFailure("workspace_development_data_revision_unsupported")
         return WorkspaceDevelopmentEnvironmentSpec(
             environment_id=environment_id, binding=binding, storage_ref=registration.storage,

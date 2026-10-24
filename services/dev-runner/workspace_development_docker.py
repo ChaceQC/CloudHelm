@@ -9,23 +9,21 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
-from packages.contracts.p1.development_environment import POSTGRES_REFERENCE
 from packages.contracts.p1.workspace_candidates import RegisteredWorkspaceReader
 from modules.workspaces.candidate_writers import process_start_ticks
 
 from .artifact_environment_docker import docker, engine
-from .offline_images import SOURCE_DIGEST, SOURCE_REFERENCE
 from .toolchain import DockerClient, ProbeFailure
 from .workspace_development_bootstrap import bootstrap_command
+from .workspace_development_recipe import (
+    BACKEND_PORT, DATABASE_APPLICATION_USER, DATABASE_COMMAND, DATABASE_ENVIRONMENT,
+    DATABASE_NAME, DATABASE_OWNER, DATABASE_SQL_COMMAND, DATA_REVISION, DATASET_REVISIONS,
+    MIGRATION_REVISION, POSTGRES_IMAGE_DIGEST, POSTGRES_REFERENCE, PROFILE,
+    PYTHON_IMAGE_DIGEST, PYTHON_REFERENCE, WORKING_DIRECTORY,
+)
 
 SCOPE = "p1-workspace-development"
 METHOD = "p1-workspace-development-r1"
-PROFILE = "notes-backend-dev-r1"
-MIGRATION_REVISION = "0002_add_updated_at_index"
-DATASET_REVISIONS = {"reference-synthetic-r1", "reference-synthetic-r2"}
-DATA_REVISION = "reference-synthetic-r1"
-POSTGRES_IMAGE_DIGEST = POSTGRES_REFERENCE.rsplit("@", 1)[1]
-PYTHON_IMAGE_DIGEST = SOURCE_DIGEST
 DATABASE_LIMITS = (256 * 1024**2, 50_000, 64)
 BACKEND_LIMITS = (512 * 1024**2, 75_000, 128)
 DATABASE_TMPFS = {
@@ -46,7 +44,7 @@ def environment_name(environment_id: str) -> str:
 
 def ensure_fixed_image(client: DockerClient, reference: str, digest: str, *, label: str) -> str:
     """Load only an immutable, already expected linux/amd64 image reference."""
-    if reference not in {SOURCE_REFERENCE, POSTGRES_REFERENCE}:
+    if reference not in {PYTHON_REFERENCE, POSTGRES_REFERENCE}:
         raise ProbeFailure("workspace_development_image_not_allowlisted")
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise ProbeFailure("workspace_development_image_digest_invalid")
@@ -71,7 +69,7 @@ def ensure_fixed_image(client: DockerClient, reference: str, digest: str, *, lab
 
 def inspect_fixed_image(client: DockerClient, reference: str, digest: str) -> str | None:
     """Read only; unlike ensure_fixed_image this never pulls or changes images."""
-    if reference not in {SOURCE_REFERENCE, POSTGRES_REFERENCE} or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+    if reference not in {PYTHON_REFERENCE, POSTGRES_REFERENCE} or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise ProbeFailure("workspace_development_image_not_allowlisted")
     present = client.run("image", "inspect", reference, "--format", "{{.Id}}", required=False)
     if present.returncode:
@@ -111,7 +109,7 @@ class WorkspaceDevelopmentDocker:
                  operation_id: str, cgroup_parent: str, cgroup_path: Path, database_directory: Path,
                  secrets_directory: Path, workspace_source: str, snapshot_source: Path | None,
                  snapshot_digest: str | None, snapshot_bytes: int | None, app_password: str,
-                 owner_password: str, data_revision: str = "reference-synthetic-r1"):
+                 owner_password: str, data_revision: str = DATA_REVISION):
         if data_revision not in DATASET_REVISIONS:
             raise ProbeFailure("workspace_development_data_revision_unsupported")
         self.client = client
@@ -151,7 +149,7 @@ class WorkspaceDevelopmentDocker:
         self.images = {
             "postgres": ensure_fixed_image(self.client, POSTGRES_REFERENCE, POSTGRES_IMAGE_DIGEST,
                 label="postgres"),
-            "python": ensure_fixed_image(self.client, SOURCE_REFERENCE, PYTHON_IMAGE_DIGEST,
+            "python": ensure_fixed_image(self.client, PYTHON_REFERENCE, PYTHON_IMAGE_DIGEST,
                 label="python"),
         }
         return dict(self.images)
@@ -189,7 +187,7 @@ class WorkspaceDevelopmentDocker:
                  "NetworkingConfig": {"EndpointsConfig": {
                      self.network_id: {"Aliases": [role]}}}}
         if role != "postgres":
-            value["WorkingDir"] = "/workspace/backend"
+            value["WorkingDir"] = WORKING_DIRECTORY
         return value
 
     def create_database(self) -> str:
@@ -202,11 +200,8 @@ class WorkspaceDevelopmentDocker:
             {"Type": "bind", "Source": str(self.secrets_directory),
              "Target": "/run/cloudhelm-secrets", "ReadOnly": True},
         ]
-        config["Env"] = ["POSTGRES_DB=reference_notes", "POSTGRES_USER=reference_owner",
-            "POSTGRES_PASSWORD_FILE=/run/cloudhelm-secrets/owner",
-            "POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 --auth-local=scram-sha-256"]
-        config["Cmd"] = ["postgres", "-c", "max_connections=30", "-c", "shared_buffers=32MB",
-            "-c", "log_min_messages=panic", "-c", "log_statement=none"]
+        config["Env"] = list(DATABASE_ENVIRONMENT)
+        config["Cmd"] = list(DATABASE_COMMAND)
         return self._create("postgres", config)
 
     def _bootstrap_mounts(self) -> list[dict]:
@@ -225,16 +220,16 @@ class WorkspaceDevelopmentDocker:
         ]
 
     def _database_url(self, username: str, password: str) -> str:
-        if username not in {"reference_owner", "reference_app"} or not re.fullmatch(r"[0-9a-f]{64}", password):
+        if username not in {DATABASE_OWNER, DATABASE_APPLICATION_USER} or not re.fullmatch(r"[0-9a-f]{64}", password):
             raise ProbeFailure("workspace_development_database_identity_invalid")
-        return f"postgresql+psycopg://{username}:{password}@postgres:5432/reference_notes"
+        return f"postgresql+psycopg://{username}:{password}@postgres:5432/{DATABASE_NAME}"
 
     def create_migration(self, revision: str = MIGRATION_REVISION) -> str:
         if revision != MIGRATION_REVISION or self.images.get("python") is None or self.network_id is None:
             raise ProbeFailure("workspace_development_migration_scope_invalid")
         config = self._base_config("migration", self.images["python"], BACKEND_TMPFS)
         config["HostConfig"]["Mounts"] = self._bootstrap_mounts()
-        config["Env"] = ["DATABASE_URL=" + self._database_url("reference_owner", self.owner_password),
+        config["Env"] = ["DATABASE_URL=" + self._database_url(DATABASE_OWNER, self.owner_password),
             "WORKSPACE_SNAPSHOT_SHA256=" + self.snapshot_digest.removeprefix("sha256:"),
             "PYTHONDONTWRITEBYTECODE=1", "HOME=/tmp"]
         config["Cmd"] = ["/usr/local/bin/python", "-B", "-I", "-c", bootstrap_command(MIGRATION_REVISION)]
@@ -244,9 +239,9 @@ class WorkspaceDevelopmentDocker:
         if self.images.get("python") is None or self.network_id is None:
             raise ProbeFailure("workspace_development_backend_scope_invalid")
         config = self._base_config("backend", self.images["python"], BACKEND_TMPFS)
-        config["ExposedPorts"] = {"8000/tcp": {}}
+        config["ExposedPorts"] = {BACKEND_PORT: {}}
         config["HostConfig"]["Mounts"] = self._bootstrap_mounts()
-        config["Env"] = ["DATABASE_URL=" + self._database_url("reference_app", self.app_password),
+        config["Env"] = ["DATABASE_URL=" + self._database_url(DATABASE_APPLICATION_USER, self.app_password),
             "WORKSPACE_SNAPSHOT_SHA256=" + self.snapshot_digest.removeprefix("sha256:"),
             "CLOUDHELM_DATA_REVISION=" + self.data_revision,
             "PYTHONDONTWRITEBYTECODE=1", "PYTHONUNBUFFERED=1", "HOME=/tmp"]
@@ -362,9 +357,8 @@ class WorkspaceDevelopmentDocker:
         if "postgres" not in self.containers or not isinstance(statement, str) or len(statement) > 8192:
             raise ProbeFailure("workspace_development_sql_scope_invalid")
         return docker("exec", "--env=PGPASSFILE=/run/cloudhelm-secrets/owner.pgpass", "-i",
-            self.containers["postgres"], "psql", "--no-psqlrc", "--quiet", "--tuples-only", "--no-align",
-            "--host=localhost", "--username=reference_owner", "--dbname=reference_notes",
-            "--set=ON_ERROR_STOP=1", input_bytes=statement.encode("utf-8"), required=required)
+            self.containers["postgres"], *DATABASE_SQL_COMMAND,
+            input_bytes=statement.encode("utf-8"), required=required)
 
     def migration_exit(self) -> int | None:
         value = self.inspect("migration")
@@ -504,92 +498,3 @@ class WorkspaceDevelopmentDocker:
                           "running": actual.get("State", {}).get("Running") is True,
                           "mounts": mounts})
         return tuple(sorted(found, key=lambda item: item["role"]))
-
-
-def _bootstrap(action: str) -> str:
-    if action not in {"serve", MIGRATION_REVISION}:
-        raise ProbeFailure("workspace_development_bootstrap_action_invalid")
-    import json
-
-    argv = (["/environment/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0",
-             "--port", "8000", "--reload", "--reload-dir", "/workspace/backend/app"]
-            if action == "serve" else
-            ["/environment/bin/python", "-m", "alembic", "upgrade", MIGRATION_REVISION])
-    # This is fixed code. The archive digest and size are supplied as non-secret data.
-    return """import hashlib, os, pathlib, posixpath, re, stat, sys, tarfile
-archive_name=os.environ.get('WORKSPACE_SNAPSHOT_FILE','')
-if not re.fullmatch(r'[A-Za-z0-9_.-]{1,128}', archive_name): raise SystemExit(80)
-archive='/workspace-cache/'+archive_name
-expected=os.environ.get('WORKSPACE_SNAPSHOT_SHA256','')
-if not re.fullmatch(r'[0-9a-f]{64}', expected): raise SystemExit(81)
-if os.stat(archive).st_size > 402653184: raise SystemExit(82)
-h=hashlib.sha256()
-with open(archive,'rb') as f:
- while True:
-  b=f.read(1048576)
-  if not b: break
-  h.update(b)
-if h.hexdigest()!=expected: raise SystemExit(83)
-root=pathlib.Path('/environment')
-members=[]; names=set(); total=0
-with tarfile.open(archive,'r:*') as t:
- for m in t:
-  if len(members)>=100000: raise SystemExit(84)
-  n=m.name.rstrip('/')
-  p=pathlib.PurePosixPath(n)
-  if (not n or p.is_absolute() or any(x in ('','.','..') for x in n.split('/'))
-      or len(n)>1024 or n in names): raise SystemExit(85)
-  names.add(n)
-  if m.isdir(): kind='dir'
-  elif m.isfile():
-   if m.mode & 0o7000 or m.mode & ~0o755 or (m.mode & 0o111 not in (0,0o111)): raise SystemExit(86)
-   total+=m.size
-   if total>536870912: raise SystemExit(87)
-   kind='file'
-  elif m.issym():
-   target=m.linkname
-   if not target or len(target)>1024: raise SystemExit(88)
-   if target.startswith('/'):
-    if target not in ('/usr/local/bin/python','/usr/local/bin/python3','/usr/local/bin/python3.12'): raise SystemExit(89)
-   else:
-    resolved=posixpath.normpath(posixpath.join(posixpath.dirname(n),target))
-    if resolved in ('..','.') or resolved.startswith('../') or resolved.startswith('/'): raise SystemExit(90)
-   kind='link'
-  else: raise SystemExit(91)
-  members.append((m,n,kind))
-if not names: raise SystemExit(92)
-kind_by_name={n:k for _,n,k in members}
-for _,n,kind in members:
- for parent in pathlib.PurePosixPath(n).parents:
-  if str(parent)=='.': break
-  if str(parent) in kind_by_name and kind_by_name[str(parent)]!='dir': raise SystemExit(93)
- if kind=='link' and any(other.startswith(n+'/') for _,other,_ in members): raise SystemExit(94)
-if any(root.iterdir()): raise SystemExit(95)
-for m,n,kind in sorted(members,key=lambda x:(x[2]!='dir',x[1])):
- dest=root.joinpath(*n.split('/'))
- if kind=='dir':
-  dest.mkdir(mode=0o755,parents=True,exist_ok=True)
-  if not stat.S_ISDIR(dest.lstat().st_mode): raise SystemExit(96)
- elif kind=='file':
-  dest.parent.mkdir(mode=0o755,parents=True,exist_ok=True)
-  cur=root
-  for part in pathlib.PurePosixPath(n).parts[:-1]:
-   cur=cur/part
-   if not stat.S_ISDIR(cur.lstat().st_mode): raise SystemExit(97)
-  src=t.extractfile(m)
-  with open(dest,'xb') as out:
-   while True:
-    b=src.read(65536)
-    if not b: break
-    out.write(b)
-  os.chmod(dest,0o755 if m.mode & 0o111 else 0o644)
-for m,n,kind in members:
- if kind!='link': continue
- dest=root.joinpath(*n.split('/'))
- dest.parent.mkdir(mode=0o755,parents=True,exist_ok=True)
- target=m.linkname
- if target.startswith('/'):
-  allowed={'bin/python':'/usr/local/bin/python','bin/python3':'/usr/local/bin/python3','bin/python3.12':'/usr/local/bin/python3.12'}
-  if allowed.get(n)!=target: raise SystemExit(98)
- os.symlink(target,dest)
-os.execv('/environment/bin/python', """ + json.dumps(argv) + ")"""

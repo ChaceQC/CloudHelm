@@ -2,6 +2,21 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-24：源码简化专项 T-SIM-04
+
+- 原因与授权：用户要求根据文档快速完成 T-SIM-04，不使用子代理、不做大量测试。入口 `dev / f50196c9f9ecb26e6cdf484840179156bbd123e6`，工作树干净；只开放 04a～04c，由主会话执行。
+- 重构范围与预期行为：将固定便签的镜像/命令、迁移、合成数据与业务 HTTP 探针集中为无状态配方；Runtime 保有秘密注入、身份、存储、门禁和物理观察，bootstrap 保有有界依赖解包，日志集中负责既有记录的解码与摘要校验，Controller 保有命令编排与核对。保留操作/环境/快照身份、日志 schema、HTTP 与停止未知语义，query 不安装、启动或重置。
+- 执行安排：04a 先建立配方和原调用/观察字段对照；04b 切换 Docker、Runtime、bootstrap、probe 及 registry；04c 收敛日志恢复与命令/只读查询分支，清理本次接线涉及的死代码，再同步说明和定向验证。
+- 已完成：04a 新增 151 行的 `workspace_development_recipe.py`，集中原镜像、固定命令、迁移、r1/r2 数据与 HTTP 规则；种子定义由初始化和探针共用，实施说明逐项对照原调用及观察字段。04b 切换 Docker/Runtime/bootstrap/probe/registry，保留秘密在执行层私下注入及原门禁；bootstrap 的实际归档校验/解包与输出脚本保持原字节，registry 直接引用源码观察模块。04c journal 统一 intent/observation 解码和摘要校验，Controller query 直接调用既有只读核对入口，移除重复前置回读、未用 Runtime 获取分支及 Docker 内未调用的旧 bootstrap 副本；prepare/resume/reset/stop 的原编排不变。
+- 固定输入与环境：源码入口为上述 Git 提交；最终 8 份 Python 源码的排序路径/文件 SHA-256 清单摘要为 `9a230f9c501112297e4d3cb7d7259fd9e396f70366c8bf99a2a69d1857b0d30f`。WSL Ubuntu-24.04、UID 1000、仓库 `/mnt/e/Project/CloudHelm`、内核 `6.18.33.2-microsoft-standard-WSL2`、CPython 3.12.13、uv 0.11.29，使用现有锁定离线环境；未读取配置秘密或真实业务数据。
+- 定向验证：一次性方法 `.thesis-work/t-sim-04/verify.py`（不入库），SHA-256 `077394caf081fe5429f4d59a2c81d55f9cafe9b86990108d8618bf1eaa717812`，命令 `uv run --locked --offline --no-sync python -B .thesis-work/t-sim-04/verify.py`，最终于 `2026-10-24T12:51:17.733155+00:00` 通过。8 模块导入、serve/迁移 bootstrap 字节、3 类容器配置、两版合成数据的全部 SQL 与门禁顺序、两版 HTTP 探针输出相同；非法动作/数据修订、错种子及门禁拒绝成立。12 个 prepare/resume/migration/discover/stop、命令执行/reset/关闭编排函数 AST 相同；此项证明未改编排，不声称物理流程重新通过。
+- 日志定向结果：用入口旧 Controller 生成真实临时文件日志，新代码回读原 intent；accepted 查询不执行，may_have_started/unknown 只调用 discover/observe 并保留 pending，观察到原 ready 事实后归档，重新打开 Controller 可直接回读成功结果；原/新解码结果一致，篡改观察摘要拒绝。使用合成契约输入及受限替身隔离物理调用，临时文件自动清理，不连接数据库或 Docker。
+- 前序修正：首次导入发现旧 bootstrap 副本尾部未删除完整，已清除后 8 模块导入通过；一次性方法首轮因基线模块 package 名末尾多点而未进入断言，修正后通过，再将日志写入改为入口旧 Controller 并按新方法摘要验证通过。不改写历史方法或旧失败结果。
+- 静态与规模：12 份改动 UTF-8、8 份源码语法、74 个当前本地文档链接和 `git diff --check` 通过；正式参照资产、契约、依赖锁、迁移及 worker 源码与入口字节一致。配方最长函数 27 行；journal 350 行集中格式与安全持久化，Docker 500 行集中物理边界，Runtime 1306 行和 Controller 1014 行继续保留门禁/锁内单序列编排，避免为行数新增混合状态对象或拆开事务。bootstrap 的 79 行函数主要是原有界解包脚本，其他最长函数为 Runtime 的 84 行只读物理核对；本轮不机械切分。行数为文件物理行，含注释/空行，不含依赖、生成物及一次性方法。
+- 进行中：无；04a～04c 已完成实现与本机定向开发验证，文档已同步，按仓库流程提交并推送 dev。
+- 阻塞与风险：本范围无新增阻塞。未执行数据库/容器/worker 全链路、历史全量测试、Desktop、独立机器或人工验收；窄范围等价性与合成恢复证据不能替代物理重验。软件 `0.4.0`、工作流应用 `cloudhelm-hub/0.4.0`、迁移 head、HTTP/schema、journal r1 及环境/操作/快照 key 不变，旧证据不扩用于当前源码。
+- 主要文件：`services/dev-runner/workspace_development_*`、`docs/implementation/p1-2-engineering.md`、`docs/development/p1-engineering.md`、项目计划与进度。下一项为后续任务承接 T-SIM-05a 的 Git 写命令净收益评估；05～07 与后续产品工作包不自动开放，实际投入及剩余工作量待估。
+
 ## 2026-10-24：源码简化专项 T-SIM-03
 
 - 原因与授权：用户要求根据文档快速完成 T-SIM-03，不使用子代理、不做大量测试。入口 `dev / 8225782b1e0bcbb60b5af3d469a378692c858da0`，工作树干净；本轮只开放 03a～03b，由主会话执行。

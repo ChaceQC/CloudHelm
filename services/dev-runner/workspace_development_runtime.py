@@ -37,11 +37,14 @@ from .workspace_development_dependencies import (
     WorkspaceDependencyReceipt, _cached_receipt, prepare_workspace_dependencies,
 )
 from .workspace_development_docker import (
-    DATASET_REVISIONS, MIGRATION_REVISION as FIXED_MIGRATION_REVISION,
-    POSTGRES_IMAGE_DIGEST, PYTHON_IMAGE_DIGEST, POSTGRES_REFERENCE, WorkspaceDevelopmentDocker,
-    inspect_fixed_image,
+    WorkspaceDevelopmentDocker, inspect_fixed_image,
 )
-from .offline_images import SOURCE_REFERENCE
+from .workspace_development_recipe import (
+    DATABASE_NAME, DATABASE_OWNER, DATASET_REVISIONS, MIGRATION_HEAD_QUERY,
+    MIGRATION_REVISION as FIXED_MIGRATION_REVISION, POSTGRES_IMAGE_DIGEST,
+    POSTGRES_REFERENCE, PYTHON_IMAGE_DIGEST, PYTHON_REFERENCE, data_statements,
+    seed_count_statement,
+)
 from .workspace_development_inputs import (
     WORKSPACE_PYTHON_TOOLCHAIN, read_workspace_backend_inputs, validate_workspace_dependency_inputs,
     workspace_storage_id,
@@ -51,16 +54,6 @@ from .workspace_development_source import WorkspaceSourceObservation, observe_wo
 
 RUNTIME_DIRECTORY = "runtime-environments"
 MAX_DATABASE_PASSWORD_BYTES = 256
-DATASET_SEEDS = {
-    "reference-synthetic-r1": (
-        "CloudHelm synthetic seed reference-synthetic-r1",
-        "Deterministic disposable seed note for reference-synthetic-r1",
-    ),
-    "reference-synthetic-r2": (
-        "CloudHelm synthetic seed reference-synthetic-r2",
-        "Deterministic disposable seed note for reference-synthetic-r2",
-    ),
-}
 _ACTIVE_RUNTIMES: dict[str, "WorkspaceDevelopmentRuntime"] = {}
 
 
@@ -322,14 +315,14 @@ class WorkspaceDevelopmentRuntime:
             self.app_password = secrets.token_hex(32)
             _write_private_file(self._secrets_fd, "owner", self.owner_password.encode("ascii"))
             _write_private_file(self._secrets_fd, "owner.pgpass",
-                ("localhost:5432:reference_notes:reference_owner:" + self.owner_password + "\n").encode("ascii"))
+                (f"localhost:5432:{DATABASE_NAME}:{DATABASE_OWNER}:" + self.owner_password + "\n").encode("ascii"))
             _write_private_file(self._runtime_fd, "application-password", self.app_password.encode("ascii"))
         else:
             owner = _read_private_file(self._secrets_fd, "owner").decode("ascii")
             app = _read_private_file(self._runtime_fd, "application-password").decode("ascii")
             pgpass = _read_private_file(self._secrets_fd, "owner.pgpass").decode("ascii")
             if (not re.fullmatch(r"[0-9a-f]{64}", owner) or not re.fullmatch(r"[0-9a-f]{64}", app)
-                    or pgpass != "localhost:5432:reference_notes:reference_owner:" + owner + "\n"):
+                    or pgpass != f"localhost:5432:{DATABASE_NAME}:{DATABASE_OWNER}:" + owner + "\n"):
                 raise ProbeFailure("workspace_development_private_credentials_invalid")
             self.owner_password, self.app_password = owner, app
 
@@ -615,7 +608,7 @@ class WorkspaceDevelopmentRuntime:
     def _migration_head(self) -> str:
         if self.docker is None:
             raise ProbeFailure("workspace_development_database_not_connected")
-        result = self.docker.sql("SELECT version_num FROM alembic_version;", required=False)
+        result = self.docker.sql(MIGRATION_HEAD_QUERY, required=False)
         if result.returncode != 0:
             raise ProbeFailure("workspace_development_migration_head_unavailable")
         try:
@@ -671,37 +664,15 @@ class WorkspaceDevelopmentRuntime:
     def _prepare_data(self, spec: WorkspaceDevelopmentEnvironmentSpec, operation_id: str, gate=None) -> None:
         if self.docker is None or self.app_password is None:
             raise ProbeFailure("workspace_development_data_prerequisite_missing")
-        if spec.data_revision not in DATASET_SEEDS:
-            raise ProbeFailure("workspace_development_data_revision_unsupported")
-        title, body = DATASET_SEEDS[spec.data_revision]
-        password = self.app_password
-        statements = (
-            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='reference_app') THEN "
-            "CREATE ROLE reference_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION; END IF; END $$;\n"
-            f"ALTER ROLE reference_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '{password}';\n"
-            "GRANT CONNECT ON DATABASE reference_notes TO reference_app; "
-            "GRANT USAGE ON SCHEMA public TO reference_app; "
-            "GRANT SELECT,INSERT,UPDATE,DELETE ON notes TO reference_app; "
-            "GRANT SELECT ON alembic_version TO reference_app; "
-            "GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO reference_app;\n"
-            f"INSERT INTO notes(title,body,created_at,updated_at) SELECT '{title}','{body}',"
-            "'2026-01-01T00:00:00Z','2026-01-01T00:00:00Z' WHERE NOT EXISTS "
-            f"(SELECT 1 FROM notes WHERE title='{title}' AND body='{body}');"
-        )
+        initialize, seed_query, other_query, security_query = data_statements(spec.data_revision)
         _invoke_gate(gate, operation_id)
-        result = self.docker.sql(statements, required=False)
+        result = self.docker.sql(initialize.format(password=self.app_password), required=False)
         if result.returncode:
             raise ProbeFailure("workspace_development_synthetic_data_initialization_failed")
         head = self._migration_head()
-        seed = self.docker.sql(
-            f"SELECT count(*) FROM notes WHERE title='{title}' AND body='{body}';", required=False)
-        other_title = self.docker.sql(
-            f"SELECT count(*) FROM notes WHERE title IN ({','.join(repr(seed_title) for seed_title, _ in DATASET_SEEDS.values())}) "
-            f"AND title <> '{title}';", required=False)
-        security = self.docker.sql(
-            "SELECT (SELECT count(*)=0 FROM pg_hba_file_rules WHERE error IS NOT NULL OR auth_method='trust') "
-            "AND (SELECT NOT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication) "
-            "FROM pg_roles WHERE rolname='reference_app');", required=False)
+        seed = self.docker.sql(seed_query, required=False)
+        other_title = self.docker.sql(other_query, required=False)
+        security = self.docker.sql(security_query, required=False)
         if (head != spec.migration_revision or seed.returncode or seed.stdout.strip() != b"1"
                 or other_title.returncode or other_title.stdout.strip() != b"0"
                 or security.returncode or security.stdout.strip() not in (b"t", b"true")):
@@ -838,7 +809,7 @@ class WorkspaceDevelopmentRuntime:
         self.docker.snapshot_digest, self.docker.snapshot_bytes = None, None
         self.docker.data_revision = old_revisions[0]
         self.docker.images = {
-            "python": inspect_fixed_image(self.client, SOURCE_REFERENCE, PYTHON_IMAGE_DIGEST) or "",
+            "python": inspect_fixed_image(self.client, PYTHON_REFERENCE, PYTHON_IMAGE_DIGEST) or "",
             "postgres": self.docker.images.get("postgres", ""),
         }
         try:
@@ -968,7 +939,7 @@ class WorkspaceDevelopmentRuntime:
             self.docker.snapshot_digest, self.docker.snapshot_bytes = receipt.snapshot_digest, receipt.snapshot_bytes
             self.docker.data_revision = current_spec.data_revision
             self._acquire_group(fresh=False)
-            python_image = inspect_fixed_image(self.client, SOURCE_REFERENCE, PYTHON_IMAGE_DIGEST)
+            python_image = inspect_fixed_image(self.client, PYTHON_REFERENCE, PYTHON_IMAGE_DIGEST)
             postgres_image = inspect_fixed_image(self.client, POSTGRES_REFERENCE, POSTGRES_IMAGE_DIGEST)
             if python_image is None or postgres_image is None:
                 return None
@@ -983,9 +954,8 @@ class WorkspaceDevelopmentRuntime:
             head = self._migration_head()
             if head != current_spec.migration_revision:
                 return None
-            title, body = DATASET_SEEDS[current_spec.data_revision]
             seed_count = self.docker.sql(
-                f"SELECT count(*) FROM notes WHERE title='{title}' AND body='{body}';", required=False)
+                seed_count_statement(current_spec.data_revision), required=False)
             if seed_count.returncode or seed_count.stdout.strip() != b"1":
                 return None
             report = probe_workspace_backend(self.client, self.docker.containers["backend"])

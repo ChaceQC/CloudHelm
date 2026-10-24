@@ -11,16 +11,77 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
+import rfc8785
+
 from modules.workspaces.safe_paths import (
     PrivateRoot, WorkspaceFileError, exists_at, read_regular,
 )
+from packages.contracts.p1.development_environment import (
+    DisposeWorkspaceDevelopmentEnvironment, PrepareWorkspaceDevelopmentEnvironment,
+    ResetWorkspaceDevelopmentData, ResumeWorkspaceDevelopmentEnvironment,
+    SuspendWorkspaceDevelopmentEnvironment, WorkspaceDevelopmentEnvironmentObservation,
+    WorkspaceDevelopmentEnvironmentOperationIntent, workspace_development_operation_digest,
+)
+from packages.contracts.p1.workspace_git import content_digest
 
+from .toolchain import ProbeFailure
+
+JOURNAL_SCHEMA = "p1-workspace-development-journal-r1"
 JOURNAL_DIRECTORY = "workspace-development-journal"
 MAX_RECORD_BYTES = 65536
 MAX_ENVIRONMENT_OPERATIONS = 128
 _ENVIRONMENT_ID = re.compile(r"^dev-env-[0-9a-f]{32}$")
 _OPERATION_ID = re.compile(r"^workspace-dev-env-(prepare|suspend|resume|reset_data|dispose)-[0-9a-f]{32}$")
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+_REQUEST_TYPES = {
+    "prepare": PrepareWorkspaceDevelopmentEnvironment,
+    "suspend": SuspendWorkspaceDevelopmentEnvironment,
+    "resume": ResumeWorkspaceDevelopmentEnvironment,
+    "reset_data": ResetWorkspaceDevelopmentData,
+    "dispose": DisposeWorkspaceDevelopmentEnvironment,
+}
+
+
+def observation_digest(observation: WorkspaceDevelopmentEnvironmentObservation) -> str:
+    return content_digest(rfc8785.dumps(observation.model_dump(mode="json")))
+
+
+def validated_intent(value) -> WorkspaceDevelopmentEnvironmentOperationIntent:
+    if type(value) is not WorkspaceDevelopmentEnvironmentOperationIntent:
+        raise ProbeFailure("workspace_development_intent_required")
+    try:
+        intent = WorkspaceDevelopmentEnvironmentOperationIntent.model_validate(value.model_dump(mode="python"))
+    except (TypeError, ValueError):
+        raise ProbeFailure("workspace_development_intent_invalid") from None
+    if (type(intent.request) is not _REQUEST_TYPES.get(intent.request.action)
+            or intent.request_digest != workspace_development_operation_digest(intent.request)):
+        raise ProbeFailure("workspace_development_intent_invalid")
+    return intent
+
+
+def operation_intent(record: dict, operation_id: str) -> WorkspaceDevelopmentEnvironmentOperationIntent:
+    try:
+        intent = WorkspaceDevelopmentEnvironmentOperationIntent.model_validate(record["intent"])
+    except (KeyError, TypeError, ValueError):
+        raise ProbeFailure("workspace_development_journal_intent_invalid") from None
+    if (intent.request.operation_id != operation_id or intent.request_digest != record.get("request_digest")
+            or intent.request_digest != workspace_development_operation_digest(intent.request)
+            or type(intent.request) is not _REQUEST_TYPES.get(intent.request.action)):
+        raise ProbeFailure("workspace_development_journal_intent_mismatch")
+    return intent
+
+
+def observation(record: dict) -> WorkspaceDevelopmentEnvironmentObservation | None:
+    raw = record.get("observation_json")
+    if raw is None:
+        return None
+    try:
+        value = WorkspaceDevelopmentEnvironmentObservation.model_validate(raw)
+    except (TypeError, ValueError):
+        raise ProbeFailure("workspace_development_journal_observation_invalid") from None
+    if record.get("observation_digest") != observation_digest(value):
+        raise ProbeFailure("workspace_development_journal_observation_digest_mismatch")
+    return value
 
 
 class WorkspaceDevelopmentJournalError(RuntimeError):
@@ -119,7 +180,7 @@ class _JournalSession:
             raise WorkspaceDevelopmentJournalError("workspace_development_journal_environment_invalid") from None
         operation_ids = value.get("operation_ids") if isinstance(value, dict) else None
         if (not isinstance(value, dict) or value.get("environment_id") != self.environment_id
-                or value.get("schema_revision") != "p1-workspace-development-journal-r1"
+                or value.get("schema_revision") != JOURNAL_SCHEMA
                 or not isinstance(operation_ids, list) or len(operation_ids) > MAX_ENVIRONMENT_OPERATIONS
                 or any(not isinstance(item, str) or _OPERATION_ID.fullmatch(item) is None for item in operation_ids)
                 or len(set(operation_ids)) != len(operation_ids)):
@@ -147,7 +208,7 @@ class _JournalSession:
             raise WorkspaceDevelopmentJournalError("workspace_development_journal_operation_invalid") from None
         identity = _OPERATION_ID.fullmatch(operation_id)
         if (not isinstance(value, dict) or value.get("operation_id") != operation_id
-                or value.get("schema_revision") != "p1-workspace-development-journal-r1"
+                or value.get("schema_revision") != JOURNAL_SCHEMA
                 or value.get("action") != identity.group(1)
                 or not isinstance(value.get("request_digest"), str)
                 or _DIGEST.fullmatch(value["request_digest"]) is None
@@ -261,7 +322,7 @@ class WorkspaceDevelopmentJournal:
             raise WorkspaceDevelopmentJournalError("workspace_development_journal_operation_invalid") from None
         identity = _OPERATION_ID.fullmatch(operation_id)
         if (not isinstance(value, dict) or value.get("operation_id") != operation_id
-                or value.get("schema_revision") != "p1-workspace-development-journal-r1"
+                or value.get("schema_revision") != JOURNAL_SCHEMA
                 or value.get("action") != identity.group(1)
                 or not isinstance(value.get("request_digest"), str)
                 or _DIGEST.fullmatch(value["request_digest"]) is None

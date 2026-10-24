@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
 import importlib
-import json
 import os
 import re
 import stat
@@ -15,38 +13,28 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable
 
-import rfc8785
-
 from modules.workspaces.candidate_writers import overlaps
 from modules.workspaces.safe_paths import PrivateRoot, WorkspaceFileError
 from packages.contracts.p1.development_environment import (
-    DisposeWorkspaceDevelopmentEnvironment, PrepareWorkspaceDevelopmentEnvironment,
+    PrepareWorkspaceDevelopmentEnvironment,
     ResetWorkspaceDevelopmentData, ResumeWorkspaceDevelopmentEnvironment,
-    SuspendWorkspaceDevelopmentEnvironment, WorkspaceDevelopmentEnvironmentObservation,
+    WorkspaceDevelopmentEnvironmentObservation,
     WorkspaceDevelopmentEnvironmentOperationIntent, WorkspaceDevelopmentEnvironmentSpec,
     WorkspaceDevelopmentRuntimeFact, WorkspaceDevelopmentStopFact,
-    workspace_development_operation_digest,
 )
 from packages.contracts.p1.workspace_candidates import RegisteredWorkspaceReader, workspace_runtime_scope_id
-from packages.contracts.p1.workspace_git import WorkspaceBinding, content_digest
-from packages.contracts.p1.workspace_records import workspace_metadata_digest
+from packages.contracts.p1.workspace_git import WorkspaceBinding
 
 from .toolchain import ProbeFailure
 from .workspace_development_inputs import workspace_storage_id
 from .workspace_development_journal import (
-    MAX_ENVIRONMENT_OPERATIONS, WorkspaceDevelopmentJournal, WorkspaceDevelopmentJournalError,
+    JOURNAL_SCHEMA, MAX_ENVIRONMENT_OPERATIONS, WorkspaceDevelopmentJournal,
+    observation as _observation, observation_digest as _observation_digest,
+    operation_intent as _operation_intent, validated_intent as _validated_intent,
 )
+from .workspace_development_recipe import DATASET_REVISIONS
 from .workspace_development_source import observe_workspace_source
 
-_SCHEMA = "p1-workspace-development-journal-r1"
-_RESET_REVISIONS = frozenset({"reference-synthetic-r1", "reference-synthetic-r2"})
-_REQUEST_TYPES = {
-    "prepare": PrepareWorkspaceDevelopmentEnvironment,
-    "suspend": SuspendWorkspaceDevelopmentEnvironment,
-    "resume": ResumeWorkspaceDevelopmentEnvironment,
-    "reset_data": ResetWorkspaceDevelopmentData,
-    "dispose": DisposeWorkspaceDevelopmentEnvironment,
-}
 _TARGET_STATE = {"prepare": "ready", "suspend": "suspended", "resume": "ready",
                  "reset_data": "ready", "dispose": "disposed"}
 _ALLOWED_STATE = {
@@ -62,48 +50,6 @@ _DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
-
-
-def _observation_digest(observation: WorkspaceDevelopmentEnvironmentObservation) -> str:
-    return content_digest(rfc8785.dumps(observation.model_dump(mode="json")))
-
-
-def _validated_intent(value) -> WorkspaceDevelopmentEnvironmentOperationIntent:
-    if type(value) is not WorkspaceDevelopmentEnvironmentOperationIntent:
-        raise ProbeFailure("workspace_development_intent_required")
-    try:
-        intent = WorkspaceDevelopmentEnvironmentOperationIntent.model_validate(value.model_dump(mode="python"))
-    except (TypeError, ValueError):
-        raise ProbeFailure("workspace_development_intent_invalid") from None
-    if (type(intent.request) is not _REQUEST_TYPES.get(intent.request.action)
-            or intent.request_digest != workspace_development_operation_digest(intent.request)):
-        raise ProbeFailure("workspace_development_intent_invalid")
-    return intent
-
-
-def _operation_intent(record: dict, operation_id: str) -> WorkspaceDevelopmentEnvironmentOperationIntent:
-    try:
-        intent = WorkspaceDevelopmentEnvironmentOperationIntent.model_validate(record["intent"])
-    except (KeyError, TypeError, ValueError):
-        raise ProbeFailure("workspace_development_journal_intent_invalid") from None
-    if (intent.request.operation_id != operation_id or intent.request_digest != record.get("request_digest")
-            or intent.request_digest != workspace_development_operation_digest(intent.request)
-            or type(intent.request) is not _REQUEST_TYPES.get(intent.request.action)):
-        raise ProbeFailure("workspace_development_journal_intent_mismatch")
-    return intent
-
-
-def _observation(record: dict) -> WorkspaceDevelopmentEnvironmentObservation | None:
-    raw = record.get("observation_json")
-    if raw is None:
-        return None
-    try:
-        value = WorkspaceDevelopmentEnvironmentObservation.model_validate(raw)
-    except (TypeError, ValueError):
-        raise ProbeFailure("workspace_development_journal_observation_invalid") from None
-    if record.get("observation_digest") != _observation_digest(value):
-        raise ProbeFailure("workspace_development_journal_observation_digest_mismatch")
-    return value
 
 
 def _failure_code(error: Exception) -> str:
@@ -367,18 +313,6 @@ class WorkspaceDevelopmentController:
                 runtime.prepare_operation_id = prepare_operation_id
             return runtime
 
-    def _readonly_runtime(self, spec: WorkspaceDevelopmentEnvironmentSpec, prepare_operation_id: str):
-        """Attach only read probes; do not acquire an execution lock or start a physical step."""
-        self._check_ref(spec.storage_ref)
-        with self._mutex:
-            runtime = self._runtimes.get(spec.environment_id)
-        if runtime is None:
-            runtime = _runtime_type()(spec)
-            runtime.prepare_operation_id = prepare_operation_id
-        elif getattr(runtime, "prepare_operation_id", None) not in (None, prepare_operation_id):
-            raise ProbeFailure("workspace_development_runtime_prepare_identity_mismatch")
-        return runtime
-
     def _prepare_operation(self, session, environment: dict, intent) -> tuple[str, str]:
         request = intent.request
         if type(request) is PrepareWorkspaceDevelopmentEnvironment:
@@ -401,7 +335,7 @@ class WorkspaceDevelopmentController:
             if request.expected_environment_revision != 0 or intent.accepted_environment_revision != 1:
                 raise ProbeFailure("workspace_development_environment_revision_conflict")
             environment = {
-                "schema_revision": _SCHEMA, "environment_id": request.environment_id,
+                "schema_revision": JOURNAL_SCHEMA, "environment_id": request.environment_id,
                 "binding": request.binding.model_dump(mode="json"),
                 "source_manifest_digest": request.source_manifest_digest,
                 "storage_ref": request.spec.storage_ref.model_dump(mode="json"),
@@ -451,7 +385,7 @@ class WorkspaceDevelopmentController:
             environment["operation_ids"] = operation_ids
 
         operation = {
-            "schema_revision": _SCHEMA, "environment_id": request.environment_id,
+            "schema_revision": JOURNAL_SCHEMA, "environment_id": request.environment_id,
             "operation_id": request.operation_id, "action": request.action,
             "request_digest": intent.request_digest, "accepted_environment_revision": intent.accepted_environment_revision,
             "intent": intent.model_dump(mode="json"), "phase": "accepted", "operation_state": "pending",
@@ -612,23 +546,12 @@ class WorkspaceDevelopmentController:
             return None
         return evidence
 
-    def _read_environment_and_operation(self, operation_id: str):
-        with self._storage() as storage:
-            journal = WorkspaceDevelopmentJournal(storage)
-            operation = journal.operation(operation_id)
-            if operation is None:
-                raise ProbeFailure("workspace_development_operation_not_found")
-            intent = _operation_intent(operation, operation_id)
-            with journal.environment(intent.request.environment_id) as session:
-                environment = session.read_environment()
-                return storage, journal, operation, intent, environment
-
     def _new_spec_for(self, intent, environment) -> WorkspaceDevelopmentEnvironmentSpec:
         request = intent.request
         if type(request) is PrepareWorkspaceDevelopmentEnvironment:
             return request.spec
         if (type(request) is ResetWorkspaceDevelopmentData
-                and request.target_data_revision not in _RESET_REVISIONS):
+                and request.target_data_revision not in DATASET_REVISIONS):
             raise ProbeFailure("workspace_development_data_revision_unsupported")
         if environment is None:
             raise ProbeFailure("workspace_development_environment_not_found")
@@ -803,6 +726,7 @@ class WorkspaceDevelopmentController:
                     raise ProbeFailure("workspace_development_environment_already_open")
 
     def _reconcile(self, operation_id: str):
+        """Recover journaled results by observation; never replay a lifecycle command."""
         with self._storage() as storage:
             journal = WorkspaceDevelopmentJournal(storage)
             operation = journal.operation(operation_id)
@@ -851,22 +775,10 @@ class WorkspaceDevelopmentController:
         operation = _OPERATION_RE.fullmatch(operation_id) if isinstance(operation_id, str) else None
         if operation is None:
             raise ProbeFailure("workspace_development_operation_not_found")
-        value = self._reconcile_or_return(operation_id)
+        value = self._reconcile(operation_id)
         if value is None:
             raise ProbeFailure("workspace_development_observation_unavailable")
         return value
-
-    def _reconcile_or_return(self, operation_id: str):
-        with self._storage() as storage:
-            record = WorkspaceDevelopmentJournal(storage).operation(operation_id)
-            if record is None:
-                raise ProbeFailure("workspace_development_operation_not_found")
-            intent = _operation_intent(record, operation_id)
-            if record.get("phase") == "accepted":
-                raise ProbeFailure("workspace_development_operation_not_found")
-            if record.get("operation_state") in {"succeeded", "failed"}:
-                return _observation(record)
-        return self._reconcile(operation_id)
 
     def registered_readers(self, binding: WorkspaceBinding) -> tuple[RegisteredWorkspaceReader, ...]:
         if type(binding) is not WorkspaceBinding:

@@ -4,17 +4,11 @@ from __future__ import annotations
 
 import json
 
-from packages.contracts.p1.development_environment import MIGRATION_REVISION
-from .toolchain import ProbeFailure
+from .workspace_development_recipe import application_command
 
 
 def bootstrap_command(action: str) -> str:
-    if action not in {"serve", MIGRATION_REVISION}:
-        raise ProbeFailure("workspace_development_bootstrap_action_invalid")
-    argv = (["/environment/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0",
-             "--port", "8000", "--reload", "--reload-dir", "/workspace/backend/app"]
-            if action == "serve" else
-            ["/environment/bin/python", "-m", "alembic", "upgrade", MIGRATION_REVISION])
+    argv = application_command(action)
     return r"""import hashlib, os, pathlib, posixpath, re, stat, tarfile
 archive='/workspace-cache/dependencies.tar.gz'
 expected=os.environ.get('WORKSPACE_SNAPSHOT_SHA256','')
