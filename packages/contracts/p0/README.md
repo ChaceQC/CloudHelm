@@ -20,7 +20,7 @@
 
 `decision_schema.py` 汇总模型并导出 [decisions-r1.schema.json](decisions-r1.schema.json)。聚合类只是结构集合，不构成产品 API。实际当前事实由可信适配层取得；源码内纯函数不会创建权限、写数据库、停止进程或原子兑换票据。JSON Schema 结构检查不能代替跨字段校验或外部事实取证。
 
-在 WSL 仓库根目录使用 `uv run --locked --offline python -m scripts.p0.check_decisions` 运行本轮七组窄检查；来源冻结、结构更新和固定候选复核见 [P0.3 使用说明](../../../docs/development/p0-decisions.md)。未释放物理占用、未知模型费用、未确认代理或人类结论不因检查通过而改变。
+在 WSL 仓库根目录使用 `uv run --locked --offline python -m scripts.p0.check_decisions` 运行当前七组精简检查；保留范围和历史候选复现见 [P0.3 使用说明](../../../docs/development/p0-decisions.md)。未释放物理占用、未知模型费用、未确认代理或人类结论不因检查通过而改变。
 
 ## P0.1 历史接缝草案
 

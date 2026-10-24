@@ -111,7 +111,7 @@ $UV run --locked python -m scripts.p1.check_database
 
 该方法使用固定 PostgreSQL 镜像，在 WSL 启动独立、临时、有资源上限的 Compose 项目，loopback 端口为 `55433`，冲突时拒绝。凭据由程序随机生成并存放在本次 Linux 私有目录，数据库数据使用 tmpfs；方法结束后定向清理本次项目及目录。
 
-它验证初始化/维护互斥、角色和 schema 权限、UoW 回滚及有限公开 DBOS 查询，不启动业务 worker、不重跑 P0 或收费模型。完整 P1.1 HTTP、Task 并发与单 worker 验证使用对应方法和固定输入；实际结果只在验收记录及 [PROJECT_PROGRESS.md](../../PROJECT_PROGRESS.md) 维护。
+它验证初始化/维护互斥、角色和 schema 权限、UoW 回滚及有限公开 DBOS 查询，不启动业务 worker、不重跑 P0 或收费模型。历史完整 P1.1 HTTP、Task 并发与单 worker 方法已从当前分支删除，需通过原固定候选独立检出复现；实际结果仍只在验收记录及 [PROJECT_PROGRESS.md](../../PROJECT_PROGRESS.md) 维护。
 
 HTTP 快照核对不进入服务 lifespan，不读取凭据或连接数据库：
 
@@ -119,11 +119,4 @@ HTTP 快照核对不进入服务 lifespan，不读取凭据或连接数据库：
 $UV run --locked python -m scripts.p1.check_public_contracts
 ```
 
-最终候选通过以下入口在一套隔离数据库内顺序验证四组行为，运行前后均核对公开源码/依赖/方法与 InputSet：
-
-```bash
-$UV run --locked python -m scripts.p1.check_foundation \
-  --input-set docs/acceptance/p1/input-set-p1-1-r1.json
-```
-
-尚未固定候选的定向开发核验可使用 `--development --group identity`（其余分组为 `database`、`tasks`、`runtime`）。报告明确标记未冻结或部分覆盖，不能把它作为最终候选的完整通过记录。只在相应代码、输入、环境或风险变化时执行有关分组，文档更新不重复运行全部数据库/业务方法。
+原 `check_foundation` 四组全流程、Task 故障/竞争和相应夹具不再常驻当前分支。需要复核旧结果时，按 InputSet 的 `source_commit` 独立检出，见 [历史方法复现](p0-seams.md#取回历史方法)。保留检查及其实际范围见[精简验证入口](checks.md)；本次删减不构成当前业务流程重验。

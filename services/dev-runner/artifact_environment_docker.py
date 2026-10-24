@@ -10,7 +10,6 @@ import re
 import socket
 import stat
 import subprocess
-import sys
 from pathlib import Path
 
 from .toolchain import DOCKER, ProbeFailure, RUNTIME_ROOT, classify_diagnostic, private_directory, safe_diagnostic
@@ -77,21 +76,6 @@ def docker(*arguments: str, **kwargs):
     if (directory / "config.json").exists():
         raise ProbeFailure("artifact_environment_public_docker_config_not_empty")
     return command([DOCKER, "--config", str(directory), "--host", "unix:///var/run/docker.sock", *arguments], **kwargs)
-
-
-def enter_docker_mount_namespace(module: str, arguments: list[str]):
-    """Root maintenance only; never changes global mount propagation."""
-    if os.getuid() != 0 or module not in {"scripts.p1.check_artifact_environment", "scripts.p1.check_engineering",
-                                        "scripts.p1.engineering_storage_fixture"}:
-        raise ProbeFailure("artifact_environment_explicit_root_maintenance_required")
-    process = command(["/usr/bin/systemctl", "show", "docker.service", "--property=MainPID", "--value"])
-    daemon = int(process.stdout.strip())
-    if daemon <= 1 or Path(os.readlink(f"/proc/{daemon}/exe")).name != "dockerd":
-        raise ProbeFailure("artifact_environment_registered_docker_daemon_required")
-    if os.readlink("/proc/self/ns/mnt") != os.readlink(f"/proc/{daemon}/ns/mnt"):
-        os.execve("/usr/bin/nsenter", ["/usr/bin/nsenter", "--target", str(daemon), "--mount",
-            sys.executable, "-B", "-m", module, *arguments],
-            {**ENVIRONMENT, "PYTHONUTF8": "1", "WSL_DISTRO_NAME": "Ubuntu-24.04"})
 
 
 class EnvironmentGroup:

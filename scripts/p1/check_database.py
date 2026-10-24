@@ -114,21 +114,6 @@ def _maintenance(fixture: DatabaseFixture) -> dict[str, object]:
         engine.dispose()
 
 
-def run_checks(fixture: DatabaseFixture) -> dict[str, bool]:
-    """Thin adapter for the outer runner's fresh fixture; original checks are unchanged."""
-    load_business_metadata()
-    maintenance = _maintenance(fixture)
-    roles = [_runtime_role(fixture, role) for role in ("api", "worker")]
-    return {
-        "database_initialization_replay": maintenance["same_initialization_replayed"] is True,
-        "database_maintenance_lock": maintenance["maintenance_lock_rejected"] is True,
-        "database_unit_of_work_rollback": maintenance["unit_of_work_rollback"] is True,
-        "database_role_and_public_query_checks": all(
-            result["denials"] == 11 and result["dbos_public_query"] == "empty" for result in roles
-        ),
-    }
-
-
 def main() -> int:
     started_at = datetime.now(timezone.utc).isoformat()
     load_business_metadata()

@@ -18,17 +18,11 @@
 
 既有 owner、角色和 Agent 委托不会因软件升级自动获得新动作。owner 如需执行工程动作，同样需要显式 developer 绑定；旧角色与委托保存的动作列表保持原意。每次推进及原结果回读都核对当前授权，撤权后不能依赖旧成功回执继续操作。
 
-## 3. 受控 Runner 能力检查
+## 3. Runner 检查与历史方法
 
-固定能力探针只接受维护操作 `probe_capabilities`，不接收 Task、项目、任意命令、任意挂载或自报授权。它使用受限 rootless BuildKit，保留 process sandbox，以实际执行和宿主进程证据判断能力。
+历史固定能力探针入口 `scripts.p1.probe_runner` 已移除。构建运行实际依赖的 Runner、工具链与隔离代码继续保留；其已取得的能力记录仍按原候选和固定环境适用。
 
-```bash
-cd /mnt/e/Project/CloudHelm
-export UV=/home/cloudhelm/.local/bin/uv
-$UV run --frozen --no-sync python -m scripts.p1.probe_runner
-```
-
-探针在私有运行目录保存原操作、InputSet 和报告；公开输出只含有界事实与固定错误类别。失败按原操作核对，不使用 privileged、关闭 process sandbox 或挂入宿主 Docker socket 绕过限制。探针仅覆盖其固定限额，真实构建与制品加载需要各自的容量证据。
+日常检查见[精简验证入口](checks.md)。需要复现原 rootless BuildKit 能力或构建实验时，在[原提交独立检出](p0-seams.md#取回历史方法)中使用当时的完整方法；不以静态检查代替物理执行证据。
 
 ## 4. 工程入口与本机注册
 
@@ -59,22 +53,9 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 
 ### 5.1 验证入口
 
-完整工程方法使用新临时数据库、维护生成的短期身份、真实 HTTP 与单 worker，随后运行独立参照 HTTP 资产。存储维护包装只对本项目新实例操作；需要本机 root 维护权限以创建/回收专用文件系统和环境父 cgroup，应用与方法主体仍使用 UID 1000。
+当前保留 Git 文件视图、OCI 内容边界、数据库基础及独立参照 HTTP 检查，具体命令与范围见[精简验证入口](checks.md)。运行时存储维护仍调用的 `probe_development_storage` 保留。
 
-```powershell
-wsl -d Ubuntu-24.04 -u root --cd /mnt/e/Project/CloudHelm -- .venv/bin/python -B -m scripts.p1.engineering_storage_fixture --development
-```
-
-|参数或方法|用途与输入要求|
-|---|---|
-|`--development`|验证未固定工作树，不生成正式候选结论|
-|`--through-candidate`|仅对 Git/HTTP/worker 问题做窄验证|
-|`--input-set docs/acceptance/p1/input-set-p1-2-rN.json`|代替 `--development`；rN 必须实际已固定，方法核对运行前后的公共输入|
-|`--method workspace-development`|增量环境方法，复用受控池与维护包装|
-|`--method task-control`|四组真实工程 Task 方法，复用相同受控池与维护包装|
-|`scripts.p1.check_backend_build --input-set <同一固定输入>`|后端真实输入缓存方法|
-
-失败或停止未知时保留原身份与阻断，不重启另一套物理操作覆盖原结果。实际记录见 [P1.2 证据索引](../acceptance/p1/p1-2.md)，命令示例本身不构成通过结论。
+原 `engineering_storage_fixture`、工程链、可变环境全方法、Task 控制与后端缓存重验脚本及专用夹具已移除；真实 HTTP/worker/构建、容器恢复和故障场景不再由当前常驻测试覆盖。原输入和结果继续见 [P1.2 证据索引](../acceptance/p1/p1-2.md)，完整方法按其 `source_commit` 独立检出。新行为变化仍需相应新证据，不能以旧通过结果替代。
 
 ### 5.2 可变环境语义
 

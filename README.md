@@ -6,7 +6,7 @@
 
 **Hub 开发源码 `0.4.0` · 数据库迁移 `0005` · 尚无正式发布、tag 或 Release**
 
-仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、隔离接缝工程和全栈参照项目**，已具备的能力为：
+仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、历史接缝记录和全栈参照项目**，已具备的能力为：
 
 - 受控数据库初始化、用户/项目与角色管理、Task 命令和唯一完成报告；
 - 独立运行的 API 与单 worker 进程；
@@ -24,7 +24,8 @@ Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说
 |[Hub 开发与维护](./docs/development/p1-hub.md)|在 WSL 安装锁定依赖、配置独立数据库角色、初始化用户/项目并启动 API 与单 worker|
 |[Git、工作区与受限构建](./docs/development/p1-engineering.md)|工程入口、已实现能力和限制|
 |[共享宿主资源与 Runner](./docs/development/p1-resources.md)|池注册、资源申请、受控执行和未知结果核对|
-|[P0 接缝使用说明](./docs/development/p0-seams.md)|按需复现 SDK、数据库、工具协议与 Compose 接缝；兼容范围见[组件基线](./docs/decisions/p0/component-baseline.md)和[接缝结论](./docs/acceptance/p0/seam-summary.md)|
+|[日常定向检查](./docs/development/checks.md)|契约、Git/OCI 边界及按需数据库、存储和参照 HTTP 检查|
+|[P0 历史接缝复现](./docs/development/p0-seams.md)|按原提交取回历史实验；兼容范围见[组件基线](./docs/decisions/p0/component-baseline.md)和[接缝结论](./docs/acceptance/p0/seam-summary.md)|
 |[契约查看与窄检查](./docs/development/p0-decisions.md)|查看 [P0 决定模型与 JSON Schema](./packages/contracts/p0/README.md)及 [Hub HTTP/内部交接类型](./packages/contracts/p1/README.md)，按各自范围校验|
 |[全栈便签参照](./examples/standalone-project/README.md)|在 WSL 用 Compose 运行 React/FastAPI/PostgreSQL 与线性 Alembic 示例，仅供本机合成数据使用；源码与独立 HTTP 验收资产分开提供，边界见[首链规格](./docs/implementation/reference-chain.md)和[支持矩阵](./docs/acceptance/support-matrix.md)|
 

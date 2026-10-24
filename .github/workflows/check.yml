@@ -84,7 +84,7 @@ jobs:
           import pathlib
           from packages.contracts.p0.runtime_contracts import P0RuntimeContracts
 
-          for directory in ("database", "modules", "services", "packages/contracts/p1", "scripts/p1", "scripts/p0", "integrations", "examples/standalone-project/backend/app", "examples/standalone-project/backend/migrations", "docs/acceptance/reference/r1"):
+          for directory in ("database", "modules", "services", "packages/contracts", "scripts/p1", "scripts/p0", "examples/standalone-project/backend/app", "examples/standalone-project/backend/migrations", "docs/acceptance/reference/r1"):
               for path in pathlib.Path(directory).rglob("*.py"):
                   ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
           schema = P0RuntimeContracts.model_json_schema()
