@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 
 import rfc8785
+from modules.execution.docker_endpoint import socket_path
 
 from modules.workspaces.candidate_writers import overlaps, process_start_ticks, verify_kernel_reader
 from modules.workspaces.git_process import _collect
@@ -35,7 +36,7 @@ def _docker(arguments):
     process = None
     try:
         process = subprocess.Popen(
-            ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", *arguments],
+            ["/usr/bin/docker", "--host", "unix://" + socket_path(), *arguments],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             env=_ENVIRONMENT, cwd="/", start_new_session=True,
         )

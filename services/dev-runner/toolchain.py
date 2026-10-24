@@ -8,8 +8,9 @@ import os
 import re
 import stat
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from modules.execution.docker_endpoint import socket_path
 
 TOOLCHAIN_TAG = "moby/buildkit:v0.34.0-rootless"
 TOOLCHAIN_DIGEST = "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c341b66ca31359"
@@ -39,6 +40,7 @@ def private_directory(path: Path) -> None:
 @dataclass(frozen=True)
 class DockerClient:
     config_directory: Path
+    endpoint: str = field(default_factory=socket_path)
 
     @classmethod
     def create(cls, directory: Path) -> DockerClient:
@@ -49,11 +51,20 @@ class DockerClient:
 
     def run(self, *arguments: str, timeout: float = 20,
             required: bool = True) -> subprocess.CompletedProcess[str]:
+        from .resource_context import current_group
+
+        group = current_group()
+        if arguments[0] == "create" and group is not None:
+            parents = [value for value in arguments if value.startswith("--cgroup-parent=")]
+            if parents and parents != ["--cgroup-parent=" + group.unit]:
+                raise ProbeFailure("probe_resource_cgroup_parent_mismatch")
+            if not parents:
+                arguments = (arguments[0], "--cgroup-parent=" + group.unit, *arguments[1:])
         environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
                        "DOCKER_CONFIG": str(self.config_directory)}
         try:
             result = subprocess.run(
-                [DOCKER, "--host", "unix:///var/run/docker.sock", *arguments],
+                [DOCKER, "--host", "unix://" + self.endpoint, *arguments],
                 env=environment, stdin=subprocess.DEVNULL, capture_output=True,
                 text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False,
             )

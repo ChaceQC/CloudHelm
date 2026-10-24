@@ -93,6 +93,7 @@ def assert_no_container_mounts(storage_id):
     from modules.workspaces.candidate_writers import overlaps
     from modules.workspaces.safe_paths import WorkspaceFileError
 
+    assert_no_managed_execution(storage_id)
     root = str(storage.ROOT / storage_id / "data")
     try:
         for container in _inventory():
@@ -102,3 +103,27 @@ def assert_no_container_mounts(storage_id):
                 raise storage.DevelopmentStorageError("storage_container_mounts_require_reconciliation")
     except WorkspaceFileError:
         raise storage.DevelopmentStorageError("storage_container_inventory_unavailable") from None
+
+
+def assert_no_managed_execution(storage_id):
+    """The durable fence survives loss of every Python reader pin and controller."""
+    import json
+    import sqlite3
+
+    from packages.contracts.p1.resource_protocol import DEVELOPMENT_BACKEND, ExecutorReceipt, RunnerRegistration
+    from .resource_ledger import ROOT
+
+    for path in ROOT.glob("*/ledger.sqlite3"):
+        try:
+            with sqlite3.connect("file:" + str(path) + "?mode=ro", uri=True) as db:
+                registrations = {key[7:]: RunnerRegistration.model_validate_json(value)
+                    for key, value in db.execute("SELECT key, value FROM configuration WHERE key LIKE 'runner:%'")}
+                for raw, fact in db.execute("SELECT request_json, receipt_json FROM allocations"):
+                    request = json.loads(raw)
+                    registration = registrations[request["identity"]["executor_instance_id"]]
+                    receipt = ExecutorReceipt.model_validate_json(fact)
+                    if (registration.backend == DEVELOPMENT_BACKEND and registration.storage.storage_id == storage_id
+                            and not (receipt.state == "closed_unstarted" or receipt.state == "stopped" and receipt.disk_reclaimed)):
+                        raise storage.DevelopmentStorageError("storage_managed_execution_requires_reconciliation")
+        except (sqlite3.Error, ValueError, KeyError):
+            raise storage.DevelopmentStorageError("storage_resource_ledger_unavailable") from None

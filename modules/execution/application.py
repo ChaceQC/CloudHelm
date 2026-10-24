@@ -28,6 +28,16 @@ class ResourceApplication:
     def __init__(self, engine, control_engine):
         self.engine, self.control_engine = engine, control_engine
 
+    def adjust(self, actor, reservation_id, request):
+        from .adjustments import adjust
+
+        try:
+            return adjust(self, actor, reservation_id, request)
+        except ValueError as error:
+            if type(error) is not ValueError:
+                raise
+            raise ResourceError(str(error)) from None
+
     def reserve(self, actor, task_id, request, *, idempotency_key):
         try:
             with UnitOfWork(self.engine) as uow:

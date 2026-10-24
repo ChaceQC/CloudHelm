@@ -25,6 +25,7 @@ from packages.contracts.p1.workspace_git import WorkspaceBinding
 from . import development_storage, python_dependencies
 from .offline_images import SOURCE_REFERENCE
 from .toolchain import DOCKER, ProbeFailure, private_directory, safe_diagnostic
+from modules.execution.docker_endpoint import socket_path
 from .workspace_development_inputs import (
     METHOD, WORKSPACE_PYTHON_TOOLCHAIN, WorkspaceDependencyInputs, WorkspacePythonToolchain,
     WORKSPACE_INSTALL_ENVIRONMENT, WORKSPACE_INSTALL_WORKDIR,
@@ -290,9 +291,13 @@ def _require_storage(storage) -> str:
 
 
 def _fixed_cgroup_parent(storage_id: str, value: str) -> None:
-    expected = "cloudhelm_p1_artifact_" + storage_id.removeprefix("dev-storage-") + ".slice"
-    if value != expected:
-        raise ProbeFailure("workspace_python_cgroup_parent_mismatch")
+    from .resource_context import current_group
+
+    group = current_group()
+    if group is not None and group.registration.storage.storage_id == storage_id and value == group.unit:
+        group.observe()
+        return
+    raise ProbeFailure("workspace_python_legacy_start_retired")
 
 
 def _private_storage_directory(path: Path, *, device: int) -> None:
@@ -594,7 +599,7 @@ def _collect_archive(client, container_id: str, target: Path, expected_size: int
     )
     descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     try:
-        result = subprocess.run([DOCKER, "--host", "unix:///var/run/docker.sock", "exec", container_id,
+        result = subprocess.run([DOCKER, "--host", "unix://" + socket_path(), "exec", container_id,
             "/usr/local/bin/python", "-B", "-I", "-c", program, str(expected_size)],
             stdin=subprocess.DEVNULL, stdout=descriptor, stderr=subprocess.PIPE, timeout=90, check=False,
             env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",

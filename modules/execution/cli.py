@@ -22,10 +22,10 @@ from .registry import register_pool_in_uow, register_runner_in_uow
 class LocalRunnerConfiguration(Contract):
     pool: PoolRegistration
     runner: RunnerRegistration
-    argv: tuple[str, ...] = Field(min_length=1, max_length=64)
+    argv: tuple[str, ...] = Field(default=(), max_length=64)
 
 
-def read_registration_file(path):
+def read_registration_file(path, model=LocalRunnerConfiguration):
     """Only this bounded, secret-free schema is read; raw values never escape."""
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
     try:
@@ -38,7 +38,7 @@ def read_registration_file(path):
         if (len(raw) != state.st_size or (state.st_size, state.st_mtime_ns, state.st_ctime_ns)
                 != (after.st_size, after.st_mtime_ns, after.st_ctime_ns)):
             raise ValueError("resource_registration_file_changed")
-        return LocalRunnerConfiguration.model_validate_json(raw)
+        return model.model_validate_json(raw)
     finally:
         os.close(fd)
 
@@ -65,10 +65,10 @@ def main():
             if not arguments.reservation_id:
                 raise ValueError("resource_reservation_id_required")
             ledger = import_module("services.dev-runner.resource_ledger")
-            limits = import_module("services.dev-runner.resource_limits")
             runtime = import_module("services.dev-runner.resource_runtime")
-            boundary = limits.DockerScratchBoundary(configuration.runner, configuration.argv)
-            runner = runtime.ResourceRunner(ledger.ResourceLedger(configuration.pool, configuration.runner), boundary)
+            host = import_module("services.dev-runner.resource_host")
+            local = ledger.ResourceLedger(configuration.pool, configuration.runner)
+            runner = runtime.ResourceRunner(local, host.boundary_for(configuration, local))
             application = ResourceApplication(engine, engine)
             dispatcher = ResourceDispatcher(application, runner)
             method = {"accept": dispatcher.deliver, "start": dispatcher.start,

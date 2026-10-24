@@ -13,7 +13,7 @@ from modules.sync.events import append_event
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p0.resource_contracts import ResourceAllocation, validate_admission
 from packages.contracts.p1.resource_protocol import (
-    PROTOCOL, ReservationResult, ReserveResourcesRequest, match_runner,
+    PROTOCOL, STORAGE_BACKEND, ReservationResult, ReserveResourcesRequest, match_runner,
 )
 from .registry import lock_pool, read_runner
 from .tables import resource_reservations
@@ -73,6 +73,12 @@ def _reserve_group(uow, task_id, command_id, request):
         resource_reservations.c.host_resource_pool_id == identity.host_resource_pool_id,
     )).mappings().all()
     allocations = tuple(ResourceAllocation.model_validate(row["allocation_json"]) for row in rows)
+    if runner.backend == STORAGE_BACKEND:
+        for row, current in zip(rows, allocations):
+            previous = read_runner(uow, row["executor_instance_id"])
+            if (current.accounted_vector.disk_bytes and previous.backend == STORAGE_BACKEND
+                    and previous.storage == runner.storage):
+                raise ValueError("resource_storage_backing_already_owned")
     if any(row["operation_id"] == identity.operation_id for row in rows):
         raise ValueError("resource_operation_identity_already_reserved")
     if any(a.identity.resource_group_id == identity.resource_group_id and a.state != "released"

@@ -2,6 +2,25 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-25：源码简化专项 T-SIM-06
+
+- 原因与授权：用户要求根据文档快速完成 T-SIM-06，不使用子代理、不做大量测试；发现 P1.3-02 资源前置未交付后，用户明确选择同时实现资源前置并继续 06b～06e。入口为 `dev / 058cea60b6ab9aca5cd0b1541a17e18fe2ea2529e`，开始时工作树干净。
+- 重构范围与预期边界：统一共享宿主准入与物理绑定，保持 Hub/Runner 双账本、原操作查询、停止未知占账、backing 唯一计量、reader pin 及每次副作用前的业务门禁；原 scratch 不改名扩用，Compose 解析单列。
+- 执行安排：先盘点旧路径和引用；按计划 R1～R3 补资源前置；依次迁移短任务、长期环境及磁盘交接，最后核对新操作路由和旧操作只查询/停止的兼容边界。所有工作由主会话执行。
+- 已完成：06a 固定构建、依赖安装、长期服务/数据库、reader pin、Git/文件/缓存/制品及 Docker 内容的归属和切换顺序，详见实施说明。06b 将固定构建和短生命周期依赖安装接入共享申请/接受/启动/查询/停止。06c 绑定环境恢复及全部子进程，保留原 pin 和业务门禁；06d 以唯一 storage owner 计完整 backing，释放投影由 Hub/Runner 共用；06e 退役旧组新建，旧 accepted intent 不再开启新普通执行，继续原版本查询/停止/核对。Hub 和本地账本都拒绝同一 backing 的第二个所有者。
+- 资源前置：R1 明确拒绝原地调额，独立调整 ID/规范摘要与原结果入库，异输入复用 ID 拒绝；R2 核验停止后按维释放，缺少磁盘事实保留原额，r2 剩余字节保持占账；R3 独立 Docker 和 containerd 的 root 均落在有界 backing，daemon、shim、构建/安装/服务共用父级硬限。internal bridge 只增加绑定本组网络 ID/ifindex 的桥内转发规则，收束时定向回收，不改变宿主原 FORWARD 策略。
+- 本机盘点：`2026-10-24T14:43:45.593385+00:00` 在 WSL Ubuntu-24.04、内核 `6.18.33.2-microsoft-standard-WSL2`、仓库 `/mnt/e/Project/CloudHelm` 只读观测到 1 个旧 8 GiB backing（`dev-storage-35888e89b13c41e3a269934113b9cbc4`），项目容器、旧执行组和资源账本均未发现。只读取允许的身份/容量元数据，未读取秘密或业务内容；该 backing 和未确认的旧业务/工作流引用均保留，新输入将这份未知占用按 8 GiB 保守扣除。
+- 固定候选：最终源码、锁与 JSON 契约的排序路径/文件 SHA-256 清单摘要为 `4e20fc8f1f08e051ef5f6048332b81c7a87eae61fa40547e66f5cf00e4b92f03`，两项最终方法在运行前后核对相同摘要；不包含 Markdown、归档和忽略的方法目录。源码 `0.5.0`、工作流应用 `cloudhelm-hub/0.5.0`、迁移 `0006_p1_3_resource_lifecycle` 分别维护，依赖版本不变。旧库及已冻结验收资产未修改，没有部署现有安装。
+- 实际物理方法：`.thesis-work/t-sim-06/physical.py --consumer`（不入库），方法 SHA-256 `f041823b69a81c702befb662b5b23dface9e9f950bb913a4fe99671354ee0da7`。由 root 在 PID 1 挂载视图运行锁定 Python，真实消费者使用 UID 1000。最终于 `2026-10-24T16:11:31.717743+00:00` passed：实际离线依赖安装、PostgreSQL/迁移/HTTP 就绪、suspend→resume、快照复用、reader pin、dispose；31 次物理调用前门禁观察，未代填人类结论。快照为 `sha256:4635166cd6d769d6e57c5f868d79a93f1c7c3f3c3f6545e3689b1ae0f791f4e5`。此方法使用合成 Workspace 输入和受控本机授权适配，Root 业务门禁另由数据库方法覆盖，不冒称完整 Task/worker 产品链验收。
+- 物理资源结果：父级 `cpu.max=300000 100000`、`memory.max=4294967296`、`memory.swap.max=0`、`pids.max=512`；Docker/containerd 的真实 PID 906/892 均位于该父级。同宿主第二 Runner 拒绝，受控停止错误仍全额占账，新实例恢复原 daemon，实际停止后进程额度归零且原身份不能复活；7,516,192,768 字节保留数据仍由完整 17,179,869,184 字节 backing 计量。最终本轮 fixture 的容器、daemon、组、规则、loop/backing 已定向移除，实际宿主字节回收确认 17,179,869,184，未全局 prune，原旧 backing 未处理。
+- 数据库/通道方法：`.thesis-work/t-sim-06/verify_database.py`（不入库）于 `2026-10-24T16:10:25.604663+00:00` passed；真实独立 PostgreSQL 角色和新线性迁移/ORM 一致，4 GiB 池并发只接受一个 4 GiB 请求；5 GiB 调整明确拒绝并保存原结果，异摘要冲突。真实 Unix 通道在 host 终止/重启后回读相同接受回执；取消在本地启动锁内形成 closed_unstarted，重投仍封闭，释放后新申请重新准入。历史 `09cf13c` 的三个 helper 仅提供合成 Task 声明/身份夹具，未恢复或重跑历史完整套件；数据库、进程和专用 socket 已清理。
+- 调试与证据边界：前序失败分别暴露空 transient slice 消失、busctl 选项解析、默认共享 containerd、存储挂载识别/私有目录读取、宿主 FORWARD DROP、资源标签兼容和夹具容量不足，均按新输入修正后定向重跑。早期 fixture 的 free-byte 增量不足时记录“释放未确认”，不改写成通过；最终候选另取得完整回收证据。没有新增常驻大测试、收费模型调用、全量历史测试、完整三角色 BuildRun/worker 重验、Desktop、独立机器或人类验收。
+- 常驻窄检查：P0 决定契约、Hub OpenAPI（35 paths / 37 operations / 94 schemas）、22 项 Git 文件边界及离线锁检查通过。续接时只核对最终候选与文档，静态方法于 `2026-10-24T16:50:38.165315+00:00` 通过：55 个变更文本均为 UTF-8，43 个 Python 文件导入或解析通过，104 个本地文档链接有效，源码/锁/工作流版本及迁移 head 一致，冻结参照和归档字节未改；源码摘要与上述两项实际方法的最终候选相同，未重跑物理或数据库实验；`git diff --check` 通过。软件和协议修订不扩大既有验收范围。
+- 代码规模评估：按变更 Python 源码的物理行统计，包含注释和空行，排除依赖、生成物及迁移的声明式结构；资源后端唯一超过 60 行评估线的函数为 `resource_development.start`（69 行），集中处理同一稳定绑定下父组、运行 tmpfs 与两个 daemon 的有序启动及故障留账，保持单一启动职责，本轮不机械拆分。既有超 300 行模块为 `artifact_environment_runtime`（326）、`development_storage`（371）、`workspace_development_dependencies`（901）、`workspace_development_docker`（507）、`workspace_development_lifecycle`（1024）及 `workspace_development_runtime`（1315）；本轮仅接入受管边界和兼容查询/停止，不扩展其原职责，进一步拆分留待单独计划。
+- 进行中：无；资源前置、T-SIM-06 实现、必要定向开发验证及文档收尾完成。本轮交付分支为 dev，Git/Actions 结论按其实际提交查询；实际投入及后续剩余工作量待估。
+- 阻塞与风险：本轮固定后端交付无新增阻塞。在线扩额、自动 GC、完整宿主故障恢复与旧安装受控升级未开放；首次工程资源启动窗口为原命令接受后 2 小时，过期需新操作。suspend 保留完整父级额度，4 GiB 池只支持一个该固定配方，不作额外并发或整机容量承诺。未决旧引用不清理，停止/回收未知继续占账。
+- 主要文件：`modules/execution/`、资源契约及迁移、`services/dev-runner/resource_*`、工程构建/开发环境/存储接线、HTTP 快照、实施/开发说明、计划与进度。下一项为尚未开放的 P1.3-02 两阶段 Compose 解析；T-SIM-07 保持可选未开放，P1 及后续产品/人工验收没有据此结项。
+
 ## 2026-10-24：源码简化专项 T-SIM-05
 
 - 原因与授权：用户要求根据文档快速完成 T-SIM-05，不使用子代理、不做大量测试。入口 `dev / 589ec4713b0f3cf79b5dc36ab0ca4d55c2ad73f1`，工作树干净；本轮先开放 05a，05b/05c 的实现切换以净收益证据为前置。

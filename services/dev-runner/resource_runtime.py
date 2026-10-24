@@ -1,7 +1,9 @@
 """Durable acceptance/start/stop protocol shared by independent Runner instances."""
 
-from packages.contracts.p0.resource_contracts import ResourceAllocation, ResourceRequest, ResourceVector, validate_admission
-from packages.contracts.p1.resource_protocol import ExecutorReceipt, match_runner, resource_request_digest
+from packages.contracts.p0.resource_contracts import ResourceAllocation, ResourceRequest, validate_admission
+from packages.contracts.p1.resource_protocol import (
+    ExecutorReceipt, allocation_from_receipt, match_runner, resource_request_digest,
+)
 from .resource_ledger import ResourceLedger
 
 
@@ -11,6 +13,8 @@ class ResourceRunner:
         self.registration = ledger.registration
         if boundary.backend != self.registration.backend:
             raise ValueError("resource_boundary_capability_mismatch")
+        if boundary.backend == "linux-development-storage-r1":
+            boundary.ledger = ledger
 
     def _read(self, db, reservation_id):
         stored = self.ledger.read(db, reservation_id)
@@ -42,11 +46,10 @@ class ResourceRunner:
                         and (old.identity.resource_generation >= request.identity.resource_generation
                              or receipt.state not in {"closed_unstarted", "stopped"} or not receipt.disk_reclaimed)):
                     raise ValueError("resource_local_generation_or_group_conflict")
-                terminal = receipt.state in {"closed_unstarted", "stopped"} and receipt.disk_reclaimed
-                allocations.append(ResourceAllocation(identity=old.identity, creation_request_digest=old.request_digest,
-                    allocation_revision=1, state="released" if terminal else "reserved",
-                    accounted_vector=ResourceVector() if terminal else old.accounted_vector,
-                    hard_limits=ResourceVector() if terminal else old.hard_limits))
+                original = ResourceAllocation(identity=old.identity, creation_request_digest=old.request_digest,
+                    allocation_revision=1, state="reserved", accounted_vector=old.accounted_vector,
+                    hard_limits=old.hard_limits)
+                allocations.append(allocation_from_receipt(original, receipt))
             try:
                 validate_admission(self.ledger.pool.pool, tuple(allocations), request)
                 self.boundary.check_capability(request)
@@ -61,6 +64,10 @@ class ResourceRunner:
             return receipt
 
     def _save(self, db, request, previous, **values):
+        evidence = values.get("evidence", {})
+        if values.get("state") == "stopped" and "disk_remaining_bytes" in evidence:
+            values |= {"protocol_revision": "p1-resources-r2",
+                       "disk_remaining_bytes": evidence["disk_remaining_bytes"]}
         receipt = ExecutorReceipt.model_validate(previous.model_dump() | {
             "sequence": previous.sequence + 1, **values,
         })
@@ -93,7 +100,18 @@ class ResourceRunner:
             if self.ledger.read(db, reservation_id) is None:
                 return None
             request, previous = self._read(db, reservation_id)
-            if previous.state not in {"launching", "running", "unknown"}:
+            if previous.state == "stopped":
+                observer = getattr(self.boundary, "observe_stopped", None)
+                if previous.disk_reclaimed or not callable(observer):
+                    return previous
+                try:
+                    state, reclaimed, evidence = observer(request)
+                except Exception:
+                    return previous  # A missing disk observation cannot undo the stop fence.
+                if (state, reclaimed, evidence) == (previous.state, previous.disk_reclaimed, previous.evidence):
+                    return previous
+                return self._save(db, request, previous, state=state, disk_reclaimed=reclaimed, evidence=evidence)
+            if previous.state not in {"launching", "running", "unknown", "stopped"} or previous.disk_reclaimed:
                 return previous
             try:
                 state, reclaimed, evidence = self.boundary.observe(request)
@@ -110,6 +128,8 @@ class ResourceRunner:
                 return self._save(db, request, previous, state="closed_unstarted", disk_reclaimed=True)
             if previous.state == "closed_unstarted" or (previous.state == "stopped" and previous.disk_reclaimed):
                 return previous
+            if previous.state == "stopped" and previous.protocol_revision == "p1-resources-r2":
+                return self.query(reservation_id)
             try:
                 reclaimed, evidence = self.boundary.stop(request)
             except Exception:

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .capabilities import CapabilityProbe
 from .toolchain import DOCKER, ProbeFailure, safe_diagnostic
+from modules.execution.docker_endpoint import socket_path
 
 METHOD = "p1-offline-image-probe-r1"
 SCOPE = "p1-offline-image-probe"
@@ -162,7 +163,7 @@ class OfflineImageRuntime(CapabilityProbe):
         descriptor = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o400)
         try:
             with os.fdopen(descriptor, "wb") as stream:
-                result = subprocess.run([DOCKER, "--host", "unix:///var/run/docker.sock",
+                result = subprocess.run([DOCKER, "--host", "unix://" + socket_path(),
                     "exec", "--user=1000:1000", self.container_id, "cat", "/probe/output/image.oci.tar"],
                     env=environment, stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.PIPE,
                     preexec_fn=limit_file, timeout=self.remaining(30), check=False)

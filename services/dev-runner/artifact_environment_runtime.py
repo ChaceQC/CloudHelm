@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import secrets
 import threading
+from contextvars import copy_context
 import time
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -129,7 +130,7 @@ class ArtifactRuntime:
                 except ProbeFailure as failure:
                     self.startup_results[role] = failure
 
-            self.startup_threads[role] = threading.Thread(target=attach_start, daemon=True)
+            self.startup_threads[role] = threading.Thread(target=copy_context().run, args=(attach_start,), daemon=True)
             self.startup_threads[role].start()
             for _ in range(100):
                 if metadata(identity, self.operation_id)["State"]["Running"]:

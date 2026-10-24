@@ -3,7 +3,7 @@
   "info": {
     "title": "CloudHelm Hub API",
     "description": "Identity, Task control, bounded engineering and shared resource intents and queries.",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "paths": {
     "/api/auth/me": {
@@ -232,6 +232,163 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/resource-reservations/{reservation_id}/adjustments": {
+      "post": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Resources.Adjust",
+        "operationId": "resources_adjust_api_resource_reservations__reservation_id__adjustments_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reservation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Reservation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceAdjustment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceAdjustmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ResourceAdjustmentResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Resources Adjust Api Resource Reservations  Reservation Id  Adjustments Post"
                 }
               }
             },
@@ -8533,7 +8690,10 @@
         "properties": {
           "protocol_revision": {
             "type": "string",
-            "const": "p1-resources-r1",
+            "enum": [
+              "p1-resources-r1",
+              "p1-resources-r2"
+            ],
             "title": "Protocol Revision",
             "default": "p1-resources-r1"
           },
@@ -8565,7 +8725,11 @@
           },
           "backend": {
             "type": "string",
-            "const": "linux-systemd-docker-scratch-r1",
+            "enum": [
+              "linux-systemd-docker-scratch-r1",
+              "linux-systemd-docker-development-r1",
+              "linux-development-storage-r1"
+            ],
             "title": "Backend",
             "default": "linux-systemd-docker-scratch-r1"
           }
@@ -8661,6 +8825,91 @@
         ],
         "title": "ResetWorkspaceDevelopmentDataRequest"
       },
+      "ResourceAdjustment": {
+        "properties": {
+          "protocol_revision": {
+            "type": "string",
+            "const": "p0-decisions-r1",
+            "title": "Protocol Revision",
+            "default": "p0-decisions-r1"
+          },
+          "resource_adjustment_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Resource Adjustment Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/AllocationIdentity"
+          },
+          "expected_allocation_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Allocation Revision"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ResourceLimits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resource_adjustment_id",
+          "request_digest",
+          "identity",
+          "expected_allocation_revision",
+          "target"
+        ],
+        "title": "ResourceAdjustment"
+      },
+      "ResourceAdjustmentResult": {
+        "properties": {
+          "resource_adjustment_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Resource Adjustment Id"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Request Digest"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unchanged",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "allocation": {
+            "$ref": "#/components/schemas/ResourceAllocation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resource_adjustment_id",
+          "request_digest",
+          "status",
+          "code",
+          "allocation"
+        ],
+        "title": "ResourceAdjustmentResult"
+      },
       "ResourceAllocation": {
         "properties": {
           "accounted_vector": {
@@ -8719,6 +8968,23 @@
           "state"
         ],
         "title": "ResourceAllocation"
+      },
+      "ResourceLimits": {
+        "properties": {
+          "accounted_vector": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "hard_limits": {
+            "$ref": "#/components/schemas/ResourceVector"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "accounted_vector",
+          "hard_limits"
+        ],
+        "title": "ResourceLimits"
       },
       "ResourceRequest": {
         "properties": {

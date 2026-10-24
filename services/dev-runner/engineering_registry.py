@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import model_validator
 
-from packages.contracts.p0.decision_common import Contract
+from packages.contracts.p0.decision_common import Contract, Identifier
 from packages.contracts.p1.development_storage import DevelopmentStorageRef
 
 from .development_storage import DevelopmentStorage
@@ -28,17 +28,23 @@ class EngineeringRegistryError(ValueError):
 
 
 class EngineeringRegistration(Contract):
-    schema_revision: Literal["p1-engineering-registration-r1"] = "p1-engineering-registration-r1"
+    schema_revision: Literal["p1-engineering-registration-r1", "p1-engineering-registration-r2"] = "p1-engineering-registration-r1"
     scope: Literal[SCOPE] = SCOPE
     storage: DevelopmentStorageRef
     repository_seed_ref: Literal["cloudhelm-reference-r1"] = "cloudhelm-reference-r1"
     npm_seed_ref: Literal["reference-notes-npm-r1"] = "reference-notes-npm-r1"
     python_seed_ref: Literal["reference-notes-python-r1"] = "reference-notes-python-r1"
+    resource_runner_id: Identifier | None = None
+    storage_runner_id: Identifier | None = None
+    storage_owner_reservation_id: Identifier | None = None
 
     @model_validator(mode="after")
     def check_storage(self):
         if self.storage.purpose != "workspace":
             raise ValueError("engineering_workspace_storage_reference_required")
+        configured = (self.resource_runner_id, self.storage_runner_id, self.storage_owner_reservation_id)
+        if any(configured) and (not all(configured) or self.schema_revision != "p1-engineering-registration-r2"):
+            raise ValueError("engineering_resource_registration_requires_complete_r2_binding")
         return self
 
 
@@ -86,6 +92,7 @@ class EngineeringRegistry:
             raise EngineeringRegistryError("engineering_registration_required")
         self.registration = registration
         self._active = ContextVar("cloudhelm_engineering_storage", default=None)
+        self.endpoint_context = None
 
     @contextmanager
     def admit(self, requested_bytes: int):
@@ -114,7 +121,11 @@ class EngineeringRegistry:
             storage = EngineeringStorage(admitted, roots["git"], roots["workspace"], roots["cache"], roots["archive"])
             token = self._active.set(storage)
             try:
-                yield storage
+                if self.endpoint_context is None:
+                    yield storage
+                else:
+                    with self.endpoint_context():
+                        yield storage
                 storage.observe()
             finally:
                 self._active.reset(token)

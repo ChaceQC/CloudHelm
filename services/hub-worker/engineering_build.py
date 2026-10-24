@@ -62,25 +62,32 @@ def execute_build(runtime, operation_id):
             if _record(runtime, operation_id, reconciliation=False) != record:
                 raise WorkspaceFileError("build_operation_binding_changed")
 
-        runner = runner_module.ControlledBuildRunner(storage, record, gate)
-        try:
-            if not runner.exists():
-                gate()
-                runner.execute(_candidate_bytes(runtime, storage, record))
-            with UnitOfWork(runtime.control_engine) as uow:
-                previous = read_build_execution(uow.connection, record)
-                runner.previous_observation_id = None if previous is None else previous.observation.observation_id
-            physical = verify_build_observation(operation_id, runner)
-            observation = physical.observation
-            content = None
-            if len(observation.artifacts) == 3:
-                content = verify_build_content(record, runner.store, tuple(
-                    BuildArtifactLocator(role=item.role, storage_id=item.storage_id) for item in observation.artifacts
-                ))
-            with UnitOfWork(runtime.engine) as uow:
-                if content is not None:
-                    register_verified_build_content(uow, operation_id, content)
-                register_verified_build_observation(uow, operation_id, physical)
-                return build_view(uow.connection, record).model_dump(mode="json")
-        finally:
-            runner.close()
+        with runtime.resources.build(record, storage, gate) as group:
+            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group)
+
+
+def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group):
+    runner = runner_module.ControlledBuildRunner(storage, record, gate)
+    try:
+        if not runner.exists():
+            gate()
+            runner.execute(_candidate_bytes(runtime, storage, record))
+        with UnitOfWork(runtime.control_engine) as uow:
+            previous = read_build_execution(uow.connection, record)
+            runner.previous_observation_id = None if previous is None else previous.observation.observation_id
+        physical = verify_build_observation(operation_id, runner)
+        observation = physical.observation
+        content = None
+        if len(observation.artifacts) == 3:
+            content = verify_build_content(record, runner.store, tuple(
+                BuildArtifactLocator(role=item.role, storage_id=item.storage_id) for item in observation.artifacts
+            ))
+        if group is not None and not group.stopped and observation.closure != "unknown":
+            group.stop()  # Whole daemon/descendants close before the business receipt.
+        with UnitOfWork(runtime.engine) as uow:
+            if content is not None:
+                register_verified_build_content(uow, operation_id, content)
+            register_verified_build_observation(uow, operation_id, physical)
+            return build_view(uow.connection, record).model_dump(mode="json")
+    finally:
+        runner.close()

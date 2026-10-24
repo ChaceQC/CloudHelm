@@ -34,3 +34,12 @@ resource_reservations = Table(
     UniqueConstraint("reservation_id", "host_resource_pool_id", name="uq_resource_reservation_pool"),
     CheckConstraint("receipt_sequence BETWEEN 0 AND 9007199254740991", name="receipt_sequence"),
 )
+
+resource_adjustments = Table(
+    "resource_adjustments", metadata,
+    Column("resource_adjustment_id", String(160), primary_key=True),
+    Column("reservation_id", String(160), ForeignKey("cloudhelm.resource_reservations.reservation_id"), nullable=False),
+    Column("request_digest", String(71), nullable=False),
+    Column("request_json", JSONB, nullable=False),
+    Column("result_json", JSONB, nullable=False),
+)

@@ -388,6 +388,11 @@ class WorkspaceDevelopmentRuntime:
         return self.client
 
     def _acquire_group(self, *, fresh: bool) -> None:
+        if self.group.resource_binding is not None:
+            self.group.acquire()
+            self.group.observe()
+            self.group.created, self.group.external = True, True
+            return
         if self.group.lock is not None:
             self.group.observe()
             return
@@ -408,6 +413,10 @@ class WorkspaceDevelopmentRuntime:
 
     def _observe_existing_group(self) -> None:
         """Read limits for readers/controllers without taking the execution mutex."""
+        if self.group.resource_binding is not None:
+            self.group.observe()
+            self.group.created, self.group.external = True, True
+            return
         path = Path("/sys/fs/cgroup") / self.group.unit
         if not path.is_dir():
             raise ProbeFailure("workspace_development_parent_group_unavailable")

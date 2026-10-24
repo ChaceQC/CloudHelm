@@ -145,6 +145,36 @@ def instance_lock(instance: int):
         os.close(descriptor)
 
 
+def _managed_mount(fields, separator, expected, device):
+    """Only the registered daemon's private subtree may alias the bounded device."""
+    root = expected + "/cache/managed-docker-r1"
+    if fields[4] != root and not fields[4].startswith(root + "/"):
+        return False
+    state = Path(root).lstat()
+    if not stat.S_ISDIR(state.st_mode) or state.st_uid != 0 or state.st_mode & 0o022:
+        return False
+    kind = fields[separator + 1]
+    if kind == "ext4":
+        return fields[2] == device and (fields[3] == "/cache/managed-docker-r1"
+            or fields[3].startswith("/cache/managed-docker-r1/"))
+    if kind != "overlay":
+        return False
+    options = dict(item.split("=", 1) for item in fields[separator + 3].split(",") if "=" in item)
+    paths = options.get("lowerdir", "").split(":")
+    paths += [options.get("upperdir", ""), options.get("workdir", "")]
+    for value in paths:
+        if not value or os.path.normpath(value) != value or not value.startswith(root + "/"):
+            return False
+        # Root rechecks backing devices for the authoritative receipt. A reader
+        # cannot traverse the daemon's root-owned content tree; it checks the
+        # kernel's mount paths and that immutable ownership boundary instead.
+        if os.geteuid() == 0:
+            actual = os.stat(value)
+            if os.path.realpath(value) != value or f"{os.major(actual.st_dev)}:{os.minor(actual.st_dev)}" != device:
+                return False
+    return True
+
+
 def mounted_identity(data: int, storage_id: str) -> dict:
     expected = str(ROOT / storage_id / "data")
     state = os.fstat(data)
@@ -153,12 +183,16 @@ def mounted_identity(data: int, storage_id: str) -> dict:
         raise DevelopmentStorageError("storage_directory_not_owned_or_private")
     if os.readlink(f"/proc/self/fd/{data}") != expected:
         raise DevelopmentStorageError("storage_mount_path_replaced")
+    with instance_descriptors(storage_id) as (_, instance):
+        managed_docker = registration_at(instance, storage_id).managed_docker
     matches, extra_mount = [], False
     for line in Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines():
         fields = line.split()
         if (fields[4].startswith(expected + "/")
                 or (fields[2] == device and fields[4] != expected)):
-            extra_mount = True
+            separator = fields.index("-")
+            if not managed_docker or not _managed_mount(fields, separator, expected, device):
+                extra_mount = True
         if fields[4] == expected and fields[2] == device:
             separator = fields.index("-")
             matches.append((fields, separator))

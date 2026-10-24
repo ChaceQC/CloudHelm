@@ -27,7 +27,7 @@ class DevelopmentStorageRef(Contract):
 
 
 class DevelopmentStorageRegistration(Contract):
-    method_revision: Literal["p1-development-storage-r2"] = "p1-development-storage-r2"
+    method_revision: Literal["p1-development-storage-r2", "p1-development-storage-r3"] = "p1-development-storage-r2"
     storage_id: StorageId
     instance_revision: InstanceRevision
     filesystem_uuid: Annotated[str, Field(pattern=r"^[a-f0-9-]{36}$")]
@@ -41,12 +41,15 @@ class DevelopmentStorageRegistration(Contract):
     )
     allowed_purposes: Annotated[tuple[StoragePurpose, ...], Field(min_length=1, max_length=6)] = ("fixture",)
     admission_safety_bytes: Annotated[int, Field(ge=64 * 1024, le=16 * 1024**2, strict=True)] = 1024**2
+    managed_docker: bool = False
 
     @model_validator(mode="after")
     def supported_scope(self):
         if len(set(self.allowed_purposes)) != len(self.allowed_purposes):
             raise ValueError("development_storage_duplicate_purpose")
         fixture = self.scope == "local_development_fixture_only"
+        if self.managed_docker and (fixture or self.method_revision != "p1-development-storage-r3"):
+            raise ValueError("managed_docker_requires_controlled_storage_r3")
         if ((fixture and (self.backing_file_bytes != MIN_STORAGE_BYTES or self.allowed_purposes != ("fixture",)))
                 or (not fixture and "fixture" in self.allowed_purposes)):
             raise ValueError("development_storage_scope_mismatch")

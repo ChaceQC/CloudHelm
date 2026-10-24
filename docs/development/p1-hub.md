@@ -38,7 +38,7 @@ $UV run --locked python -m database.manage status
 $UV run --locked python -m database.manage initialize
 ```
 
-初始化保存安装身份和原操作身份，执行业务线性迁移至 `0005_p1_3_resources`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.4.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0004_p1_2_development`/`0.3.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)。
+初始化保存安装身份和原操作身份，执行业务线性迁移至 `0006_p1_3_resource_lifecycle`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.5.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0005_p1_3_resources`/`0.4.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)。
 
 成功回执中的 `dbos_schema_version` 仍可为 `null`：公开接口没有提供本轮可单独核验的精确数字版本。实际支持依据是固定 SDK、受控初始化来源及公开启动核验，不支持借此进行跨 SDK 升级、回退或旧备份自动恢复。
 

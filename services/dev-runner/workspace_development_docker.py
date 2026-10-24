@@ -117,6 +117,11 @@ class WorkspaceDevelopmentDocker:
         self.operation_id = operation_id
         self.scope_id = scope_id
         self.cgroup_parent = cgroup_parent
+        from .resource_context import current_group
+
+        self.resource_binding = current_group()
+        if self.resource_binding is not None and self.resource_binding.unit != cgroup_parent:
+            raise ProbeFailure("workspace_development_resource_binding_mismatch")
         self.cgroup_path = cgroup_path
         self.database_directory = database_directory
         self.secrets_directory = secrets_directory
@@ -141,6 +146,8 @@ class WorkspaceDevelopmentDocker:
                   "cloudhelm.operation_id": self.operation_id,
                   "cloudhelm.environment_id": self.environment_id,
                   "cloudhelm.profile": PROFILE}
+        if self.resource_binding is not None:
+            values["cloudhelm.resource-binding"] = self.resource_binding.binding
         if role is not None:
             values["cloudhelm.role"] = role
         return values

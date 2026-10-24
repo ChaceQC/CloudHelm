@@ -9,6 +9,7 @@ import stat
 import threading
 import traceback
 from contextlib import contextmanager
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable
@@ -260,6 +261,13 @@ class WorkspaceDevelopmentController:
 
     @contextmanager
     def _storage(self):
+        binding = getattr(self, "resource_binding", None)
+        with binding.context() if binding is not None else nullcontext():
+            with self._storage_admission() as storage:
+                yield storage
+
+    @contextmanager
+    def _storage_admission(self):
         current = getattr(self.registry, "current_storage", None)
         if callable(current):
             try:
@@ -302,7 +310,9 @@ class WorkspaceDevelopmentController:
                     None, prepare_operation_id):
                 raise ProbeFailure("workspace_development_runtime_prepare_identity_mismatch")
             if runtime is None:
-                runtime = _make_runtime(spec)
+                binding = getattr(self, "resource_binding", None)
+                with binding.context() if binding is not None else nullcontext():
+                    runtime = _make_runtime(spec)
                 self._runtimes[spec.environment_id] = runtime
             else:
                 runtime.spec = spec

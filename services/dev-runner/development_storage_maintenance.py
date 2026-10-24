@@ -100,7 +100,8 @@ def evidence(root: int, storage_id: str, phase: str, value: dict) -> dict:
         os.close(reports)
 
 
-def create_instance(capacity_bytes: int, *, fixture: bool = False, purposes=DEVELOPMENT_PURPOSES) -> dict:
+def create_instance(capacity_bytes: int, *, fixture: bool = False, purposes=DEVELOPMENT_PURPOSES,
+                    managed_docker: bool = False) -> dict:
     if os.getuid() != 0:
         raise storage.DevelopmentStorageError("storage_explicit_root_maintenance_required")
     if (type(capacity_bytes) is not int or not MIN_STORAGE_BYTES <= capacity_bytes <= MAX_STORAGE_BYTES
@@ -131,6 +132,8 @@ def create_instance(capacity_bytes: int, *, fixture: bool = False, purposes=DEVE
             os.fsync(image)
             state = os.fstat(image)
             registration = DevelopmentStorageRegistration(storage_id=storage_id,
+                method_revision="p1-development-storage-r3" if managed_docker else "p1-development-storage-r2",
+                managed_docker=managed_docker,
                 instance_revision=uuid.uuid4().hex, filesystem_uuid=filesystem_uuid,
                 backing_file_bytes=capacity_bytes, backing_device=state.st_dev,
                 backing_inode=state.st_ino, created_at=datetime.now(timezone.utc),
@@ -221,12 +224,13 @@ def main() -> int:
     parser.add_argument("--capacity-bytes", type=int)
     parser.add_argument("--purpose", choices=DEVELOPMENT_PURPOSES, action="append")
     parser.add_argument("--observe-cross-call", action="store_true")
+    parser.add_argument("--managed-docker", action="store_true")
     args = parser.parse_args()
     create_actions = ("create-fixture", "verify-fixture", "create-pool", "verify-pool")
     if (os.getuid() != 0 or (args.action not in create_actions and not args.storage_id)
             or (args.action in create_actions and args.storage_id)):
         raise storage.DevelopmentStorageError("storage_explicit_root_maintenance_required")
-    if ((args.capacity_bytes is not None or args.purpose) and args.action != "create-pool"):
+    if ((args.capacity_bytes is not None or args.purpose or args.managed_docker) and args.action != "create-pool"):
         raise storage.DevelopmentStorageError("storage_maintenance_option_not_applicable")
     if args.observe_cross_call and args.action != "verify-fixture":
         raise storage.DevelopmentStorageError("storage_maintenance_option_not_applicable")
@@ -237,7 +241,8 @@ def main() -> int:
     if args.action == "create-pool":
         if args.capacity_bytes is None:
             raise storage.DevelopmentStorageError("storage_explicit_capacity_required")
-        result = create_instance(args.capacity_bytes, purposes=tuple(args.purpose or DEVELOPMENT_PURPOSES))
+        result = create_instance(args.capacity_bytes, purposes=tuple(args.purpose or DEVELOPMENT_PURPOSES),
+                                 managed_docker=args.managed_docker)
     else:
         result = create_fixture() if args.action == "create-fixture" else change_fixture(args.storage_id, args.action)
     print(json.dumps(result, ensure_ascii=False), flush=True)

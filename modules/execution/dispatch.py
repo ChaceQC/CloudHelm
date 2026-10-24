@@ -6,8 +6,8 @@ from database.readiness import assert_schema_ready
 from database.uow import UnitOfWork
 from modules.collaboration.tables import tasks
 from modules.sync.events import append_event
-from packages.contracts.p0.resource_contracts import ResourceAllocation, ResourceVector
-from packages.contracts.p1.resource_protocol import ExecutorReceipt, ReserveResourcesRequest
+from packages.contracts.p0.resource_contracts import ResourceAllocation
+from packages.contracts.p1.resource_protocol import ExecutorReceipt, ReserveResourcesRequest, allocation_from_receipt
 from .application import read_reservation
 from .registry import lock_pool, read_runner
 from .tables import resource_reservations
@@ -61,19 +61,14 @@ class ResourceDispatcher:
             if receipt.sequence < row["receipt_sequence"]:
                 return current
             if receipt.sequence == row["receipt_sequence"]:
-                if receipt.sequence == row["receipt_sequence"] and row["receipt_json"] != receipt.model_dump(mode="json"):
+                if ExecutorReceipt.model_validate(row["receipt_json"]) != receipt:
                     raise ValueError("resource_receipt_sequence_conflict")
-            terminal = receipt.state in {"closed_unstarted", "stopped"} and receipt.disk_reclaimed
-            if current.state == "released" and not terminal:
-                raise ValueError("resource_released_allocation_cannot_reopen")
-            state = ("released" if terminal else "active" if receipt.state == "running" else
-                     "reserved" if receipt.state == "accepted" else "orphaned")
-            if receipt.sequence == row["receipt_sequence"] and current.state == state:
+            projected = allocation_from_receipt(current, receipt)
+            if receipt.sequence == row["receipt_sequence"] and current == projected:
                 return current
-            values = {"state": state, "allocation_revision": current.allocation_revision + 1}
-            if terminal:
-                values |= {"accounted_vector": ResourceVector(), "hard_limits": ResourceVector()}
-            changed = ResourceAllocation.model_validate(current.model_dump() | values)
+            changed = ResourceAllocation.model_validate(projected.model_dump() | {
+                "allocation_revision": current.allocation_revision + 1,
+            })
             uow.connection.execute(update(resource_reservations).where(
                 resource_reservations.c.reservation_id == reservation_id,
             ).values(allocation_json=changed.model_dump(mode="json"), receipt_json=receipt.model_dump(mode="json"),

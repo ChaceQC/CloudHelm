@@ -83,6 +83,11 @@ class ControlledBuildRunner:
         return tuple("engineering-" + role + "-" + self.record.command_id for role in ("backend", "frontend"))
 
     def _containers(self):
+        from .resource_context import current_group
+
+        group = current_group()
+        if group is not None and group.stopped:
+            return []
         values = engine("GET", "/containers/json?all=1")
         operations = set(self._operation_ids())
         return [item for item in values if (item.get("Labels") or {}).get("cloudhelm.operation_id") in operations]
@@ -165,6 +170,19 @@ class ControlledBuildRunner:
             raise ProbeFailure("engineering_build_operation_not_found")
         if BuildRunRecord.model_validate(self._read("intent.json")) != self.record:
             raise ProbeFailure("engineering_build_intent_mismatch")
+        from .resource_context import current_group
+
+        group = current_group()
+        if group is not None and group.stopped:
+            value = BuildExecutionObservation.model_validate(self._read("observation.json"))
+            if (value.operation_id != operation_id or value.request_digest != self.record.request_digest
+                    or value.build_input_digest != self.record.build_input_digest or value.closure == "unknown"):
+                raise ProbeFailure("engineering_build_closed_observation_mismatch")
+            for artifact in value.artifacts:
+                receipt = self.store.query(artifact.storage_id)
+                if receipt.manifest.digest != artifact.manifest_digest or receipt.config.digest != artifact.config_digest:
+                    raise ProbeFailure("engineering_build_retained_artifact_mismatch")
+            return value
         present = self._containers()
         result = self._read("result.json") if exists_at(self.root.fd, "result.json") else None
         closure = "unknown" if result is None else result["closure"]

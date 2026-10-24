@@ -38,6 +38,9 @@ def _result(operation_id, state, code, **payload):
 class EngineeringRuntime:
     def __init__(self, engine, control_engine, registry, *, development_controller_factory=None):
         self.engine, self.control_engine, self.registry = engine, control_engine, registry
+        from .engineering_resources import EngineeringResources
+
+        self.resources = EngineeringResources(engine, control_engine, registry)
         self.instance_id = "engineering-worker-" + uuid4().hex
         self.sources = SourceImportApplication(engine, control_engine)
         self.workspaces = WorkspaceApplication(
@@ -47,6 +50,7 @@ class EngineeringRuntime:
         self._development = EngineeringDevelopmentRuntime(
             engine, control_engine, registry, controller_factory=development_controller_factory,
         )
+        self._development.resources = self.resources
         self.development = self._development.application
 
     def development_controller_for(self, operation_id):

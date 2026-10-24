@@ -7,6 +7,7 @@ import os
 import sqlite3
 import stat
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 
 from packages.contracts.p1.resource_protocol import PoolRegistration, RunnerRegistration
@@ -63,6 +64,7 @@ class ResourceLedger:
                 or runner.resource_generation != pool.resource_generation):
             raise ValueError("resource_local_host_registration_mismatch")
         self.pool, self.registration = pool, runner
+        self._active = ContextVar("resource_ledger_connection", default=None)
         self.directory = ROOT / pool.pool.physical_host_id
         _private_directory(self.directory)
         self.path = self.directory / "ledger.sqlite3"
@@ -77,12 +79,18 @@ class ResourceLedger:
 
     def _configuration(self, db, key, value):
         existing = db.execute("SELECT value FROM configuration WHERE key=?", (key,)).fetchone()
-        if existing is not None and json.loads(existing[0]) != json.loads(value):
-            raise ValueError("resource_local_registration_conflict")
+        if existing is not None:
+            model = PoolRegistration if key == "pool" else RunnerRegistration
+            if model.model_validate_json(existing[0]) != model.model_validate_json(value):
+                raise ValueError("resource_local_registration_conflict")
         db.execute("INSERT OR IGNORE INTO configuration VALUES (?, ?)", (key, value))
 
     @contextmanager
     def locked(self):
+        active = self._active.get()
+        if active is not None:
+            yield active
+            return
         fd = _file(self.directory / "start.lock")
         db = None
         try:
@@ -91,7 +99,11 @@ class ResourceLedger:
             db = sqlite3.connect(self.path, timeout=5, isolation_level=None)
             db.execute("PRAGMA synchronous=FULL")
             db.execute("PRAGMA journal_mode=DELETE")
-            yield db
+            token = self._active.set(db)
+            try:
+                yield db
+            finally:
+                self._active.reset(token)
         finally:
             if db is not None:
                 db.close()

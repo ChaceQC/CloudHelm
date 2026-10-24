@@ -1,6 +1,7 @@
 """Export only the two compose-pinned public frontend bases to read-only OCI."""
 
 from __future__ import annotations
+from modules.execution.docker_endpoint import socket_path
 
 import gzip
 import hashlib
@@ -47,7 +48,7 @@ def _export(client: DockerClient, reference: str, target: Path) -> None:
     descriptor = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
     try:
         with os.fdopen(descriptor, "wb") as stream:
-            result = subprocess.run([DOCKER, "--host", "unix:///var/run/docker.sock",
+            result = subprocess.run([DOCKER, "--host", "unix://" + socket_path(),
                 "image", "save", "--platform=linux/amd64", reference], env=environment,
                 stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.PIPE,
                 preexec_fn=limit_file, timeout=90, check=False)

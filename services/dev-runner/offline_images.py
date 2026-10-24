@@ -1,6 +1,7 @@
 """Acquire only the fixed public Python base; no arbitrary registry or URL inputs."""
 
 from __future__ import annotations
+from modules.execution.docker_endpoint import socket_path
 
 import hashlib
 import json
@@ -58,7 +59,7 @@ def _export_fixed_source(client: DockerClient, archive: Path) -> None:
     descriptor = os.open(archive, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
     try:
         with os.fdopen(descriptor, "wb") as stream:
-            result = subprocess.run([DOCKER, "--host", "unix:///var/run/docker.sock",
+            result = subprocess.run([DOCKER, "--host", "unix://" + socket_path(),
                 "image", "save", "--platform=linux/amd64", SOURCE_REFERENCE],
                 env=environment, stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.PIPE,
                 preexec_fn=_limit_export_file, timeout=90, check=False)

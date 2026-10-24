@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 
 from .toolchain import DOCKER, ProbeFailure, RUNTIME_ROOT, classify_diagnostic, private_directory, safe_diagnostic
+from modules.execution.docker_endpoint import socket_path
 
 CPU_QUOTA, CPU_PERIOD = 150000, 100000
 MEMORY_BYTES, PIDS_LIMIT = 896 * 1024**2, 256
@@ -28,11 +29,17 @@ class _DockerConnection(http.client.HTTPConnection):
     def connect(self):
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.settimeout(self.timeout)
-        self.sock.connect("/var/run/docker.sock")
+        self.sock.connect(socket_path())
 
 
 def engine(method: str, path: str, payload: dict | None = None, *, expected=(200, 201, 204)):
     """Docker errors and response bodies never become diagnostics or logs."""
+    from .resource_context import current_group
+
+    group = current_group()
+    if group is not None and method == "POST" and path == "/networks/create":
+        payload = dict(payload)
+        payload["Labels"] = dict(payload.get("Labels") or {}) | {"cloudhelm.resource-binding": group.binding}
     connection = _DockerConnection()
     try:
         raw = json.dumps(payload, separators=(",", ":")).encode("utf-8") if payload is not None else None
@@ -43,7 +50,10 @@ def engine(method: str, path: str, payload: dict | None = None, *, expected=(200
             stage = "container_start" if path.endswith("/start") else "request"
             raise ProbeFailure("artifact_environment_docker_" + stage + "_rejected",
                 "http_" + str(response.status), safe_diagnostic(data.decode("utf-8", errors="replace")))
-        return json.loads(data) if data else None
+        value = json.loads(data) if data else None
+        if group is not None and method == "POST" and path == "/networks/create":
+            group.authorize_network(value["Id"])
+        return value
     except (OSError, ValueError, http.client.HTTPException):
         raise ProbeFailure("artifact_environment_docker_unavailable") from None
     finally:
@@ -75,7 +85,7 @@ def docker(*arguments: str, **kwargs):
     private_directory(directory)
     if (directory / "config.json").exists():
         raise ProbeFailure("artifact_environment_public_docker_config_not_empty")
-    return command([DOCKER, "--config", str(directory), "--host", "unix:///var/run/docker.sock", *arguments], **kwargs)
+    return command([DOCKER, "--config", str(directory), "--host", "unix://" + socket_path(), *arguments], **kwargs)
 
 
 class EnvironmentGroup:
@@ -87,6 +97,14 @@ class EnvironmentGroup:
         self.created = False
         self.external = False
         self.lock: int | None = None
+        from .resource_context import current_group
+
+        self.resource_binding = current_group()
+        if self.resource_binding is not None:
+            if self.resource_binding.registration.storage.storage_id != storage_id:
+                raise ProbeFailure("artifact_environment_resource_storage_mismatch")
+            self.unit = self.resource_binding.unit
+            self.path = self.resource_binding.path
 
     def acquire(self):
         if self.lock is not None:
@@ -106,41 +124,20 @@ class EnvironmentGroup:
         self.lock = descriptor
 
     def create(self):
+        if self.resource_binding is None:
+            raise ProbeFailure("artifact_environment_legacy_start_retired")
         self.acquire()
-        info = engine("GET", "/info")
-        if info.get("CgroupDriver") != "systemd" or info.get("CgroupVersion") != "2":
-            raise ProbeFailure("artifact_environment_systemd_cgroup2_required")
-        owned = engine("GET", '/containers/json?all=1&filters={"label":["cloudhelm.method"]}')
-        if owned:
-            raise ProbeFailure("artifact_environment_previous_execution_requires_reconciliation")
-        self.path = Path("/sys/fs/cgroup") / self.unit
-        if self.path.exists():
-            properties = command(["/usr/bin/systemctl", "show", self.unit, "--property=Description,Transient"])
-            values = dict(line.split("=", 1) for line in properties.stdout.decode("utf-8").splitlines() if "=" in line)
-            if values != {"Description": METHOD, "Transient": "yes"}:
-                raise ProbeFailure("artifact_environment_parent_registration_mismatch")
-            self.created, self.external = True, True
-            return self.observe()
-        raise ProbeFailure("artifact_environment_root_prepared_parent_required")
+        result = self.resource_binding.observe()
+        self.created, self.external = True, True
+        return result
 
     def prepare_unit(self):
         """Root maintenance prepares the single operation's transient unit."""
-        if os.getuid() != 0:
-            raise ProbeFailure("artifact_environment_explicit_root_maintenance_required")
-        command(["/usr/bin/busctl", "call", "org.freedesktop.systemd1",
-            "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "StartTransientUnit",
-            "ssa(sv)a(sa(sv))", self.unit, "fail", "5", "Description", "s", METHOD,
-            "CPUQuotaPerSecUSec", "t", "1500000", "CPUQuotaPeriodUSec", "t", str(CPU_PERIOD),
-            "MemoryMax", "t", str(MEMORY_BYTES), "TasksMax", "t", str(PIDS_LIMIT), "0"])
-        self.created = True
-        control = command(["/usr/bin/systemctl", "show", self.unit, "--property=ControlGroup", "--value"])
-        path = control.stdout.decode("utf-8").strip()
-        if path != "/" + self.unit:
-            raise ProbeFailure("artifact_environment_cgroup_parent_mismatch")
-        self.path = Path("/sys/fs/cgroup") / self.unit
-        return self.observe()
+        raise ProbeFailure("artifact_environment_use_registered_resource_host")
 
     def observe(self) -> dict:
+        if self.resource_binding is not None:
+            return self.resource_binding.observe()
         if self.path is None:
             raise ProbeFailure("artifact_environment_group_not_prepared")
         expected = {"cpu.max": f"{CPU_QUOTA} {CPU_PERIOD}", "memory.max": str(MEMORY_BYTES),
@@ -153,6 +150,14 @@ class EnvironmentGroup:
                 "pids_peak": int((self.path / "pids.peak").read_text(encoding="utf-8"))}
 
     def dispose(self):
+        if self.resource_binding is not None:
+            # The domain stops its writers first. The coordinator owns the
+            # daemon/whole-group stop; suspend retains this stable binding.
+            if self.lock is not None:
+                os.close(self.lock)
+                self.lock = None
+            self.created = False
+            return {"resource_owner_retained": True, "unit": self.unit}
         if not self.created:
             if self.lock is not None:
                 os.close(self.lock)

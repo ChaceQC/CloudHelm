@@ -44,7 +44,7 @@ def register_runner_in_uow(uow, registration: RunnerRegistration):
     )).scalar_one_or_none()
     payload = registration.model_dump(mode="json")
     if existing is not None:
-        if existing != payload:
+        if RunnerRegistration.model_validate(existing) != registration:
             raise ValueError("runner_registration_conflict")
         return
     uow.connection.execute(insert(resource_runners).values(
