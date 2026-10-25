@@ -2,6 +2,25 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-25：P1.4-02 目标连接重试
+
+- 原因与授权：用户要求再次尝试 Hub facade 与独立目标的最后交付闭环，继续不使用子代理、不做大量测试及禁止整机重启。入口为 `dev / 83c3e75`，工作树干净。
+- 执行范围及用户收尾指示：核对旧状态、恢复受认证 HTTPS 并重试固定完整计划；用户随后确认当前只有 `1 Mbps`，要求加快收尾，不再纠结硬件无法完成的项目。网络/硬件受限项保留未完成，不重复重试，不替代人工验收或开放后续阶段。
+- 输入恢复：上轮临时 Hub 使用 tmpfs，WSL 换启动纪元后不能恢复原库；原目标安装已清理。原 16 GiB 受管 backing、三份归档及宿主 SQLite 账本仍在，三个原归档摘要复核相同，旧执行组均为 stopped 且磁盘分配已回收，原 backing 占账保留。沿用同一宿主资源池/执行器配置和唯一账本，新建隔离 Hub/项目；首次新池注册冲突、复用旧项目 Git 认领冲突均保留为拒绝，未改写或旁路旧账本。
+- 连接实际结果：Windows SSH 显式反向转发到 WSL `eth0` 地址，目标通过 `https://127.0.0.1:58112` 验证受控证书；`retry_target_probe.py` 于 `2026-10-25T06:34:40.975208+00:00` 取得未认证 401、认证绑定 1 条及正常 idle 轮询。该路径修复本次实际可达性，不推断上轮所有失败均由同一原因导致。
+- 新固定输入：真实来源/Task/候选 commit `4a04b84b2e42ab2202ebd88bb26de35827901204`，三个归档分别为 `65,600,512 / 26,081,792 / 160,163,840 bytes`。`full_hub.py --reuse-state`、`local_validate.py` 和 `register_release.py` 在 WSL 新隔离库完成真实构建、固定配方五步及原独立 HTTP 资产 `43+3+2+2` 项，产生 Release `release-a102d2f90e501f7e8615eb4511a49b960a45e78eff9beae3636e680da78600f4`、Manifest `sha256:1876f184f909e2144faf763cffabecb905755c6ec94243225009858a1f0d1a33`。没有重跑历史套件或收费模型。
+- 新时钟输入：管理员见证继续为 `p14-native-witness-r2`，新 WSL VM 身份已核验；本轮 1262 次连续采样、目标 RAW 间隔 `715.709919096 s`，观测相对速率区间 `[-4.219931734095313765697370303586714000000, 59.86210733828496471560657997154538300000] ppm`。样本 SHA-256 `4f23672f09e2234a434e07face90654bc1834ac4b980af74ae16a3cb9ac71e9b`；最终 profile `sha256:62f0d868c014e2fb31b63994ef8587487fd59902d3ddeca2560e2c571eb1babb` 同时绑定实际 `clock_evidence.py` 摘要，只适用于本次固定启动和受控 composition root。
+- 观察门禁定位：目标 UTC 略领先 Hub，原始观察被 `remote_observation_stale` 拒绝。本次固定采集器保存原始目标 UTC、已认证 Hub 响应时间和 RAW 间隔，采用先于实际采集的 Hub 保守时刻；检查往返小于 2 秒、响应至采集小于 5 秒，保留私有逐条审计。Hub 原 60 秒门禁未放宽，两端系统时间未改动；通用 CLI 未获得该适配支持。
+- 已修复：`ContinuousClockEvidence` 在签名见证初始化前设置 watchdog 锚点，实际初始化 `585799 us`，首次本地检查误报 `clock_watchdog_continuity_gap`。仅将锚点移至验证完成后、线程启动前；200 ms 运行间隙阈值、平台检查和失信实例永久关闭不变。源码递增为 `0.7.1`，`uv.lock` 同步；DBOS 工作流应用仍为 `cloudhelm-hub/0.7.0`、迁移仍为 `0008_p1_4_remote`，接口/依赖未变。
+- 修复定向结果：真实见证初始化 `576761 us`，初始化完成后 watch age `402 us`、本地检查通过、watchdog 未失信；独立诊断对象注入 250001 us 运行间隙后仍拒绝并永久关闭。未把该诊断对象用于实际签发。产品源码修复仅涉及 watchdog 初始化位置，模块/函数职责未扩展。
+- 人类批准与目标结果：用户明确批准计划 `plan-bef88a2d7fa33f6694a4cd0a2128b64d9f37381fc85e14d961917efee0b9f1c5`、摘要 `sha256:e7cf429d83b9dd9f5cd8b1a7473bf02c94f5c257f5ff55eceab80cc2249c4d0b`。目标新隔离安装 `installation-3c8559b10db945dc8edb66507b0e1723`、2 CPU/2 GiB/8 GiB；原 Operation `deployment-e7cf429d83b9dd9f5cd8b1a7473bf02c94f5c257f5ff55eceab80cc2249c4d0b` 接受 1 个许可并开始真实 HTTPS 归档准备。最终仅保存 backend 部分文件 `49,152,000 bytes`，本地步骤为 unknown；没有加载镜像、创建业务容器或执行迁移/服务/健康步骤，不记 succeeded。
+- 阻塞与风险：251,846,144 bytes 在 1 Mbps 下理论至少约 33.6 分钟，不能在当前 artifact_prepare 600 秒声明内完成。停止核对时距首次接受许可 `622877757 us`，暴露总运行时限尚未自动硬中断；没有将人工停止写成时限验证通过。Hub 最终仍为 `execution_registered`、环境修订 1、许可 1、已回报结果 0，和目标 unknown 一并保留待原身份核对，不伪造失败终态或清除绑定。
+- 保存与清理：先保存私有 Hub `pg_dump`（443582 bytes，SHA-256 `62218f8cba31cf914d83ab6977321c735425efc005d87e5a10b586cf72e30932`）、角色快照和 7 个私有运行文件，位于 `/home/cloudhelm/.local/state/cloudhelm/p14-full-v6472flc/retained-hub`，均不入库。目标 Agent/专属 daemon 已停、daemon 已禁用自动启动、有界盘正常卸载；8 GiB backing、原 SQLite 账本、时间审计和部分归档保留。临时连接探针凭据/目录已删除；误建但未使用的 16 GiB backing 已按专属 ID 移除并确认字节回收。没有全局 prune、整机重启或操作现有项目。
+- 静态及最终收束：`static_check.py` 于 `2026-10-25T07:36:26.244722+00:00` 通过 9 个变更文件 UTF-8、1 个 Python 语法、110 个本地链接及双 HTTP 契约快照（Hub 45 paths/47 operations/125 schemas，remote 7 paths）；`uv lock --check --offline`、`git diff --check` 通过。最终运行源码/锁/契约摘要为 `e74f42c1dcc4cc47a4bbf06d3d702c029ce0be153adab75f2de43a038071801d`，不包含 Markdown 或忽略方法。临时 Hub/API/worker/控制器/facade/转发/代理均已退出；原 16 GiB backing 已确认无挂载/loop 引用且文件保留。无新应用开发镜像版本替换需要清理，历史缓存不作全局清理。
+- 进行中：无新的网络/硬件重试；按当前开发分支流程提交推送本次修复和记录，未发布 tag/Release。
+- 下一步：后续代码任务补足归档准备的总时限执行与中断后原身份核对；网络/硬件受限的完整交付、重启、容量与人工验收继续留待具备条件时取证，本次不继续耗时重跑。
+- 主要文件：`modules/delivery/clock_evidence.py`、源码/锁版本、远端连接说明、计划/本进度及支持矩阵；忽略目录中的本轮方法和私有恢复资产不提交。
+
 ## 2026-10-25：P1.4-02 Remote Agent 与原身份迁移核对
 
 - 用户后续澄清：完整交付和时钟验证均允许执行，只禁止整机重启。主会话继续这两项工作；此前把它们提前列为仅待后续的收尾判断已撤回。已只读确认目标为无虚拟化的 Intel i5-8400 裸机、TSC/ART/constant_tsc/nonstop_tsc，Hub 为 AMD 6800H 的 WSL2 TSC 组合；实际支持依据和端到端交付正在取证，下面已有切片结果不扩大为新验证结论。

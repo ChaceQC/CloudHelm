@@ -45,7 +45,6 @@ class ContinuousClockEvidence:
         self.suspend = Path("/sys/power/suspend_stats/success")
         self.suspend_count = int(self.suspend.read_text(encoding="utf-8"))
         self.sleep_offset = self._sleep_offset()
-        self.last_watch = raw_us()
         self.lost = None
         self.closed = threading.Event()
         self.lock = threading.Lock()
@@ -61,6 +60,8 @@ class ContinuousClockEvidence:
             if hashlib.sha256(Path(public_key).read_bytes()).hexdigest() != profile["hub"]["witness_public_key_sha256"]:
                 raise ValueError("clock_witness_key_pin_mismatch")
             self._native()
+        # Initialization may wait on the signed witness; no support is exposed yet.
+        self.last_watch = raw_us()
         self.thread = threading.Thread(target=self._watch, name="clock-continuity", daemon=True)
         self.thread.start()
 
