@@ -2,6 +2,22 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-26：三套独立 Tauri 界面原型 T-UI-01
+
+- 原因与授权：用户选择引用聊天中保留的方案 1、4、8，要求三套独立 example、使用 Tauri、不连接真实 API；子代理使用 `gpt-6.1-sol / max`。本轮入口为 `dev / 46fdafb102f970c59b68fce810af4e22810cd971`，开始时工作树干净。
+- 影响范围与预期边界：新增 `examples/desktop-workspace/`、`examples/desktop-approvals/`、`examples/desktop-journal/`，分别复现工程工作台、审批收件箱和任务手记；各自独立启动，以本地状态演示主要交互。保留 accepted、批准、unknown、取消请求与物理停止的不同含义。正式 P1.5、真实 Hub 集成、worker 恢复及产品/人工验收维持原状态。
+- 已完成：六个 `gpt-6.1-sol / max` 小任务分别交付三套视图和三套本地交互，主会话集成各自独立的 npm/Cargo 清单与锁、Tauri 入口、图标、构建脚本及使用说明。界面包含任务检索/筛选、创建与启动、摘要核对与本地批准、来源引用、章节跳转、连接状态和取消原因；全部在内存中演示。`AGENTS.md` §6.1 已按用户要求明确 Windows Desktop 直接在 Windows 开发/构建/运行，后端 Linux 工程继续使用 WSL。
+- 执行环境纠正：最初在 `2026-10-26T01:34:14Z` 只读预检了 WSL，没有安装依赖或运行工程。用户明确 Windows 目标后，依赖安装、前端/Rust 构建和启动均使用 Windows；实际 Node `24.13.0`、npm `11.6.2`、Rust GNU `1.97.1`、MinGW GCC/windres、WebView2 Runtime `154.0.4258.62`。本次工程内选择 GNU 工具链，不修改机器默认工具链；未准备 Linux GUI 依赖。
+- 锁定与构建：各 example 自有版本 `0.1.0`，Tauri crate `2.12.5`、tauri-build `2.7.4`、CLI `2.12.4`，各自维护 package-lock/Cargo.lock。首次旧主包与新间接依赖不兼容，统一后构建通过；共享临时 target 中加载器被已运行示例占用的问题，在关闭本任务旧进程并将各自交付复制到独立输出目录后解除。未修改 Hub 源码 `0.7.1`、DBOS 应用版本或迁移。
+- Windows 原生结果：三套均执行 `npm.cmd run desktop:build -- --debug` 成功，生成独立 GUI 子系统 exe 和各自的 `WebView2Loader.dll`，位于各工程 `output/windows/`；该目录、依赖、target、截图及本机方法均被忽略，不入库。三套均通过命令启动；曾观察到三个对应标题且进程响应，审批首轮还实际显示 WebView2 内容。用户随后明确禁止 computer-use，已停止该工具，此后仅使用 Windows 构建/进程命令和 Edge Playwright，不将进程存在推断为完整原生功能/隔离验收。
+- 产物 SHA-256：workspace `20b6592ac68f84fe23a0abc4afda5aead4f665a93c73a1d7a5a8fe6c56be0961`；approvals `7f2c79e357a050c392ea6d72bc06f2f1da85e6e3339abdd25377fc7e60fc49fb`；journal `13a6b5548d78aa9efd0ccb3b75e5d34045bf6b20fdb705174f60792ce5e99ab8`。三份加载器同为 `8427b1fc58ec707813e5c0a51eb5d69397bb333250a7b891be4d3b123f1e0f1c`；这些是调试构建，未生成安装器或公开发布。
+- Edge 定向结果：1536×1024、DPR 1 的三张最终截图与源图在同画布对比，并打开关键局部。已修正重复“演示”、新任务误用 Op-218 的展示、主按钮宽度和手记标题/间距；三套 `design-qa.md` 最终为 passed，保留字形/图标细节 P3 差异。工作台创建/启动不借用原操作，取消后停止待确认且保留资源；审批先确认完整摘要再批准，四阶段仍未启动；手记章节、来源引用、原身份 unknown 查询通过。三套控制台均为 0 errors / 0 warnings。没有重跑历史业务、数据库、容器、整机重启或收费请求。
+- 静态结果：本机 `static_check.py` 于收尾核对 100 个变更/新增文件，其中 91 份 UTF-8 文本、15 份 JSON、9 份 TOML/Cargo.lock 和 105 个本地链接通过；源码未发现网络或持久化接入，`git diff --check` 通过。该方法与合成对比位于忽略的 `.thesis-work/desktop-ui-tools/`、`.thesis-work/desktop-ui-evidence/`；最终记录时间 `2026-10-26T02:36:22Z`。CI 新增三套前端的锁定安装/类型/构建，不在 Ubuntu CI 编译 Windows 原生，未在本机重跑无关后端检查。
+- 规模评估：三套 TS/TSX 普通模块均不超过 272 行（按物理行计，排除锁、生成物和依赖）；审批页面 CSS 1006 行，作为该独立页面的声明式样式保留。各 useDemo 虽超过函数建议线，职责仅为本例内存状态与命令；相似规则为用户要求的三套完全独立工程保留，不引入共享运行依赖或产品平行状态机。
+- 进行中：无新的实现任务；本轮按当前 dev 开发流程进行 Git 收尾。阻塞与风险：无阻塞；真实 Hub、正式 P1.5、安装/升级、原生隔离、worker 恢复和人工产品验收均未执行，不扩大已有产品结论。
+- 下一项具体任务：用户独立查看三套窗口并选择后续界面方向；正式产品实施仍等待当前计划的 P1.4 必要出口，本轮不自动开放。
+- 主要文件：三套 `examples/desktop-*`、`examples/desktop-examples.md`、`AGENTS.md`、计划/本进度、各套视觉核对与 README、定向检查说明及 `.github/workflows/check.yml`。
+
 ## 2026-10-25：P1.4-02 目标连接重试
 
 - 原因与授权：用户要求再次尝试 Hub facade 与独立目标的最后交付闭环，继续不使用子代理、不做大量测试及禁止整机重启。入口为 `dev / 83c3e75`，工作树干净。

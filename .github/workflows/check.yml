@@ -51,7 +51,7 @@ jobs:
               raise SystemExit("缺少必需文件：" + ", ".join(missing))
 
           tracked = subprocess.check_output(["git", "ls-files", "-z"]).decode("utf-8").split("\0")
-          text_suffixes = {".md", ".yml", ".yaml", ".json", ".toml", ".lock", ".svg", ".drawio", ".py", ".ts", ".tsx", ".js", ".jsx", ".rs"}
+          text_suffixes = {".md", ".yml", ".yaml", ".json", ".toml", ".lock", ".svg", ".drawio", ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".css", ".html", ".rs"}
           env_templates = {".env.example", ".env.sample", ".env.template", ".env.schema"}
           forbidden_parts = {".thesis-work", ".venv", "node_modules", "__pycache__"}
           for name in filter(None, tracked):
@@ -118,13 +118,24 @@ jobs:
         with:
           node-version: "22.23.2"
           cache: npm
-          cache-dependency-path: examples/standalone-project/frontend/package-lock.json
+          cache-dependency-path: |
+            examples/standalone-project/frontend/package-lock.json
+            examples/desktop-workspace/package-lock.json
+            examples/desktop-approvals/package-lock.json
+            examples/desktop-journal/package-lock.json
 
       - name: 构建参照前端
         working-directory: examples/standalone-project/frontend
         run: |
           npm ci --no-audit --no-fund
           npm run build
+
+      - name: 构建三个独立桌面示例的前端
+        run: |
+          for example in desktop-workspace desktop-approvals desktop-journal; do
+            npm ci --prefix "examples/$example" --no-audit --no-fund
+            npm run build --prefix "examples/$example"
+          done
 
       - name: 检查提交差异格式
         run: git show --format= --check HEAD -- . ':!docs/archive/**'

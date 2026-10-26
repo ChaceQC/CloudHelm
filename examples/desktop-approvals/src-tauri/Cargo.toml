@@ -1,0 +1,16 @@
+[package]
+name = "cloudhelm-desktop-approvals"
+version = "0.1.0"
+description = "CloudHelm 审批收件箱独立界面示例"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.5", features = [] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

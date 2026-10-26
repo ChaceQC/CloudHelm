@@ -132,7 +132,8 @@ SDK 自动重试、校验修复、压缩、恢复和流式回调也属于真实�
 
 ### 6.1 开发环境与镜像管理
 
-本机开发使用 WSL；本地依赖安装、工程运行与验证、数据库迁移及 Docker/Compose 操作在 WSL 的 Linux 环境中执行。
+Windows Desktop 使用 Tauri、React 和 TypeScript，在 Windows 上运行；桌面端的依赖安装、前端开发、Rust/Tauri 构建、启动、调试和原生验证应直接在 Windows 上执行，不转入 WSL 安装 Linux Node/Rust/GTK/WebKit 工具链。Playwright 辅助检查使用 Windows Edge；浏览器结果与 Tauri/WebView2 原生验证分别记录。
+Hub、Runner、Remote Agent 等 Linux 工程的本地依赖安装、运行与验证、数据库迁移及 Docker/Compose 操作使用 WSL 的 Linux 环境。跨端任务按各自目标环境执行，不能把后端 WSL 约定套用于 Windows Desktop。
 随着版本推进，在新版本完成必要开发验证后，删除已被替代且不再被运行任务、当前验证或明确回滚方案引用的早期开发镜像。按本项目的镜像标签、版本和摘要核对并定向清理，记录删除范围、结果及仍保留的引用；不使用全局 prune 清理其他项目镜像，发布制品与正式运行镜像按各自保留策略管理。
 P0 核实并记录实际 WSL 发行版、内核、仓库映射路径、工具链和 Docker/Compose 连接方式，不从其他项目套用环境或命令。
 WSL 开发验证与 Windows/Linux Desktop 原生验收、真实独立机器交付验收分别记录，不能用 WSL 结果替代其支持证据。
