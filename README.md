@@ -32,7 +32,7 @@ Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说
 |[P0 历史接缝复现](./docs/development/p0-seams.md)|按原提交取回历史实验；兼容范围见[组件基线](./docs/decisions/p0/component-baseline.md)和[接缝结论](./docs/acceptance/p0/seam-summary.md)|
 |[契约查看与窄检查](./docs/development/p0-decisions.md)|查看 [P0 决定模型与 JSON Schema](./packages/contracts/p0/README.md)及 [Hub HTTP/内部交接类型](./packages/contracts/p1/README.md)，按各自范围校验|
 |[全栈便签参照](./examples/standalone-project/README.md)|在 WSL 用 Compose 运行 React/FastAPI/PostgreSQL 与线性 Alembic 示例，仅供本机合成数据使用；源码与独立 HTTP 验收资产分开提供，边界见[首链规格](./docs/implementation/reference-chain.md)和[支持矩阵](./docs/acceptance/support-matrix.md)|
-|[三套独立桌面示例](./examples/desktop-examples.md)|在 Windows 独立运行工程工作台、审批收件箱和任务手记；Tauri/React 本地模拟交互，不连接真实 API|
+|[五套 HTML 界面方案](./examples/desktop-examples.md)|任务看板、部署航线、对象工作台、事件卷宗和命令中心；直接打开 HTML，以本地数据演示 P1.5 操作|
 
 ## 技术方向
 
