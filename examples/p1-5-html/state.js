@@ -2,11 +2,11 @@
 window.Helm = {
   concept: document.body.dataset.concept,
   concepts: [
-    ["board", "01", "任务看板", "从待办出发，让阻塞与下一步一眼可见"],
-    ["voyage", "02", "部署航线", "沿一次变更，走完版本到实际运行的路径"],
-    ["atlas", "03", "对象工作台", "沿对象关系，在多个上下文之间连续浏览"],
-    ["dossier", "04", "事件卷宗", "从时间与证据，还原每一次决定和执行"],
-    ["command", "05", "命令中心", "从搜索出发，用最短路径抵达当前操作"],
+    ["board", "01", "任务看板"],
+    ["voyage", "02", "部署航线"],
+    ["atlas", "03", "对象工作台"],
+    ["dossier", "04", "事件卷宗"],
+    ["command", "05", "命令中心"],
   ],
   state: {
     page: "home", selected: "TASK-1042", filter: "all", search: "", role: "operator",
@@ -21,18 +21,18 @@ window.Helm = {
       { id: "TASK-1038", title: "更新登录页文案", goal: "已归档候选与验证报告，任务完成。", lane: "done", plan: "—", run: "RUN-1038", command: "CMD-1038", time: "09:20", budget: "3.00" },
     ],
     events: [
-      { time: "10:42:18", kind: "warning", title: "归档传输结果未知", detail: "Op-218 尚未取得物理执行结果，冲突资源继续保留。", ref: "Op-218", page: "tracking", type: "操作事实" },
-      { time: "10:41:03", kind: "success", title: "固定计划已获批准", detail: "批准绑定 PLAN-082 · r4；执行结果单独核对。", ref: "PLAN-082", page: "plan", type: "人类决定" },
-      { time: "10:40:56", kind: "info", title: "启动命令已可靠接收", detail: "CMD-1042 返回 accepted，原 RUN-1042 继续推进。", ref: "CMD-1042", page: "task", type: "命令回执" },
-      { time: "10:38:10", kind: "success", title: "不可变交付制品已归档", detail: "v0.7.1 包含 frontend、backend、postgres 三份制品。", ref: "REL-071", page: "release", type: "交付事实" },
-      { time: "10:35:24", kind: "info", title: "环境配置修订已固定", detail: "CFG-STAGING r4；秘密以受管引用交付。", ref: "CFG-STAGING", page: "config", type: "配置修订" },
+      { time: "10:42:18", kind: "warning", title: "归档传输结果未知", detail: "连接中断 · 资源保留", ref: "Op-218", page: "tracking", type: "操作事实" },
+      { time: "10:41:03", kind: "success", title: "固定计划已获批准", detail: "CFG-STAGING r4", ref: "PLAN-082", page: "plan", type: "人类决定" },
+      { time: "10:40:56", kind: "info", title: "启动命令已接收", detail: "RUN-1042 · accepted", ref: "CMD-1042", page: "task", type: "命令回执" },
+      { time: "10:38:10", kind: "success", title: "交付制品已归档", detail: "v0.7.1 · frontend / backend / postgres", ref: "REL-071", page: "release", type: "交付事实" },
+      { time: "10:35:24", kind: "info", title: "环境配置修订已固定", detail: "验证环境 · r4", ref: "CFG-STAGING", page: "config", type: "配置修订" },
     ],
   },
 };
 const H = window.Helm;
 H.esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 H.task = () => H.state.tasks.find(task => task.id === H.state.selected) || H.state.tasks[0];
-H.lockReason = () => !H.state.online ? "当前离线，正在展示最后同步快照" : H.state.role !== "operator" ? "当前身份只有查看权限" : H.state.gap ? "事件不连续，请先重建快照" : H.state.backup ? "旧备份恢复门禁尚未解除" : "";
+H.lockReason = () => !H.state.online ? "离线 · 只读" : H.state.role !== "operator" ? "当前身份只读" : H.state.gap ? "事件缺口 · 请重建快照" : H.state.backup ? "旧备份 · 执行关闭" : "";
 H.event = (title, detail, ref, page, kind = "info") => {
   H.state.cursor += 1;
   H.state.events.unshift({ time: new Date().toLocaleTimeString("zh-CN", { hour12: false, timeZone: "Asia/Shanghai" }), title, detail, ref, page, kind, type: "本次操作" });
@@ -53,15 +53,15 @@ H.applyScenario = id => {
   if (id === "backup") { s.backup = true; s.stream = "stream-B"; }
   if (id === "capacity") s.capacity = true;
   const notices = {
-    normal: ["正常控制通道", "运行状态保持原事实，结果未知的原操作仍等待核对。"],
-    offline: ["控制通道已断开", "保留最后同步快照与观察时间；写入入口已关闭。"],
-    permission: ["当前权限已收回", "授权范围与缓存已重新投影；当前身份只可查看。"],
-    gap: ["增量事件出现缺口", "停止应用后续增量并关闭写入，等待完整快照。"],
-    worker: ["单 worker 重启后恢复原 Run", "继续关联 RUN-1042 / Op-218，不创建第二次业务推进。"],
-    checkpoint: ["业务已提交，检查点待核对", "按 CMD-1042 与原业务版本查回已提交事实，不重复提交。"],
-    receipt: ["接收回执丢失", "原 CMD-1042 保留，查询可靠接收记录，不另建命令。"],
-    capacity: ["普通执行容量已满", "普通启动等待资源；原身份查询与取消仍走独立控制入口。"],
-    backup: ["检测到旧备份恢复", "流身份已变化，自动执行保持关闭；等待管理员授权核对。"],
+    normal: ["正常控制通道", "原操作待核对。"],
+    offline: ["控制通道已断开", "已离线，写入暂停。"],
+    permission: ["当前权限已收回", "权限已收回，当前只读。"],
+    gap: ["增量事件出现缺口", "事件缺口，等待重建快照。"],
+    worker: ["单 worker 重启后恢复原 Run", "RUN-1042 / Op-218 已恢复关联。"],
+    checkpoint: ["业务已提交，检查点待核对", "CMD-1042 已提交，等待检查点核对。"],
+    receipt: ["接收回执丢失", "CMD-1042 回执待查询。"],
+    capacity: ["普通执行容量已满", "启动等待资源；查询和取消可用。"],
+    backup: ["检测到旧备份恢复", "自动执行关闭，等待管理员核对。"],
   };
   const notice = notices[id];
   H.event(notice[0], notice[1], "RUN-1042", "recovery", id === "normal" ? "info" : "warning");
