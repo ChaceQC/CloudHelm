@@ -4,20 +4,25 @@ use serde_json::Value;
 use std::{sync::Mutex, time::Duration};
 use tauri::{AppHandle, State, WebviewWindow};
 
+#[derive(Clone)]
 pub struct Session {
     pub base: String,
     pub client: reqwest::Client,
     pub generation: String,
     pub account: String,
+    pub token: String,
 }
 
 #[derive(Default)]
+pub struct SessionState { pub generation: u64, pub current: Option<Session> }
+
+#[derive(Default)]
 pub struct HubState {
-    pub session: Mutex<Option<Session>>,
+    pub session: Mutex<SessionState>,
     pub stream: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Reply { pub status: u16, pub body: Value }
 
 #[derive(Deserialize, Serialize)]
@@ -29,16 +34,27 @@ pub struct HubRequest {
     pub idempotency_key: Option<String>,
 }
 
-pub fn session(state: &HubState) -> Result<(String, reqwest::Client, String, String), String> {
+#[derive(Serialize)]
+pub struct Connected { identity: Value, generation: String }
+
+pub fn selected_session(state: &HubState, generation: &str) -> Result<Session, String> {
     let guard = state.session.lock().map_err(|_| "session_unavailable")?;
-    let value = guard.as_ref().ok_or("hub_disconnected")?;
-    Ok((value.base.clone(), value.client.clone(), value.generation.clone(), value.account.clone()))
+    let value = guard.current.as_ref().ok_or("session_changed")?;
+    if value.generation != generation { return Err("session_changed".into()); }
+    Ok(value.clone())
 }
 
-pub fn stop_stream(state: &HubState) {
-    if let Ok(mut guard) = state.stream.lock() {
-        if let Some(handle) = guard.take() { handle.abort(); }
+// All stream replacement and connection transitions acquire these locks in this order.
+pub fn replace_stream(state: &HubState, generation: &str,
+                      handle: tauri::async_runtime::JoinHandle<()>) -> Result<(), String> {
+    let guard = state.session.lock().map_err(|_| "session_unavailable")?;
+    if guard.current.as_ref().map(|s| s.generation.as_str()) != Some(generation) {
+        handle.abort();
+        return Err("session_changed".into());
     }
+    let mut stream = state.stream.lock().map_err(|_| "session_unavailable")?;
+    if let Some(previous) = stream.replace(handle) { previous.abort(); }
+    Ok(())
 }
 
 pub async fn bounded_reply(mut response: reqwest::Response) -> Result<Reply, String> {
@@ -55,12 +71,33 @@ pub async fn bounded_reply(mut response: reqwest::Response) -> Result<Reply, Str
     Ok(Reply { status, body })
 }
 
+// A separate, serialized transition lets the UI invalidate an in-progress connect immediately.
 #[tauri::command]
-pub async fn hub_connect(window: WebviewWindow, state: State<'_, HubState>, base_url: String,
-                         import_credential: bool, dev_loopback: bool) -> Result<Value, String> {
+pub fn hub_transition(window: WebviewWindow, state: State<'_, HubState>, forget: bool) -> Result<String, String> {
     security::trusted(&window)?;
-    stop_stream(&state);
-    *state.session.lock().map_err(|_| "session_unavailable")? = None;
+    let mut guard = state.session.lock().map_err(|_| "session_unavailable")?;
+    guard.generation = guard.generation.checked_add(1).ok_or("session_unavailable")?;
+    let current = guard.current.take();
+    let mut stream = state.stream.lock().map_err(|_| "session_unavailable")?;
+    if let Some(handle) = stream.take() { handle.abort(); }
+    if forget {
+        if let Some(current) = current {
+            security::entry(&current.base)?.delete_credential().map_err(|_| "credential_delete_failed")?;
+        }
+    }
+    Ok(guard.generation.to_string())
+}
+
+#[tauri::command]
+pub async fn hub_connect(window: WebviewWindow, state: State<'_, HubState>, generation: String,
+                         base_url: String, import_credential: bool, dev_loopback: bool) -> Result<Connected, String> {
+    security::trusted(&window)?;
+    {
+        let guard = state.session.lock().map_err(|_| "session_unavailable")?;
+        if guard.generation.to_string() != generation || guard.current.is_some() {
+            return Err("session_changed".into());
+        }
+    }
     let base = security::endpoint(&base_url, dev_loopback)?;
     let credential_base = base.clone();
     let token = tauri::async_runtime::spawn_blocking(move || {
@@ -71,65 +108,103 @@ pub async fn hub_connect(window: WebviewWindow, state: State<'_, HubState>, base
         .bearer_auth(&token).header("X-CloudHelm-Api-Schema", API_SCHEMA)
         .timeout(Duration::from_secs(15)).send().await.map_err(|_| "hub_unreachable")?).await?;
     if reply.status != 200 { return Err("authentication_failed".into()); }
+    let user = reply.body.get("user_id").and_then(Value::as_str).filter(|s| !s.is_empty())
+        .ok_or("response_schema_invalid")?;
+    reply.body.get("session_id").and_then(Value::as_str).filter(|s| !s.is_empty())
+        .ok_or("response_schema_invalid")?;
+    let account = format!("{base}|{user}");
+    let mut guard = state.session.lock().map_err(|_| "session_unavailable")?;
+    if guard.generation.to_string() != generation || guard.current.is_some() {
+        return Err("session_changed".into());
+    }
     if import_credential {
         security::entry(&base)?.set_password(&token).map_err(|_| "credential_store_unavailable")?;
     }
-    let generation = format!("{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| "clock_unavailable")?.as_nanos());
-    let user = reply.body.get("user_id").and_then(Value::as_str).ok_or("response_schema_invalid")?;
-    let account = format!("{base}|{user}");
-    *state.session.lock().map_err(|_| "session_unavailable")? = Some(Session { base, client, generation, account });
-    Ok(reply.body)
+    guard.current = Some(Session { base, client, generation: generation.clone(), account, token });
+    Ok(Connected { identity: reply.body, generation })
 }
 
-#[tauri::command]
-pub fn hub_disconnect(window: WebviewWindow, state: State<'_, HubState>, forget: bool) -> Result<(), String> {
-    security::trusted(&window)?;
-    stop_stream(&state);
-    let current = state.session.lock().map_err(|_| "session_unavailable")?.take();
-    if forget {
-        if let Some(current) = current {
-            security::entry(&current.base)?.delete_credential().map_err(|_| "credential_delete_failed")?;
-        }
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn hub_request(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>, request: HubRequest) -> Result<Reply, String> {
-    security::trusted(&window)?;
+fn validate(request: &HubRequest) -> Result<(), String> {
     if !security::route_allowed(&request.method, &request.route) { return Err("route_not_allowed".into()); }
-    let (base, client, generation, account) = session(&state)?;
-    let token = security::credential(&base)?;
-    let method = reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|_| "method_invalid")?;
-    let mut builder = client.request(method, format!("{base}{}", request.route)).bearer_auth(token)
-        .header("X-CloudHelm-Api-Schema", API_SCHEMA).timeout(Duration::from_secs(15));
     if request.method == "POST" {
         let key = request.idempotency_key.as_deref().ok_or("idempotency_key_required")?;
         if key.is_empty() || key.len() > 160 || !key.bytes().all(|b| b.is_ascii_graphic()) {
             return Err("idempotency_key_invalid".into());
         }
         let body = request.body.as_ref().ok_or("command_body_required")?;
-        if serde_json::to_vec(&body).map_err(|_| "command_invalid")?.len() > 65536 {
+        if serde_json::to_vec(body).map_err(|_| "command_invalid")?.len() > 65536 {
             return Err("command_too_large".into());
         }
-        crate::journal::prepare(&app, &account, &request)?;
-        builder = builder.header("Idempotency-Key", key).json(body);
     }
+    Ok(())
+}
+
+pub fn command_id(reply: &Reply) -> Option<&str> {
+    reply.body.get("command_id").and_then(Value::as_str)
+        .or_else(|| reply.body.pointer("/task/command_id").and_then(Value::as_str))
+        .filter(|id| !id.is_empty())
+}
+
+fn confirmed(reply: &Reply) -> bool {
+    (200..500).contains(&reply.status) && command_id(reply).is_some()
+}
+
+async fn send(app: &AppHandle, state: &HubState, session: &Session, request: &HubRequest) -> Result<Reply, String> {
+    validate(request)?;
+    let method = reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|_| "method_invalid")?;
+    let mut builder = session.client.request(method, format!("{}{}", session.base, request.route))
+        .bearer_auth(&session.token).header("X-CloudHelm-Api-Schema", API_SCHEMA).timeout(Duration::from_secs(15));
+    if request.method == "POST" {
+        builder = builder.header("Idempotency-Key", request.idempotency_key.as_deref().ok_or("idempotency_key_required")?)
+            .json(request.body.as_ref().ok_or("command_body_required")?);
+    }
+    selected_session(state, &session.generation)?;
     let response = builder.send().await.map_err(|_| "request_unconfirmed")?;
-    let reply = bounded_reply(response).await?;
-    let confirmed = reply.body.get("command_id").and_then(Value::as_str).is_some()
-        || reply.body.pointer("/task/command_id").and_then(Value::as_str).is_some()
-        || reply.body.get("code").and_then(Value::as_str) == Some("request_schema_invalid");
-    if request.method == "POST" && (200..500).contains(&reply.status) && confirmed {
-        crate::journal::settle(&app, &account, request.idempotency_key.as_deref().unwrap_or(""))?;
+    let mut reply = bounded_reply(response).await?;
+    if request.method == "POST" && confirmed(&reply) {
+        reply = crate::journal::record(app, &session.account,
+            request.idempotency_key.as_deref().ok_or("idempotency_key_required")?, &reply)?;
     }
-    if session(&state)?.2 != generation { return Err("session_changed".into()); }
+    selected_session(state, &session.generation)?;
     Ok(reply)
 }
 
 #[tauri::command]
-pub fn hub_pending(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>) -> Result<Vec<HubRequest>, String> {
+pub async fn hub_request(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
+                         generation: String, request: HubRequest) -> Result<Reply, String> {
     security::trusted(&window)?;
-    crate::journal::load(&app, &session(&state)?.3)
+    let current = selected_session(&state, &generation)?;
+    validate(&request)?;
+    if request.method == "POST" { crate::journal::prepare(&app, &current.account, &request)?; }
+    send(&app, &state, &current, &request).await
+}
+
+#[tauri::command]
+pub async fn hub_retry(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
+                       generation: String, key: String) -> Result<Reply, String> {
+    security::trusted(&window)?;
+    let current = selected_session(&state, &generation)?;
+    let (request, _) = crate::journal::get(&app, &current.account, &key)?;
+    selected_session(&state, &generation)?;
+    // Reauthorize even a locally stored receipt before exposing it in a later session.
+    send(&app, &state, &current, &request).await
+}
+
+#[tauri::command]
+pub fn hub_pending(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
+                   generation: String) -> Result<Vec<HubRequest>, String> {
+    security::trusted(&window)?;
+    let current = selected_session(&state, &generation)?;
+    let requests = crate::journal::load(&app, &current.account)?;
+    selected_session(&state, &generation)?;
+    Ok(requests)
+}
+
+#[tauri::command]
+pub fn hub_ack(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
+               generation: String, key: String) -> Result<(), String> {
+    security::trusted(&window)?;
+    let guard = state.session.lock().map_err(|_| "session_unavailable")?;
+    let current = guard.current.as_ref().filter(|s| s.generation == generation).ok_or("session_changed")?;
+    crate::journal::settle(&app, &current.account, &key)
 }

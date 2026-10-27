@@ -24,6 +24,8 @@ export interface Deployment {
   plan: DomainObject; approval: Json | null; operation_id: string | null; status: string; environment_revision: number;
 }
 export interface HubRequest { method: "GET" | "POST"; route: string; body?: Json; idempotency_key?: string }
+export interface PendingCommand extends HubRequest { generation: string }
+export interface Connected { identity: Identity; generation: string }
 export interface Reply { status: number; body: Json }
 export interface SyncEvent {
   cursor: number; event_id: string; project_id: string; aggregate_kind: string;

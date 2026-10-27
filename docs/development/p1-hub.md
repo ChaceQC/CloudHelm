@@ -1,6 +1,6 @@
 # Hub 基础开发与维护
 
-本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；构建与增量开发的支持范围见工程说明，基础 Windows Desktop 见[客户端说明](p1-desktop.md)，完整 Agent、跨端客户端、远程交付及恢复支持按各自工作包接入。
+本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；构建与增量开发的支持范围见工程说明，基础 Windows Desktop 见[客户端说明](p1-desktop.md)，单 worker、未知资源收尾及恢复门禁的当前证据见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 Agent、跨端客户端、远程交付及恢复支持按各自工作包接入。
 
 环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
 

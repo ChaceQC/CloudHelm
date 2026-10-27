@@ -136,6 +136,15 @@ def _read_operation_access(context: TaskAccessContext, operation_id: str) -> Non
         task_operation_links.c.operation_id == operation_id,
     )).mappings().one_or_none()
     if link is None:
+        from modules.execution.tables import resource_reservations
+
+        reservation = context.uow.connection.scalar(select(resource_reservations.c.reservation_id).where(
+            resource_reservations.c.task_id == context.task["task_id"],
+            resource_reservations.c.operation_id == operation_id,
+        ))
+        if reservation is not None:
+            authorize_current(context.uow, context.actor, task_resource(context.task), "resource.read")
+            return
         owner_task = _engineering_operation_owner(context, operation_id)
     else:
         owner_task = link["owner_id"] if link["owner_kind"] == "task" else None

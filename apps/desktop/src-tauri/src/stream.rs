@@ -20,21 +20,19 @@ fn identifier(value: &str) -> bool {
 #[tauri::command]
 pub fn hub_subscribe(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
                      project_id: String, stream_id: String, after: u64,
-                     permission_revision: u64, subscription_id: String) -> Result<(), String> {
+                     permission_revision: u64, subscription_id: String, generation: String) -> Result<(), String> {
     security::trusted(&window)?;
     if !identifier(&project_id) || !identifier(&stream_id) || !identifier(&subscription_id)
         || after > 9007199254740991 || permission_revision > 9007199254740991 {
         return Err("subscription_invalid".into());
     }
-    bridge::stop_stream(&state);
-    let (base, client, _, _) = bridge::session(&state)?;
-    let token = security::credential(&base)?;
-    let mut url = reqwest::Url::parse(&format!("{base}/api/projects/{project_id}/events"))
+    let current = bridge::selected_session(&state, &generation)?;
+    let mut url = reqwest::Url::parse(&format!("{}/api/projects/{project_id}/events", current.base))
         .map_err(|_| "subscription_invalid")?;
     url.query_pairs_mut().append_pair("stream_id", &stream_id).append_pair("after", &after.to_string())
         .append_pair("permission_revision", &permission_revision.to_string());
     let handle = tauri::async_runtime::spawn(async move {
-        let result = consume(&app, &subscription_id, client.get(url).bearer_auth(token)
+        let result = consume(&app, &subscription_id, current.client.get(url).bearer_auth(current.token)
             .header("X-CloudHelm-Api-Schema", API_SCHEMA).header("Accept", "text/event-stream")).await;
         match result {
             Ok(()) => emit(&app, &subscription_id, "end", Value::Null),
@@ -42,8 +40,7 @@ pub fn hub_subscribe(window: WebviewWindow, app: AppHandle, state: State<'_, Hub
         }
     });
     // Tauri's runtime uses Tokio. Keep the abort handle, never a live DB/HTTP body in UI state.
-    *state.stream.lock().map_err(|_| "session_unavailable")? = Some(handle);
-    Ok(())
+    bridge::replace_stream(&state, &generation, handle)
 }
 
 async fn consume(app: &AppHandle, id: &str, request: reqwest::RequestBuilder) -> Result<(), &'static str> {

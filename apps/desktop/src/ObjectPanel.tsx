@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { codeOf, objectPath } from "./api";
+import { codeOf, objectPath, sessionChanged } from "./api";
 import type { Hub } from "./useHub";
 import type { DeliveryObject } from "./types";
 import { Empty, Facts, JsonView } from "./ui";
@@ -16,7 +16,7 @@ export function ObjectPanel({ hub, object }: { hub: Hub; object?: DeliveryObject
     if (!object || !project) return;
     void hub.query(objectPath(project, routes[object.kind], object.object_id)).then(value => {
       if (active) setDetail(value);
-    }).catch(reason => { if (active) setError(codeOf(reason)); });
+    }).catch(reason => { if (active && !sessionChanged(reason)) setError(codeOf(reason)); });
     return () => { active = false; };
   }, [project, object?.object_id, hub.snapshot?.captured_at]);
   if (!object) return <Empty>选择交付对象</Empty>;

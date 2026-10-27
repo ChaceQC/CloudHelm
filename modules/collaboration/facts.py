@@ -17,6 +17,7 @@ from modules.collaboration.human_facts import read_human_fact
 from modules.collaboration.operation_facts import read_operation_facts
 from modules.collaboration.operation_projection import merge_operation_facts
 from modules.collaboration.records import contract_digest, reference_key
+from modules.collaboration.resource_facts import merge_resource_operation_blockers
 from modules.collaboration.tables import (
     task_completion_reports, task_declarations, task_run_links, task_wait_conditions,
 )
@@ -41,7 +42,7 @@ class TaskControlSnapshot:
 _OPERATION_SOURCE_SCOPE_ERRORS = frozenset({
     "operation_projection_scope_too_large", "engineering_operation_scope_too_large",
     "workspace_operation_scope_too_large", "build_operation_scope_too_large",
-    "workspace_development_operation_scope_too_large",
+    "workspace_development_operation_scope_too_large", "resource_operation_scope_too_large",
 })
 
 
@@ -140,7 +141,7 @@ def _read_task_operation_projection(
     connection: Connection, task: Mapping[str, Any], input_set_ref: EngineeringRef | None, *,
     for_cancellation: bool = False,
 ) -> tuple[OperationClosureFact, ...]:
-    """Combine Task and engineering operations under one complete projection bound."""
+    """Combine Task, engineering and Task-owned resource facts under one bound."""
     from modules.collaboration.engineering_operations import read_engineering_operation_blockers
 
     try:
@@ -148,7 +149,8 @@ def _read_task_operation_projection(
             connection, task, input_set_ref, for_cancellation=for_cancellation,
         )
         engineering_operations = read_engineering_operation_blockers(connection, task["task_id"])
-        return merge_operation_facts(task_operations, engineering_operations)
+        operations = merge_operation_facts(task_operations, engineering_operations)
+        return merge_resource_operation_blockers(connection, task["task_id"], operations)
     except TaskBoundaryError as error:
         if error.code in _OPERATION_SOURCE_SCOPE_ERRORS:
             raise TaskBoundaryError("task_fact_projection_scope_too_large") from None

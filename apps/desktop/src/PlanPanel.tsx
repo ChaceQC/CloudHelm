@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { codeOf, objectPath } from "./api";
+import { codeOf, objectPath, sessionChanged } from "./api";
 import type { Hub } from "./useHub";
 import type { Deployment, Json } from "./types";
 import { Empty, Facts, JsonView, Status } from "./ui";
@@ -21,7 +21,7 @@ export function PlanPanel({ hub, planId }: { hub: Hub; planId: string }) {
       setValue(next);
       const deadline = Date.parse(String(next.plan.value.start_before));
       setExpires(new Date(Math.min(deadline, Date.now() + 15 * 60000)).toISOString());
-    }).catch(reason => { if (active) setError(codeOf(reason)); });
+    }).catch(reason => { if (active && !sessionChanged(reason)) setError(codeOf(reason)); });
     return () => { active = false; };
   }, [planId, projectId, cursor, captured]);
   if (!planId) return <Empty>选择部署计划</Empty>;

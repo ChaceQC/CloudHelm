@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { codeOf, objectPath, taskPath } from "./api";
+import { codeOf, objectPath, sessionChanged, taskPath } from "./api";
 import type { Hub } from "./useHub";
 import type { Json } from "./types";
 import { JsonView, Status } from "./ui";
@@ -19,7 +19,7 @@ export function OperationPanel({ hub, taskId }: { hub: Hub; taskId: string }) {
       : kind === "workspace" ? `/api/workspaces/${encodeURIComponent(owner.trim())}/operations/${id}`
       : kind === "development" ? `/api/development-environments/${encodeURIComponent(owner.trim())}/operations/${id}`
       : objectPath(project, kind === "source" ? "source-imports" : "deployment-plans", operation.trim());
-    void hub.query<Json>(route).then(setResult).catch(reason => setError(codeOf(reason)));
+    void hub.query<Json>(route).then(setResult).catch(reason => { if (!sessionChanged(reason)) setError(codeOf(reason)); });
   }}><div className="form-row"><label>操作类型<select value={kind} onChange={e => { setKind(e.target.value); setResult(null); }}>
     <option value="build">构建</option><option value="workspace">工作区操作</option><option value="development">开发环境操作</option>
     <option value="source">源码导入</option><option value="deployment">部署（按计划 ID）</option></select></label>
