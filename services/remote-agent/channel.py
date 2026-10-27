@@ -32,8 +32,13 @@ class Channel:
                 or verify is False):
             raise RemoteError("remote_authenticated_tls_required")
         self._token = SecretStr(read_private(token_file).decode("ascii").strip())
-        self.client = httpx.Client(base_url=url.rstrip("/"), verify=verify, follow_redirects=False,
+        self._url, self._verify, self._token_file = url.rstrip("/"), verify, str(token_file)
+        self.client = httpx.Client(base_url=self._url, verify=verify, follow_redirects=False,
             trust_env=False, timeout=httpx.Timeout(30, read=60))
+
+    def transfer_configuration(self):
+        return {"url": self._url, "token_file": self._token_file,
+            "verify": self._verify if isinstance(self._verify, bool) else str(self._verify)}
 
     def _headers(self):
         return {"Authorization": "Bearer " + self._token.get_secret_value()}

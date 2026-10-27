@@ -55,9 +55,19 @@ def step_results(connection, operation):
     if len(rows) > 256:
         raise TaskBoundaryError("remote_result_scope_exceeded")
     latest = {}
-    for value in sorted((RemoteStepResult.model_validate(row) for row in rows), key=lambda item: item.observed_at):
+    # Unknown observations cannot supersede a known terminal fact, regardless of wall-clock order.
+    for value in sorted((RemoteStepResult.model_validate(row) for row in rows), key=delivery_digest):
         previous = latest.get(value.step_id)
-        if previous is not None and previous.status == "succeeded" and previous != value:
+        if previous is not None and (
+            previous.operation_id != value.operation_id or previous.plan_digest != value.plan_digest
+            or previous.input_digest != value.input_digest or previous.grant_id != value.grant_id
+            or previous.executor_instance != value.executor_instance or previous.generation != value.generation
+        ):
             raise TaskBoundaryError("remote_terminal_fact_conflict")
-        latest[value.step_id] = value
+        if previous is not None and previous.status != "unknown":
+            if value.status != "unknown" and previous != value:
+                raise TaskBoundaryError("remote_terminal_fact_conflict")
+            continue
+        if previous is None or value.status != "unknown":
+            latest[value.step_id] = value
     return latest

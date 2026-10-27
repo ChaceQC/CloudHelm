@@ -125,10 +125,31 @@ class RemoteApplication:
                 remote_grants.c.id == result.grant_id, remote_grants.c.credential_id == credential["credential_id"],
                 remote_grants.c.operation_id == result.operation_id, remote_grants.c.step_id == result.step_id,
             )).mappings().one_or_none()
-            if grant is None or row["active_operation_id"] not in (None, result.operation_id):
+            if grant is None:
                 raise TaskBoundaryError("remote_result_unbound")
-            validate_result(plan, result, grant["value_json"]["permit"]["grant"])
-            key = "result-" + delivery_digest(result)[7:]
+            if grant["digest"] != delivery_digest(grant["value_json"]):
+                raise TaskBoundaryError("remote_result_binding_invalid")
+            original_grant = grant["value_json"]["permit"]["grant"]
+            grant_binding = original_grant["binding"]
+            if (original_grant["grant_id"] != result.grant_id
+                    or grant_binding["operation_id"] != result.operation_id
+                    or grant_binding["step_id"] != result.step_id
+                    or grant_binding["executor_instance"] != result.executor_instance
+                    or grant_binding["generation"] != result.generation):
+                raise TaskBoundaryError("remote_result_binding_invalid")
+            validate_result(plan, result, original_grant)
+            digest = delivery_digest(result)
+            key = "result-" + digest[7:]
+            previous = uow.connection.execute(select(remote_results).where(
+                remote_results.c.id == key)).mappings().one_or_none()
+            if previous is not None:
+                if (previous["digest"] != digest or previous["credential_id"] != credential["credential_id"]
+                        or previous["operation_id"] != result.operation_id or previous["step_id"] != result.step_id
+                        or previous["value_json"] != result.model_dump(mode="json")):
+                    raise TaskBoundaryError("remote_message_identity_conflict")
+                return {"digest": digest, "status": result.status}
+            if row["active_operation_id"] not in (None, result.operation_id):
+                raise TaskBoundaryError("remote_result_unbound")
             save_projection(uow.connection, remote_results, credential, key, result, result.operation_id, result.step_id)
             if uow.connection.scalar(select(event_log.c.event_id).where(event_log.c.event_id == key)) is None:
                 append_event(uow.connection, command_id=context.envelope.command_id, project_id=context.project_id,
@@ -141,7 +162,7 @@ class RemoteApplication:
                     environment_bindings.c.binding_id == binding.binding_id,
                     environment_bindings.c.active_operation_id == result.operation_id,
                 ).values(active_operation_id=None))
-            return {"digest": delivery_digest(result), "status": result.status}
+            return {"digest": digest, "status": result.status}
 
     def open_artifact(self, token, operation, storage_id):
         if self.artifact_store is None:

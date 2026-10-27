@@ -1,6 +1,6 @@
 # 基础 Desktop 与项目同步
 
-正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.8.1`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。
+正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.8.2`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。本轮只同步 Desktop 版本元数据，既有调试程序和编译证据仍绑定 `0.8.1`，未重新构建或执行原生验收。
 
 ## 启动与连接
 

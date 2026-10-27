@@ -5,9 +5,11 @@ import io
 import json
 import os
 import tarfile
+import time
 
 from modules.artifacts.oci_archive import inspect_oci_archive
-from packages.contracts.p1.build_artifacts import ArtifactLimits
+from packages.contracts.p1.build_artifacts import ArtifactLimits, artifact_content_ref
+from . import deadline
 from .ledger import RemoteError
 
 
@@ -20,6 +22,21 @@ def _member(archive, name, size, stream):
 def _layer(archive, descriptor):
     raw = archive.extractfile("blobs/sha256/" + descriptor["digest"][7:])
     return gzip.GzipFile(fileobj=raw) if descriptor["mediaType"].endswith("+gzip") else raw
+
+
+def prepare_bounded(channel, docker, deployment, directory, *, resources, max_runtime_seconds):
+    end = time.monotonic() + max_runtime_seconds
+    request = {"deployment": deployment.model_dump(mode="json"), "directory": str(directory),
+        "channel": channel.transfer_configuration(),
+        "docker": {"directory": str(docker.directory), "endpoint": docker.endpoint},
+        "resources": {"mount_root": str(resources.mount), "cgroup_path": str(resources.group),
+            "cgroup_parent": resources.parent, "daemon_pid_file": str(resources.daemon_pid_file)}}
+    facts = deadline.run(end, request)
+    if time.monotonic() >= end:
+        raise RemoteError("remote_archive_deadline_exceeded")
+    if facts != {item.role: item.archive_digest for item in deployment.manifest.artifacts}:
+        raise RemoteError("remote_archive_supervisor_unresolved")
+    return facts
 
 
 def prepare(channel, docker, deployment, directory, *, check_resources):
@@ -38,8 +55,10 @@ def prepare(channel, docker, deployment, directory, *, check_resources):
             os.fsync(output.fileno())
         with path.open("rb") as stream:
             receipt = inspect_oci_archive(stream, ArtifactLimits())
-            if (receipt.archive_digest != artifact.archive_digest or receipt.archive_bytes != artifact.archive_bytes
-                    or receipt.manifest.digest != artifact.manifest_digest or receipt.config.digest != artifact.config_digest):
+            if (receipt.storage_id != artifact.storage_id or receipt.archive_digest != artifact.archive_digest
+                    or receipt.archive_bytes != artifact.archive_bytes or receipt.platform != artifact.platform
+                    or receipt.manifest.digest != artifact.manifest_digest or receipt.config.digest != artifact.config_digest
+                    or receipt.image_id != artifact.image_id or artifact_content_ref(receipt) != artifact.content_ref):
                 raise RemoteError("remote_archive_content_mismatch")
         sizes = []
         with tarfile.open(path, "r:") as archive:
@@ -62,13 +81,13 @@ def prepare(channel, docker, deployment, directory, *, check_resources):
         tag = deployment.plan.step_inputs["artifact_prepare"]["local_tags"][artifact.role]
         if deployment.plan.docker_identity_kind == "oci_manifest":
             with path.open("rb") as stream:
-                docker.command("image", "load", "--quiet", stdin=stream, timeout=120)
+                docker.command("image", "load", "--quiet", stdin=stream, timeout=120, supervised=True)
             expected = artifact.manifest_digest
-            docker.command("image", "tag", expected, tag)
+            docker.command("image", "tag", expected, tag, supervised=True)
         else:
             expected = artifact.config_digest
             _load_classic(docker, directory, artifact, path, manifest, sizes, tag)
-        actual = json.loads(docker.command("image", "inspect", tag))
+        actual = json.loads(docker.command("image", "inspect", tag, supervised=True))
         with tarfile.open(path, "r:") as archive:
             configuration = json.load(archive.extractfile("blobs/sha256/" + artifact.config_digest[7:]))
         if (len(actual) != 1 or actual[0]["Id"] != expected
@@ -83,17 +102,15 @@ def _load_classic(docker, directory, artifact, path, manifest, sizes, tag):
     layers = [str(index) + "/layer.tar" for index in range(len(sizes))]
     index = json.dumps([{"Config": "config.json", "RepoTags": [tag], "Layers": layers}], separators=(",", ":")).encode("utf-8")
     descriptor = os.open(converted, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    try:
-        with os.fdopen(descriptor, "wb") as output, tarfile.open(fileobj=output, mode="w|") as target, tarfile.open(path, "r:") as source:
-            config = source.extractfile("blobs/sha256/" + artifact.config_digest[7:]).read(1024 * 1024 + 1)
-            if len(config) > 1024 * 1024:
-                raise RemoteError("remote_image_config_too_large")
-            _member(target, "manifest.json", len(index), io.BytesIO(index))
-            _member(target, "config.json", len(config), io.BytesIO(config))
-            for name, layer, size in zip(layers, manifest["layers"], sizes):
-                with _layer(source, layer) as stream:
-                    _member(target, name, size, stream)
-        with converted.open("rb") as stream:
-            docker.command("image", "load", "--quiet", stdin=stream, timeout=120)
-    finally:
-        converted.unlink(missing_ok=True)
+    with os.fdopen(descriptor, "wb") as output, tarfile.open(fileobj=output, mode="w|") as target, tarfile.open(path, "r:") as source:
+        config = source.extractfile("blobs/sha256/" + artifact.config_digest[7:]).read(1024 * 1024 + 1)
+        if len(config) > 1024 * 1024:
+            raise RemoteError("remote_image_config_too_large")
+        _member(target, "manifest.json", len(index), io.BytesIO(index))
+        _member(target, "config.json", len(config), io.BytesIO(config))
+        for name, layer, size in zip(layers, manifest["layers"], sizes):
+            with _layer(source, layer) as stream:
+                _member(target, name, size, stream)
+    with converted.open("rb") as stream:
+        docker.command("image", "load", "--quiet", stdin=stream, timeout=120, supervised=True)
+    converted.unlink(missing_ok=True)

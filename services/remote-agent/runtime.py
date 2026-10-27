@@ -63,19 +63,39 @@ class Agent:
             raise RemoteError("remote_original_operation_missing")
         deployment = RemotePlan.model_validate_json(row[0])
         with self.ledger.locked(deployment.plan.binding.binding_id):
+            current = self.ledger.db.execute("SELECT * FROM operations WHERE id=?", (operation_id,)).fetchone()
+            lineage = self.ledger.db.execute("SELECT installation FROM lineage").fetchall()
+            binding, target = deployment.plan.binding, self.registration
+            if (current is None or current["payload"] != row[0] or deployment.operation_id != operation_id
+                    or current["binding"] != binding.binding_id or current["digest"] != deployment.plan_digest):
+                raise RemoteError("remote_original_operation_binding_invalid")
+            if (len(lineage) != 1 or lineage[0][0] != binding.installation_id
+                    or target.installation_id != binding.installation_id or target.target_id != binding.target_id):
+                raise RemoteError("remote_original_target_mismatch")
+            # A completed operation may be replayed after a newer deployment on the same binding.
+            if current["status"] == "succeeded":
+                return "succeeded"
             self.backend.current = deployment
             for step in deployment.plan.steps:
                 existing = self.ledger.step(operation_id, step.step_id)
                 if existing is None:
-                    break
+                    return "original_facts_reported_no_new_step"
                 try:
                     result = self._original(deployment, step, existing)
+                    stored = self.ledger.step(operation_id, step.step_id)
+                    if (result.operation_id != operation_id or result.plan_digest != deployment.plan_digest
+                            or result.step_id != step.step_id or result.input_digest != step.input_digest
+                            or result.grant_id != existing["grant_id"] or stored["status"] != result.status
+                            or result.executor_instance != deployment.plan.executor_instance
+                            or result.generation != deployment.plan.generation):
+                        raise RemoteError("remote_result_binding_invalid")
+                    self.channel.report(result)
                 except Exception:
                     return "needs_reconciliation"
-                self.channel.report(result)
                 if result.status != "succeeded":
                     return "needs_reconciliation"
-            return "original_facts_reported_no_new_step"
+            self.ledger.complete(deployment, result.state)
+            return "succeeded"
 
     def _original(self, deployment, step, existing):
         if existing["digest"] != step.input_digest:

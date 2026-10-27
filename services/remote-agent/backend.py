@@ -12,7 +12,7 @@ from modules.delivery.deployment_planning import STEP_KINDS, plan_steps
 from modules.delivery.release_recipe import archive_runtime, delivery_digest
 from packages.contracts.p1.delivery_records import EnvironmentState
 from packages.contracts.p1.remote_delivery import RemotePlan
-from . import archives, containers, observations
+from . import archive_receipts, archives, containers, observations
 from .channel import read_private
 from .ledger import RemoteError, private_directory
 
@@ -100,14 +100,16 @@ class Backend:
         return result
 
     def query(self, deployment, step):
+        if step.kind == "artifact_prepare":
+            return archive_receipts.query_completed(self.docker, deployment, self.directory / deployment.operation_id)
         if step.kind == "database_migrate":
             return self._migration_process(deployment, step, query_only=True)
         return {"status": "unknown"}
 
     def _artifacts(self, deployment, step):
-        directory = private_directory(self.directory / deployment.operation_id)
-        facts = archives.prepare(self.channel, self.docker, deployment, directory,
-            check_resources=lambda: self.resources.verify(deployment.plan.configuration.resources))
+        directory = self.directory / deployment.operation_id
+        facts = archives.prepare_bounded(self.channel, self.docker, deployment, directory,
+            resources=self.resources, max_runtime_seconds=step.max_runtime_seconds)
         return {"status": "succeeded", "archives": facts}
 
     def _inputs(self, deployment, step):

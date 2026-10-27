@@ -2,6 +2,25 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.3`、D03/D06/D06a `v4.7.2`、D01/D02/D04/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-27：P1 剩余收尾与 P2 入口核对
+
+- 原因与授权：用户要求根据文档快速完成 P1 剩余，再判断能否进入 P2，不做大量测试。入口 `dev / 5ab313d`；已有未跟踪 `.playwright-cli/` 保留。
+- 影响范围与预期边界：补齐 P1.4-02 归档准备的步骤总时限、中断后原 Operation 核对；保留未知状态、冲突占用、摘要与许可门禁，不扩大交付配方或默认时钟支持。既有 P1.1～P1.5 结果按原固定输入引用。
+- 执行安排：P1-CLOSE C01 总时限、C02 原身份核对、C03 出口映射、C04 集成文档和 Git 交付。按用户协作要求采用 `gpt-6.1-terra / max` 的小任务代理，先只读恢复分析，避免同文件并发修改。
+- 用户补充：网速现在正常，取消本轮沿用 1 Mbps 条件的假设，新增 C05 原状态核对及一次真实独立交付准备；旧计划/批准已过期或输入变化时重新绑定准确摘要，不替用户批准，不执行整机重启。
+- 已实现 C01：以独立 exec 的 Linux 进程组承接一次归档步骤，父进程用绝对总截止时间监督下载、OCI 核验/解包、classic 转换、Docker CLI 和完成凭据写入；不复用主进程 HTTP/SQLite 连接，不覆盖时钟看门狗或既有 SIGALRM。超时杀本地进程组并等待退出，部分文件与未知意图保留；进程退出不代替 daemon 结果核对，内核不可中断 I/O 可能延迟真正退出。
+- 已实现 C02：受监督执行器仅在物理准备全部成功后 fsync 原 Operation/计划/步骤摘要的完成凭据；归档查询核对私有路径、同一 fd 的完整字节/OCI 身份及固定 tag 的镜像/平台/RootFS，缺凭据或不匹配保持 unknown。纯核对不重传、重载或启动后续步骤；完整原计划已成功且每次补报确认后才完成本地账本，缺步/未知/错安装/补报失败保持阻塞。原结果同正文重投可返回原回执，零新增投影/事件及新绑定修改；同一执行身份的 unknown 不覆盖已知终态，不同许可或终态冲突拒绝。
+- 版本与兼容：源码、Desktop 元数据及各锁同步 `0.8.2`；工作流应用 `cloudhelm-hub/0.7.0`、业务 head `0009_p1_5_sync`、HTTP/执行协议和依赖不变。Desktop 只有版本元数据变化，未重建调试程序；原 `0.8.1` 编译及原生/人工状态不追认成新版本验证。
+- C01 定向结果：WSL Ubuntu-24.04、Linux `6.18.33.2-microsoft-standard-WSL2`、uv `0.11.29`、Python `3.12.13`。`PYTHONPATH=. uv run --locked --offline --no-sync python -B .thesis-work/p1-close-c01/check_deadline.py` 于 `2026-10-27T04:26:09.420211Z`～`04:26:36.479664Z` passed，覆盖后台线程并存、持续慢流/阻塞 HTTP、累计超时与 CLI 停止、转换中断、SIGALRM 保留。补充内容身份校验和转换残留保留后仅运行同方法 `archive-only`，于 `04:30:27.116399Z`～`04:30:48.603429Z` passed，另覆盖 content_ref 拒绝、父进程强杀后的 worker/CLI 停止；最后管道关闭修正仅执行 `pipes-only`，于 `04:33:06.319312Z` passed。HTTP/CLI/资源为本地合成输入，不证明真实 Docker daemon 收束。
+- C02 定向结果：`uv run --locked --offline --no-sync python -B .thesis-work/p1-close-c02/check.py` 于 `2026-10-27T04:26:30Z` passed，真实合成 OCI 字节和本地 Unix socket 只读 Docker API 回复覆盖无目录/回执、部分文件、符号链接/权限、错误内容/镜像、绑定及 fsync 失败、classic/OCI 身份；非真实 daemon/部署。`uv run --locked --offline --no-sync python -B .thesis-work/p1-close-runtime/verify.py` 最终五步骤输入于 `04:27:44.060567Z` passed，10 组真实临时 SQLite + 合成计划/通道/后端覆盖缺步、unknown、补报失败/重试、成功收尾、不同身份与后续部署后重投，断言零新许可/execute。`uv run --locked --offline --no-sync python -B .thesis-work/p1-close-replay/check.py` 于 `04:29:53Z`～`04:30:03Z` passed，实际 report/validate_result/step_results 配合受控内存认证、事务及数据库替身覆盖同正文重投、新事实冲突、授权/许可/正文错配及终态乱序；不证明真实 PostgreSQL 锁/回滚或事件原子性。方法初次导入路径和合成 CLI 转义错误已修正，只补跑相应方法，未跑历史全量。
+- C05 只读实际核对：Windows SSH 已重新连通原独立 Debian 目标，仍为 6 核、`16,653,258,752 bytes` 内存；未启动远端 Agent/daemon、挂载存储、恢复库或复制新代码。原 WSL 16GiB backing 与目标 8GiB backing 均未挂载/无 loop；通过只读 debugfs 核验原三份 OCI 的长度 `65,600,512 / 26,081,792 / 160,163,840 bytes` 及 SHA-256 全部匹配，Hub pg_dump/roles 摘要匹配、7/7 私有运行文件保留。快照目录含业务/DBOS/原远端凭据表数据条目，不代表恢复可执行。
+- C05 阻塞事实：目标原专属 Agent/daemon 不在运行，daemon inactive/disabled、专属 cgroup 0 进程；原部分归档仍为 `49,152,000 bytes` 且无完成凭据，不能补记成功或绕过原 unknown。目标原 SQLite 主文件 4096 bytes 与 WAL 144232 bytes 均存在；本轮仅盘内元数据，不忽略 WAL 或声称已查询完整 SQL 事实。旧快照的实际业务迁移为 `0008_p1_4_remote`，与当前源码 `0009_p1_5_sync` 不同；旧计划 `start_before=2026-10-25T09:08:19.705220+00:00` 及 90 分钟批准已过期；旧 profile 的 Hub boot 已不匹配，目标 boot 仍匹配。需要受支持的原身份收束/隔离核对与新时钟证据后才能形成准确新计划；尚无可请人类批准的新摘要，未擅自恢复旧备份后启动普通 worker。只读方法为 `.thesis-work/p1-4-02/c05_readonly_probe.py`。
+- C03/第二次重估：已建立 [P1 出口核对](docs/acceptance/p1/exit-review.md)，逐项映射 D06 §3/3.1 的实现、固定证据和缺项。原 P1 20～30 人日与新增代码、原操作恢复、真实交付/许可/迁移、最终工程资源/完成证据、4 核 8GB 整机及独立 Runner、原生/人工工作分别列出；累计实际、剩余合计与差额无可靠人日依据，保持待估。真实 7GiB 留存与在线调额拒绝的旧证据保留原适用范围，不记作所有最终工程出口通过。
+- 最终静态：`uv run --locked --offline --no-sync python -B .thesis-work/p1-close/static_check.py` 于 `2026-10-27T04:37:23.566101+00:00` passed，10 份变更 Python AST、8 处源码/锁版本、145 个本地文档链接及差异格式一致；源码与各方法摘要保存在本机 `static-result.json`。`uv lock --check --offline` 通过（49 个锁定包），`scripts.p1.check_public_contracts` 通过（Hub 47 paths/49 operations/127 schemas，Remote 7 paths，双快照一致）；未改 schema/依赖。变更普通源码均不超过 213 物理行；专用监督、受信完成凭据、通道与账本职责分别维护，无需机械拆分。
+- 进行中：无新的代码任务，按 dev 流程提交推送本切片；Git 结果以开发分支引用为准。阻塞与风险：原 unknown/过期计划/旧备份恢复与时钟纪元、真实独立归档部署及许可/迁移链、目标整机重启、4 核 8GB 整机/独立 Runner 测量、最终工程资源/完成证据、原生及人类结论尚未齐；P1 整体未结项，P2 正式实施未开放。本轮没有收费模型、全量数据库/构建链重验或整机重启。
+- 下一项具体任务：在原资产与占用保留的前提下，确定受支持的原部署收束/隔离核对方案；关闭未知与恢复门禁后固定新时钟/目标状态及准确计划，再取得针对摘要的人类批准并执行必要真实链路。最终资源、完成及指定整机测量按出口缺项逐项补证。
+- 主要文件：`services/remote-agent/`、`modules/delivery/remote_application.py`/`remote_store.py`、源码/锁版本、`docs/acceptance/p1/exit-review.md`、支持矩阵、远端/交付说明、本计划与进度。本机方法及原私有资产不入库。
+
 ## 2026-10-27：P1.5-02 定向恢复与控制通道
 
 - 原因与授权：用户要求根据文档快速完成 P1.5-02、不做大量测试，并在适合时使用子代理；按本次指令开放本工作包，P1.4 受限出口与 P1 整体不因此通过。

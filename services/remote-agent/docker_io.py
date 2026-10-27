@@ -2,9 +2,12 @@
 
 import http.client
 import json
+import os
 import socket
 import subprocess
+from functools import partial
 
+from .deadline import parent_death_signal
 from .ledger import RemoteError, private_directory
 
 
@@ -41,11 +44,12 @@ class Docker:
         finally:
             connection.close()
 
-    def command(self, *arguments, input_bytes=None, stdin=None, timeout=30):
+    def command(self, *arguments, input_bytes=None, stdin=None, timeout=30, supervised=False):
         try:
             result = subprocess.run(["/usr/bin/docker", "--config", str(self.directory),
                 "--host", "unix://" + self.endpoint, *arguments], input=input_bytes, stdin=stdin,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout,
+                preexec_fn=partial(parent_death_signal, os.getpid()) if supervised else None,
                 env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"})
             if result.returncode or len(result.stdout) + len(result.stderr) > 2_000_000:
                 raise RemoteError("remote_docker_command_unresolved")
