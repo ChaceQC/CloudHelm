@@ -118,7 +118,9 @@ jobs:
         with:
           node-version: "22.23.2"
           cache: npm
-          cache-dependency-path: examples/standalone-project/frontend/package-lock.json
+          cache-dependency-path: |
+            examples/standalone-project/frontend/package-lock.json
+            apps/desktop/package-lock.json
 
       - name: 构建参照前端
         working-directory: examples/standalone-project/frontend
@@ -128,3 +130,9 @@ jobs:
 
       - name: 检查提交差异格式
         run: git show --format= --check HEAD -- . ':!docs/archive/**'
+
+      - name: 构建基础 Desktop 前端
+        working-directory: apps/desktop
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build

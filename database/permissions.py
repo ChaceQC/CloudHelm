@@ -58,6 +58,9 @@ def apply_runtime_permissions(connection: Connection) -> None:
         connection.exec_driver_sql(f"GRANT USAGE ON SCHEMA cloudhelm TO {name}")
         connection.exec_driver_sql(f"REVOKE ALL ON ALL TABLES IN SCHEMA cloudhelm FROM {name}")
         connection.exec_driver_sql(f"GRANT SELECT ON ALL TABLES IN SCHEMA cloudhelm TO {name}")
+        if role == "api":
+            connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.sync_streams, cloudhelm.sync_dispatch_events TO {name}")
+            connection.exec_driver_sql(f"GRANT UPDATE (last_cursor) ON cloudhelm.sync_streams TO {name}")
         for table in (*IMMUTABLE_TABLES, *TASK_MUTABLE_TABLES, "outbox", "task_fact_sources"):
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
         for table in TASK_MUTABLE_TABLES:

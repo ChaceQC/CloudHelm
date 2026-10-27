@@ -1,7 +1,7 @@
 # 归档 Release、环境配置与部署计划
 
-当前源码为 `0.7.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
-`0008_p1_4_remote`（前驱 `0007_p1_4_delivery`）。使用 [Hub 开发入口](p1-hub.md)
+当前源码为 `0.8.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
+`0009_p1_5_sync`（前驱 `0008_p1_4_remote`）。使用 [Hub 开发入口](p1-hub.md)
 准备 WSL 锁定环境和独立数据库角色；`initialize` 不升级旧安装。
 
 ## 1. 当前支持范围

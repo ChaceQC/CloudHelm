@@ -14,17 +14,19 @@
 - 共享宿主资源预留、Runner 注册、本地持久确认、受限 scratch 及固定工程资源组；
 - 受管构建/开发环境、进程与磁盘分维释放，以及 backing 持续占账；
 - 固定参照的归档 Release、独立环境配置、部署计划、人类摘要批准和启动前复核；
+- Windows 基础 Desktop 的真实任务提交/控制、计划摘要批准、项目快照和 SSE 状态展示；
 - Remote Agent 的认证通道、持久账本和固定执行适配，普通启动仍受[适用时间与资源证明门禁](docs/development/p1-remote-agent.md)约束。
 
 当前增量开发环境的实现与适用证据见[工程说明](docs/development/p1-engineering.md)。v4.7 是设计文档版本，与软件版本分开管理。
 
-Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说明](./docs/development/p1-hub.md)。完整 Agent 开发、Desktop 和远程交付继续按设计分阶段接入，**当前不提供产品安装包**。
+Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说明](./docs/development/p1-hub.md)。基础 Desktop 的运行和边界见[客户端说明](./docs/development/p1-desktop.md)；完整 Agent、跨端客户端和远程交付继续按设计分阶段接入，**当前不提供产品安装包**。
 
 ## 开发与验证入口
 
 |用途|说明|
 |---|---|
 |[Hub 开发与维护](./docs/development/p1-hub.md)|在 WSL 安装锁定依赖、配置独立数据库角色、初始化用户/项目并启动 API 与单 worker|
+|[Windows 工程工作台](./apps/desktop/README.md)|构建/启动真实基础 Desktop，连接 Hub，提交任务、批准计划、查询及取消|
 |[Git、工作区与受限构建](./docs/development/p1-engineering.md)|工程入口、已实现能力和限制|
 |[共享宿主资源与 Runner](./docs/development/p1-resources.md)|池注册、资源申请、受控执行和未知结果核对|
 |[归档交付与计划批准](./docs/development/p1-delivery.md)|Release/配置/计划、可信目标事实和当前远端接入边界|
@@ -40,7 +42,7 @@ Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说
 
 - Hub：FastAPI、Pydantic、SQLAlchemy、PostgreSQL、Alembic。
 - 持久工作流：DBOS Python；Agent 协议运行时选用 PydanticAI，完整 Agent 链路尚未接入。
-- 桌面端：计划使用 Tauri、React、TypeScript。
+- 桌面端：Tauri、React、TypeScript，当前提供 Windows 基础工程。
 - 开发、构建与交付环境：Docker Compose，按受支持范围逐步接入。
 
 工程动作需要显式授予；已有 owner、角色和委托不会自动获得新增权限，授权规则见[工程开发说明](./docs/development/p1-engineering.md)。

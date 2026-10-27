@@ -11,12 +11,17 @@
 |`python -B -m scripts.p1.check_workspace_git`|真实 Git 文件视图、安全路径、链接及读取限额|CI 或文件/Git 边界修改|
 |`python -B -m scripts.p1.check_artifact_content`|合成 OCI tar 的实际内容、摘要、成员与限额拒绝|CI 或制品内容边界修改|
 |`python -B -m scripts.p1.check_database`|真实临时 PostgreSQL 初始化、角色、互斥与事务回滚|按需；会创建并定向清理隔离数据库|
+|`python -B -m scripts.p1.check_sync`|快照、持久分发回滚/去重、流与权限重建及有限 HTTP SSE|仅同步变化时按需；只使用并清理自己的隔离数据库，不运行 worker/模型/远端链|
 |`python -B -m services.dev-runner.development_storage_maintenance verify-pool`|原存储维护命令及其实际调用的 `scripts.p1.probe_development_storage`|按需；原受控 WSL 维护条件不变|
 |`python -B docs/acceptance/reference/r1/verify_http.py --base-url http://127.0.0.1:58080`|独立参照 HTTP 资产，保持原字节与修订|已有隔离参照服务时按需执行|
 
 前四项可用 `uv run --locked --offline --no-sync` 前缀运行。数据库与存储命令不属于日常静态检查，不为测试精简重复运行。独立 HTTP 入口和 manifest 被工程来源校验引用，本轮不修改或裁剪。
 
 CI 仍保留仓库结构/编码/入库边界、锁定依赖、源码语法、契约与参照 OpenAPI、Git/OCI、参照锁与前端构建，工作流和必需检查名称保持“仓库验证 / check”。旧三套 Tauri example 已按用户要求退役，对应依赖缓存和构建步骤一并移除；HTML 原型不新增 npm 或 Rust 工具链要求。
+
+## Windows 基础 Desktop
+
+正式工程为 `apps/desktop/`。在 Windows 执行 `npm.cmd ci --no-audit --no-fund`、`npm.cmd run build` 和所需的 Tauri 构建，见[客户端说明](p1-desktop.md)。CI 构建正式前端；Rust/Tauri、WebView2 和原生人工验收单独记录，不转入 WSL 构建桌面端。
 
 ## HTML 界面原型
 

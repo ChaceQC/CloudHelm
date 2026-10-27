@@ -56,7 +56,7 @@ Docker 26.1.5/Compose 2.39.4。WSL 锁定 Python 只对该机专属 PostgreSQL 1
 |组合/能力|实际范围与证据|不支持或未核验时的行为/门禁|
 |---|---|---|
 |正式独立交付拓扑|s2413 同机结果不能计为另一台交付机器；本次未安排第二台目标|项目所有者/基础设施负责人在 P1.4 前指定并核验独立目标；不宣称 D06 独立交付或两档容量通过|
-|Windows/Linux Desktop|Tauri/React/TypeScript 为设计决定，工程和原生矩阵尚未实施|Windows 11/WebView2、Linux WebKitGTK 的安装/升级/隔离证据未执行；责任客户端，P1/P2/P6 相应门禁|
+|Windows/Linux Desktop|Windows 基础工程 `0.8.0` 接入 Task/计划与快照/SSE，本机编译及定向结果见[客户端说明](../development/p1-desktop.md)和[进度](../../PROJECT_PROGRESS.md)；Linux 支持未验证|Windows/WebView2 原生身份、IPC、TLS、安装/升级/隔离及人工验收未由编译放行；Linux WebKitGTK 未执行。责任客户端，P1/P2/P6 各自门禁保留|
 |预览 DNS/TLS 与撤销|P0.3 [预览决定](../decisions/p0/preview-access.md) 固定路线、无 URL 票据、原始入口和逐代理确认；实际域名/证书及通路尚未核验|未验证客户端保持关闭；P2 六组真实隔离/撤销证据前不声明预览支持，合成元数据检查不替代网络/原生证据|
 |许可时间|P0.3 [许可决定](../decisions/p0/time-preview-access.md) 选择 Hub 单调授权时间、整数微秒和有界误差；s2413 NTP 布尔值仍仅为历史系统快照|实际误差依据、暂停检测、认证样本和真实接受/启动/失信恢复须 P1/P4 取证；旧 grant 的窗口不刷新|
 |本机应急|[核心决定](../decisions/p0/core-boundaries.md) 固定 Unix socket、独立管理员认证、动作/期限和显式交还；本修订 enabled 只能为 false|P4 验证前关闭，未生成授权配置或认证材料，不把人类模型任务授权当作应急身份|

@@ -1,6 +1,6 @@
 # Hub 基础开发与维护
 
-本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；构建与增量开发的支持范围见工程说明，完整 Agent 开发、Desktop、远程交付及恢复支持按后续工作包接入。
+本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；构建与增量开发的支持范围见工程说明，基础 Windows Desktop 见[客户端说明](p1-desktop.md)，完整 Agent、跨端客户端、远程交付及恢复支持按各自工作包接入。
 
 环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
 
@@ -38,7 +38,7 @@ $UV run --locked python -m database.manage status
 $UV run --locked python -m database.manage initialize
 ```
 
-初始化保存安装身份和原操作身份，执行业务线性迁移至 `0008_p1_4_remote`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.7.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0007_p1_4_delivery`/`0.6.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)，Release/配置/计划与批准见[交付说明](p1-delivery.md)，Remote Agent 的默认门禁见[远端说明](p1-remote-agent.md)。
+初始化保存安装身份和原操作身份，执行业务线性迁移至 `0009_p1_5_sync`，再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.7.0`。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0008_p1_4_remote`、`0007_p1_4_delivery`/`0.6.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)，Release/配置/计划与批准见[交付说明](p1-delivery.md)，Remote Agent 的默认门禁见[远端说明](p1-remote-agent.md)。
 
 成功回执中的 `dbos_schema_version` 仍可为 `null`：公开接口没有提供本轮可单独核验的精确数字版本。实际支持依据是固定 SDK、受控初始化来源及公开启动核验，不支持借此进行跨 SDK 升级、回退或旧备份自动恢复。
 

@@ -48,11 +48,13 @@ class SafeHttpBoundary:
             return
         request_id = uuid4().hex
         scope.setdefault("state", {})["request_id"] = request_id
-        started, received = False, 0
+        started, received, body_complete = False, 0, False
         deadline = asyncio.get_running_loop().time() + 10
 
         async def limited_receive():
-            nonlocal received
+            nonlocal received, body_complete
+            if body_complete:
+                return await receive()
             remaining = deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
                 raise ApiRequestError("request_body_timeout", 408)
@@ -64,6 +66,7 @@ class SafeHttpBoundary:
                 received += len(message.get("body", b""))
                 if received > MAX_BODY_BYTES:
                     raise ApiRequestError("request_body_too_large", 413)
+                body_complete = not message.get("more_body", False)
             return message
 
         async def safe_send(message):

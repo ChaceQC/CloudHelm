@@ -68,6 +68,10 @@ config.local.*
 
 # Build outputs and generated packages.
 **/target/
+**/src-tauri/gen/
+/apps/desktop/src-tauri/icons/*
+!/apps/desktop/src-tauri/icons/icon.ico
+!/apps/desktop/src-tauri/icons/icon.png
 **/dist/
 **/build/
 **/htmlcov/

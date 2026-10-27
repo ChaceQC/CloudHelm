@@ -1,6 +1,7 @@
 """API-only startup: bounded pools and a client, never a workflow runtime."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from uuid import uuid4
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -40,6 +41,7 @@ class ApiRuntime:
     development: "WorkspaceDevelopmentApplication"
     resources: ResourceApplication
     delivery: DeliveryApplication
+    sync_epoch: str = field(default_factory=lambda: uuid4().hex)
 
     def close(self) -> None:
         try:

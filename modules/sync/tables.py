@@ -35,3 +35,21 @@ outbox = Table(
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     Column("dispatched_at", DateTime(timezone=True)),
 )
+
+streams = Table(
+    "sync_streams", metadata,
+    Column("project_id", String(160), ForeignKey("cloudhelm.projects.project_id"), primary_key=True),
+    Column("stream_id", String(160), nullable=False, unique=True),
+    Column("last_cursor", BigInteger, nullable=False, server_default="0"),
+    Column("retained_from", BigInteger, nullable=False, server_default="0"),
+    CheckConstraint("0 <= retained_from AND retained_from <= last_cursor "
+                    "AND last_cursor <= 9007199254740991", name="cursor_range"),
+)
+
+dispatch_events = Table(
+    "sync_dispatch_events", metadata,
+    Column("project_id", String(160), ForeignKey("cloudhelm.sync_streams.project_id"), primary_key=True),
+    Column("cursor", BigInteger, primary_key=True),
+    Column("event_id", String(160), ForeignKey("cloudhelm.event_log.event_id"), nullable=False, unique=True),
+    CheckConstraint("cursor > 0 AND cursor <= 9007199254740991", name="cursor_range"),
+)
