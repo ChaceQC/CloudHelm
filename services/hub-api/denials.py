@@ -12,6 +12,7 @@ _ACTIONS = {
     "delivery.configuration.create": "project.manage", "delivery.configuration.query": "resource.read",
     "delivery.plan.create": "project.manage", "delivery.plan.query": "resource.read",
     "delivery.plan.approve": "deployment.approve", "delivery.plan.preflight": "deployment.approve",
+    "delivery.plan.closeout": "deployment.approve",
     "identity.current": "auth.authenticate",
     "projects.list": "resource.read", "projects.get": "resource.read",
     "projects.roles": "project.manage", "projects.rename": "project.manage",

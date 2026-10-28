@@ -62,10 +62,18 @@ class Backend:
         return tuple(sorted(reference for reference, path in self.secret_files.items() if Path(path).is_file()))
 
     def observe_binding(self, binding):
-        row = self.ledger.db.execute("SELECT payload FROM operations WHERE binding=? ORDER BY rowid DESC LIMIT 1",
+        row = self.ledger.db.execute("SELECT id,status,payload FROM operations WHERE binding=? ORDER BY rowid DESC LIMIT 1",
             (binding.binding_id,)).fetchone()
         if row is not None:
-            deployment = RemotePlan.model_validate_json(row[0])
+            deployment = RemotePlan.model_validate_json(row["payload"])
+            if row["status"] == "closed_retained":
+                baseline = self.ledger.db.execute("SELECT value FROM environments WHERE binding=?", (binding.binding_id,)).fetchone()
+                if baseline is None:
+                    raise RemoteError("remote_closeout_baseline_missing")
+                return EnvironmentState.model_validate_json(baseline[0])
+            if (self.ledger.db.execute("PRAGMA user_version").fetchone()[0] == 1
+                    and self.ledger.db.execute("SELECT 1 FROM closeouts WHERE operation=?", (row["id"],)).fetchone()):
+                return deployment.plan.expected_state.model_copy(update={"unregistered_resources": ("unresolved-execution",)})
             state = self.observe(deployment)
             unresolved = self.ledger.db.execute("SELECT 1 FROM steps WHERE operation=? AND status='unknown' LIMIT 1",
                 (deployment.operation_id,)).fetchone()

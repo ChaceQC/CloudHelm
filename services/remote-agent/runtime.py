@@ -38,6 +38,7 @@ class Agent:
             available_secret_refs=self.backend.available_secret_refs(), observed_at=datetime.now(UTC))
 
     def advance(self, deployment):
+        self.ledger.require_open(deployment.operation_id)
         plan = deployment.plan
         if (plan.executor_instance != self.registration.executor_instance or plan.generation != self.registration.generation
                 or plan.binding.installation_id != self.registration.installation_id
@@ -63,6 +64,7 @@ class Agent:
             raise RemoteError("remote_original_operation_missing")
         deployment = RemotePlan.model_validate_json(row[0])
         with self.ledger.locked(deployment.plan.binding.binding_id):
+            self.ledger.require_open(operation_id)
             current = self.ledger.db.execute("SELECT * FROM operations WHERE id=?", (operation_id,)).fetchone()
             lineage = self.ledger.db.execute("SELECT installation FROM lineage").fetchall()
             binding, target = deployment.plan.binding, self.registration

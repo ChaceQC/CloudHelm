@@ -9,11 +9,12 @@ from .ledger import RemoteError
 
 
 class Resources:
-    def __init__(self, docker, *, mount_root, cgroup_path, cgroup_parent, daemon_pid_file):
+    def __init__(self, docker, *, mount_root, cgroup_path, cgroup_parent, daemon_pid_file,
+                 closeout_docker_root=None, closeout_daemon_unit=None):
         # These paths are maintenance inputs, never accepted through plan messages.
         self.docker = docker
         self.mount = Path(mount_root).resolve(strict=True)
-        self.group = Path(cgroup_path).resolve(strict=True)
+        self.group = Path(cgroup_path).resolve(strict=False)
         self.parent = cgroup_parent
         self.daemon_pid_file = Path(daemon_pid_file)
 

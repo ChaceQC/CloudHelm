@@ -2,9 +2,12 @@
 
 from datetime import timedelta
 
+from sqlalchemy import select
+
 from modules.collaboration.errors import TaskBoundaryError
 from modules.delivery.compose import bind_environment_config
 from modules.delivery.deployment_store import lock_binding, read_object, write_object
+from modules.delivery.deployment_tables import deployment_closeouts, environment_revisions
 from modules.delivery.environment_commands import check_resources
 from modules.delivery.release_recipe import delivery_digest, parameter_contract_digest
 from modules.delivery.target_facts import fresh_target
@@ -21,9 +24,28 @@ def check_baseline(connection, project_id, row, observation):
             or state.config_revision_id != row["config_revision_id"] or state.unregistered_resources):
         raise TaskBoundaryError("replan_required")
     if row["environment_revision"] == 0:
-        if state.services or state.database_revision is not None or state.release_id is not None:
+        if (state.services or state.database_revision is not None or state.release_id is not None
+                or state.config_revision_id is not None):
             raise TaskBoundaryError("first_installation_not_empty")
+    elif row["release_id"] is None and row["config_revision_id"] is None:
+        revision = connection.execute(select(environment_revisions.c.operation_id, environment_revisions.c.plan_id).where(
+            environment_revisions.c.binding_id == row["binding_id"],
+            environment_revisions.c.environment_revision == row["environment_revision"])).one_or_none()
+        if revision is None:
+            raise TaskBoundaryError("replan_required")
+        exists = connection.scalar(select(deployment_closeouts.c.operation_id).where(
+            deployment_closeouts.c.operation_id == revision.operation_id, deployment_closeouts.c.project_id == project_id))
+        if exists is None:
+            raise TaskBoundaryError("replan_required")
+        closeout = read_object(connection, project_id, "closeout", exists).value
+        if (closeout.plan_id != revision.plan_id or closeout.binding_id != row["binding_id"]
+                or closeout.environment_revision != row["environment_revision"]
+                or closeout.target_id != observation.target_id or closeout.installation_id != observation.installation_id
+                or state.services or state.database_revision is not None):
+            raise TaskBoundaryError("replan_required")
     else:
+        if row["release_id"] is None or row["config_revision_id"] is None:
+            raise TaskBoundaryError("replan_required")
         current = read_object(connection, project_id, "release", row["release_id"]).value
         if set(state.services) != {item.role for item in current.artifacts} or state.database_revision != MIGRATION_REVISION:
             raise TaskBoundaryError("replan_required")

@@ -1,7 +1,7 @@
 # Remote Agent 开发入口与启用门禁
 
-当前源码 `0.8.2`，工作流应用单独保留 `cloudhelm-hub/0.7.0`，新隔离库业务 head 为
-`0009_p1_5_sync`（前驱 `0008_p1_4_remote`）。P1.4-02 开发切片已接入；完整退出条件及实际结果以
+当前源码 `0.9.0`，工作流应用单独保留 `cloudhelm-hub/0.7.0`，新隔离库业务 head 为
+`0010_p1_archive_closeout`（前驱 `0009_p1_5_sync`）。P1.4-02 开发切片已接入；完整退出条件及实际结果以
 [进度](../../PROJECT_PROGRESS.md) 为准。尚无适用时钟证明，默认普通启动保持关闭。
 本文不构成产品安装包、完整独立交付或整机重启验收。
 
@@ -21,6 +21,7 @@
 |`POST /remote/v1/sample`|绑定 nonce、两端身份、通道和纪元的原始样本；同 nonce 重投不生成新鲜样本|
 |`POST /remote/v1/permits`|重查当前批准/权限/原设备凭据、时间、前序事实、实际状态和资源，签发具名许可|
 |`POST /remote/v1/results`|追加步骤投影、业务事件和 Outbox；未知保留 active 绑定|
+|`POST /remote/v1/closeouts`|当前安装通道追加原身份封闭/停止/磁盘保留回执；人类确认前不释放 Hub 绑定|
 |`GET /remote/v1/artifacts/{operation}/{storage_id}`|仅流式传输原计划内的已验证归档，不接受宿主路径|
 
 执行器使用独立 `chra1_` 不透明 token，不能混用人类 DeviceSession。维护角色通过 `enroll_remote` 登记
@@ -103,7 +104,30 @@ Docker daemon 的结果仍须核对，内核不可中断 I/O 也可能延迟本�
 旧部分归档没有完成凭据时不自动取得成功或释放资格；旧备份也不因此获得普通 worker 执行资格。
 本轮定向方法及 P1/P2 的实际门禁见 [P1 出口核对](../acceptance/p1/exit-review.md)。
 
-### 2.1 WSL 到独立目标的受控验证连接
+### 2.1 首次安装进入运行前的原身份收尾
+
+源码 `0.9.0` 提供范围有限的维护入口，具体规则见[实施约定](../implementation/p1-archive-closeout.md)。
+它只支持原起始修订为 0 且为空、未出现 `artifact_prepare` 之后步骤意图的操作。
+原账本必须完整，维护人员先准备原安装同一有界挂载；本命令不挂载文件系统、不停止或启动 daemon、不删除文件。
+若原文件系统尚未挂载，命令会保留封闭及绑定占用并拒绝形成物理回执。
+
+在私有配置的 `resources` 中增加 `closeout_docker_root` 和 `closeout_daemon_unit`，分别指定原专属 Docker root 和 systemd service。
+执行器要求该 service 的固定 `ExecStart` 使用绝对 `dockerd` 路径，并显式绑定相同的 `--data-root` / `--pidfile`；
+原单元的 Slice 也须匹配 cgroup_parent。只在内存解析必需路径，不输出完整参数或读取 daemon 配置。
+系统进程必须可完整观测；存在无法排除归属的 dockerd/containerd、运行容器/业务卷或未核实边界时拒绝。
+
+```bash
+uv run --locked --offline --no-sync python -B -m services.remote-agent \
+  --config /etc/cloudhelm/remote.json --closeout-operation ORIGINAL_OPERATION_ID
+```
+
+此命令会在原 binding 锁内显式升级旧 SQLite 并写永久封闭，不能与 `--initialize-ledger`、`--once` 或 `--reconcile-operation` 混用。
+触发器同时阻止旧程序重新插入该操作的 grant/step；取证失败不会恢复旧启动权。
+成功后输出同一不可变 `receipt` 及 `receipt_digest`。`closeout_delivery_pending` 表示本地已固定回执、Hub 尚未确认；
+同命令重试只重发原回执。`closeout_received` 只表示 Hub 已接收，仍须按[交付 API](p1-delivery.md)由当前有权人类确认收尾。
+原 unknown 步骤保持不变，8GiB 等原磁盘额度仍按实际绑定保留；此命令不授予新部署或本机应急权限。
+
+### 2.2 WSL 到独立目标的受控验证连接
 
 WSL 的 `127.0.0.1` 属于 WSL 网络命名空间。Windows SSH 发起反向转发时，不能假定其
 `127.0.0.1` 一定能抵达该监听器。先核对 WSL `eth0` 的实际地址，将 HTTPS facade 绑定该地址，

@@ -6,7 +6,7 @@ from sqlalchemy import select, text
 
 from modules.collaboration.errors import TaskBoundaryError
 from modules.delivery.deployment_store import read_object
-from modules.delivery.deployment_tables import environment_bindings
+from modules.delivery.deployment_tables import deployment_closeouts, environment_bindings
 from packages.contracts.p0.resource_contracts import ResourceVector, vector_max, vector_sum
 
 
@@ -24,6 +24,15 @@ def reserve_target_capacity(connection, plan, target):
         previous = ResourceVector()
         if row["config_revision_id"] is not None:
             previous = read_object(connection, row["project_id"], "configuration", row["config_revision_id"]).value.resources
+        retained = connection.execute(select(deployment_closeouts.c.operation_id).where(
+            deployment_closeouts.c.project_id == row["project_id"],
+            deployment_closeouts.c.value_json["binding_id"].astext == row["binding_id"],
+        ).limit(65)).scalars().all()
+        if len(retained) > 64:
+            raise TaskBoundaryError("remote_target_capacity_scope_exceeded")
+        for operation in retained:
+            closeout = read_object(connection, row["project_id"], "closeout", operation).value
+            previous = vector_max(previous, closeout.retained_resources)
         # The old running revision remains charged during an unresolved replacement.
         if row["active_operation_id"]:
             from modules.delivery.deployment_tables import environment_revisions

@@ -10,21 +10,24 @@ from database.commands import lock_and_get, save_result
 from database.readiness import assert_schema_ready
 from database.uow import UnitOfWork
 from modules.collaboration.errors import TaskBoundaryError
+from modules.delivery.closeout_application import close_deployment
 from modules.delivery.compose import ComposeParseError
 from modules.delivery.deployment_control import approve_plan, approved_preflight
 from modules.delivery.deployment_planning import create_plan
 from modules.delivery.deployment_store import lock_binding, read_object
-from modules.delivery.deployment_tables import deployment_approvals
+from modules.delivery.deployment_tables import deployment_approvals, deployment_closeouts
 from modules.delivery.environment_commands import create_config, create_environment
 from modules.delivery.release_commands import create_release
-from modules.identity.actors import AuthoritativeResource, validate_actor
+from modules.delivery.remote_tables import remote_closeouts
+from modules.identity.actors import AuthenticatedActor, AuthoritativeResource, validate_actor
 from modules.identity.authorization import authorize_current
 from modules.identity.locking import lock_current_subject
 from modules.sync.events import append_event
+from modules.sync.tables import event_log
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p1.delivery_records import DeploymentView, EnvironmentView
 from packages.contracts.p1.delivery_requests import (
-    ApproveDeploymentPlanRequest, CreateDeploymentPlanRequest, CreateEnvironmentConfigRequest,
+    ApproveDeploymentPlanRequest, CloseDeploymentRequest, CreateDeploymentPlanRequest, CreateEnvironmentConfigRequest,
     CreateEnvironmentRequest, CreateReleaseRequest, DeliveryCommandBody, DeliveryCommandResult, DeliveryHttpResult,
 )
 
@@ -54,6 +57,7 @@ _REQUESTS = {
     CreateEnvironmentConfigRequest: ("p1-environment-config-create-r1", create_config),
     CreateDeploymentPlanRequest: ("p1-deployment-plan-create-r1", create_plan),
     ApproveDeploymentPlanRequest: ("p1-deployment-approve-r1", approve_plan),
+    CloseDeploymentRequest: ("p1-deployment-closeout-r1", close_deployment),
 }
 
 
@@ -63,7 +67,10 @@ def execute_delivery(uow, actor, project_id, request, *, idempotency_key, target
     request = type(request).model_validate(request.model_dump(mode="python"))
     schema, apply = _REQUESTS[type(request)]
     approving = isinstance(request, ApproveDeploymentPlanRequest)
-    context = delivery_context(uow, actor, project_id, "deployment.approve" if approving else "project.manage")
+    closing = isinstance(request, CloseDeploymentRequest)
+    context = delivery_context(uow, actor, project_id, "deployment.approve" if approving or closing else "project.manage")
+    if closing and not isinstance(actor, AuthenticatedActor):
+        raise TaskBoundaryError("deployment_closeout_requires_human", status_code=403)
     resource = AuthoritativeResource(project_id, "project", project_id)
     intent = CommandIntent(request_schema_revision=schema, caller=actor.principal,
         scope=resource.scope, target=resource.target_scope, action=context.authorization.envelope.action,
@@ -77,14 +84,18 @@ def execute_delivery(uow, actor, project_id, request, *, idempotency_key, target
     try:
         with uow.connection.begin_nested():
             value = apply(context, request) if target_id is None else apply(context, target_id, request)
-            operation_id = value.value.operation_id if approving else None
+            operation_id = value.value.operation_id if approving or closing else None
             result = DeliveryCommandResult(command_id=context.envelope.command_id, project_id=project_id,
-                outcome="approved" if approving else "created", code="deployment_approved" if approving else "delivery_object_created",
+                outcome="closed" if closing else "approved" if approving else "created",
+                code="deployment_closed_retained" if closing else "deployment_approved" if approving else "delivery_object_created",
                 object_id=value.object_id, digest=value.digest, operation_id=operation_id)
-            append_event(uow.connection, command_id=context.envelope.command_id, project_id=project_id,
-                aggregate_kind="delivery", aggregate_id=value.object_id, aggregate_version=1,
-                event_type="delivery." + result.outcome, schema_version="p1-delivery-event-r1", payload=result)
-            status = 200 if approving else 201
+            event_id = "delivery-closeout-" + value.digest[7:] if closing else None
+            if not closing or uow.connection.scalar(select(event_log.c.event_id).where(event_log.c.event_id == event_id)) is None:
+                append_event(uow.connection, command_id=context.envelope.command_id, project_id=project_id,
+                    aggregate_kind="delivery", aggregate_id=value.object_id, aggregate_version=1,
+                    event_type="delivery." + result.outcome, schema_version="p1-delivery-event-r1", payload=result,
+                    event_id=event_id)
+            status = 200 if approving or closing else 201
     except ComposeParseError:
         result = DeliveryCommandResult(command_id=context.envelope.command_id, project_id=project_id,
             outcome="rejected", code="deployment_configuration_invalid")
@@ -104,7 +115,8 @@ class DeliveryApplication:
         self.engine, self.control_engine, self.enqueue_deployment = engine, control_engine, enqueue_deployment
 
     def command(self, actor, project_id, request, *, idempotency_key, target_id=None):
-        with UnitOfWork(self.engine) as uow:
+        engine = self.control_engine if isinstance(request, CloseDeploymentRequest) else self.engine
+        with UnitOfWork(engine) as uow:
             return execute_delivery(uow, actor, project_id, request, idempotency_key=idempotency_key,
                 target_id=target_id, enqueue_deployment=self.enqueue_deployment)
 
@@ -141,15 +153,25 @@ class DeliveryApplication:
             if approval is not None and row["active_operation_id"] == approval.operation_id:
                 status = "execution_registered"
             if approval is not None:
-                from modules.delivery.remote_store import step_results
+                closed = uow.connection.scalar(select(deployment_closeouts.c.operation_id).where(
+                    deployment_closeouts.c.operation_id == approval.operation_id,
+                    deployment_closeouts.c.project_id == project_id))
+                receipt = uow.connection.scalar(select(remote_closeouts.c.id).where(
+                    remote_closeouts.c.id == approval.operation_id))
+                if closed is not None:
+                    status = "closed_retained"
+                elif receipt is not None:
+                    status = "closeout_pending"
+                else:
+                    from modules.delivery.remote_store import step_results
 
-                results = step_results(uow.connection, approval.operation_id)
-                if any(value.status == "unknown" for value in results.values()):
-                    status = "needs_reconciliation"
-                elif any(value.status == "failed_known" for value in results.values()):
-                    status = "failed_known"
-                elif all(step.step_id in results and results[step.step_id].status == "succeeded" for step in plan.value.steps):
-                    status = "succeeded"
+                    results = step_results(uow.connection, approval.operation_id)
+                    if any(value.status == "unknown" for value in results.values()):
+                        status = "needs_reconciliation"
+                    elif any(value.status == "failed_known" for value in results.values()):
+                        status = "failed_known"
+                    elif all(step.step_id in results and results[step.step_id].status == "succeeded" for step in plan.value.steps):
+                        status = "succeeded"
             return DeploymentView(plan=plan, approval=approval, operation_id=approval.operation_id if approval else None,
                 status=status, environment_revision=row["environment_revision"])
 

@@ -103,9 +103,14 @@ def apply_runtime_permissions(connection: Connection) -> None:
         if role == "api":
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.role_bindings TO {name}")
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.environment_bindings TO {name}")
-            connection.exec_driver_sql(f"GRANT UPDATE (config_revision) ON cloudhelm.environment_bindings TO {name}")
+            connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.deployment_closeouts TO {name}")
+            connection.exec_driver_sql(
+                "GRANT UPDATE (config_revision, active_operation_id, release_id, config_revision_id) "
+                f"ON cloudhelm.environment_bindings TO {name}"
+            )
         if role == "worker":
-            for table in ("delivery_remote_samples", "delivery_remote_grants", "delivery_remote_results"):
+            for table in ("delivery_remote_samples", "delivery_remote_grants", "delivery_remote_results",
+                          "delivery_remote_closeouts"):
                 connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.delivery_target_observations TO {name}")
             connection.exec_driver_sql("GRANT UPDATE (environment_revision, release_id, config_revision_id, active_operation_id) "

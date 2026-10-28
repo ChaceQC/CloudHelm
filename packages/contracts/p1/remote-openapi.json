@@ -337,6 +337,66 @@
         }
       }
     },
+    "/remote/v1/closeouts": {
+      "post": {
+        "summary": "Closeout",
+        "operationId": "closeout_remote_v1_closeouts_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteCloseoutReceipt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Closeout Remote V1 Closeouts Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/remote/v1/artifacts/{operation}/{storage_id}": {
       "get": {
         "summary": "Artifact",
@@ -2137,6 +2197,150 @@
         "additionalProperties": false,
         "type": "object",
         "title": "RemoteBindings"
+      },
+      "RemoteCloseoutReceipt": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p1-archive-closeout-r1",
+            "title": "Schema Revision",
+            "default": "p1-archive-closeout-r1"
+          },
+          "scope": {
+            "type": "string",
+            "const": "first_install_before_runtime",
+            "title": "Scope",
+            "default": "first_install_before_runtime"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "target_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Target Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Installation Id"
+          },
+          "executor_instance": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Executor Instance"
+          },
+          "generation": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Generation"
+          },
+          "environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Environment Revision"
+          },
+          "fence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Fence Digest"
+          },
+          "ledger_facts_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Ledger Facts Digest"
+          },
+          "physical_evidence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Physical Evidence Digest"
+          },
+          "closed_grant_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Closed Grant Ids",
+            "default": []
+          },
+          "started_step_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Started Step Ids",
+            "default": []
+          },
+          "retained_resources": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "old_start_paths_closed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Old Start Paths Closed",
+            "default": true
+          },
+          "processes_stopped": {
+            "type": "boolean",
+            "const": true,
+            "title": "Processes Stopped",
+            "default": true
+          },
+          "runtime_objects_absent": {
+            "type": "boolean",
+            "const": true,
+            "title": "Runtime Objects Absent",
+            "default": true
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_digest",
+          "binding_id",
+          "target_id",
+          "installation_id",
+          "executor_instance",
+          "generation",
+          "environment_revision",
+          "fence_digest",
+          "ledger_facts_digest",
+          "physical_evidence_digest",
+          "retained_resources",
+          "observed_at"
+        ],
+        "title": "RemoteCloseoutReceipt"
       },
       "RemoteHello": {
         "properties": {

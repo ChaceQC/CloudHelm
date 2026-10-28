@@ -47,10 +47,15 @@ class CheckDeploymentPlanRequest(Contract):
     plan_digest: Digest
 
 
+class CloseDeploymentRequest(Contract):
+    plan_digest: Digest
+    receipt_digest: Digest
+
+
 class DeliveryCommandResult(Contract):
     command_id: Identifier
     project_id: Identifier
-    outcome: Literal["created", "approved", "rejected"]
+    outcome: Literal["created", "approved", "closed", "rejected"]
     code: Identifier
     object_id: Identifier | None = None
     digest: Digest | None = None

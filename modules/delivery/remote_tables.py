@@ -32,3 +32,4 @@ def _projection(name):
 remote_samples = _projection("delivery_remote_samples")
 remote_grants = _projection("delivery_remote_grants")
 remote_results = _projection("delivery_remote_results")
+remote_closeouts = _projection("delivery_remote_closeouts")

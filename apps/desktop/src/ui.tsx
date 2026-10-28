@@ -7,6 +7,7 @@ const labels: Record<string, string> = {
   completed: "已完成", cancelled: "已取消", cancellation_requested: "取消已请求", accepted: "已接收",
   approval_pending: "待批准", awaiting_remote_agent: "待远端执行", execution_registered: "执行已登记",
   needs_reconciliation: "unknown · 待核对", succeeded: "执行成功", failed_known: "已知失败",
+  closeout_pending: "收尾待确认", closed_retained: "已收尾 · 磁盘保留",
 };
 
 export function Status({ value }: { value: string }) {

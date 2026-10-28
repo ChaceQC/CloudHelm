@@ -73,6 +73,9 @@ class Channel:
     def report(self, result):
         return self.post("results", result)
 
+    def closeout(self, receipt):
+        return self.post("closeouts", receipt)
+
     def observe(self, observation):
         from packages.contracts.p1.remote_delivery import RemoteObservationRequest
 

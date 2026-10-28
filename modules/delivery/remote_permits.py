@@ -3,6 +3,7 @@
 from sqlalchemy import select
 
 from modules.collaboration.errors import TaskBoundaryError
+from modules.delivery.closeout_application import require_open_operation
 from modules.delivery.deployment_control import begin_deployment, check_approval_current
 from modules.delivery.deployment_store import lock_binding
 from modules.delivery.release_recipe import delivery_digest
@@ -47,11 +48,12 @@ def issue_permit(uow, credential, request, clock):
     if len(matches) != 1:
         raise TaskBoundaryError("remote_step_unknown")
     index, step = matches[0], steps[matches[0]]
+    row, binding = lock_binding(uow.connection, context.project_id, plan.value.binding.binding_id)
+    require_open_operation(uow.connection, request.operation_id)
     results = step_results(uow.connection, request.operation_id)
     if step.step_id in results or any(s.step_id not in results or results[s.step_id].status != "succeeded" for s in steps[:index]):
         raise TaskBoundaryError("remote_previous_execution_unresolved")
     predecessors = [results[s.step_id].model_dump(mode="json") for s in steps[:index]]
-    row, binding = lock_binding(uow.connection, context.project_id, plan.value.binding.binding_id)
     target, observed, now = fresh_target(uow.connection, binding)
     check_approval_current(context, plan, approval, now)
     if (request.mapping.executor_instance != target.executor_instance or target.executor_instance != plan.value.executor_instance

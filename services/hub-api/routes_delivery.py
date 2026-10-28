@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from packages.contracts.p0.decision_common import Identifier
 from packages.contracts.p1.delivery_records import DeliveryObject, DeploymentPreflight, DeploymentView, EnvironmentView
 from packages.contracts.p1.delivery_requests import (
-    ApproveDeploymentPlanRequest, CheckDeploymentPlanRequest, CreateDeploymentPlanRequest,
+    ApproveDeploymentPlanRequest, CheckDeploymentPlanRequest, CloseDeploymentRequest, CreateDeploymentPlanRequest,
     CreateEnvironmentConfigRequest, CreateEnvironmentRequest, CreateReleaseRequest, DeliveryCommandResult,
 )
 from .auth import get_runtime
@@ -81,3 +81,10 @@ def approve(request: Request, project_id: Identifier, plan_id: Identifier, actor
 def preflight(request: Request, project_id: Identifier, plan_id: Identifier, actor: ControlActor,
               body: CheckDeploymentPlanRequest = Depends(strict_body(CheckDeploymentPlanRequest))):
     return get_runtime(request).delivery.preflight(actor, project_id, plan_id, body)
+
+
+@router.post("/deployment-plans/{plan_id}/closeout", response_model=DeliveryCommandResult, name="delivery.plan.closeout")
+def closeout(request: Request, project_id: Identifier, plan_id: Identifier, actor: ControlActor,
+             idempotency_key: IdempotencyKey,
+             body: CloseDeploymentRequest = Depends(strict_body(CloseDeploymentRequest))):
+    return _command(request, actor, project_id, body, idempotency_key, plan_id)

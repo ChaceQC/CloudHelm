@@ -4,6 +4,7 @@ from sqlalchemy import insert, select, update
 
 from database.readiness import assert_schema_ready
 from modules.collaboration.errors import TaskBoundaryError
+from modules.delivery.closeout_application import require_open_operation
 from modules.delivery.compose import bind_environment_config
 from modules.delivery.deployment_planning import STEP_KINDS, check_baseline
 from modules.delivery.deployment_store import lock_binding, read_object, write_object
@@ -85,6 +86,8 @@ def approved_preflight(context, plan_id, digest):
     approval = read_object(context.uow.connection, context.project_id, "approval", plan_id).value
     if digest != plan.digest or approval.plan_digest != plan.digest:
         raise TaskBoundaryError("deployment_approval_digest_mismatch", status_code=422)
+    lock_binding(context.uow.connection, context.project_id, plan.value.binding.binding_id)
+    require_open_operation(context.uow.connection, approval.operation_id)
     _, now = validate_preflight(context, plan)
     check_approval_current(context, plan, approval, now)
     return DeploymentPreflight(plan_id=plan_id, operation_id=approval.operation_id,
@@ -124,6 +127,7 @@ def begin_deployment(context, plan_id, digest):
     approval = read_object(connection, context.project_id, "approval", plan_id).value
     plan = read_object(connection, context.project_id, "plan", plan_id)
     row, _ = lock_binding(connection, context.project_id, plan.value.binding.binding_id)
+    require_open_operation(connection, approval.operation_id)
     existing = connection.execute(select(environment_revisions).where(
         environment_revisions.c.operation_id == approval.operation_id)).mappings().one_or_none()
     if existing is not None:

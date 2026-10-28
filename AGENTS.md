@@ -30,9 +30,9 @@ D01～D06 对各自负责的领域规则具有唯一权威性。跨专题冲突�
 |文档|当前版本|
 |---|---|
 |总体设计|v4.7|
-|详细设计索引|v4.7.3|
-|D01、D02、D04、D05|v4.7.1|
-|D03、D06、D06a|v4.7.2|
+|详细设计索引|v4.7.4|
+|D01、D05|v4.7.1|
+|D02、D03、D04、D06、D06a|v4.7.2|
 
 总体设计使用 vM.N，详细专题使用 vM.N.P，二者前两位必须相同。
 软件版本、数据库迁移版本、DBOS SDK、工作流应用版本和执行协议版本分别管理，不能互相替代。
@@ -49,7 +49,7 @@ JavaScript 项目使用 npm；实际 Rust 工程使用 Cargo，Cargo.lock 与工
 设计文档、软件、数据库迁移、SDK、工作流应用和执行协议版本独立维护。
 P1.1 的首个 Hub 开发源码版本为 `0.1.0`，DBOS 工作流应用单独固定为 `cloudhelm-hub/0.1.0`，业务迁移为 `0001_p1_1`。这是历史交付基线，最新开发基线见下段；当前没有已发布的软件、tag 或 Release。不得将相同数值视为版本类别合并，也不得虚构 SDK 兼容结论或迁移记录。
 
-当前开发源码为 `0.8.2`，工作流应用单独保留 `cloudhelm-hub/0.7.0`；新隔离库业务迁移 head 为 `0009_p1_5_sync`，从 `0008_p1_4_remote` 线性前进。归档 Release/配置/计划见 [交付开发说明](docs/development/p1-delivery.md)，Remote Agent 的通道、持久账本、固定物理适配与默认关闭的普通时间门禁见 [远端说明](docs/development/p1-remote-agent.md)。受管执行与分维释放保留 [T-SIM-06 实施说明](docs/implementation/t-sim-06-resources.md) 的原证据边界。旧安装不由 initialize 自动升级；本轮不构成完整独立交付、整机重启或容量验收。历史候选及实际限制以各自固定输入为准。正式 Windows 基础 Desktop、连接代次与回执恢复见[客户端说明](docs/development/p1-desktop.md)，单 worker 与控制通道见 [P1.5-02 记录](docs/acceptance/p1/p1-5-02.md)，P1 出口与 P2 门禁见 [出口核对](docs/acceptance/p1/exit-review.md)，原生/人工验收分别记录。
+当前开发源码为 `0.9.0`，工作流应用单独保留 `cloudhelm-hub/0.7.0`；新隔离库业务迁移 head 为 `0010_p1_archive_closeout`，从 `0009_p1_5_sync` 线性前进。归档 Release/配置/计划见 [交付开发说明](docs/development/p1-delivery.md)，Remote Agent 的通道、持久账本、固定物理适配与默认关闭的普通时间门禁见 [远端说明](docs/development/p1-remote-agent.md)；进入运行前首装的有限收尾见 [实施约定](docs/implementation/p1-archive-closeout.md)。受管执行与分维释放保留 [T-SIM-06 实施说明](docs/implementation/t-sim-06-resources.md) 的原证据边界。旧安装不由 initialize 自动升级；本轮不构成完整独立交付、整机重启或容量验收。历史候选及实际限制以各自固定输入为准。正式 Windows 基础 Desktop、连接代次与回执恢复见[客户端说明](docs/development/p1-desktop.md)，单 worker 与控制通道见 [P1.5-02 记录](docs/acceptance/p1/p1-5-02.md)，P1 出口与 P2 门禁见 [出口核对](docs/acceptance/p1/exit-review.md)，原生/人工验收分别记录。
 
 ## 3. Git 与 GitHub 工作流
 

@@ -1,9 +1,14 @@
 """Hub-side authenticated exchange; the Remote Agent alone chooses the next step."""
 
+from contextlib import contextmanager
+
 from sqlalchemy import func, select, update
 
 from database.uow import UnitOfWork
 from modules.collaboration.errors import TaskBoundaryError
+from modules.delivery.closeout_application import (
+    accept_remote_closeout, operation_closed, original_remote_operation, require_open_operation,
+)
 from modules.delivery.deployment_control import approved_preflight
 from modules.delivery.deployment_store import lock_binding
 from modules.delivery.deployment_tables import deployment_approvals, environment_bindings
@@ -79,11 +84,15 @@ class RemoteApplication:
                 raise TaskBoundaryError("remote_plan_scope_exceeded")
             blocked = None
             for operation in rows:
+                if operation_closed(uow.connection, operation):
+                    continue
                 try:
                     context, plan, approval = approved_operation(uow, credential, operation)
                     if (plan.value.executor_instance != request.executor_instance or plan.value.generation != request.generation):
                         continue
                     row, _ = lock_binding(uow.connection, context.project_id, plan.value.binding.binding_id)
+                    if operation_closed(uow.connection, operation):
+                        continue
                     results = step_results(uow.connection, operation)
                     if any(value.status in {"unknown", "failed_known"} for value in results.values()):
                         blocked = "remote_original_execution_needs_reconciliation"
@@ -94,7 +103,7 @@ class RemoteApplication:
                         approved_preflight(context, plan.object_id, plan.digest)
                     return RemotePollResult(status="ready", code="original_operation", deployment=package_plan(uow.connection, plan, approval))
                 except TaskBoundaryError as error:
-                    if error.code != "remote_target_scope_mismatch":
+                    if error.code != "remote_target_scope_mismatch" and not operation_closed(uow.connection, operation):
                         blocked = error.code
             if blocked is not None:
                 return RemotePollResult(status="waiting_authorization", code=blocked)
@@ -116,11 +125,21 @@ class RemoteApplication:
         with UnitOfWork(self.engine) as uow:
             return issue_permit(uow, authenticate_remote(uow, token), request, self.clock)
 
+    def closeout(self, token, receipt):
+        with UnitOfWork(self.engine) as uow:
+            return accept_remote_closeout(uow, authenticate_remote(uow, token), receipt)
+
     def report(self, token, result):
         with UnitOfWork(self.engine) as uow:
             credential = authenticate_remote(uow, token)
-            context, plan, approval = approved_operation(uow, credential, result.operation_id)
-            row, binding = lock_binding(uow.connection, context.project_id, plan.value.binding.binding_id)
+            if operation_closed(uow.connection, result.operation_id):
+                original, plan, _ = original_remote_operation(uow.connection, credential, result.operation_id)
+                command_id, project_id = original["command_id"], credential["project_id"]
+            else:
+                context, plan, _ = approved_operation(uow, credential, result.operation_id)
+                command_id, project_id = context.envelope.command_id, context.project_id
+            row, binding = lock_binding(uow.connection, project_id, plan.value.binding.binding_id)
+            closed = operation_closed(uow.connection, result.operation_id)
             grant = uow.connection.execute(select(remote_grants).where(
                 remote_grants.c.id == result.grant_id, remote_grants.c.credential_id == credential["credential_id"],
                 remote_grants.c.operation_id == result.operation_id, remote_grants.c.step_id == result.step_id,
@@ -148,16 +167,16 @@ class RemoteApplication:
                         or previous["value_json"] != result.model_dump(mode="json")):
                     raise TaskBoundaryError("remote_message_identity_conflict")
                 return {"digest": digest, "status": result.status}
-            if row["active_operation_id"] not in (None, result.operation_id):
+            if not closed and row["active_operation_id"] not in (None, result.operation_id):
                 raise TaskBoundaryError("remote_result_unbound")
             save_projection(uow.connection, remote_results, credential, key, result, result.operation_id, result.step_id)
             if uow.connection.scalar(select(event_log.c.event_id).where(event_log.c.event_id == key)) is None:
-                append_event(uow.connection, command_id=context.envelope.command_id, project_id=context.project_id,
+                append_event(uow.connection, command_id=command_id, project_id=project_id,
                     aggregate_kind="deployment", aggregate_id=result.operation_id,
                     aggregate_version=next(index + 1 for index, step in enumerate(plan.value.steps) if step.step_id == result.step_id),
                     event_type="deployment.step_observed", schema_version="p1-remote-step-r1", payload=result, event_id=key)
             results = step_results(uow.connection, result.operation_id)
-            if all(step.step_id in results and results[step.step_id].status == "succeeded" for step in plan.value.steps):
+            if not closed and all(step.step_id in results and results[step.step_id].status == "succeeded" for step in plan.value.steps):
                 uow.connection.execute(update(environment_bindings).where(
                     environment_bindings.c.binding_id == binding.binding_id,
                     environment_bindings.c.active_operation_id == result.operation_id,
@@ -169,12 +188,24 @@ class RemoteApplication:
             raise TaskBoundaryError("remote_artifact_store_unavailable", status_code=503)
         with UnitOfWork(self.engine) as uow:
             credential = authenticate_remote(uow, token)
-            _, plan, approval = approved_operation(uow, credential, operation)
+            context, plan, approval = approved_operation(uow, credential, operation)
+            lock_binding(uow.connection, context.project_id, plan.value.binding.binding_id)
+            require_open_operation(uow.connection, operation)
             deployment = package_plan(uow.connection, plan, approval)
             if storage_id not in {item.storage_id for item in deployment.manifest.artifacts}:
                 raise TaskBoundaryError("remote_artifact_not_in_plan", status_code=403)
-        # The verified inode remains open and locked throughout the HTTP stream.
-        return self.artifact_store.open_archive(storage_id)
+            project_id, binding_id = context.project_id, plan.value.binding.binding_id
+        return self._open_guarded_artifact(project_id, binding_id, operation, storage_id)
+
+    @contextmanager
+    def _open_guarded_artifact(self, project_id, binding_id, operation, storage_id):
+        # Validate potentially large archives outside the short database transaction;
+        # check the fence before transferring bytes, retaining the verified inode lock.
+        with self.artifact_store.open_archive(storage_id) as stream:
+            with UnitOfWork(self.engine) as uow:
+                lock_binding(uow.connection, project_id, binding_id)
+                require_open_operation(uow.connection, operation)
+            yield stream
 
 
 def validate_result(plan, result, grant):

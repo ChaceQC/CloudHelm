@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from modules.delivery.release_recipe import delivery_digest
+from . import closeout_ledger
 
 
 class RemoteError(RuntimeError):
@@ -27,7 +28,7 @@ def private_directory(path):
 
 
 class Ledger:
-    def __init__(self, directory, installation_id, *, initialize=False):
+    def __init__(self, directory, installation_id, *, initialize=False, maintenance=False):
         self.directory = private_directory(directory)
         path = self.directory / "ledger.sqlite3"
         if not path.exists() and not initialize:
@@ -39,7 +40,15 @@ class Ledger:
             raise RemoteError("remote_ledger_permissions_invalid")
         self.db = sqlite3.connect(path, isolation_level=None)
         self.db.row_factory = sqlite3.Row
-        self.db.execute("PRAGMA journal_mode=WAL")
+        if maintenance:
+            if not hasattr(sqlite3, "SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE") or not hasattr(self.db, "setconfig"):
+                raise RemoteError("remote_ledger_wal_preservation_unavailable")
+            self.db.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)
+            self.db.execute("PRAGMA wal_autocheckpoint=0")
+            if self.db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+                raise RemoteError("remote_ledger_wal_required")
+        else:
+            self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
         if initialize:
             self.db.executescript("""
@@ -55,11 +64,25 @@ class Ledger:
                 CREATE TABLE environments (binding TEXT PRIMARY KEY, value TEXT NOT NULL);
             """)
             self.db.execute("INSERT INTO lineage VALUES (?)", (installation_id,))
+            with self.transaction():
+                closeout_ledger.upgrade(self.db)
+        try:
+            self.schema_version = closeout_ledger.validate(self.db)
+            lineage = self.db.execute("SELECT installation FROM lineage").fetchall()
+        except (ValueError, sqlite3.DatabaseError):
+            raise RemoteError("remote_ledger_schema_invalid") from None
         if (self.db.execute("PRAGMA integrity_check").fetchone()[0] != "ok"
-                or self.db.execute("SELECT installation FROM lineage").fetchall()[0][0] != installation_id):
+                or len(lineage) != 1 or lineage[0][0] != installation_id):
             raise RemoteError("remote_ledger_lineage_invalid")
         # A process restart can never revive an accepted, unstarted grant.
-        self.db.execute("UPDATE grants SET closed=1 WHERE id NOT IN (SELECT grant_id FROM steps)")
+        if not maintenance:
+            self.db.execute("UPDATE grants SET closed=1 WHERE id NOT IN (SELECT grant_id FROM steps)")
+
+    def require_open(self, operation):
+        self.schema_version = self.db.execute("PRAGMA user_version").fetchone()[0]
+        if self.schema_version and self.db.execute(
+                "SELECT 1 FROM closeouts WHERE operation=?", (operation,)).fetchone():
+            raise RemoteError("remote_operation_sealed")
 
     @contextmanager
     def locked(self, binding_id):
@@ -86,6 +109,7 @@ class Ledger:
     def receive(self, deployment):
         payload = deployment.model_dump_json()
         with self.transaction():
+            self.require_open(deployment.operation_id)
             previous = self.db.execute("SELECT * FROM operations WHERE id=?", (deployment.operation_id,)).fetchone()
             if previous:
                 if previous["digest"] != deployment.plan_digest or previous["payload"] != payload:
@@ -101,6 +125,7 @@ class Ledger:
         return self.db.execute("SELECT * FROM steps WHERE operation=? AND step=?", (operation, step)).fetchone()
 
     def accept(self, operation, step, acceptance):
+        self.require_open(operation)
         grant = acceptance.grant
         previous = self.db.execute("SELECT * FROM grants WHERE id=?", (grant.grant_id,)).fetchone()
         if previous:
@@ -110,12 +135,14 @@ class Ledger:
         if self.step(operation, step):
             raise RemoteError("remote_step_already_started")
         with self.transaction():
+            self.require_open(operation)
             self.db.execute("UPDATE grants SET closed=1 WHERE operation=? AND step=?", (operation, step))
             self.db.execute("INSERT INTO grants(id,operation,step,acceptance) VALUES (?,?,?,?)",
                 (grant.grant_id, operation, step, acceptance.model_dump_json()))
 
     def intent(self, operation, step, digest, grant_id):
         with self.transaction():
+            self.require_open(operation)
             row = self.db.execute("SELECT * FROM grants WHERE id=?", (grant_id,)).fetchone()
             if row is None or row["closed"] or row["operation"] != operation or row["step"] != step:
                 raise RemoteError("remote_grant_not_accepted")
@@ -123,11 +150,13 @@ class Ledger:
                 (operation, step, digest, grant_id))
 
     def close_unstarted(self, operation, step):
+        self.require_open(operation)
         if self.step(operation, step) is not None:
             raise RemoteError("remote_original_step_unresolved")
         self.db.execute("UPDATE grants SET closed=1 WHERE operation=? AND step=?", (operation, step))
 
     def finish(self, result):
+        self.require_open(result.operation_id)
         row = self.step(result.operation_id, result.step_id)
         if row is None or row["digest"] != result.input_digest or row["grant_id"] != result.grant_id:
             raise RemoteError("remote_result_binding_invalid")
@@ -142,6 +171,7 @@ class Ledger:
             "SELECT result FROM steps WHERE operation=? AND result IS NOT NULL ORDER BY rowid", (operation,))]
 
     def complete(self, deployment, state):
+        self.require_open(deployment.operation_id)
         if any(self.step(deployment.operation_id, step.step_id)["status"] != "succeeded" for step in deployment.plan.steps):
             raise RemoteError("remote_steps_incomplete")
         with self.transaction():

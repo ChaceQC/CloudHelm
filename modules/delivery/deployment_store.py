@@ -4,9 +4,10 @@ from sqlalchemy import insert, select
 
 from modules.collaboration.errors import TaskBoundaryError
 from modules.delivery.deployment_tables import (
-    deployment_approvals, deployment_plans, environment_bindings, environment_configs, releases,
+    deployment_approvals, deployment_closeouts, deployment_plans, environment_bindings, environment_configs, releases,
 )
 from modules.delivery.release_recipe import delivery_digest
+from packages.contracts.p1.closeout_contracts import DeploymentCloseout
 from packages.contracts.p1.delivery_records import (
     DeliveryObject, DeploymentApproval, DeploymentPlan, EnvironmentBinding, EnvironmentConfigRevision, ReleaseManifest,
 )
@@ -16,6 +17,7 @@ OBJECTS = {
     "configuration": (environment_configs, "config_revision_id", EnvironmentConfigRevision),
     "plan": (deployment_plans, "plan_id", DeploymentPlan),
     "approval": (deployment_approvals, "plan_id", DeploymentApproval),
+    "closeout": (deployment_closeouts, "operation_id", DeploymentCloseout),
 }
 
 

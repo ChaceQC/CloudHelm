@@ -10,6 +10,7 @@ from packages.contracts.p0.permit_contracts import PlanStep
 from packages.contracts.p0.resource_contracts import ResourceVector
 from packages.contracts.p1.build_records import BuildArtifactRecord
 from packages.contracts.p1.build_requests import BuildDefinition
+from packages.contracts.p1.closeout_contracts import DeploymentCloseout
 from packages.contracts.p1.compose_contracts import ComposeDeploymentPlan, ComposeEnvironmentConfig, ComposeReleaseSpec
 
 ARCHIVE_VARIANT = "reference-notes-archive-linux-amd64-r1"
@@ -167,7 +168,9 @@ class DeploymentApproval(Contract):
 class DeliveryObject(Contract):
     object_id: Identifier
     digest: Digest
-    value: ReleaseManifest | EnvironmentBinding | EnvironmentConfigRevision | DeploymentPlan | DeploymentApproval
+    value: (
+        ReleaseManifest | EnvironmentBinding | EnvironmentConfigRevision | DeploymentPlan | DeploymentApproval | DeploymentCloseout
+    )
 
 
 class EnvironmentView(Contract):
@@ -195,7 +198,10 @@ class DeploymentView(Contract):
     plan: DeliveryObject
     approval: DeploymentApproval | None
     operation_id: Identifier | None
-    status: Literal["approval_pending", "awaiting_remote_agent", "execution_registered", "needs_reconciliation", "failed_known", "succeeded"]
+    status: Literal[
+        "approval_pending", "awaiting_remote_agent", "execution_registered", "needs_reconciliation",
+        "failed_known", "succeeded", "closeout_pending", "closed_retained",
+    ]
     environment_revision: Revision
 
 

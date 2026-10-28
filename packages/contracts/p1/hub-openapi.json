@@ -7609,6 +7609,177 @@
         }
       }
     },
+    "/api/projects/{project_id}/deployment-plans/{plan_id}/closeout": {
+      "post": {
+        "tags": [
+          "delivery"
+        ],
+        "summary": "Delivery.Plan.Closeout",
+        "operationId": "delivery_plan_closeout_api_projects__project_id__deployment_plans__plan_id__closeout_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "plan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Plan Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseDeploymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/snapshot": {
       "get": {
         "tags": [
@@ -9101,6 +9272,27 @@
         ],
         "title": "CheckDeploymentPlanRequest"
       },
+      "CloseDeploymentRequest": {
+        "properties": {
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "receipt_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Receipt Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "plan_digest",
+          "receipt_digest"
+        ],
+        "title": "CloseDeploymentRequest"
+      },
       "CommandEnvelope": {
         "properties": {
           "protocol_revision": {
@@ -10146,6 +10338,7 @@
             "enum": [
               "created",
               "approved",
+              "closed",
               "rejected"
             ],
             "title": "Outcome"
@@ -10234,6 +10427,9 @@
               },
               {
                 "$ref": "#/components/schemas/DeploymentApproval"
+              },
+              {
+                "$ref": "#/components/schemas/DeploymentCloseout"
               }
             ],
             "title": "Value"
@@ -10330,6 +10526,92 @@
           "operation_id"
         ],
         "title": "DeploymentApproval"
+      },
+      "DeploymentCloseout": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "plan_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Plan Id"
+          },
+          "plan_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Plan Digest"
+          },
+          "binding_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Binding Id"
+          },
+          "target_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Target Id"
+          },
+          "installation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Installation Id"
+          },
+          "receipt_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "title": "Receipt Digest"
+          },
+          "retained_resources": {
+            "$ref": "#/components/schemas/ResourceVector"
+          },
+          "environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Environment Revision"
+          },
+          "closed_by_user_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Closed By User Id"
+          },
+          "closed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Closed At"
+          },
+          "status": {
+            "type": "string",
+            "const": "closed_retained",
+            "title": "Status",
+            "default": "closed_retained"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "plan_id",
+          "plan_digest",
+          "binding_id",
+          "target_id",
+          "installation_id",
+          "receipt_digest",
+          "retained_resources",
+          "environment_revision",
+          "closed_by_user_id",
+          "closed_at"
+        ],
+        "title": "DeploymentCloseout"
       },
       "DeploymentPlan": {
         "properties": {
@@ -10591,7 +10873,9 @@
               "execution_registered",
               "needs_reconciliation",
               "failed_known",
-              "succeeded"
+              "succeeded",
+              "closeout_pending",
+              "closed_retained"
             ],
             "title": "Status"
           },

@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import SecretStr
 
 from modules.collaboration.errors import TaskBoundaryError
+from packages.contracts.p1.closeout_contracts import RemoteCloseoutReceipt
 from packages.contracts.p1.remote_delivery import (
     RemoteBindings, RemoteHello, RemoteObservationRequest, RemotePermit, RemotePermitRequest, RemotePoll,
     RemotePollResult, RemoteStepResult, RemoteTimeSample,
@@ -116,6 +117,10 @@ def create_app(application=None):
     @app.post("/remote/v1/results")
     def result(body: RemoteStepResult, authorization: str | None = Header(default=None)):
         return app.state.remote.report(token(authorization), body)
+
+    @app.post("/remote/v1/closeouts", response_model=dict[str, str])
+    def closeout(body: RemoteCloseoutReceipt, authorization: str | None = Header(default=None)):
+        return app.state.remote.closeout(token(authorization), body)
 
     @app.get("/remote/v1/artifacts/{operation}/{storage_id}")
     def artifact(operation: str, storage_id: str, authorization: str | None = Header(default=None)):

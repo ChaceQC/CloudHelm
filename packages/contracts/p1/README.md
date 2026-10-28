@@ -25,6 +25,7 @@
 |`workspace_development_requests.py`|可变 Workspace 环境的申请、休眠、恢复、数据重建、处置与操作查询；公共请求不提交 Runner 就绪事实|
 |`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
 |`remote_delivery.py`、`remote-openapi.json`|执行器认证通道的完整计划、样本、具名许可及步骤事实；默认启动关闭，边界见 [Remote Agent 说明](../../../docs/development/p1-remote-agent.md)|
+|`closeout_contracts.py`|`p1-archive-closeout-r1` 的首装进入运行前封闭/停止/保留回执及唯一人类收尾事实；仅按原身份核对，不将步骤 unknown 改成成功|
 
 所有固定模型拒绝额外字段。API 还检查原始 JSON 重复键、非法数值和请求边界；真实主体、scope、action、当前授权及请求摘要由服务端解析和构造，不能用客户端自报的 `caller`、角色、`allowed` 或完成布尔值放行。
 

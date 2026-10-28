@@ -28,6 +28,7 @@ releases = _immutable("releases", "release_id")
 environment_configs = _immutable("environment_configs", "config_revision_id")
 deployment_plans = _immutable("deployment_plans", "plan_id")
 deployment_approvals = _immutable("deployment_approvals", "plan_id")
+deployment_closeouts = _immutable("deployment_closeouts", "operation_id")
 
 delivery_targets = Table("delivery_targets", metadata,
     Column("project_id", String(160), ForeignKey("cloudhelm.projects.project_id"), primary_key=True),

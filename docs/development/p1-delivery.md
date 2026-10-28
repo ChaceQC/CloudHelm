@@ -1,7 +1,7 @@
 # 归档 Release、环境配置与部署计划
 
-当前源码为 `0.8.2`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
-`0009_p1_5_sync`（前驱 `0008_p1_4_remote`）。使用 [Hub 开发入口](p1-hub.md)
+当前源码为 `0.9.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
+`0010_p1_archive_closeout`（前驱 `0009_p1_5_sync`）。使用 [Hub 开发入口](p1-hub.md)
 准备 WSL 锁定环境和独立数据库角色；`initialize` 不升级旧安装。
 
 ## 1. 当前支持范围
@@ -56,12 +56,28 @@ Release 保存后不可修改，后续环境配置不改变其归档或镜像身
 |`GET /deployment-plans/{plan_id}`|查询完整计划、批准、Operation 和明确的业务等待状态|
 |`POST /deployment-plans/{plan_id}/approvals`|人类批准准确 `plan_digest` 和有效期限|
 |`POST /deployment-plans/{plan_id}/preflight`|重新读取当前事实，不缓存先前的“可启动”结论|
+|`POST /deployment-plans/{plan_id}/closeout`|当前有权人类核对原计划及执行器收尾回执，追加唯一收尾事实；不代表部署成功|
 |`GET /releases/{release_id}`|查询完整不可变 Manifest|
 
 Release、环境、配置和计划编制要求 `project.manage`；查询要求 `resource.read`。
 批准要求当前设备会话的人类持有 `deployment.approve`。按照 D04，项目所有者可自批；新增
 `deployment_approver` 角色只能在显式授予的 `resource.read` / `deployment.approve` 范围内行动。
 developer/reviewer 的原动作上限和 Agent 委托不增加批准权限。
+
+首次安装在进入运行前中断时，维护人员可按 [Remote Agent 收尾入口](p1-remote-agent.md#21-首次安装进入运行前的原身份收尾)
+先永久封闭原 Operation 并上传停止/残留回执。查询状态 `closeout_pending` 表示 Hub 已收到回执，原绑定仍占用；
+当前具有 `deployment.approve` 的已认证人类随后向 `/deployment-plans/{plan_id}/closeout` 提交 `Idempotency-Key` 和正文：
+
+```json
+{
+  "plan_digest": "sha256:<原计划的64位摘要>",
+  "receipt_digest": "sha256:<维护命令输出的64位回执摘要>"
+}
+```
+
+准确摘要必须取自原计划与固定回执，示例中的占位值不能直接发送。成功返回 `closed / deployment_closed_retained`，
+表示原身份已收尾且磁盘继续占账；原步骤 unknown 保留，不能显示为部署成功。同键返回原命令结果，新键返回同一收尾对象并保留新的命令回执，
+不会重复领域事件；其他安装、错误摘要或后续运行步骤均不能利用此入口释放占用。后续新部署仍须重新固定计划、批准及当前时间/代次。
 
 配置的 `configuration` 使用现有 `ComposeEnvironmentConfig`：
 
