@@ -39,7 +39,7 @@ A03 在现有内部启动入口装配可读内容，不新增 HTTP 路由或 Age
 |规范、源码与契约|`ContextPackage.source_reads` 明确 path、完整文件 SHA-256、purpose、start_line 与 max_lines；源码限当前 source_ref 的精确 commit，自动加载根及所选路径祖先 AGENTS.md|
 |决定、未决项与证据|已登记引用解析其受控 metadata；源码文件型引用使用 `authority=source-files`、object_id=相对路径、revision=baseline_commit 及文件摘要，并须有匹配 purpose 的 source_reads；保留完整引用，不调用模型生成摘要|
 |人工交还|读取原交还记录的变更清单，并从原 baseline/returned 固定快照生成真实文本差异；不重新采集可变工作区|
-|运行策略|RunPolicy 增加 role（默认 developer）及固定 instruction_revision=agent-r1；共同协议和五角色 r1 指令通过 SDK instructions 提交，项目正文只作为数据|
+|运行策略|RunPolicy 的 role 默认 developer，instruction_revision 新默认 agent-r2；共同协议及角色指令通过 SDK instructions 提交，r2 开发指令接通有界循环，显式 agent-r1 保留原文本协议；项目正文只作为数据|
 
 例如源码片段为 `{"path":"src/main.py","digest":"sha256:<完整文件摘要>","purpose":"source","start_line":1,"max_lines":120}`。默认不装入整个仓库；每个 Context 最多 8 个显式片段、每片最多 160 行、单文件最多 64KiB、源码返回正文合计最多 32KiB，安全路径索引最多 64 条。返回真实摘要、总行数、截断与 next_start_line；续读时在下一份 Context 中指定同一来源及新起始行。规范未读完整时不得宣称已覆盖其全部约束。非空 source_prefix 尚不支持，因为当前 Git 子树视图无法保证读取前缀外的继承规范，明确拒绝。
 
@@ -137,6 +137,28 @@ A08 在新的开发角色 ContextPackage 中显式授予 `workspace.check`。参
 
 这是开发反馈，不登记 VerificationRun、正式验收报告或 Task 完成事实。正式验收继续读取独立受控资产；工具不能修改入口、关键断言或跳过规则。当前仅支持 `notes-backend-dev-r1`；真实受管容器及完整 Agent 循环另取证，方法和限制见 [A08 记录](../acceptance/p2/p2-1-a08.md)。
 
+## 有界开发循环
+
+A09 复用同一个 PydanticAI `Agent.run` 和现有 Gateway 路由推进开发，不建立额外调度器或循环状态机。新建开发 Session 使用 `instruction_revision=agent-r2`；明确读取需求与调用关系、最小修改和 diff、刷新环境绑定、必要检查、按实际失败修复，以及固定候选后构建/读结果的顺序。工具未获授予时不能因指令获得权限。模型文字不代替执行结果，开发检查不产生正式验收结论。
+
+`RunPolicy.max_no_progress_calls` 默认 2，范围 2～16，随 Run 固定。相同工具、参数和已见反馈连续重复两次（包括首次共三次）时停止；`workspace.check` 的判定排除本次起止时间及其派生 evidence_digest，保留源码、方法、退出码和具体失败等变化。原结果完整摘要仍保留。该阈值按单 Run 计算，与请求、时间和费用上限以先触发者为准；阈值大于本轮可用请求次数时可能先按请求上限交接，不跨 Run 增加另一套状态。
+
+开发输出 `DevelopmentHandoff` 包含 `reason`、`summary`、`next_action`，以及仅 `candidate_ready` 必填的 `candidate_operation_id`：
+
+|原因|保存及后续行为|
+|---|---|
+|`candidate_ready`|回查原候选操作的当前主体/工作项、实际注册回执、当前 workspace binding 及同一 InputSet/控制/输入修订；准确 snapshot 和输入引用写入交接。返回 `submitted` 及指向本 Run 持久交接正文的 delivery 引用；不表示独立验证、审查或 Task 完成|
+|`human_decision_required`|保存具体问题、对象/版本、影响和下一步，Session paused；真实决定后才可按当前授权新建 Run，未实现人类决策自动唤醒|
+|`no_progress` 或运行时 `agent_no_progress`|保存重复次数、阈值及最近反馈摘要，Session paused；先定位实际阻塞再由有权者安排下一 Run|
+|`continue_required` 或请求/输出上限|保存当前进展和实际原因，以既有 continue_required 交接，不自动入队普通继续 Run或自行扩额|
+|预算、权限、超时或未知失败|保留准确固定原因、请求身份、费用占账及实际 SDK 历史，Session paused；超时不证明 HTTP 或物理操作已停止，先按原身份核对。不可恢复错误仍保留 failed，不改成候选成功|
+
+每次真实 HTTP 尝试前仍经过请求记录/当前门禁，普通工具也保留原准入；无进展在下一次请求前停止，同轮请求上限同时触发时优先记录已命中的无进展原因。延迟工具仍提交 `waiting_condition`，由原 Operation 结果事务触发新 Run，并校验原 tool-call ID；不使用模型轮询推进。交接只额外保存最近 4 条工具名、调用 ID 和结果摘要，实际正文沿原 SDK 历史保存。
+
+请求/时间/用量到限时保存已实际捕获的 SDK 新消息；未知错误同样携带已有消息归档，不伪造完整模型响应或 tool return。沿用历史 128KiB、Run 结果 16KiB 等现有上限；超限仍明确失败，不提供无界归档或自动压缩。旧 `agent-r1` 保持原文本输出，停止时同样记录原因；原 Run 缺新增字段且原请求也未显式传入时按原字段形状核对摘要，同参返回原身份，异正文拒绝。既有 Session 不能切换 r1/r2，须新建 Session。
+
+内部使用方法仍为本页 `AgentRuntimeApplication.start`，当前 Task 界面未接入 A09；方法及夹具边界见 [A09 记录](../acceptance/p2/p2-1-a09.md)。真实模型工程循环由 A11 取证。
+
 ## 请求结果与费用核对
 
 传输层在每次实际 HTTP 尝试前取得 `request_record_id`，完整读取响应后立即交 `RuntimeBilling.record` 记录安全的供应商响应/请求身份、实际模型、服务档位及 usage；模型修复或重试的每个 HTTP 请求分别记录。失败/取消响应也保留其中实际提供的 usage，连接中断或没有字段时仍未知。落账失败阻断当前调用，不把该失败作为网络错误自动重发。
@@ -173,4 +195,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-当前源码版本为 `0.22.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.23.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

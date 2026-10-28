@@ -3,6 +3,7 @@
 from hashlib import sha256
 from decimal import Decimal
 
+import rfc8785
 from dbos import WorkflowSerializationFormat
 from sqlalchemy import insert, select, update
 
@@ -40,6 +41,11 @@ def start_run(engine, client, source_command_id, request: RuntimeStartRequest):
         existing = uow.connection.execute(select(agent_runs).where(
             agent_runs.c.run_id == incoming.run_id)).mappings().one_or_none()
         if existing is not None:
+            if ("max_no_progress_calls" not in existing["start_json"]["policy"]
+                    and "max_no_progress_calls" not in policy.model_fields_set):
+                original = request.model_dump(mode="json")
+                del original["policy"]["max_no_progress_calls"]
+                digest = "sha256:" + sha256(rfc8785.dumps(original)).hexdigest()
             if existing["request_digest"] != digest or existing["source_command_id"] != source_command_id:
                 raise TaskBoundaryError("agent_run_identity_conflict")
             return {"run_id": incoming.run_id, "workflow_id": existing["workflow_id"], "state": existing["state"]}

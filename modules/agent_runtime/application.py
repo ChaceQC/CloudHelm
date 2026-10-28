@@ -29,13 +29,14 @@ from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
+from .development import DevelopmentLoop, resolve_candidate_handoff_in_uow
 from .source_context import safe_context_text
 from .operations import (
     OperationGateway, load_deferred_results_in_uow, register_wait_in_uow,
     resume_ready_waits_in_uow,
 )
 from .registration import start_run
-from .sdk import RuntimeFailure, run_turn
+from .sdk import RuntimeFailure, TurnOutput, run_turn
 from .tables import agent_histories, agent_model_requests, agent_runs, agent_sessions
 from .workspace_tools import WorkspaceCodeGateway
 from .workspace_edits import WorkspaceEditGateway
@@ -168,7 +169,18 @@ class AgentRuntimeApplication:
                 return checks.query(run_id, arguments)
 
             routes[name] = check_workspace
+        developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
+        loop = DevelopmentLoop(request.policy.max_no_progress_calls)
+        if developer:
+            for name, route in tuple(routes.items()):
+                async def observed_tool(arguments, tool_call_id, route=route, name=name):
+                    result = await route(arguments, tool_call_id)
+                    loop.observe(name, arguments, tool_call_id, result)
+                    return result
+
+                routes[name] = observed_tool
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
+        failure = None
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
                 api_key=self.provider.api_key(), prompt=prompt, message_history=history,
@@ -176,17 +188,20 @@ class AgentRuntimeApplication:
                 max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
                 record_response=RuntimeBilling(self.engine).record, gateway=gateway,
                 instructions=instructions,
+                developer=developer, stop_reason=loop.stop_reason if developer else None,
                 deferred_results=DeferredToolResults(calls=deferred_results) if deferred_results else None)
-        except RuntimeFailure as failure:
-            return self._finish(run_id, None, failure.code)
+        except RuntimeFailure as error:
+            failure = error.code
+            output = TurnOutput(error.messages, None, stop_reason=error.code)
         raw = ModelMessagesTypeAdapter.dump_json([*history, *output.messages])
         # Canonical local representation is the history content identity.
         raw = json.dumps(json.loads(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if len(raw) > 131072:
             return self._finish(run_id, None, "agent_history_limit")
-        return self._finish(run_id, raw, None, output.deferred)
+        handoff = loop.handoff(output.handoff, output.stop_reason)
+        return self._finish(run_id, raw, failure, output.deferred, handoff)
 
-    def _finish(self, run_id, history, failure, deferred=None):
+    def _finish(self, run_id, history, failure, deferred=None, handoff=None):
         with UnitOfWork(self.engine) as uow:
             stored = uow.connection.execute(select(agent_runs).where(
                 agent_runs.c.run_id == run_id)).mappings().one()
@@ -223,11 +238,29 @@ class AgentRuntimeApplication:
                 agent_model_requests.c.run_id == run_id).order_by(agent_model_requests.c.request_sequence)))
             reference = EngineeringRef(kind="history", object_id=session["session_id"], revision=str(session["version"] + 1),
                 digest=key, digest_algorithm="sha256")
+            if not current and handoff is not None:
+                handoff = {**handoff, "reason": "agent_result_requires_review"}
+            if current and handoff is not None:
+                try:
+                    with uow.connection.begin_nested():
+                        resolve_candidate_handoff_in_uow(uow, run, request, handoff)
+                except (TaskBoundaryError, IdentityError) as error:
+                    handoff = {**handoff, "reason": error.code, "candidate_operation_id": None}
+            delivery_refs = ()
+            if current and handoff is not None and handoff["reason"] == "agent_candidate_ready":
+                from .operations import _digest
+
+                delivery_refs = (EngineeringRef(kind="delivery", object_id=run_id,
+                    revision="agent-development-r1", authority="agent-runtime",
+                    digest=_digest(handoff), digest_algorithm="sha256"),)
+            paused = failure is not None or handoff is not None and handoff["reason"] not in {
+                "agent_candidate_ready", "agent_continue_required", "request_limit_reached",
+                "turn_limit_reached", "agent_request_limit", "agent_run_deadline_exceeded"}
             state = "failed" if failure else ("succeeded" if current else "interrupted")
             uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(
                 state=state))
             uow.connection.execute(update(agent_sessions).where(agent_sessions.c.session_id == session["session_id"]).values(
-                version=session["version"] + 1, state="idle" if current else "paused", history_key=key,
+                version=session["version"] + 1, state="idle" if current and not paused else "paused", history_key=key,
                 epoch_id=request.policy.epoch_id))
             waits = ()
             if current and deferred is not None:
@@ -240,12 +273,16 @@ class AgentRuntimeApplication:
                     uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(state=state))
                     uow.connection.execute(update(agent_sessions).where(
                         agent_sessions.c.session_id == session["session_id"]).values(state="paused"))
-            turn = TurnResult(run_id=run_id, outcome="waiting_condition" if waits else "continue_required",
-                history_delta=reference, request_records=ids, wait_condition_refs=waits,
+            turn = TurnResult(run_id=run_id, outcome="waiting_condition" if waits else
+                "submitted" if delivery_refs else "continue_required",
+                history_delta=reference, request_records=ids, wait_condition_refs=waits, delivery_refs=delivery_refs,
                 reason_code=failure or ("agent_operation_waiting" if waits else
+                    handoff["reason"] if current and handoff is not None else
                     "agent_turn_committed" if current else "agent_result_requires_review"))
             result = {"state": state, "turn": turn.model_dump(mode="json"),
                       "fenced_control_revision": task["control_revision"]}
+            if handoff is not None:
+                result["handoff"] = handoff
             uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(result_json=result))
             if current:
                 resume_ready_waits_in_uow(uow, self.client, session["session_id"])

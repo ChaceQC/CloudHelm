@@ -96,10 +96,11 @@ class RunPolicy(Contract):
     model_name: Identifier
     epoch_id: Identifier
     role: Literal["coordinator", "developer", "verifier", "reviewer", "operator"] = "developer"
-    instruction_revision: Literal["agent-r1"] = "agent-r1"
+    instruction_revision: Literal["agent-r1", "agent-r2"] = "agent-r2"
     secret_version_ref: EngineeringRef | None = None
     max_requests: int = Field(default=3, strict=True, ge=1, le=12)
     max_duration_seconds: int = Field(default=60, strict=True, ge=1, le=86400)
+    max_no_progress_calls: int = Field(default=2, strict=True, ge=2, le=16)
     max_output_tokens: int = Field(strict=True, ge=1, le=1000000)
     per_request_cost_upper_bound: Amount
 
@@ -107,6 +108,21 @@ class RunPolicy(Contract):
     def check_secret_reference(self):
         if self.secret_version_ref is not None:
             expect_kind(self.secret_version_ref, "secret_version")
+        return self
+
+
+class DevelopmentHandoff(Contract):
+    """Developer explanation; candidate readiness is checked against domain facts."""
+
+    reason: Literal["candidate_ready", "human_decision_required", "no_progress", "continue_required"]
+    summary: str = Field(min_length=1, max_length=2048)
+    next_action: str = Field(min_length=1, max_length=1024)
+    candidate_operation_id: Identifier | None = None
+
+    @model_validator(mode="after")
+    def check_candidate(self):
+        if (self.reason == "candidate_ready") != (self.candidate_operation_id is not None):
+            raise ValueError("agent_handoff_candidate_required")
         return self
 
 

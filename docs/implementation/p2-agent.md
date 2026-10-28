@@ -1,7 +1,7 @@
 # P2.1-A Agent 结构与工程循环实施映射
 
-> 修订：r8；日期：2026-10-29（Asia/Shanghai）。
-> 本说明维护 A01/A02 决定、A03 上下文、A04/A05 文件、A06 环境、A07 构建及 A08 自测/静态检查接线；A08 入口为 `dev / 762ead2`、交付源码 `0.22.0`。真实受管环境与完整角色循环按各自固定输入取证；A06 的旧归档资源前置仍保留，见 [A06 记录](../acceptance/p2/p2-1-a06.md)。
+> 修订：r9；日期：2026-10-29（Asia/Shanghai）。
+> 本说明维护 A01/A02 决定、A03 上下文、A04/A05 文件、A06 环境、A07 构建、A08 自测及 A09 有界开发循环接线；A09 入口为 `dev / b4f99cd`、交付源码 `0.23.0`。真实受管环境与完整角色循环按各自固定输入取证；A06 的旧归档资源前置仍保留，见 [A06 记录](../acceptance/p2/p2-1-a06.md)。
 
 规则归属为 [D01](../design/01-domain-collaboration.md) 的角色、Runtime、上下文与交接；权限、物理执行和正式验收分别沿用 D05、D02/D03。任务依赖与退出条件只在 [PROJECT_PLAN](../../PROJECT_PLAN.md) 维护，实际结果只在 [PROJECT_PROGRESS](../../PROJECT_PROGRESS.md) 维护。
 
@@ -10,7 +10,7 @@
 |现有源码|已具备的基础|本轮主线仍需补齐|
 |---|---|---|
 |[Runtime 契约](../../packages/contracts/p2/runtime.py)、[注册](../../modules/agent_runtime/registration.py)|绑定 ContextPackage、文件摘要/范围、RunPolicy 角色/指令、Session/Run 与输入；短事务入队|面向用户的启动入口及自动 Epoch 切换仍待后续|
-|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)|真实有界请求、合法历史和延迟工具交接；A03 上下文/五角色指令、A04/A05 文件、A06 环境、A07 构建及 A08 固定检查工具|完整实际循环仍待 A09～A11/P2.5/P3/P5|
+|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)、[开发交接](../../modules/agent_runtime/development.py)|真实有界请求、合法历史和延迟工具交接；A03～A08 工具及 A09 开发反馈、停止和固定候选交接|Task 入口与真实模型工程证据仍待 A10/A11；独立反馈、协作和运维按 P2.5/P3/P5|
 |[准入](../../modules/agent_runtime/admission.py)、[费用](../../modules/agent_runtime/billing.py)、[Gateway](../../modules/tool_gateway/gateway.py)|每次实际请求和工具的当前门禁、费用及白名单路由；A04/A05 工具限当前开发工作项|后续工程工具适配继续沿用相同边界|
 |[长操作](../../modules/agent_runtime/operations.py)|Workspace 物化/文件变更/候选、开发环境和构建的原操作查询、可靠等待及新 Run 续接|其他工程操作逐项适配，不将现有 `submit_operation` 宣称为通用执行工具|
 |[工作区](../../modules/workspaces/application.py)、[环境](../../modules/workspaces/development_application.py)、[worker](../../services/hub-worker/engineering_runtime.py)|A04/A05 文件链及 A06 原环境 prepare/control/query、同事务入队和回执等待；日志/固定检查沿登记环境只读执行|完整实际循环和后续独立反馈|
@@ -20,7 +20,7 @@
 
 ## 2. 角色策略与指令模板
 
-五类角色的职责、输入输出及结束条件以 D01 §4 为准。A03 的 RunPolicy 已增加 role（默认 developer）及 instruction_revision=agent-r1，绑定下列共同/角色模板 r1 与既有 `model_config_id/model_config_revision/model_name`、工具集合和预算，并经 SDK instructions 传入。当前不支持同一 Session 改变模型、角色/指令或工具包，须新建 Session；不自动复用不兼容历史。非开发角色拒绝 submit_operation 及当前可变工作区的读取/编辑/diff 工具；验证/审查的固定候选工具留给 P2.5，不因角色名称预置额外模型、工具或常驻会话。
+五类角色的职责、输入输出及结束条件以 D01 §4 为准。RunPolicy 的 role 默认 developer，instruction_revision 新默认 agent-r2；显式 agent-r1 保留下列原模板与文本输出。r2 开发模板补充工具顺序、失败修复和结构化交接，其他角色正文不变，均绑定既有 `model_config_id/model_config_revision/model_name`、工具集合和预算，经 SDK instructions 传入。当前不支持同一 Session 改变模型、角色/指令或工具包，须新建 Session；不自动复用不兼容历史。非开发角色拒绝 submit_operation 及当前可变工作区的读取/编辑/diff 工具；验证/审查的固定候选工具留给 P2.5，不因角色名称预置额外模型、工具或常驻会话。
 
 共同指令 `agent-common/r1`：
 
@@ -75,7 +75,7 @@ Gateway 是模型工具入场边界，外部参数在入口校验后以类型流
 
 ## 5. 有界开发循环与交接
 
-以下步骤描述 Agent 的工作方法，复用既有 WorkItem、Run outcome、Operation 和 WaitCondition，不增加循环状态枚举：
+A09 已把下列前四步及固定候选交接接入既有 SDK 工具循环，复用 WorkItem、Run outcome、Operation 和 WaitCondition，不增加循环状态枚举。r2 开发输出、无进展阈值、停止原因与实际候选回查见 [Runtime 使用说明](../development/p2-runtime.md#有界开发循环)；独立反馈和最终集成继续由后续工作包承接：
 
 1. **理解与定位**：读取当前需求、验收、规范及输入，按目录/搜索/相关代码定位调用关系；输入不齐或需要范围决定时提交具体问题并等待。
 2. **修改**：在获准工作区和当前写入代次内提交最小变更，读取真实差异；版本冲突先重读，人类接管期间不继续写入。
@@ -97,4 +97,4 @@ Gateway 是模型工具入场边界，外部参数在入口校验后以类型流
 
 A02 已形成 [复用决定](../decisions/p2/agent-reuse.md)：固定 OpenHands SDK `1.58.2 / d2ee0cdea60825608c2f8906eb54e1d4d264fb42`，仅参考工程循环、动作/观察和上下文分层；保留现有 PydanticAI、Gateway、DBOS 及领域执行链，不新增 SDK 依赖或第二套历史/恢复。三项接缝静态核对及未运行的兼容范围见决定，未把参考设计写成产品能力。
 
-上下文与指令装配已由 A03 交付，A04/A05 文件、A06 环境、A07 固定候选构建及 A08 固定开发检查工具已接通；A06 真实 notes 启动的资源前置仍待原归档对象核对，未放宽门禁。下一项拟安排 A09 有界循环，A10/A11 补齐 Task 入口与真实工程证据。验证/审查反馈、双开发协作及运维按 P2.5、P3、P5 的独立任务推进；本包定向方法和未验证边界见 [A08](../acceptance/p2/p2-1-a08.md)，不放行完整循环或人工验收。
+上下文与指令装配已由 A03 交付，A04/A05 文件、A06 环境、A07 固定候选构建、A08 固定开发检查和 A09 有界循环已接通；A06 真实 notes 启动的资源前置仍待原归档对象核对，未放宽门禁。下一项拟安排 A10，A10/A11 补齐 Task 入口与真实工程证据。验证/审查反馈、双开发协作及运维按 P2.5、P3、P5 的独立任务推进；本包定向方法和未验证边界见 [A09](../acceptance/p2/p2-1-a09.md)，不放行真实模型完整链路或人工验收。

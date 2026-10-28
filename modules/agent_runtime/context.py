@@ -43,6 +43,19 @@ ROLE_INSTRUCTIONS = {
     "operator": "Investigate from the actual running version and observations. Propose scoped actions; request "
                 "only currently authorized operations with required human approval. Transfer fixes to a linked Task.",
 }
+DEVELOPMENT_INSTRUCTIONS = (
+    "Read requirements, repository rules, source and contracts; locate callers before editing. "
+    "Make minimal changes and inspect workspace.diff. Prepare the declared environment, and after edits "
+    "resume it to refresh its binding before necessary workspace.check calls. Read the actual exit code, "
+    "failure location and logs; fix the concrete cause and rerun only affected checks. Submit a fixed "
+    "candidate before build.request, await required results, and use build.result for diagnostics. "
+    "Changes after failure require a new candidate and applicable checks. Return DevelopmentHandoff: "
+    "candidate_ready only with a registered workspace.submit_candidate operation and exact diff/check "
+    "references in the summary; human_decision_required with the specific question, object/version and "
+    "impact; no_progress for repeated feedback without new evidence; otherwise continue_required with "
+    "the next concrete action. Unknown operations must be reconciled under their original identity. "
+    "Never claim formal acceptance, human approval or Task completion from developer checks."
+)
 
 
 def safe_context_value(value):
@@ -113,6 +126,7 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
                    "model_name": request.policy.model_name, "epoch_id": request.policy.epoch_id,
                    "max_requests": request.policy.max_requests,
                    "max_duration_seconds": request.policy.max_duration_seconds,
+                   "max_no_progress_calls": request.policy.max_no_progress_calls,
                    "budget_limit": str(context.budget_limit), "budget_currency": context.budget_currency},
         "tools": [{"name": name, "arguments": (
             (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
@@ -135,5 +149,7 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
     prompt = json.dumps(payload, ensure_ascii=False)
     if len(prompt.encode("utf-8")) > 65536:
         raise TaskBoundaryError("agent_context_limit_exceeded")
-    instructions = COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/r1. " + ROLE_INSTRUCTIONS[request.policy.role]
+    developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
+    instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
+                    + ". " + (DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
     return request, payload, prompt, instructions
