@@ -63,4 +63,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-源码版本为 `0.13.0`，新库 head 为 `0013_p2_usage_waits`，线性承接 `0012_p2_agent_runtime`；DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+源码版本为 `0.14.0`，新库 head 为 `0014_p2_verification`，线性承接 `0013_p2_usage_waits`；DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

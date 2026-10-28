@@ -21,6 +21,9 @@ from packages.contracts.p1.workspace_requests import (
     WorkspaceCommandResult, WorkspaceView,
 )
 from packages.contracts.p2.candidates import FixCandidateCommandResult, FixCandidateRequest, FixedCandidateView
+from packages.contracts.p2.verification import (
+    AcceptVerificationRequest, DependencyImpactRequest, DependencyImpactResult, VerificationSelection, VerificationView,
+)
 from .auth import control_actor, get_runtime, normal_actor
 from .contracts import ApiErrorResponse
 from .errors import ApiRequestError
@@ -138,3 +141,20 @@ def fix_candidate(request: Request, task_id: Identifier, actor: NormalActor, ide
 @router.get("/tasks/{task_id}/candidates/{candidate_id}", response_model=FixedCandidateView)
 def fixed_candidate_status(request: Request, task_id: Identifier, candidate_id: Identifier, actor: ControlActor):
     return get_runtime(request).candidates.query(actor, task_id, candidate_id)
+
+
+@router.get("/tasks/{task_id}/verifications/{report_id}", response_model=VerificationView)
+def verification_status(request: Request, task_id: Identifier, report_id: Identifier, actor: ControlActor):
+    return get_runtime(request).verifications.query(actor, task_id, report_id)
+
+
+@router.post("/tasks/{task_id}/verification-selection", response_model=VerificationSelection)
+def accept_verification(request: Request, task_id: Identifier, actor: NormalActor, idempotency_key: IdempotencyKey,
+                        body: AcceptVerificationRequest = Depends(strict_body(AcceptVerificationRequest))):
+    return get_runtime(request).verifications.accept(actor, task_id, body, idempotency_key=idempotency_key)
+
+
+@router.post("/projects/{project_id}/verification-impacts", response_model=DependencyImpactResult)
+def invalidate_verification(request: Request, project_id: Identifier, actor: NormalActor, idempotency_key: IdempotencyKey,
+                            body: DependencyImpactRequest = Depends(strict_body(DependencyImpactRequest))):
+    return get_runtime(request).verification_impacts.invalidate(actor, project_id, body, idempotency_key=idempotency_key)

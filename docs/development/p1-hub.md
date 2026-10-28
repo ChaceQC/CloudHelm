@@ -38,7 +38,7 @@ $UV run --locked python -m database.manage status
 $UV run --locked python -m database.manage initialize
 ```
 
-初始化保存安装身份和原操作身份，执行业务线性迁移至 `0013_p2_usage_waits`（前驱 `0012_p2_agent_runtime`），再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.7.0`；有界内部 Agent 接入见 [Runtime 说明](p2-runtime.md)。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0012_p2_agent_runtime`、`0011_p1_archive_maintenance`、`0010_p1_archive_closeout`、`0009_p1_5_sync`、`0008_p1_4_remote`、`0007_p1_4_delivery`/`0.6.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。固定 `0008` 快照仅在获授权的独立维护副本中按[受限维护入口](p1-delivery.md#31-独立恢复副本的受限维护)定向升级到 0011，升级后仍拒绝普通运行。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)，Release/配置/计划与批准见[交付说明](p1-delivery.md)，Remote Agent 的默认门禁见[远端说明](p1-remote-agent.md)。
+初始化保存安装身份和原操作身份，执行业务线性迁移至 `0014_p2_verification`（前驱 `0013_p2_usage_waits`），再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.7.0`；有界内部 Agent 接入见 [Runtime 说明](p2-runtime.md)。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0012_p2_agent_runtime`、`0011_p1_archive_maintenance`、`0010_p1_archive_closeout`、`0009_p1_5_sync`、`0008_p1_4_remote`、`0007_p1_4_delivery`/`0.6.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。固定 `0008` 快照仅在获授权的独立维护副本中按[受限维护入口](p1-delivery.md#31-独立恢复副本的受限维护)定向升级到 0011，升级后仍拒绝普通运行。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)，Release/配置/计划与批准见[交付说明](p1-delivery.md)，Remote Agent 的默认门禁见[远端说明](p1-remote-agent.md)。
 
 成功回执中的 `dbos_schema_version` 仍可为 `null`：公开接口没有提供本轮可单独核验的精确数字版本。实际支持依据是固定 SDK、受控初始化来源及公开启动核验，不支持借此进行跨 SDK 升级、回退或旧备份自动恢复。
 

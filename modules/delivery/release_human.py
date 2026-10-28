@@ -5,7 +5,7 @@ from modules.collaboration.records import read_fact_source, read_registered_refe
 from packages.contracts.p1.task_facts import HumanPolicyMetadata
 
 
-def check_release_human(connection, task, declaration, candidate):
+def check_release_human(connection, task, declaration, candidate_ref):
     policy = read_registered_reference(connection, task["project_id"], declaration.human_test_policy_ref)
     if (not isinstance(policy.metadata, HumanPolicyMetadata)
             or read_fact_source(connection, task["project_id"], policy.source_id).purpose != "product"):
@@ -19,7 +19,7 @@ def check_release_human(connection, task, declaration, candidate):
     reader = FactReader(connection, task["project_id"], task["task_id"])
     inputs = read_completion_inputs(reader, task, declaration)
     human = read_human_fact(reader, inputs, declaration)
-    satisfied = (inputs.current and inputs.candidate.reference == candidate.reference and human.policy_current
+    satisfied = (inputs.current and inputs.candidate.reference == candidate_ref and human.policy_current
         and human.applicable_to_final_input and (human.conclusion == "passed"
             or human.conclusion == "skipped" and human.skip_allowed))
     if not satisfied:

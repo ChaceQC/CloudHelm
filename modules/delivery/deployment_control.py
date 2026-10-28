@@ -15,6 +15,7 @@ from modules.delivery.target_facts import fresh_target
 from modules.identity.actors import AuthenticatedActor, AuthoritativeResource, actor_for_command
 from modules.identity.authorization import authorize_current
 from modules.identity.tables import device_sessions
+from modules.integration.validity import require_release_verification
 from modules.sync.events import append_event
 from packages.contracts.p1.delivery_records import DeploymentApproval, DeploymentPreflight, DeploymentRegisteredEvent
 
@@ -36,6 +37,7 @@ def validate_preflight(context, plan_object):
     if now >= plan.start_before:
         raise TaskBoundaryError("deployment_plan_expired")
     release = read_object(connection, context.project_id, "release", plan.release_id)
+    require_release_verification(connection, context.project_id, release.value)
     configuration = read_object(connection, context.project_id, "configuration",
         plan.configuration.configuration.config_revision_id).value
     if (release.digest != plan.manifest_digest or release.value.variant_digest != plan.variant_digest

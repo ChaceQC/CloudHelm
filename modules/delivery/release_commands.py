@@ -4,12 +4,13 @@ from sqlalchemy import select
 
 from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.guards import read_task
-from modules.collaboration.records import read_fact_source, read_registered_reference, reference_key
-from modules.collaboration.tables import task_evidence_links, task_inputs
+from modules.collaboration.records import read_fact_source, read_registered_reference
+from modules.collaboration.tables import task_inputs
 from modules.delivery.deployment_store import write_object
 from modules.delivery.queries import build_view, read_build_intent
 from modules.delivery.compose import bind_environment_config
 from modules.delivery.release_recipe import archive_runtime, delivery_digest, runtime_verification_digest, variant_digest
+from modules.integration.validity import require_verification_evidence
 from packages.contracts.p1.delivery_records import ReleaseManifest
 from packages.contracts.p1.task_facts import AcceptanceMetadata, EvidenceMetadata
 
@@ -22,16 +23,15 @@ def _verification(connection, row, record, references, runtime_digest):
     )).mappings().one_or_none()
     if (task["input_status"] != "valid" or task["cancel_requested_at"] is not None
             or current is None or current["input_set_key"] != row["input_set_key"]
-            or task["input_validity_revision"] != record.input_validity_revision
-            or task["control_revision"] != record.control_revision):
+            or task["input_validity_revision"] != record.input_validity_revision):
         raise TaskBoundaryError("release_build_input_not_current")
     acceptance_ref = record.fixed_inputs.definition.acceptance_assets_ref
     acceptance = read_registered_reference(connection, record.project_id, acceptance_ref)
     if (not isinstance(acceptance.metadata, AcceptanceMetadata)
             or read_fact_source(connection, record.project_id, acceptance.source_id).purpose != "product"):
         raise TaskBoundaryError("release_acceptance_assets_invalid")
-    candidate = None
-    covered, runtime_verified = set(), False
+    verified, evidence = [], []
+    expected, covered = set(acceptance.metadata.required_check_ids), set()
     if len({ref.model_dump_json() for ref in references}) != len(references):
         raise TaskBoundaryError("release_duplicate_evidence", status_code=422)
     for ref in references:
@@ -39,37 +39,36 @@ def _verification(connection, row, record, references, runtime_digest):
         if read_fact_source(connection, record.project_id, registered.source_id).purpose != "product":
             raise TaskBoundaryError("release_product_evidence_required")
         data = registered.metadata
-        if isinstance(data, EvidenceMetadata):
-            subject = read_registered_reference(connection, record.project_id, data.evidence.subject_ref)
-            if (subject.metadata.record_kind != "candidate"
-                    or subject.metadata.source_ref.revision != record.fixed_inputs.candidate.candidate_commit
-                    or subject.metadata.input_set_ref != record.fixed_inputs.source_input_set_ref
-                    or (candidate is not None and candidate.reference != subject.reference)
-                    or (current["candidate_key"] is not None and current["candidate_key"] != reference_key(record.project_id, subject.reference))):
-                raise TaskBoundaryError("release_candidate_source_mismatch")
-            candidate = subject
-        link = connection.execute(select(task_evidence_links).where(
-            task_evidence_links.c.task_id == record.task_id,
-            task_evidence_links.c.evidence_key == reference_key(record.project_id, ref),
-            task_evidence_links.c.input_validity_revision == record.input_validity_revision,
-        )).mappings().one_or_none()
         if (not isinstance(data, EvidenceMetadata) or data.role != "verification"
-                or data.acceptance_assets_ref != acceptance_ref or data.evidence.result != "passed"
-                or data.evidence.input_set_ref != record.fixed_inputs.source_input_set_ref
-                or link is None or link["applicability"] != "valid" or link["input_set_key"] != row["input_set_key"]):
+                or data.acceptance_assets_ref != acceptance_ref or data.evidence.result != "passed"):
             raise TaskBoundaryError("release_evidence_not_applicable")
-        if data.evidence.subject_ref != candidate.reference:
-            raise TaskBoundaryError("release_evidence_subject_mismatch")
-        covered.update(data.check_ids)
+        evidence.append(data)
+        if expected.intersection(data.check_ids):
+            view = require_verification_evidence(connection, task, ref, data, build_operation_id=record.operation_id)
+            verified.append(view.report)
+            covered.update(view.report.passed_check_ids)
+    if not verified or not expected <= covered:
+        raise TaskBoundaryError("release_verification_incomplete")
+    basis = verified[0].evidence
+    runtime_verified = False
+    for data in evidence:
+        environment = read_registered_reference(connection, record.project_id, data.evidence.environment_ref)
+        method = read_registered_reference(connection, record.project_id, data.evidence.method_ref)
+        if (data.evidence.subject_ref != basis.subject_ref or data.evidence.input_set_ref != basis.input_set_ref
+                or data.evidence.environment_ref != basis.environment_ref
+                or not set(data.evidence.support_scope) <= set(environment.metadata.support_scope)
+                or any(read_fact_source(connection, record.project_id, item.source_id).purpose != "product"
+                       for item in (environment, method))):
+            raise TaskBoundaryError("release_evidence_not_applicable")
         runtime_verified |= data.fact_digest == runtime_digest and "artifact_runtime" in data.check_ids
-    if not set(acceptance.metadata.required_check_ids) <= covered or not runtime_verified:
+    if not runtime_verified:
         raise TaskBoundaryError("release_verification_incomplete")
     # Optional human testing remains owned by the Task policy and its registered facts.
     from modules.collaboration.facts import read_declaration
     declaration = read_declaration(connection, task)
     from modules.delivery.release_human import check_release_human
 
-    check_release_human(connection, task, declaration, candidate)
+    check_release_human(connection, task, declaration, basis.subject_ref)
 
 
 def create_release(context, request):

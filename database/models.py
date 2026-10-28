@@ -15,6 +15,7 @@ TABLE_MODULES = (
     "modules.delivery.remote_tables",
     "modules.agent_runtime.tables",
     "modules.agent_runtime.billing_tables", "modules.agent_runtime.operation_tables",
+    "modules.integration.tables",
 )
 
 

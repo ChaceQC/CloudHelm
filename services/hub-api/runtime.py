@@ -12,6 +12,8 @@ from database.uow import UnitOfWork
 from modules.projects.commands import ProjectApplication
 from modules.execution.application import ResourceApplication
 from modules.integration.candidates import FixedCandidateApplication
+from modules.integration.verification import VerificationApplication
+from modules.integration.validity import VerificationImpactApplication
 from modules.delivery.deployment_application import DeliveryApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
 
@@ -43,6 +45,8 @@ class ApiRuntime:
     resources: ResourceApplication
     delivery: DeliveryApplication
     candidates: FixedCandidateApplication
+    verifications: VerificationApplication
+    verification_impacts: VerificationImpactApplication
     sync_epoch: str = field(default_factory=lambda: uuid4().hex)
 
     def close(self) -> None:
@@ -111,6 +115,8 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
             delivery=DeliveryApplication(pools.normal, pools.control,
                 enqueue_deployment=engineering_enqueuer(client, "deployment")),
             candidates=FixedCandidateApplication(pools.normal, pools.control),
+            verifications=VerificationApplication(pools.normal, pools.control, Path(__file__).resolve().parents[2]),
+            verification_impacts=VerificationImpactApplication(pools.normal),
         )
     except Exception:
         try:

@@ -5,12 +5,13 @@ from sqlalchemy import select
 from modules.collaboration.errors import TaskBoundaryError
 from modules.delivery.closeout_application import require_open_operation
 from modules.delivery.deployment_control import begin_deployment, check_approval_current
-from modules.delivery.deployment_store import lock_binding
+from modules.delivery.deployment_store import lock_binding, read_object
 from modules.delivery.release_recipe import delivery_digest
 from modules.delivery.remote_store import approved_operation, save_projection, step_results
 from modules.delivery.remote_capacity import reserve_target_capacity
 from modules.delivery.remote_tables import remote_grants, remote_samples
 from modules.delivery.target_facts import fresh_target
+from modules.integration.validity import require_release_verification
 from packages.contracts.p0.permit_contracts import PermitBinding, StepPermit
 from packages.contracts.p1.remote_delivery import RemotePermit, RemoteTimeSample
 
@@ -76,6 +77,8 @@ def issue_permit(uow, credential, request, clock):
             return RemotePermit.model_validate(old["value_json"]["permit"])
         if old["id"] not in request.closed_unstarted_grants:
             raise TaskBoundaryError("remote_old_start_path_not_closed")
+    release = read_object(uow.connection, context.project_id, "release", plan.value.release_id)
+    require_release_verification(uow.connection, context.project_id, release.value)
     revision = begin_deployment(context, plan.object_id, plan.digest)
     if row["active_operation_id"] not in (None, request.operation_id):
         raise TaskBoundaryError("remote_environment_execution_conflict")

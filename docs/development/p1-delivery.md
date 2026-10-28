@@ -1,8 +1,10 @@
 # 归档 Release、环境配置与部署计划
 
-当前源码为 `0.10.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
-`0011_p1_archive_maintenance`（前驱 `0010_p1_archive_closeout`）。使用 [Hub 开发入口](p1-hub.md)
+当前源码为 `0.14.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
+`0014_p2_verification`（前驱 `0013_p2_usage_waits`）。使用 [Hub 开发入口](p1-hub.md)
 准备 WSL 锁定环境和独立数据库角色；`initialize` 不升级旧安装。
+
+正式验收报告及其当前适用性按 [P2.2-02](p2-verification.md) 检查。历史报告和旧 Release 不自动获得当前门禁通过；HTTP 验收不能替代制品运行验证。
 
 ## 1. 当前支持范围
 

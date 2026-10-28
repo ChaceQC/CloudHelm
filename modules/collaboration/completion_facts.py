@@ -9,20 +9,31 @@ from sqlalchemy import select
 from modules.collaboration.fact_reads import FactReader, bounded_rows
 from modules.collaboration.tables import task_evidence_links, task_inputs, work_items
 from packages.contracts.p0.engineering_contracts import EngineeringRef
-from packages.contracts.p1.task_facts import EvidenceMetadata, RegisteredReference
+from packages.contracts.p1.task_facts import (
+    CandidateMetadata, EvidenceMetadata, InputSetMetadata, RegisteredReference, SourceMetadata,
+)
 from packages.contracts.p1.task_requests import TaskDeclaration
+from packages.contracts.p2.verification import VerificationView
+
+
+@dataclass(frozen=True)
+class VerificationReference:
+    """Read-only metadata projection of the exact integration-owned report facts."""
+    reference: EngineeringRef
+    metadata: InputSetMetadata | SourceMetadata | CandidateMetadata
 
 
 @dataclass(frozen=True)
 class CompletionInputs:
     row: Mapping[str, Any] | None
-    input_set: RegisteredReference | None
-    source: RegisteredReference | None
-    candidate: RegisteredReference | None
+    input_set: RegisteredReference | VerificationReference | None
+    source: RegisteredReference | VerificationReference | None
+    candidate: RegisteredReference | VerificationReference | None
     requirement: RegisteredReference | None
     acceptance: RegisteredReference | None
     policy: RegisteredReference | None
     current: bool
+    verification: VerificationView | None = None
 
 
 @dataclass(frozen=True)
@@ -44,6 +55,25 @@ def read_completion_inputs(
         task_inputs.c.task_id == task["task_id"],
         task_inputs.c.input_validity_revision == task["input_validity_revision"],
     )).mappings().one_or_none()
+    from modules.integration.validity import selected_verification
+    from modules.collaboration.records import reference_key
+
+    selected = selected_verification(reader.connection, task)
+    if selected is not None:
+        report = selected.report
+        inputs = VerificationReference(report.evidence.input_set_ref, InputSetMetadata(input_set=report.input_set))
+        source = VerificationReference(report.source_ref, SourceMetadata(commit=report.source_ref.revision))
+        candidate = VerificationReference(report.evidence.subject_ref,
+            CandidateMetadata(source_ref=source.reference, input_set_ref=inputs.reference))
+        refs = report.input_set.references
+        current = bool(selected.usable and row is not None and all(
+            item is not None and item.reference in refs for item in (requirement, acceptance, policy, resources)))
+        if not current:
+            reader.block("input_not_current")
+        projected = dict(row or {}, input_set_key=reference_key(reader.project_id, inputs.reference),
+                         source_key=reference_key(reader.project_id, source.reference),
+                         candidate_key=reference_key(reader.project_id, candidate.reference))
+        return CompletionInputs(projected, inputs, source, candidate, requirement, acceptance, policy, current, selected)
     input_set = reader.read(row["input_set_key"] if row else None, "input_set", missing_code="final_input_missing")
     source = reader.read(row["source_key"] if row else None, "source", missing_code="final_source_missing")
     candidate = reader.read(row["candidate_key"] if row else None, "candidate", missing_code="final_candidate_missing")
@@ -65,12 +95,24 @@ def read_completion_inputs(
 
 
 def _applicable_evidence(reader: FactReader, task: Mapping[str, Any], inputs: CompletionInputs):
+    from modules.integration.validity import require_verification_evidence
+    from modules.collaboration.errors import TaskBoundaryError
+    from modules.collaboration.records import reference_key
+
+    selected = inputs.verification
     links = bounded_rows(reader.connection, select(task_evidence_links).where(
         task_evidence_links.c.task_id == task["task_id"],
         task_evidence_links.c.input_validity_revision == task["input_validity_revision"],
     ), "evidence_projection_scope_too_large")
     records, current = {}, True
+    if selected is not None:
+        proof = reader.read(selected.evidence_ref, "evidence")
+        current = selected.usable and proof is not None
+        if current:
+            records[reference_key(reader.project_id, proof.reference)] = proof
     for link in links:
+        if selected is not None and link["input_set_key"] != reference_key(reader.project_id, selected.report.evidence.input_set_ref):
+            continue
         record = reader.read(link["evidence_key"], "evidence")
         data = record.metadata if record is not None else None
         if (not isinstance(data, EvidenceMetadata) or data.role not in {"verification", "work_item_acceptance"}
@@ -88,6 +130,11 @@ def _applicable_evidence(reader: FactReader, task: Mapping[str, Any], inputs: Co
         valid = bool(valid and method and environment and data.evidence.method_ref in refs
                      and data.evidence.environment_ref in refs
                      and set(data.evidence.support_scope).issubset(environment.metadata.support_scope))
+        if valid and data.role == "verification":
+            try:
+                require_verification_evidence(reader.connection, task, record.reference, data)
+            except TaskBoundaryError:
+                valid = False
         if not valid:
             current = False
         else:
