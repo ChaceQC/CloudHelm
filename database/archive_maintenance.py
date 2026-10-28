@@ -22,7 +22,7 @@ from database.maintenance import MaintenanceError, maintenance_lock
 from database.metadata import BUSINESS_SCHEMA
 from database.readiness import DatabaseNotReady, require_maintenance_role
 from database.settings import DatabaseSettings
-from database.tables import BUSINESS_REVISION, POSTGRESQL_VERSION_NUM, runtime_baseline
+from database.tables import POSTGRESQL_VERSION_NUM, runtime_baseline
 from modules.collaboration.errors import TaskBoundaryError
 from modules.delivery.deployment_store import read_object
 from modules.delivery.deployment_tables import environment_bindings, environment_revisions
@@ -31,6 +31,7 @@ from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION, DBOS
 from packages.contracts.p1.delivery_records import EnvironmentBinding
 
 SOURCE_REVISION = "0008_p1_4_remote"
+BUSINESS_REVISION = "0011_p1_archive_maintenance"
 SOURCE_SCHEMA = "p1-archive-maintenance-source-r1"
 PENDING_SCHEMA = "p1-archive-maintenance-pending-r1"
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}")

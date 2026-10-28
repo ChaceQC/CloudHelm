@@ -13,6 +13,7 @@ TABLE_MODULES = (
     "modules.workspaces.development_tables", "modules.delivery.tables", "modules.execution.tables",
     "modules.delivery.deployment_tables",
     "modules.delivery.remote_tables",
+    "modules.agent_runtime.tables",
 )
 
 

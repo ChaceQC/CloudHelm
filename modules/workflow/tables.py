@@ -27,7 +27,7 @@ workflow_bindings = Table(
         "business_kind", "business_id", "process_type", "advance_revision",
         name="uq_workflow_bindings_business_advance",
     ),
-    CheckConstraint("business_kind IN ('task', 'project', 'workspace', 'build', 'deployment')", name="p1_business_kind"),
+    CheckConstraint("business_kind IN ('task', 'project', 'workspace', 'build', 'deployment', 'agent_run')", name="p1_business_kind"),
     CheckConstraint(
         "advance_revision >= 0 AND advance_revision <= 9007199254740991",
         name="advance_revision",

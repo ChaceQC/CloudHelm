@@ -1,6 +1,6 @@
 # Hub 单 worker 入口
 
-当前入口用于本机 WSL/Linux 受控运行账户的单进程开发验证。它加载 Task 初始/控制流程，以及 `projects.source_import.v1`、`workspaces.operation.v1`、`delivery.build.v1` 三个工程流程。物理执行由受控注册、当前业务门禁及真实存储准入约束；缺少注册时不开放相应执行。它不提供原始 DBOS 管理 API、数据库升级或备份恢复入口。
+当前入口用于本机 WSL/Linux 受控运行账户的单进程开发验证。它加载 Task 初始/控制流程、源码/工作区/构建/开发环境/部署领域流程及 `agent_runtime.advance.v1` 有界模型推进。Agent 的内部启动、模型配置和限制见[Runtime 说明](../../docs/development/p2-runtime.md)。物理执行由受控注册、当前业务门禁及真实存储准入约束；缺少注册时不开放相应执行。它不提供原始 DBOS 管理 API、数据库升级或备份恢复入口。
 
 在仓库根目录、已完成受控初始化的环境中运行：
 
@@ -10,9 +10,9 @@ uv run --locked --offline --no-sync python -B -m services.hub-worker
 
 使用 `CLOUDHELM_WORKER_DATABASE_URL_FILE` 指向权限受限的 UTF-8 连接配置；也支持受保护的 `CLOUDHELM_WORKER_DATABASE_URL` 环境变量，两者只能配置一个。不要把凭据或连接串加入命令参数、日志和诊断附件。继承的 `DBOS_*` 配置不属于本地运行协议，会在读取其值前拒绝。
 
-启动依次核对维护基线与 worker 角色、取得安装身份对应的进程锁、构造唯一 DBOS 应用、注册领域工作流、设置监听队列、`DBOS.launch()`，最后注册并发限制。`run_migrations=False`；序列化使用公开 `DBOSPortableJSONSerializer`，Task workflow 实参只有 `command_id`，工程 workflow 只有 `operation_id`。领域工作流在所属模块注册，工作文件、源码 bytes、密钥与制品归档不进入 DBOS 参数。
+启动依次核对维护基线与 worker 角色、取得安装身份对应的进程锁、构造唯一 DBOS 应用、注册领域工作流、设置监听队列、`DBOS.launch()`，最后注册并发限制。`run_migrations=False`；序列化使用公开 `DBOSPortableJSONSerializer`，Task workflow 实参只有 `command_id`，工程 workflow 只有 `operation_id`，Agent workflow 只有 `run_id`。领域工作流在所属模块注册，工作文件、源码 bytes、密钥与制品归档不进入 DBOS 参数。
 
-普通业务池为 2、控制池为 1、DBOS 池为 4、池外 LISTEN 连接为 1，均无 overflow。`orchestration`、`control` 和 `engineering` 各自 worker/global 并发为 1，SDK executor 线程上限为 4。队列并发不替代物理准入。API 使用自己的 DBOSClient，不导入此入口，不增加 worker。
+普通业务池为 2、控制池为 1、DBOS 池为 4、池外 LISTEN 连接为 1，均无 overflow。`orchestration`、`control`、`engineering` 和 `models` 各自 worker/global 并发为 1，SDK executor 线程上限为 4。模型队列不新增第二个 worker，也不构成物理或容量准入证据。API 使用自己的 DBOSClient，不导入此入口，不增加 worker。
 
 工程注册使用 `CLOUDHELM_ENGINEERING_REGISTRY_FILE`，配置格式、固定参照与种子前置、同一挂载命名空间和开发存储维护边界见[工程开发说明](../../docs/development/p1-engineering.md)。每次新副作用重新读取当前权限、Task 控制/输入及原操作身份；恢复先查询原物理结果，未知结果保留阻断。
 

@@ -18,7 +18,7 @@ from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION, DBOS
 
 from .process_lock import acquire_worker_process_lock
 
-WORKER_QUEUES = tuple(sorted(set(WORKFLOW_QUEUES.values())))
+WORKER_QUEUES = tuple(sorted({*WORKFLOW_QUEUES.values(), "models"}))
 MAX_EXECUTOR_THREADS = 4
 
 
@@ -37,13 +37,14 @@ def _local_environment() -> None:
         raise WorkerRuntimeError("external_dbos_environment_not_supported")
 
 
-def _start_dbos(application, engine, installation_id: str, engineering) -> None:
+def _start_dbos(application, engine, installation_id: str, engineering, agent_runtime) -> None:
     from modules.collaboration.workflows import register_task_workflows
     from modules.delivery.workflows import register_build_workflows
     from modules.delivery.deployment_workflows import register_deployment_workflows
     from modules.projects.workflows import register_source_workflows
     from modules.workspaces.workflows import register_workspace_workflows
     from modules.workspaces.development_workflows import register_development_environment_workflows
+    from modules.agent_runtime.workflows import register_agent_workflows
 
     DBOS(config=DBOSConfig(
         name=APPLICATION_NAME, application_version=APPLICATION_VERSION,
@@ -60,6 +61,7 @@ def _start_dbos(application, engine, installation_id: str, engineering) -> None:
     register_build_workflows(engineering.build)
     register_deployment_workflows(application.control_engine)
     register_development_environment_workflows(engineering.development_environment)
+    register_agent_workflows(agent_runtime)
     DBOS.listen_queues(WORKER_QUEUES)
     DBOS.launch()
     for queue in WORKER_QUEUES:
@@ -101,8 +103,11 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
         system_engine = create_engine_from_settings(settings, purpose="dbos")
         application = TaskApplication(pools.normal, pools.control, client)
         engineering = create_engineering_runtime(pools)
+        from modules.agent_runtime.application import AgentRuntimeApplication
+        from modules.agent_runtime.provider import configured_provider
+        agent_runtime = AgentRuntimeApplication(pools.normal, client, configured_provider())
         dbos_attempted = True
-        _start_dbos(application, system_engine, baseline.installation_id, engineering)
+        _start_dbos(application, system_engine, baseline.installation_id, engineering, agent_runtime)
         if not stop.is_set():
             emit_status("ready", installation_id=baseline.installation_id,
                         application_name=APPLICATION_NAME, application_version=APPLICATION_VERSION,

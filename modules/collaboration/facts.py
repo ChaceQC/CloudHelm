@@ -6,7 +6,7 @@ from datetime import UTC
 from typing import Any
 
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.engine import Connection
 
 from modules.collaboration.completion_facts import read_acceptance_facts, read_completion_inputs
@@ -132,9 +132,17 @@ def _run_history(reader: FactReader, task: Mapping[str, Any]) -> tuple[bool, boo
                 or run["fenced_control_revision"] is None
                 or run["fenced_control_revision"] < task["control_revision"]):
             fenced = False
-    # No model calls exist in P1.1. A later runtime link without its fee-domain
-    # projection leaves usage unknown; this is never an amount or a zero charge.
-    return fenced, bool(runs)
+    from modules.agent_runtime.tables import agent_model_requests, agent_runs, agent_sessions
+    scope = agent_runs.join(agent_sessions)
+    unsafe = reader.connection.scalar(select(exists(select(1).select_from(scope).where(
+        agent_sessions.c.task_id == task["task_id"],
+        (agent_runs.c.result_json.is_(None) | agent_runs.c.state.in_(("queued", "running")))))))
+    usage_unknown = reader.connection.scalar(select(exists(select(1).select_from(
+        agent_model_requests.join(agent_runs).join(agent_sessions)).where(
+        agent_sessions.c.task_id == task["task_id"], agent_model_requests.c.state == "unknown"))))
+    # Legacy links still lack a fee-domain projection. New requests retain their
+    # real unknown reservations until P2.1-02 provides usage reconciliation.
+    return fenced and not unsafe, bool(runs) or usage_unknown
 
 
 def _read_task_operation_projection(

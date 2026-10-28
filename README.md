@@ -4,12 +4,13 @@
 
 ## 当前基线
 
-**Hub 开发源码 `0.7.1` · 数据库迁移 `0008` · 尚无正式发布、tag 或 GitHub Release**
+**Hub 开发源码 `0.11.0` · 数据库迁移 `0012` · 尚无正式发布、tag 或 GitHub Release**
 
 仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、历史接缝记录和全栈参照项目**，已具备的能力为：
 
 - 受控数据库初始化、用户/项目与角色管理、Task 命令和唯一完成报告；
 - 独立运行的 API 与单 worker 进程；
+- 真实 PydanticAI 的有界内部 Run、受限上下文及逐次模型/工具准入，见[Runtime 说明](docs/development/p2-runtime.md)；
 - 固定参照的 Git 工作区、候选、离线构建和制品记录；
 - 共享宿主资源预留、Runner 注册、本地持久确认、受限 scratch 及固定工程资源组；
 - 受管构建/开发环境、进程与磁盘分维释放，以及 backing 持续占账；
@@ -26,6 +27,7 @@ Task 推进受当前授权和证据门禁约束，具体阻断见 [Hub 开发说
 |用途|说明|
 |---|---|
 |[Hub 开发与维护](./docs/development/p1-hub.md)|在 WSL 安装锁定依赖、配置独立数据库角色、初始化用户/项目并启动 API 与单 worker|
+|[有界 Agent Runtime](./docs/development/p2-runtime.md)|内部启动、模型能力和凭据配置、逐次准入与支持边界|
 |[Windows 工程工作台](./apps/desktop/README.md)|构建/启动真实基础 Desktop，连接 Hub，提交任务、批准计划、查询及取消|
 |[Git、工作区与受限构建](./docs/development/p1-engineering.md)|工程入口、已实现能力和限制|
 |[共享宿主资源与 Runner](./docs/development/p1-resources.md)|池注册、资源申请、受控执行和未知结果核对|
