@@ -1,6 +1,6 @@
 # 有界 Agent Runtime
 
-实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。本入口覆盖 P2.1-01/02 的内部 Runtime、逐请求费用和 Workspace 物化的长工具等待，未提供 Desktop Agent 启动界面。
+实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。本入口覆盖内部 Runtime、工程工具、有界开发循环及 A10 的既有 Task 页面入口。真实模型自主工程证据由 A11 取得。
 
 源码 `0.15.0` 在新 Run、实际请求/工具及结果提交边界读取[工作区写入权](p2-handoffs.md)。接管期间本工作项停止新推进；交还后须先复核输入，后续 Run 收到固定人工修改及差异引用，旧 Run 不恢复普通写入资格。
 
@@ -13,6 +13,24 @@
 `RuntimeStartRequest` 包含既有 `RuntimeInput`、受限 `ContextPackage` 与 `RunPolicy`。Context 只含当前 InputSet、工作项修订、需求/验收/源码等引用、选定文件摘要/行范围、工具和权限/预算快照；上下文引用的摘要必须与实际内容一致。初次历史引用以 Session ID 为 `object_id`，`revision` 为 `0`，内容摘要为 UTF-8 `[]` 的 SHA-256。后续使用返回的完整历史引用与新 Session 版本。
 
 启动在一个短事务内写 Session、Run、WorkflowBinding 并使用公开 `enqueue_in_transaction` 入队；相同 Run/正文返回原身份，异正文拒绝。同一 Session 同时最多一个 queued/running Run。worker 的 `models` 队列并发为 1，仍保留原控制队列；这是当前软件限制，不是容量验收结论。
+
+### Task 页面与 HTTP 入口
+
+在既有 Task 页先启动 Task，再选择工作项、填写单次请求预留上限和有界请求/时间/输出限制，点击“启动 Agent Run”。当前模型固定 `default-responses / 1 / gpt-6-luna`，只支持 USD Task。开发推进需要当前 `task.command` 和工作区写入权限；项目 owner 默认不含 `workspace.write`，须由项目管理入口明确授予开发动作。工具仍分别执行 `workspace.write`、`candidate.submit`、`operation.query` 等当前授权，不因页面可启动而获得全部工具权限。
+
+|接口|行为|
+|---|---|
+|`POST /api/tasks/{task_id}/agent-runs`|`Idempotency-Key`、Task 三版本、`work_item_id`；新 Session 明确提供 `per_request_cost_upper_bound`，请求/时间/输出默认 3/60 秒/4096。服务端装配真实当前 InputSet、需求/验收/源码、开发角色/工具和预算快照，不接受客户端自报权限、内部 Context 或成功事实|
+|`GET /api/tasks/{task_id}/agent`|独立控制池按当前 `resource.read`、`operation.query` 返回 Session/Run、真实结果和交接、工具返回、模型请求金额及等待。未知金额为 null；不返回 prompt、模型请求体、工具调用参数或完整历史|
+|`GET /api/tasks/{task_id}/agent-diff/{work_item_id}`|按明确 Task/工作项读取其工作区相对物化基线的当前差异；读取前后复核授权与 binding。不是固定候选或验收证据|
+
+初次启动复用工作区创建服务，把缺失工作区绑定到所选现有工作项，不新增第二个工作项；`pending` 或仅因 `capability_not_enabled` 阻塞的初始项在当前命令中进入 running。来源仍须是受控真实工程输入；不把协议夹具升级成产品来源。命令回执、工作项/工作区、Session/Run、WorkflowBinding 与 DBOS 入队同事务提交，失败一起回滚。202 仅表示接受；API 不读取模型密钥或启动模型执行器，worker 配置缺失仍是实际失败。
+
+“按原策略继续”提交原 `session_id` 和 `expected_session_version`，沿已提交历史创建新 Run，不接受同时改写原策略。已有活动 Run、原长工具等待、旧工作项归属、输入/控制版本冲突及 Task 关闭继续由服务端拒绝；长工具沿原等待自动续接，不以手动继续跳过。新 Session 也不能越过同工作项的在途 Run/等待。取消与核对复用原 Task 命令；界面不新增独立暂停或强行重放按钮。
+
+状态按钮显式读取当前持久事实，现有项目快照变化也刷新 Agent 投影；没有独立轮询器。结果最多最新 8 Session、每 Session 8 Run、每 Run 16 条工具反馈，单字符串最多 4096 字符，Run 投影合计最多 512KiB；截断明确标记。差异最多 16 文件、单文件 8KiB、合计 32KiB，敏感路径不展示，识别到秘密的补丁整体显示 `[REDACTED]`。这些限制沿用规则式筛选，不扩大对未知秘密格式的支持结论。
+
+API 进程读取当前差异时需与 worker 使用同一受保护的 `CLOUDHELM_ENGINEERING_REGISTRY_FILE` 和受管存储；只通过原 `EngineeringRegistry.admit(0)` 与文件服务读取，未配置/未物化/不可用时显示真实原因，不读取任意宿主路径或启动执行器。新隔离库 `0017_p2_agent_entry` 只增加 API 的 Session/Run INSERT 及 Session state UPDATE，模型请求、历史与结果仍由 worker 写入。旧安装不由 initialize 自动升级；维护副本仍固定 0011，不能为使用新入口绕过恢复门禁。
 
 ## 能力与每次准入
 
@@ -157,7 +175,7 @@ A09 复用同一个 PydanticAI `Agent.run` 和现有 Gateway 路由推进开发�
 
 请求/时间/用量到限时保存已实际捕获的 SDK 新消息；未知错误同样携带已有消息归档，不伪造完整模型响应或 tool return。沿用历史 128KiB、Run 结果 16KiB 等现有上限；超限仍明确失败，不提供无界归档或自动压缩。旧 `agent-r1` 保持原文本输出，停止时同样记录原因；原 Run 缺新增字段且原请求也未显式传入时按原字段形状核对摘要，同参返回原身份，异正文拒绝。既有 Session 不能切换 r1/r2，须新建 Session。
 
-内部使用方法仍为本页 `AgentRuntimeApplication.start`，当前 Task 界面未接入 A09；方法及夹具边界见 [A09 记录](../acceptance/p2/p2-1-a09.md)。真实模型工程循环由 A11 取证。
+内部方法保留 `AgentRuntimeApplication.start`，A10 从既有 Task 页面经同事务注册接入 A09；定向方法与边界分别见 [A09 记录](../acceptance/p2/p2-1-a09.md)及 [A10 记录](../acceptance/p2/p2-1-a10.md)。真实模型工程循环由 A11 取证。
 
 ## 请求结果与费用核对
 
@@ -195,4 +213,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-当前源码版本为 `0.23.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.24.0`，新库 head 为 `0017_p2_agent_entry`，线性承接 `0016_p2_merge_queue`。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

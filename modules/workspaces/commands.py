@@ -112,21 +112,22 @@ def _belongs_to_workspace(connection, operation_id, workspace_id):
     return intent.result.workspace_id == workspace_id
 
 
-def _create(context, request, registration):
+def _create(context, request, registration, *, work_item=None):
     task, command = context.task, context.envelope
     source = registration.source_record.source
     binding = WorkspaceBinding(
         workspace_id="workspace-" + command.command_id, project_id=task["project_id"], task_id=task["task_id"],
-        work_item_id="work-item-" + command.command_id,
+        work_item_id=work_item["work_item_id"] if work_item is not None else "work-item-" + command.command_id,
         owner_user_id=context.actor.principal.delegator_id or context.actor.principal.subject_id,
         source_id=source.source_id, source_revision=source.source_revision,
         base_commit=registration.source_ref.revision, workspace_revision=1, write_generation=1,
     )
     goal = request.goal or read_declaration(context.uow.connection, task).goal
-    context.uow.connection.execute(insert(work_items).values(
-        work_item_id=binding.work_item_id, task_id=task["task_id"], declaration_id=task["declaration_id"],
-        revision=1, state="ready", required=True, goal=goal,
-    ))
+    if work_item is None:
+        context.uow.connection.execute(insert(work_items).values(
+            work_item_id=binding.work_item_id, task_id=task["task_id"], declaration_id=task["declaration_id"],
+            revision=1, state="ready", required=True, goal=goal,
+        ))
     context.uow.connection.execute(insert(workspaces).values(
         **binding.model_dump(), binding_json=binding.model_dump(mode="json"),
         binding_digest=workspace_metadata_digest(binding), created_by_command_id=command.command_id,

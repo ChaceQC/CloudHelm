@@ -69,6 +69,8 @@ pub fn route_allowed(method: &str, route: &str) -> bool {
         ("GET", ["", "api", "projects", _]) => true,
         ("GET", ["", "api", "projects", _, "snapshot"]) => true,
         ("GET", ["", "api", "tasks", _]) => true,
+        ("GET", ["", "api", "tasks", _, "agent"]) => true,
+        ("GET", ["", "api", "tasks", _, "agent-diff", _]) => true,
         ("GET", ["", "api", "projects", _, kind, _]) => matches!(*kind,
             "deployment-plans" | "releases" | "environments" | "environment-configurations" | "source-imports"),
         ("GET", ["", "api", "workspaces", _, "operations", _]) => true,
@@ -76,7 +78,7 @@ pub fn route_allowed(method: &str, route: &str) -> bool {
         ("GET", ["", "api", "tasks", _, "builds", _]) => true,
         ("POST", ["", "api", "projects", _, kind]) => matches!(*kind,
             "tasks" | "reference-tasks" | "releases" | "environments"),
-        ("POST", ["", "api", "tasks", _, action]) => matches!(*action, "start" | "cancel" | "reconcile"),
+        ("POST", ["", "api", "tasks", _, action]) => matches!(*action, "start" | "cancel" | "reconcile" | "agent-runs"),
         ("POST", ["", "api", "projects", _, "deployment-plans", _, "approvals"]) => true,
         ("POST", ["", "api", "projects", _, "environments", _, action]) =>
             matches!(*action, "configurations" | "deployment-plans"),

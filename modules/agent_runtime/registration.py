@@ -32,58 +32,63 @@ MODEL_QUEUE = "models"
 
 
 def start_run(engine, client, source_command_id, request: RuntimeStartRequest):
-    incoming, policy = request.runtime_input, request.policy
-    digest = contract_digest(request)
     with UnitOfWork(engine) as uow:
         assert_runtime_ready(uow.connection, role="worker")
-        actor = actor_for_command(uow, source_command_id)
-        task, authorization = lock_task_access(uow, actor, incoming.task_id, "task.command")
-        existing = uow.connection.execute(select(agent_runs).where(
-            agent_runs.c.run_id == incoming.run_id)).mappings().one_or_none()
-        if existing is not None:
-            if ("max_no_progress_calls" not in existing["start_json"]["policy"]
-                    and "max_no_progress_calls" not in policy.model_fields_set):
-                original = request.model_dump(mode="json")
-                del original["policy"]["max_no_progress_calls"]
-                digest = "sha256:" + sha256(rfc8785.dumps(original)).hexdigest()
-            if existing["request_digest"] != digest or existing["source_command_id"] != source_command_id:
-                raise TaskBoundaryError("agent_run_identity_conflict")
-            return {"run_id": incoming.run_id, "workflow_id": existing["workflow_id"], "state": existing["state"]}
-        require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
-            expected_control_revision=incoming.expected_task_control_revision,
-            expected_input_validity_revision=incoming.expected_input_validity_revision)
-        from modules.workspaces.handoff_gates import require_agent_workspace
+        return start_run_in_uow(uow, client, source_command_id, request)
 
-        require_agent_workspace(uow.connection, incoming.task_id, request.context.work_item_id)
-        _check_context(uow, task, authorization, request)
-        session = uow.connection.execute(select(agent_sessions).where(
-            agent_sessions.c.session_id == incoming.session_id).with_for_update()).mappings().one_or_none()
-        if session is None:
-            if incoming.expected_session_version != 0:
-                raise TaskBoundaryError("agent_session_version_conflict")
-            history_key = "sha256:" + sha256(b"[]").hexdigest()
-            if incoming.committed_history.digest != history_key:
-                raise TaskBoundaryError("initial_agent_history_not_empty")
-            uow.connection.execute(insert(agent_sessions).values(session_id=incoming.session_id,
-                task_id=incoming.task_id, source_command_id=source_command_id, epoch_id=policy.epoch_id,
-                version=0, history_key=history_key, state="idle"))
-        elif (session["task_id"] != incoming.task_id or session["version"] != incoming.expected_session_version
-                or session["history_key"] != incoming.committed_history.digest):
+
+def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartRequest):
+    """Join an authorized API/worker transaction; never acquire another connection."""
+    incoming, policy = request.runtime_input, request.policy
+    digest = contract_digest(request)
+    actor = actor_for_command(uow, source_command_id)
+    task, authorization = lock_task_access(uow, actor, incoming.task_id, "task.command")
+    existing = uow.connection.execute(select(agent_runs).where(
+        agent_runs.c.run_id == incoming.run_id)).mappings().one_or_none()
+    if existing is not None:
+        if ("max_no_progress_calls" not in existing["start_json"]["policy"]
+                and "max_no_progress_calls" not in policy.model_fields_set):
+            original = request.model_dump(mode="json")
+            del original["policy"]["max_no_progress_calls"]
+            digest = "sha256:" + sha256(rfc8785.dumps(original)).hexdigest()
+        if existing["request_digest"] != digest or existing["source_command_id"] != source_command_id:
+            raise TaskBoundaryError("agent_run_identity_conflict")
+        return {"run_id": incoming.run_id, "workflow_id": existing["workflow_id"], "state": existing["state"]}
+    require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
+        expected_control_revision=incoming.expected_task_control_revision,
+        expected_input_validity_revision=incoming.expected_input_validity_revision)
+    from modules.workspaces.handoff_gates import require_agent_workspace
+
+    require_agent_workspace(uow.connection, incoming.task_id, request.context.work_item_id)
+    _check_context(uow, task, authorization, request)
+    session = uow.connection.execute(select(agent_sessions).where(
+        agent_sessions.c.session_id == incoming.session_id).with_for_update()).mappings().one_or_none()
+    if session is None:
+        if incoming.expected_session_version != 0:
             raise TaskBoundaryError("agent_session_version_conflict")
-        if session is not None:
-            previous = uow.connection.scalar(select(agent_runs.c.start_json).where(
-                agent_runs.c.session_id == incoming.session_id).order_by(agent_runs.c.created_at.desc()).limit(1))
-            if previous is not None:
-                old = RuntimeStartRequest.model_validate(previous)
-                if (old.policy.epoch_id, old.policy.model_config_id, old.policy.model_config_revision,
-                    old.policy.model_name, old.policy.role, old.policy.instruction_revision, old.context.tool_names) != (
-                    policy.epoch_id, policy.model_config_id, policy.model_config_revision,
-                    policy.model_name, policy.role, policy.instruction_revision, request.context.tool_names):
-                    raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
-        if uow.connection.scalar(select(agent_runs.c.run_id).where(
-                agent_runs.c.session_id == incoming.session_id, agent_runs.c.state.in_(("queued", "running")))):
-            raise TaskBoundaryError("agent_session_has_active_run")
-        workflow_id = _enqueue_run(uow, client, source_command_id, request)
+        history_key = "sha256:" + sha256(b"[]").hexdigest()
+        if incoming.committed_history.digest != history_key:
+            raise TaskBoundaryError("initial_agent_history_not_empty")
+        uow.connection.execute(insert(agent_sessions).values(session_id=incoming.session_id,
+            task_id=incoming.task_id, source_command_id=source_command_id, epoch_id=policy.epoch_id,
+            version=0, history_key=history_key, state="idle"))
+    elif (session["task_id"] != incoming.task_id or session["version"] != incoming.expected_session_version
+            or session["history_key"] != incoming.committed_history.digest):
+        raise TaskBoundaryError("agent_session_version_conflict")
+    if session is not None:
+        previous = uow.connection.scalar(select(agent_runs.c.start_json).where(
+            agent_runs.c.session_id == incoming.session_id).order_by(agent_runs.c.created_at.desc()).limit(1))
+        if previous is not None:
+            old = RuntimeStartRequest.model_validate(previous)
+            if (old.policy.epoch_id, old.policy.model_config_id, old.policy.model_config_revision,
+                old.policy.model_name, old.policy.role, old.policy.instruction_revision, old.context.tool_names) != (
+                policy.epoch_id, policy.model_config_id, policy.model_config_revision,
+                policy.model_name, policy.role, policy.instruction_revision, request.context.tool_names):
+                raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
+    if uow.connection.scalar(select(agent_runs.c.run_id).where(
+            agent_runs.c.session_id == incoming.session_id, agent_runs.c.state.in_(("queued", "running")))):
+        raise TaskBoundaryError("agent_session_has_active_run")
+    workflow_id = _enqueue_run(uow, client, source_command_id, request)
     return {"run_id": incoming.run_id, "workflow_id": workflow_id, "state": "queued"}
 
 

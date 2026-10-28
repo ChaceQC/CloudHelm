@@ -1,6 +1,6 @@
 # 基础 Desktop 与项目同步
 
-正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.14.0`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。内部 Agent Runtime 见[独立说明](p2-runtime.md)；固定恢复副本的收尾使用 [本机维护 CLI](p1-delivery.md#31-独立恢复副本的受限维护)，普通 ready 环境仍可使用交付 API；既有原生调试程序和原生验收证据仍绑定 `0.8.1`，不追认为新版本验收。
+正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.24.0`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01/02 及 A10 Task Agent 接线；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。Agent 启动参数与权限见 [Runtime 说明](p2-runtime.md#task-页面与-http-入口)；固定恢复副本的收尾使用 [本机维护 CLI](p1-delivery.md#31-独立恢复副本的受限维护)，普通 ready 环境仍可使用交付 API；既有原生调试程序和原生验收证据仍绑定 `0.8.1`，不追认为新版本验收。
 
 ## 启动与连接
 
@@ -14,7 +14,7 @@ npm.cmd run desktop:dev
 
 生成本机调试程序：`npm.cmd run desktop:build -- --debug`；输出为 `src-tauri/target/debug/cloudhelm-desktop.exe`，不生成安装器。图标的矢量源为 `src-tauri/icon.svg`，可用 `npx.cmd tauri icon src-tauri/icon.svg --output src-tauri/icons` 重建，只维护实际引用的 `icon.ico`、`icon.png`。
 
-Hub、数据库和 worker 仍在 WSL Ubuntu-24.04 运行，初始化、用户、项目、签发会话和服务启动见 [Hub 开发说明](p1-hub.md)。新隔离库迁移 head 为 `0014_p2_verification`，线性承接 `0013_p2_usage_waits`；旧安装不由 initialize 自动升级。不得为打开 Desktop 清空旧库或绕过恢复门禁；recovery_required 的独立维护副本不提供普通 Desktop 连接。
+Hub、数据库和 worker 仍在 WSL Ubuntu-24.04 运行，初始化、用户、项目、签发会话和服务启动见 [Hub 开发说明](p1-hub.md)。新隔离库迁移 head 为 `0017_p2_agent_entry`，线性承接 `0016_p2_merge_queue`；旧安装不由 initialize 自动升级。不得为打开 Desktop 清空旧库或绕过恢复门禁；recovery_required 的独立维护副本不提供普通 Desktop 连接。
 
 在“连接”页输入 HTTPS Hub 根地址，勾选导入后点击连接，使用系统文件选择器选择受控交付到当前 Windows 用户的会话凭据文件。文件内容不进入页面或剪贴板；原生层验证会话后保存到 Windows 凭据存储，服务名为 `com.cloudhelm.desktop`，按 Hub 地址区分条目。后续可取消勾选直接使用已保存凭据。断开不取消服务端任务；删除本机凭据不等于服务端撤销会话。
 
@@ -25,6 +25,7 @@ Hub、数据库和 worker 仍在 WSL Ubuntu-24.04 运行，初始化、用户、
 - 连接后选择获授权项目；首批列表之外的项目可按 ID 打开。快照包含当前可用动作，按钮据此启用，每次命令仍由服务端重新授权和核对版本。
 - “提交任务”使用已完成的参照源码导入 Operation，填写目标及预算；也支持包含已登记引用的完整 TaskDeclaration。不存在的来源/证据会被真实拒绝，不自动补造。创建与启动分开，启动仅适用于 draft。
 - 任务详情展示工作项、输入/控制修订和具体阻塞对象。取消须填写原因；取消已请求、停止待确认和实际取消按业务事实显示，客户端不释放资源或填入执行器证明。
+- “Agent 推进”在 active/USD Task 上按当前权限选择工作项、填写预算预留及有界限制后启动；继续沿原 Session 版本/历史和策略。查询真实 Run/工具/费用/等待，按该 Session 的工作项读取 diff；长工具沿原等待续接。控制事实核对和取消仍使用 Task 入口，不把 Run 成功写成 Task 完成。A10 编译/定向证据与原生未验收边界见 [A10 记录](../acceptance/p2/p2-1-a10.md)。
 - “部署批准”从固定计划读取目标、起始状态、Release、配置修订、数据库影响、步骤和停止核对策略。核对完整摘要并设置不晚于计划截止的有效期后批准；没有批准权时禁用按钮。批准记录不表示已经执行。
 - “交付对象”读取真实 Release、配置和环境。“原操作查询”按原 Task/Workspace/开发环境及 Operation，或按部署计划 ID 查询业务/物理状态；unknown 不转为失败或自动重放。
 - 回执与当前状态分别显示。HTTP 202 只表示可靠接收，完成依据业务完成报告和 Delivery 投影，不使用 DBOS 状态代填结论。

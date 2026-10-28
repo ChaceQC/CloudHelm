@@ -10,6 +10,8 @@ from database.readiness import assert_runtime_ready
 from database.settings import DatabaseSettings, load_database_settings
 from database.uow import UnitOfWork
 from modules.projects.commands import ProjectApplication
+from modules.agent_runtime.task_entry import TaskAgentApplication
+from modules.agent_runtime.task_files import read_task_workspace_diff
 from modules.execution.application import ResourceApplication
 from modules.integration.candidates import FixedCandidateApplication
 from modules.integration.verification import VerificationApplication
@@ -51,6 +53,7 @@ class ApiRuntime:
     verification_impacts: VerificationImpactApplication
     handoffs: WorkspaceHandoffApplication
     merges: MergeQueueApplication
+    agents: TaskAgentApplication
     sync_epoch: str = field(default_factory=lambda: uuid4().hex)
 
     def close(self) -> None:
@@ -125,6 +128,8 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
                 enqueue_operation=engineering_enqueuer(client, "workspace")),
             merges=MergeQueueApplication(pools.normal, pools.control,
                 enqueue_operation=engineering_enqueuer(client, "integration")),
+            agents=TaskAgentApplication(pools.normal, pools.control, client,
+                diff_reader=lambda spec: read_task_workspace_diff(pools.control, spec)),
         )
     except Exception:
         try:

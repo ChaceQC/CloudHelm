@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AgentPanel } from "./AgentPanel";
 import { bodyOf, codeOf, objectPath, taskPath } from "./api";
 import type { Hub } from "./useHub";
 import type { Task } from "./types";
@@ -49,13 +50,19 @@ export function TaskPanel({ hub, task }: { hub: Hub; task?: Task }) {
       "输入": `${task.input_status} · r${task.input_validity_revision}`, "预算上限": `${task.declaration.budget.amount} ${task.declaration.budget.currency}` }}/>
     <div className="actions"><button className="primary" disabled={!hub.can("task.command") || closed || task.state !== "draft"}
       onClick={() => hub.command(`${taskPath(task.task_id)}/start`, version)}>启动任务</button>
-      <button onClick={() => { void hub.refresh(); }} disabled={!hub.identity}>查询当前事实</button></div>
+      <button onClick={() => { void hub.refresh(); }} disabled={!hub.identity}>查询当前事实</button>
+      <button disabled={!hub.can(task.cancellation ? "task.cancel" : "task.command")}
+        onClick={() => hub.command(`${taskPath(task.task_id)}/reconcile`, {
+          expected_version: task.version, expected_control_revision: task.control_revision,
+          purpose: task.cancellation ? "cancellation" : "completion",
+        })}>核对控制事实</button></div>
     {!!task.blockers.length && <section><h3>阻塞对象</h3>{task.blockers.map((blocker, i) =>
       <div className="blocker" key={i}><strong>{blocker.code}</strong><code>{blocker.object_kind} · {blocker.object_id ?? task.task_id}</code></div>)}</section>}
     {task.work_items.length > 0 && <section><h3>工作项</h3>{task.work_items.map(item =>
       <div className="work-item" key={item.work_item_id}><Status value={item.state}/><span>{item.goal}</span></div>)}</section>}
     {task.cancellation && <div className="notice">取消已请求；停止与冲突占用以服务端核对事实为准。<JsonView value={task.cancellation} title="取消事实"/></div>}
     {task.completion_report_id && <Facts values={{ "完成报告": task.completion_report_id }}/>}
+    <AgentPanel hub={hub} task={task}/>
     {!task.ordinary_progress_closed && <form className="cancel" onSubmit={e => {
       e.preventDefault(); hub.command(`${taskPath(task.task_id)}/cancel`, {
         expected_version: task.version, expected_control_revision: task.control_revision, cancel_reason: reason.trim(),

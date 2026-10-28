@@ -9,6 +9,25 @@ export interface Task {
   cancellation: Json | null; completion_report_id: string | null; blockers: Blocker[];
   work_items: { work_item_id: string; state: string; goal: string }[];
 }
+export interface AgentView {
+  task_id: string; truncated: boolean;
+  sessions: {
+    session_id: string; version: number; state: string; work_item_id: string;
+    policy: { max_requests: number; max_duration_seconds: number; max_output_tokens: number; per_request_cost_upper_bound: string };
+    runs: {
+      run_id: string; state: string; request_count: number; reserved_cost: string; created_at: string;
+      started_at: string | null; deadline_at: string | null; result: Json | null;
+      tool_results: { tool_call_id: string; tool_name: string; result: unknown }[];
+      requests: { request_record_id: string; state: string; reserved_cost: string; calculated_cost: string | null;
+        billed_amount: string | null; billed_currency: string | null }[];
+      waits: { wait_condition_id: string; operation_id: string; state: string; continuation_run_id: string | null }[];
+    }[];
+  }[];
+}
+export interface AgentDiff {
+  workspace_id: string | null; work_item_id: string; truncated: boolean;
+  files: { path: string; patch: string | null; binary: boolean; truncated: boolean; reason_code: string | null }[];
+}
 export interface DeliveryObject {
   kind: "release" | "configuration" | "environment" | "plan"; object_id: string; digest: string;
   revision: number; release_id: string | null; config_revision_id: string | null;
