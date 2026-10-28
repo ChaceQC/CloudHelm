@@ -83,7 +83,7 @@ Gateway 每次取得当前 Run、Task/工作项归属及 `workspace.write`/读�
 
 写工具返回 accepted 的原 Operation 引用；需要结果时用现有 `query_operation`/`await_operation`，不以提交回执表示文件修改成功。变更回执登记同事务通知原等待，完成后取得新的 binding，再继续读取或修改。稳定 Run/tool-call 身份关联规范参数摘要：同次调用同参数返回原回执，异参数拒绝，不重新准备或暂存。修改后沿既有候选采集形成固定快照，不新增另一套 Git 或候选状态。
 
-秘密路径、`.gitmodules`/`.lfsconfig` 和明显秘密正文拒绝编辑；含已被读取工具筛选的秘密正文不能用脱敏文本覆盖。该规则沿用 A03 的筛选范围，可能拒绝含敏感字段名的普通源码，且不保证识别所有未知格式。模型正文只在内存准备/受限 SDK 历史及原受控内容存储流转，命令、工作流参数和结果仍只保存元数据与引用；不写日志或错误正文。支持范围与必要定向结果见 [A05 记录](../acceptance/p2/p2-1-a05.md)。环境工具已由 A06 接通，构建、自测及完整真实开发循环仍由 A07～A11 接入。
+秘密路径、`.gitmodules`/`.lfsconfig` 和明显秘密正文拒绝编辑；含已被读取工具筛选的秘密正文不能用脱敏文本覆盖。该规则沿用 A03 的筛选范围，可能拒绝含敏感字段名的普通源码，且不保证识别所有未知格式。模型正文只在内存准备/受限 SDK 历史及原受控内容存储流转，命令、工作流参数和结果仍只保存元数据与引用；不写日志或错误正文。支持范围与必要定向结果见 [A05 记录](../acceptance/p2/p2-1-a05.md)。环境、构建和自测分别由 A06～A08 接通，完整真实开发循环由 A09～A11 承接。
 
 ## 依赖准备、开发环境与实时日志
 
@@ -100,7 +100,7 @@ A06 在新 ContextPackage 显式授予下列开发工具，限当前项目、Tas
 
 日志返回 `source=live`、`history_available=false`，空窗口为真实空文本，不回读启动前输出。Docker 日志驱动仍为 none；原始捕获最多 64KiB/160 行，仅在有界内存中沿 A03 规则筛选，不保证识别任意未知秘密格式。关闭 socket 不写 stdin、不发信号、不停止容器。读取后重新检查当前 Run；原控制器仍要求原操作主体当前具备写入和操作查询权限，撤权时拒绝。状态、停止、分维释放和保留磁盘继续归原 Runner/账本负责。
 
-旧 Context/Session 不自动获得新工具；同一 Session 仍不能换工具集合。本次不改 HTTP、数据库、DBOS 应用或工作流步骤。参数、证据及本机真实 notes 启动被旧执行核对门禁拒绝的范围见 [A06 记录](../acceptance/p2/p2-1-a06.md)。构建接线见下节，自测及完整真实循环由 A08～A11 接入。
+旧 Context/Session 不自动获得新工具；同一 Session 仍不能换工具集合。本次不改 HTTP、数据库、DBOS 应用或工作流步骤。参数、证据及本机真实 notes 启动被旧执行核对门禁拒绝的范围见 [A06 记录](../acceptance/p2/p2-1-a06.md)。构建、自测接线见下文，完整真实循环由 A09～A11 承接。
 
 ## 固定候选构建与结果
 
@@ -121,6 +121,21 @@ A07 在新的开发角色 ContextPackage 中显式授予下列内部工具；参
 新构建在实际命令返回后保存筛选过的 stdout、stderr（按该顺序拼接），每条命令最多保留末尾 64KiB；后端运行镜像及依赖检查、前端构建分别记录真实退出码、UTC 捕获时间和截断标记。日志先按 A03 规则筛选再限长入私有文件，不保存新增原始日志；未知秘密格式仍受原筛选限制。返回页按保留文本的 UTF-8 字节偏移续读，使用 `next_offset`；可分别查询 backend/frontend。命令尚未返回、早期失败或旧构建没有日志时如实返回 unavailable，不能补造历史日志。
 
 该工具固定的是构建源码快照及 BuildFixedInputs；后续正式验证环境与三类事实仍由既有 `FixedCandidateApplication.fix` 登记，不因构建工具接通自动形成正式验收或完成报告。现有受限 notes 配方、受管资源/停止核对、内容及输入适用性边界保持原范围。软件 `0.21.0`；无 HTTP、数据库、依赖或 DBOS 应用版本变化。方法与未验证范围见 [A07 记录](../acceptance/p2/p2-1-a07.md)。
+
+## 项目自测与静态检查
+
+A08 在新的开发角色 ContextPackage 中显式授予 `workspace.check`。参数为 `workspace_id`、`environment_id`、准确的 `expected_workspace_revision`、`expected_write_generation`、`expected_manifest_digest` 和单个 `check`；不接受命令、脚本、路径、安装源或自定义断言。
+
+|检查|实际执行与覆盖范围|
+|---|---|
+|`backend.syntax`|在已登记 notes 后端容器用固定 Python 编译检查 `backend/app`、`backend/migrations` 下的 Python 源码；不导入或执行项目代码，不写 pyc。最多 256 文件、单文件 256KiB、合计 2MiB，进程内限时 5 秒；语法失败返回相对文件、行列与筛选后的错误信息，最多展示 8 项并保留失败总数|
+|`backend.http`|复用固定 notes 只读 GET 探针，核对 `/health`、`/ready`、`/api/notes` 的状态、数据结构和已登记合成种子；返回响应摘要，失败返回固定原因及已观察到的 HTTP 状态。`/devmarker` 沿原探针读取，不作为通过门槛；不包含 CRUD、前端、任意项目测试框架或正式验收|
+
+先准备环境；工作区编辑后用现有 `workspace.control_environment(action=resume)` 刷新到当前源码/绑定，再读取新 binding 与 manifest 发起检查。Gateway 在执行前后检查当前 Run、`workspace.write`/读取权限、当前 Task/WorkItem、工作区版本/代次、环境绑定/修订及未收尾写入/环境操作。检查在事务外执行，沿原受管存储与登记容器身份，前后观察实际源码摘要；陈旧输入、接管、撤权或环境变化不能返回通过。
+
+每次仅执行一项固定短时只读检查，Docker 请求限时 8 秒，直接返回结果，不创建 Operation 或新的可靠等待链。`status=passed/failed/unknown`、`exit_code`、UTC 起止时间、binding、源码摘要、检查方法修订/摘要、容器身份及 `evidence_digest` 一并返回；传输超时退出码为 null，源文件缺失/限额或执行器异常不冒充测试失败或成功。没有新的原始日志持久化，API 正文不返回模型；语法诊断沿 A03 规则筛选，仍保留其未知秘密格式限制。
+
+这是开发反馈，不登记 VerificationRun、正式验收报告或 Task 完成事实。正式验收继续读取独立受控资产；工具不能修改入口、关键断言或跳过规则。当前仅支持 `notes-backend-dev-r1`；真实受管容器及完整 Agent 循环另取证，方法和限制见 [A08 记录](../acceptance/p2/p2-1-a08.md)。
 
 ## 请求结果与费用核对
 
@@ -158,4 +173,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-当前源码版本为 `0.20.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.22.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

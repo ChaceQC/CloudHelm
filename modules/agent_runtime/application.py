@@ -25,6 +25,7 @@ from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS, WORKSPACE_BUILD_WRITES
+from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -40,6 +41,7 @@ from .workspace_tools import WorkspaceCodeGateway
 from .workspace_edits import WorkspaceEditGateway
 from .workspace_environment import WorkspaceEnvironmentGateway
 from .workspace_builds import WorkspaceBuildGateway
+from .workspace_checks import WorkspaceCheckGateway
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
@@ -48,7 +50,7 @@ class AgentRuntimeApplication:
     def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None,
                  workspace_reader=None, workspace_editor=None, stage_workspace_content=None,
                  development_application=None, environment_log_reader=None,
-                 build_definition_loader=None, build_result_reader=None):
+                 build_definition_loader=None, build_result_reader=None, workspace_check_runner=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
@@ -56,6 +58,7 @@ class AgentRuntimeApplication:
         self.workspace_editor, self.stage_workspace_content = workspace_editor, stage_workspace_content
         self.development_application, self.environment_log_reader = development_application, environment_log_reader
         self.build_definition_loader, self.build_result_reader = build_definition_loader, build_result_reader
+        self.workspace_check_runner = workspace_check_runner
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -159,6 +162,12 @@ class AgentRuntimeApplication:
                 return builds.query(run_id, route, arguments)
 
             routes[name] = build_tool
+        checks = WorkspaceCheckGateway(self.engine, self.workspace_check_runner)
+        for name in WORKSPACE_CHECK_SCHEMAS:
+            async def check_workspace(arguments, tool_call_id):
+                return checks.query(run_id, arguments)
+
+            routes[name] = check_workspace
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,

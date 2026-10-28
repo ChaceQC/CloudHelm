@@ -228,6 +228,19 @@ class EngineeringDevelopmentRuntime:
         except self._runner_failure as error:
             raise WorkspaceFileError(error.category) from None
 
+    def run_check(self, spec, query):
+        with UnitOfWork(self.control_engine) as uow:
+            operation_id = uow.connection.scalar(select(development_operations.c.operation_id).where(
+                development_operations.c.environment_id == query.environment_id,
+            ).order_by(development_operations.c.accepted_environment_revision.desc()).limit(1))
+        if operation_id is None:
+            raise WorkspaceDevelopmentError("workspace_development_operation_not_found", status_code=404)
+        runner = import_module("services.dev-runner.workspace_checks")
+        try:
+            return runner.run_workspace_check(self.controller_for(operation_id), spec, query)
+        except self._runner_failure as error:
+            raise WorkspaceFileError(error.category) from None
+
     def close(self):
         controller = self._controller
         if controller is not None:
