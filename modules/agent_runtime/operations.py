@@ -18,6 +18,9 @@ from modules.identity.actors import actor_for_command
 from modules.identity.errors import IdentityError
 from modules.workflow.engineering_enqueuers import engineering_enqueuer
 from modules.workspaces.commands import accept_workspace_command_in_uow
+from modules.workspaces.development_queries import (
+    query_development_operation_in_uow, read_development_operation_record,
+)
 from modules.workspaces.operations import read_workspace_operation, read_workspace_row
 from modules.workspaces.queries import query_workspace_operation_in_uow
 from packages.contracts.p0.core_contracts import AcceptedReceipt
@@ -57,6 +60,20 @@ def _receipt(result):
 def _result_in_uow(uow, source_command_id, request, operation_id):
     """Only the original principal's supported operation for this work item is exposed."""
     actor = actor_for_command(uow, source_command_id)
+    if operation_id.startswith("workspace-dev-env-"):
+        intent, _, _, accepted, _ = read_development_operation_record(uow.connection, operation_id)
+        operation_actor = actor_for_command(uow, accepted.command_id)
+        if (accepted.task_id != request.runtime_input.task_id
+                or intent.request.binding.work_item_id != request.context.work_item_id
+                or operation_actor.principal != actor.principal):
+            raise TaskBoundaryError("agent_operation_not_found", status_code=404)
+        view = query_development_operation_in_uow(uow, actor, accepted.environment_id, operation_id)
+        if view.operation_state not in {"succeeded", "failed"}:
+            return None
+        return {"operation_id": operation_id, "request_digest": accepted.request_digest,
+                "state": "registered", "registration": {
+                    "environment_id": accepted.environment_id, "state": view.operation_state,
+                    "observation": view.observation.model_dump(mode="json")}}
     intent, _ = read_workspace_operation(uow.connection, operation_id)
     operation_actor = actor_for_command(uow, intent.result.command_id)
     if (intent.result.kind not in {"materialize", "mutate"} or intent.result.task_id != request.runtime_input.task_id
@@ -96,9 +113,10 @@ class OperationGateway:
                 commands.c.delegator_id == actor.principal.delegator_id))
             if previous_id is not None:
                 previous = get_by_id(uow.connection, previous_id)
+                if previous.envelope.idempotency_key != key:
+                    raise TaskBoundaryError("agent_tool_call_identity_conflict")
                 result = WorkspaceCommandResult.model_validate(previous.result)
-                if (previous.envelope.idempotency_key != key
-                        or previous.envelope.action != "workspace.write" or result.kind != "materialize"
+                if (previous.envelope.action != "workspace.write" or result.kind != "materialize"
                         or result.task_id != task["task_id"] or result.workspace_id != workspace_id):
                     raise TaskBoundaryError("agent_tool_call_identity_conflict")
                 if result.outcome == "accepted":

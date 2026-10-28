@@ -66,6 +66,11 @@ class EngineeringRuntime:
         )
         self._development.resources = self.resources
         self.development = self._development.application
+        if client is not None:
+            from modules.workflow.engineering_enqueuers import development_environment_enqueuer
+
+            self.development.enqueue_operation = development_environment_enqueuer(client)
+            self.development.notify_observation = notify
 
     def development_controller_for(self, operation_id):
         return self._development.controller_for(operation_id)

@@ -228,7 +228,10 @@ def register_verified_observation_in_uow(uow, operation_id, verified):
     return observation
 
 
-def register_development_observation(engine, operation_id, runtime):
+def register_development_observation(engine, operation_id, runtime, *, notify=None):
     verified = verify_development_observation(operation_id, runtime)
     with UnitOfWork(engine) as uow:
-        return register_verified_observation_in_uow(uow, operation_id, verified)
+        observation = register_verified_observation_in_uow(uow, operation_id, verified)
+        if notify is not None:
+            notify(uow, operation_id)
+        return observation

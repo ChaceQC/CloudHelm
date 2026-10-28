@@ -19,7 +19,7 @@
 |固定能力|当前支持|
 |---|---|
 |模型与协议|`gpt-6-luna`、PydanticAI 2.55.0、Responses 文本；本次方法按 2026-10-28 固定|
-|工具|`task.read`、`submit_operation`、`query_operation`、`await_operation`，以及开发角色的 `workspace.list_directory`、`workspace.read_file`、`workspace.search`；逐次准入并顺序执行|
+|工具|`task.read`、`submit_operation`、`query_operation`、`await_operation`，以及开发角色的工作区读取/编辑/diff 和环境准备/控制/状态/实时日志工具；逐次准入并顺序执行|
 |请求限制|默认 3 次、整轮 60 秒；明确的输出 token 上限；真实 HTTP 请求体最多 1MiB|
 |重试与修复|SDK 500/连接重试和工具参数修复均经同一个传输准入；上限包含真实 HTTP 尝试|
 |流式/托管工具|关闭；不开放模型直连 shell、工作区或 MCP|
@@ -83,7 +83,24 @@ Gateway 每次取得当前 Run、Task/工作项归属及 `workspace.write`/读�
 
 写工具返回 accepted 的原 Operation 引用；需要结果时用现有 `query_operation`/`await_operation`，不以提交回执表示文件修改成功。变更回执登记同事务通知原等待，完成后取得新的 binding，再继续读取或修改。稳定 Run/tool-call 身份关联规范参数摘要：同次调用同参数返回原回执，异参数拒绝，不重新准备或暂存。修改后沿既有候选采集形成固定快照，不新增另一套 Git 或候选状态。
 
-秘密路径、`.gitmodules`/`.lfsconfig` 和明显秘密正文拒绝编辑；含已被读取工具筛选的秘密正文不能用脱敏文本覆盖。该规则沿用 A03 的筛选范围，可能拒绝含敏感字段名的普通源码，且不保证识别所有未知格式。模型正文只在内存准备/受限 SDK 历史及原受控内容存储流转，命令、工作流参数和结果仍只保存元数据与引用；不写日志或错误正文。支持范围与必要定向结果见 [A05 记录](../acceptance/p2/p2-1-a05.md)。环境运行、构建、自测及完整真实开发循环仍由 A06～A11 接入。
+秘密路径、`.gitmodules`/`.lfsconfig` 和明显秘密正文拒绝编辑；含已被读取工具筛选的秘密正文不能用脱敏文本覆盖。该规则沿用 A03 的筛选范围，可能拒绝含敏感字段名的普通源码，且不保证识别所有未知格式。模型正文只在内存准备/受限 SDK 历史及原受控内容存储流转，命令、工作流参数和结果仍只保存元数据与引用；不写日志或错误正文。支持范围与必要定向结果见 [A05 记录](../acceptance/p2/p2-1-a05.md)。环境工具已由 A06 接通，构建、自测及完整真实开发循环仍由 A07～A11 接入。
+
+## 依赖准备、开发环境与实时日志
+
+A06 在新 ContextPackage 显式授予下列开发工具，限当前项目、Task 和 WorkItem。只支持已登记的 `notes-backend-dev-r1`、固定 Python/uv、离线 wheel 种子、原锁及合成 PostgreSQL 数据。prepare 包含依赖、迁移、启动和就绪探针；resume 复核当前源码/锁并复用或准备准确依赖，不接受命令、宿主路径、镜像或自定义安装源。
+
+|工具|输入与实际行为|
+|---|---|
+|`workspace.prepare_environment`|`workspace_id`、`expected_workspace_revision`、`expected_write_generation`；提交原 prepare，返回 accepted 回执|
+|`workspace.control_environment`|上述字段及 `environment_id`、`action=suspend/resume/dispose`、`expected_environment_revision`、`expected_data_revision`、`expected_data_generation`；按准确版本控制，Agent 不开放 reset_data|
+|`workspace.environment_status`|`workspace_id`；返回最近环境或 null，含 binding、环境/数据修订及代次、pending 操作和最近带时间戳观测；历史 ready 不证明进程现在仍活着|
+|`workspace.environment_logs`|`workspace_id`、`environment_id`、`service=backend/postgres`、`max_lines`（默认 80，最多 160）；返回准确运行中非 TTY 容器约一秒的实时窗口、容器身份、UTC 时间、最多 8192 UTF-8 字节及截断标记|
+
+准备与控制使用规范参数摘要和稳定 Run/tool-call 身份，同调用同参返回原操作，异参及跨工具身份复用拒绝。可信规格在事务外读取，正式接受的短事务重新检查当前 Run，再经原 Task/写入权/资源门禁写入并同事务 DBOS 入队。长动作单条成批；accepted 仅表示收到，原 `query_operation`/`await_operation` 提供最终 observation，pending/unknown 保留等待，最终回执与原等待通知同事务交接。
+
+日志返回 `source=live`、`history_available=false`，空窗口为真实空文本，不回读启动前输出。Docker 日志驱动仍为 none；原始捕获最多 64KiB/160 行，仅在有界内存中沿 A03 规则筛选，不保证识别任意未知秘密格式。关闭 socket 不写 stdin、不发信号、不停止容器。读取后重新检查当前 Run；原控制器仍要求原操作主体当前具备写入和操作查询权限，撤权时拒绝。状态、停止、分维释放和保留磁盘继续归原 Runner/账本负责。
+
+旧 Context/Session 不自动获得新工具；同一 Session 仍不能换工具集合。本次不改 HTTP、数据库、DBOS 应用或工作流步骤。参数、证据及本机真实 notes 启动被旧执行核对门禁拒绝的范围见 [A06 记录](../acceptance/p2/p2-1-a06.md)。构建、自测及完整真实循环由 A07～A11 接入。
 
 ## 请求结果与费用核对
 
@@ -97,7 +114,7 @@ Gateway 每次取得当前 Run、Task/工作项归属及 `workspace.write`/读�
 
 ## 长工具提交和等待
 
-当前长操作仅支持当前 Task/工作项、同一授权主体的 Workspace 物化；需要已登记的产品输入、工作区与当前 `workspace.write` 权限。`task.read({})` 返回当前工作项的 `workspace_id`，没有工作区时为 null。通过现有 `dispatch_tool(name, arguments)` 使用：
+当前长操作支持当前 Task/工作项、同一授权主体的 Workspace 物化、文件变更及开发环境准备/控制；需要已登记的产品输入、工作区与当前 `workspace.write` 权限。`task.read({})` 返回当前工作项的 `workspace_id`，没有工作区时为 null。通过现有 `dispatch_tool(name, arguments)` 使用：
 
 |动作|参数|结果|
 |---|---|---|
@@ -107,9 +124,9 @@ Gateway 每次取得当前 Run、Task/工作项归属及 `workspace.write`/读�
 
 提交与等待各自独立调用，长动作每批仅允许一条；混入其它调用时，在任何工具副作用之前要求模型拆批。短查询批次最多 8 条，模型真实请求总数仍受 Run 政策限制。accepted 工具返回保留提交语义，不在物理完成后覆写为产物。
 
-物化回执落库与等待唤醒共用事务；结果早于等待登记时，登记事务重新检查原操作。等待结果已到、当前权限和 Task/输入修订允许、Session 无活动 Run 时，以等待身份唯一派生新 Run/workflow 并事务入队。重复通知不新增 Run；Session 已有活动 Run 时保留等待，在其结束后再检查。unknown 保留等待，暂停、取消、完成或失效输入不自动续接。续接载入完整的已确认工具结果，匹配原调用 ID，使用已保存的 SDK 历史；不额外拼接新 prompt，不发送模型轮询请求。
+物化、文件变更及环境最终回执落库与等待唤醒共用事务；结果早于等待登记时，登记事务重新检查原操作。等待结果已到、当前权限和 Task/输入修订允许、Session 无活动 Run 时，以等待身份唯一派生新 Run/workflow 并事务入队。重复通知不新增 Run；Session 已有活动 Run 时保留等待，在其结束后再检查。unknown 保留等待，暂停、取消、完成或失效输入不自动续接。续接载入完整的已确认工具结果，匹配原调用 ID，使用已保存的 SDK 历史；不额外拼接新 prompt，不发送模型轮询请求。
 
-提交后可以继续不依赖物化结果的工作；真正调用 await 后，该 Session 的未配对调用须由对应结果续接，普通新 Run 在模型出站前拒绝。当前未开放跨历史分叉合并、其它领域长工具或长期自动超时维护。P1 原物化回执登记仍要求原主体现有 `workspace.write`，撤权后需按原 P1 受控结果核对入口处理；本包不绕过该权限边界。
+提交后可以继续不依赖当前操作结果的工作；真正调用 await 后，该 Session 的未配对调用须由对应结果续接，普通新 Run 在模型出站前拒绝。当前未开放跨历史分叉合并、其它领域长工具或长期自动超时维护。P1 原物化回执登记仍要求原主体现有 `workspace.write`，撤权后需按原 P1 受控结果核对入口处理；本包不绕过该权限边界。
 
 ## 恢复与结果
 
@@ -121,4 +138,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-当前源码版本为 `0.19.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.20.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

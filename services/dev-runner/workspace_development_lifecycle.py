@@ -769,6 +769,50 @@ class WorkspaceDevelopmentController:
             raise ProbeFailure("workspace_development_observation_unavailable")
         return value
 
+    def read_logs(self, environment_id: str, *, service: str = "backend",
+                  max_lines: int = 80, max_bytes: int = 8192) -> dict:
+        if (service not in ("backend", "postgres") or type(max_lines) is not int
+                or not 1 <= max_lines <= 160 or type(max_bytes) is not int or not 1 <= max_bytes <= 8192):
+            raise ProbeFailure("workspace_development_log_request_invalid")
+        with self._storage() as storage:
+            self._check_storage(storage)
+            with WorkspaceDevelopmentJournal(storage).environment(environment_id) as session:
+                environment = session.read_environment()
+                if environment is None or environment.get("state") == "disposed":
+                    raise ProbeFailure("workspace_development_environment_not_found")
+                try:
+                    spec = WorkspaceDevelopmentEnvironmentSpec.model_validate(environment["spec"])
+                except (KeyError, TypeError, ValueError):
+                    raise ProbeFailure("workspace_development_journal_spec_invalid") from None
+                if spec.environment_id != environment_id or spec.storage_ref != self.registry.registration.storage:
+                    raise ProbeFailure("workspace_development_registry_storage_mismatch")
+                prepare_id = environment.get("prepare_operation_id")
+                if not isinstance(prepare_id, str):
+                    raise ProbeFailure("workspace_development_prepare_identity_missing")
+                operation = session.read_operation(prepare_id)
+                if operation is None:
+                    raise ProbeFailure("workspace_development_prepare_identity_missing")
+                intent = _operation_intent(operation, prepare_id)
+                if (type(intent.request) is not PrepareWorkspaceDevelopmentEnvironment
+                        or intent.request.environment_id != environment_id
+                        or intent.request.binding.workspace_id != spec.binding.workspace_id):
+                    raise ProbeFailure("workspace_development_prepare_identity_mismatch")
+                from .workspace_development_docker import WorkspaceDevelopmentDocker
+                from .workspace_development_logs import read_live_logs
+
+                records = WorkspaceDevelopmentDocker.discover_owned(
+                    environment_id, workspace_runtime_scope_id(spec.binding), operation_id=prepare_id)
+                matches = [item for item in records if item["role"] == service]
+                if not matches:
+                    raise ProbeFailure("workspace_development_log_container_unavailable")
+                container = matches[0]
+                if (not container["running"] or container["paused"] or container["restarting"]
+                        or container["tty"] is not False):
+                    raise ProbeFailure("workspace_development_log_container_unavailable")
+                result = read_live_logs(container["container_id"], max_lines=max_lines, max_bytes=max_bytes)
+                return {"environment_id": environment_id, "service": service,
+                        "container_id": container["container_id"], **result}
+
     def registered_readers(self, binding: WorkspaceBinding) -> tuple[RegisteredWorkspaceReader, ...]:
         if type(binding) is not WorkspaceBinding:
             raise ProbeFailure("workspace_development_binding_required")

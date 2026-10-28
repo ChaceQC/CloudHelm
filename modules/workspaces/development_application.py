@@ -113,7 +113,9 @@ def _guard_environment_control(request, environment):
 
 
 def _accept(uow, actor, task_id, request, *, idempotency_key, command_id, workspace_id,
-            environment_id, spec, resolver_error, enqueue_operation):
+            environment_id, spec, resolver_error, enqueue_operation, admit=None):
+    if admit is not None:
+        admit(uow)
     context, existing = prepare_development_command_context(
         uow, actor, task_id, request, idempotency_key, command_id,
         workspace_id=workspace_id, environment_id=environment_id,
@@ -208,12 +210,13 @@ class WorkspaceDevelopmentApplication:
     """Hub interface for mutable development env intents; Runner facts stay trusted."""
 
     def __init__(self, engine, control_engine, *, prepared_spec_for=None, runtime_for=None,
-                 enqueue_operation=None):
+                 enqueue_operation=None, notify_observation=None):
         self.engine, self.control_engine = engine, control_engine
         self.prepared_spec_for, self.runtime_for = prepared_spec_for, runtime_for
         self.enqueue_operation = enqueue_operation
+        self.notify_observation = notify_observation
 
-    def prepare(self, actor, workspace_id, request: PrepareWorkspaceDevelopmentRequest, key):
+    def prepare(self, actor, workspace_id, request: PrepareWorkspaceDevelopmentRequest, key, *, admit=None):
         request = validated_development_request(request, "prepare")
         validate_actor(actor)
         command_id = uuid4().hex
@@ -233,10 +236,10 @@ class WorkspaceDevelopmentApplication:
             return _accept(
                 uow, actor, task_id, request, idempotency_key=key, command_id=command_id,
                 workspace_id=workspace_id, environment_id=environment_id, spec=spec,
-                resolver_error=resolver_error, enqueue_operation=self.enqueue_operation,
+                resolver_error=resolver_error, enqueue_operation=self.enqueue_operation, admit=admit,
             )
 
-    def control(self, actor, environment_id, request: WorkspaceDevelopmentControlRequest, key):
+    def control(self, actor, environment_id, request: WorkspaceDevelopmentControlRequest, key, *, admit=None):
         request = validated_development_request(request, "control")
         validate_actor(actor)
         command_id = uuid4().hex
@@ -257,7 +260,7 @@ class WorkspaceDevelopmentApplication:
             return _accept(
                 uow, actor, task_id, request, idempotency_key=key, command_id=command_id,
                 workspace_id=workspace_id, environment_id=environment_id,
-                spec=spec, resolver_error=resolver_error, enqueue_operation=self.enqueue_operation,
+                spec=spec, resolver_error=resolver_error, enqueue_operation=self.enqueue_operation, admit=admit,
             )
 
     def query(self, actor, environment_id):
@@ -283,7 +286,8 @@ class WorkspaceDevelopmentApplication:
         if self.runtime_for is None:
             raise WorkspaceDevelopmentError("workspace_development_controller_unavailable")
         controller = self.runtime_for(operation_id)
-        return register_development_observation(self.engine, operation_id, controller)
+        return register_development_observation(self.engine, operation_id, controller,
+                                                notify=self.notify_observation)
 
 
 def _initial_workspace_task(uow, workspace_id):

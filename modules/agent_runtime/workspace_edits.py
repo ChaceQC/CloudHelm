@@ -48,9 +48,10 @@ class WorkspaceEditGateway:
                     commands.c.delegator_id == actor.principal.delegator_id))
                 if previous_id is not None:
                     previous = get_by_id(uow.connection, previous_id)
+                    if previous.envelope.idempotency_key != key:
+                        raise TaskBoundaryError("agent_tool_call_identity_conflict")
                     result = WorkspaceCommandResult.model_validate(previous.result)
-                    if (previous.envelope.idempotency_key != key or result.kind != "mutate"
-                            or result.workspace_id != query.workspace_id):
+                    if result.kind != "mutate" or result.workspace_id != query.workspace_id:
                         raise TaskBoundaryError("agent_tool_call_identity_conflict")
                     if result.outcome == "accepted":
                         read_workspace_operation(uow.connection, result.operation_id)

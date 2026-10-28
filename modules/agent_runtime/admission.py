@@ -16,6 +16,7 @@ from modules.identity.actors import actor_for_command
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
+from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
 from .billing import model_request_bound_exceeded, model_request_cost
 from .tables import agent_model_requests, agent_runs, agent_sessions
 
@@ -99,7 +100,8 @@ class RuntimeAdmission:
             _, _, _, request, _ = current_run(uow, self.run_id)
             if (name not in request.context.tool_names
                     or name not in {"task.read", "submit_operation", "query_operation", "await_operation"}
-                    | WORKSPACE_TOOL_SCHEMAS.keys() | WORKSPACE_EDIT_SCHEMAS.keys()):
+                    | WORKSPACE_TOOL_SCHEMAS.keys() | WORKSPACE_EDIT_SCHEMAS.keys()
+                    | WORKSPACE_ENVIRONMENT_SCHEMAS.keys()):
                 raise TaskBoundaryError("agent_tool_not_allowed")
 
     def begin(self):

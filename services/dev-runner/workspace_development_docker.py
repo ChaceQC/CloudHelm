@@ -467,6 +467,7 @@ class WorkspaceDevelopmentDocker:
             roles.add(role)
             found.append({"container_id": identity, "role": role,
                           "operation_id": labels["cloudhelm.operation_id"],
+                          "tty": actual.get("Config", {}).get("Tty"),
                           "status": actual.get("State", {}).get("Status"),
                           "process_id": actual.get("State", {}).get("Pid"),
                           "paused": actual.get("State", {}).get("Paused") is True,

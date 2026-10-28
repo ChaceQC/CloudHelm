@@ -11,6 +11,7 @@ from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_k
 from packages.contracts.p1.workspace_git import workspace_path
 from .workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from .workspace_edits import WORKSPACE_EDIT_SCHEMAS
+from .workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
 
 
 Amount = Annotated[Decimal, Field(ge=0, max_digits=24, decimal_places=8, allow_inf_nan=False)]
@@ -124,6 +125,7 @@ class RuntimeStartRequest(Contract):
                 or runtime_input.committed_history != context.starting_history_ref):
             raise ValueError("runtime_context_binding_mismatch")
         if self.policy.role != "developer" and (
-                {"submit_operation", *WORKSPACE_TOOL_SCHEMAS, *WORKSPACE_EDIT_SCHEMAS} & set(context.tool_names)):
+                {"submit_operation", *WORKSPACE_TOOL_SCHEMAS, *WORKSPACE_EDIT_SCHEMAS,
+                 *WORKSPACE_ENVIRONMENT_SCHEMAS} & set(context.tool_names)):
             raise ValueError("agent_role_tool_not_allowed")
         return self

@@ -40,6 +40,7 @@ class EngineeringDevelopmentRuntime:
         self.engine, self.control_engine, self.registry = engine, control_engine, registry
         registry_module, lifecycle_module = _runner_modules()
         self._controller_type = lifecycle_module.WorkspaceDevelopmentController
+        self._runner_failure = lifecycle_module.ProbeFailure
         self._controller_factory = self._controller_type if controller_factory is None else controller_factory
         self._controller = None
         self.application = WorkspaceDevelopmentApplication(
@@ -213,6 +214,19 @@ class EngineeringDevelopmentRuntime:
             return checked
         except Exception:
             raise WorkspaceFileError("workspace_development_readers_unavailable") from None
+
+    def read_logs(self, environment_id, *, service="backend", max_lines=80, max_bytes=8192):
+        with UnitOfWork(self.control_engine) as uow:
+            operation_id = uow.connection.scalar(select(development_operations.c.operation_id).where(
+                development_operations.c.environment_id == environment_id,
+            ).order_by(development_operations.c.accepted_environment_revision.desc()).limit(1))
+        if operation_id is None:
+            raise WorkspaceDevelopmentError("workspace_development_operation_not_found", status_code=404)
+        try:
+            return self.controller_for(operation_id).read_logs(environment_id, service=service,
+                                                              max_lines=max_lines, max_bytes=max_bytes)
+        except self._runner_failure as error:
+            raise WorkspaceFileError(error.category) from None
 
     def close(self):
         controller = self._controller

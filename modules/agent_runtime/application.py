@@ -23,6 +23,7 @@ from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
+from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -36,18 +37,21 @@ from .sdk import RuntimeFailure, run_turn
 from .tables import agent_histories, agent_model_requests, agent_runs, agent_sessions
 from .workspace_tools import WorkspaceCodeGateway
 from .workspace_edits import WorkspaceEditGateway
+from .workspace_environment import WorkspaceEnvironmentGateway
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
 
 class AgentRuntimeApplication:
     def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None,
-                 workspace_reader=None, workspace_editor=None, stage_workspace_content=None):
+                 workspace_reader=None, workspace_editor=None, stage_workspace_content=None,
+                 development_application=None, environment_log_reader=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
         self.workspace_reader = workspace_reader
         self.workspace_editor, self.stage_workspace_content = workspace_editor, stage_workspace_content
+        self.development_application, self.environment_log_reader = development_application, environment_log_reader
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -133,6 +137,15 @@ class AgentRuntimeApplication:
                 return workspace_edits.submit(run_id, tool_call_id, route, arguments)
 
             routes[name] = edit_code
+        environments = WorkspaceEnvironmentGateway(self.engine, self.development_application,
+                                                    self.environment_log_reader)
+        for name in WORKSPACE_ENVIRONMENT_SCHEMAS:
+            async def environment_tool(arguments, tool_call_id, route=name):
+                if route in WORKSPACE_ENVIRONMENT_WRITES:
+                    return environments.submit(run_id, tool_call_id, route, arguments)
+                return environments.query(run_id, route, arguments)
+
+            routes[name] = environment_tool
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
