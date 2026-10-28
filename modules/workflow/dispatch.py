@@ -15,10 +15,6 @@ def bind_and_enqueue(
 ) -> str:
     """No wait or commit; SDK/SQL failures roll back with every domain write."""
     require_transaction(connection)
-    try:
-        dispatch = WorkflowDispatch.model_validate(dispatch.model_dump(mode="python"))
-    except (AttributeError, ValueError, TypeError):
-        raise ValueError("workflow_dispatch_invalid") from None
     queue_name = queue_for(dispatch.workflow_name)
     connection.execute(insert(workflow_bindings).values(
         workflow_id=dispatch.workflow_id, command_id=dispatch.command_id,

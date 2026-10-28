@@ -55,8 +55,7 @@ class NpmDownloadSpec(Contract):
 
 
 def canonical(value: Contract) -> bytes:
-    checked = type(value).model_validate(value.model_dump(mode="python"))
-    return rfc8785.dumps(checked.model_dump(mode="json"))
+    return rfc8785.dumps(value.model_dump(mode="json"))
 
 
 def npm_seed_id(spec: NpmDownloadSpec) -> str:

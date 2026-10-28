@@ -15,9 +15,6 @@ def enqueue_engineering(
 ) -> str:
     """No independent commit or executor call; any failure rolls back the intent."""
     require_transaction(connection)
-    if type(dispatch) is not EngineeringWorkflowDispatch:
-        raise ValueError("engineering_workflow_dispatch_invalid")
-    dispatch = EngineeringWorkflowDispatch.model_validate(dispatch.model_dump(mode="python"))
     queue = queue_for(dispatch.workflow_name)
     connection.execute(insert(workflow_bindings).values(
         workflow_id=dispatch.workflow_id, command_id=dispatch.command_id,

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 from pathlib import Path
 from urllib.parse import quote
 
-from packages.contracts.p1.workspace_candidates import RegisteredWorkspaceReader
 from modules.workspaces.candidate_writers import process_start_ticks
 
 from .artifact_environment_docker import docker, engine
@@ -87,19 +85,6 @@ def inspect_fixed_image(client: DockerClient, reference: str, digest: str) -> st
             or not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id)):
         return None
     return image_id
-
-
-def write_secret(path: Path, value: str) -> None:
-    if not re.fullmatch(r"[0-9a-f]{64}", value):
-        raise ProbeFailure("workspace_development_secret_shape_invalid")
-    try:
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o400)
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(value.encode("ascii"))
-            stream.flush()
-            os.fsync(stream.fileno())
-    except OSError:
-        raise ProbeFailure("workspace_development_private_configuration_unavailable") from None
 
 
 class WorkspaceDevelopmentDocker:
@@ -446,22 +431,6 @@ class WorkspaceDevelopmentDocker:
                     "cloudhelm.profile": PROFILE}.items())):
             raise ProbeFailure("workspace_development_network_identity_mismatch")
         return {"network_id": identity, "name": actual["Name"], "internal": True, "driver": "bridge"}
-
-    def registered_readers(self) -> tuple[RegisteredWorkspaceReader, ...]:
-        readers = []
-        for role in ("backend", "migration"):
-            if role not in self.containers:
-                continue
-            value = self.inspect(role)
-            workspace_mounts = [item for item in value.get("Mounts", [])
-                if item.get("Type") == "bind" and item.get("Source") == self.workspace_source]
-            if (len(workspace_mounts) != 1 or workspace_mounts[0].get("Destination") != "/workspace"
-                    or workspace_mounts[0].get("RW") is not False):
-                raise ProbeFailure("workspace_development_reader_mount_unconfirmed")
-            readers.append(RegisteredWorkspaceReader(container_id=self.containers[role],
-                operation_id=self.operation_id, scope=self.scope_id, method=METHOD,
-                mount_destination="/workspace"))
-        return tuple(readers)
 
     @staticmethod
     def discover_owned(environment_id: str, scope_id: str, *, operation_id: str | None = None) -> tuple[dict, ...]:

@@ -33,8 +33,7 @@ def contract_payload(value: Contract) -> dict[str, JsonValue]:
     if not isinstance(value, Contract):
         raise TypeError("public_contract_required")
     try:
-        checked = type(value).model_validate(value.model_dump(mode="python"))
-        payload = checked.model_dump(mode="json")
+        payload = value.model_dump(mode="json")
     except (ValueError, TypeError, UnicodeError):
         raise ValueError("public_contract_invalid") from None
     return validate_public_payload(payload)

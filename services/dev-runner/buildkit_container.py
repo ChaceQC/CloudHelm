@@ -32,8 +32,6 @@ def process_identity(pid: int) -> str | None:
 
 
 class BuildKitContainer:
-    capture_memory_peak = False
-
     def __init__(self, client: DockerClient, operation_id: str, directory: Path,
                  image: str, started: float) -> None:
         self.client, self.operation_id, self.directory = client, operation_id, directory
@@ -68,8 +66,7 @@ class BuildKitContainer:
             time.sleep(0.2)
         raise ProbeFailure("probe_worker_readiness_unconfirmed")
 
-    def _observe_processes(self) -> list[tuple[int, str, list[bytes]]]:
-        observed = []
+    def _observe_processes(self) -> None:
         result = self.client.run("top", self.container_id, "-eo", "pid", timeout=self.remaining())
         for line in result.stdout.splitlines()[1:]:
             fields = line.split()
@@ -81,7 +78,6 @@ class BuildKitContainer:
                 continue
             try:
                 group = Path(f"/proc/{pid}/cgroup").read_text(encoding="utf-8").strip()
-                command_line = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
             except FileNotFoundError:
                 continue
             expected = "/" + str(self.cgroup.relative_to("/sys/fs/cgroup"))
@@ -89,11 +85,9 @@ class BuildKitContainer:
                        for line in group.splitlines()):
                 raise ProbeFailure("probe_child_outside_parent_cgroup")
             self.processes[pid] = identity
-            observed.append((pid, identity, command_line))
-        return observed
 
     def stop_and_remove(self) -> CapabilityEvidence:
-        if self.capture_memory_peak and self.cgroup is not None and self.cgroup.exists():
+        if self.cgroup is not None and self.cgroup.exists():
             self.memory_peak = int((self.cgroup / "memory.peak").read_text(encoding="utf-8"))
         if self.container_id is None:
             return CapabilityEvidence(capability="stop_confirmation", status="unverified", reason="not_started")
@@ -126,8 +120,6 @@ class BuildKitContainer:
 class OfflineBuildKitContainer(BuildKitContainer):
     """Shared fixed offline build envelope and bounded OCI collection."""
 
-    capture_memory_peak = True
-
     def _create_builder(self, *, scope: str, method: str, binds: dict[str, str],
                         tmpfs: dict[str, tuple[int, str]], cpu_quota: int, cpu_period: int,
                         memory: int, pids: int, shm: int, error_prefix: str) -> None:
@@ -154,8 +146,7 @@ class OfflineBuildKitContainer(BuildKitContainer):
         self._wait_for_worker()
 
     def _observe_builder(self, *, tmpfs: dict[str, tuple[int, str]], cpu_quota: int, cpu_period: int,
-                         memory: int, pids: int, shm: int, error_prefix: str,
-                         verify_input_mounts: bool = False) -> tuple[dict, dict]:
+                         memory: int, pids: int, shm: int, error_prefix: str) -> tuple[dict, dict]:
         metadata = self.metadata()
         host, mounts = metadata["HostConfig"], metadata["Mounts"]
         binds = {item["Destination"]: item["Source"] for item in mounts if item["Type"] == "bind" and not item["RW"]}
@@ -168,7 +159,7 @@ class OfflineBuildKitContainer(BuildKitContainer):
                 or host["NetworkMode"] != "none" or host["IpcMode"] != "private"
                 or set(host["Tmpfs"]) != set(expected_tmpfs) - {"/dev/shm"}):
             raise ProbeFailure(error_prefix + "_container_boundary_mismatch")
-        for destination, descriptor in (self.input_mounts if verify_input_mounts else {}).items():
+        for destination, descriptor in self.input_mounts.items():
             observed = self.execute("stat", "-c", "%d %i", destination).stdout.split()
             pinned = os.fstat(descriptor)
             if observed != [str(pinned.st_dev), str(pinned.st_ino)]:
@@ -288,7 +279,7 @@ class ProductBuildBoundary(OfflineBuildKitContainer):
     def observe_boundary(self) -> dict:
         observed, storage = self._observe_builder(tmpfs=self._tmpfs(), cpu_quota=CPU_QUOTA,
             cpu_period=CPU_PERIOD, memory=MEMORY_BYTES, pids=PIDS_LIMIT, shm=SHM_BYTES,
-            error_prefix=self.error_prefix, verify_input_mounts=True)
+            error_prefix=self.error_prefix)
         return {"kernel_limits": observed, "outer_tmpfs_bytes": storage,
             "outer_tmpfs_capacity_sum": sum(storage.values()),
             "install_tmpfs_bytes": {"/private-cache": INSTALL_CACHE_BYTES, "/tmp": INSTALL_TEMP_BYTES},

@@ -51,7 +51,7 @@ def collect_target_observation(producer: TargetFactProducer, binding):
 def _verified(proof, schema):
     if type(proof) is not _VerifiedTargetFact or proof._proof is not _TARGET_PROOF or type(proof.value) is not schema:
         raise TaskBoundaryError("trusted_target_fact_required")
-    return schema.model_validate(proof.value.model_dump(mode="python"))
+    return proof.value
 
 
 def register_target(uow, project_id, proof):

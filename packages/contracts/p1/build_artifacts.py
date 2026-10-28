@@ -75,8 +75,7 @@ def artifact_content_bytes(content: ArtifactContent) -> bytes:
     """Versioned receipt metadata, separate from archive/config/blob digests."""
     if type(content) is not ArtifactContent:
         raise TypeError("artifact_content_type_invalid")
-    checked = ArtifactContent.model_validate(content.model_dump(mode="python"))
-    encoded = rfc8785.dumps(checked.model_dump(mode="json"))
+    encoded = rfc8785.dumps(content.model_dump(mode="json"))
     if len(encoded) > MAX_RECEIPT_BYTES:
         raise ValueError("artifact_receipt_too_large")
     return encoded

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import os
 import re
 import stat
@@ -26,6 +25,7 @@ from packages.contracts.p1.development_environment import (
 from packages.contracts.p1.workspace_candidates import RegisteredWorkspaceReader, workspace_runtime_scope_id
 from packages.contracts.p1.workspace_git import WorkspaceBinding
 
+from .engineering_registry import EngineeringRegistry, EngineeringRegistryError
 from .toolchain import ProbeFailure
 from .workspace_development_inputs import workspace_storage_id
 from .workspace_development_journal import (
@@ -78,24 +78,12 @@ def _current_spec(base: WorkspaceDevelopmentEnvironmentSpec,
         raise ProbeFailure("workspace_development_current_spec_invalid") from None
 
 
-def _check_registry_storage(registry, reference) -> None:
-    configured = getattr(getattr(registry, "registration", None), "storage", None)
-    if configured != reference:
-        raise ProbeFailure("workspace_development_registry_storage_mismatch")
-
-
 def _runtime_type():
     try:
-        return importlib.import_module("services.dev-runner.workspace_development_runtime").WorkspaceDevelopmentRuntime
-    except (ImportError, AttributeError):
+        from .workspace_development_runtime import WorkspaceDevelopmentRuntime
+    except ImportError:
         raise ProbeFailure("workspace_development_runtime_unavailable") from None
-
-
-def _make_runtime(spec: WorkspaceDevelopmentEnvironmentSpec):
-    runtime_type = _runtime_type()
-    runtime = runtime_type(spec)
-    runtime.acquire_storage_pin()
-    return runtime
+    return WorkspaceDevelopmentRuntime
 
 
 @contextmanager
@@ -249,41 +237,36 @@ def _remove_environment_data(runtime, storage, operation_id: str, gate: Callable
 class WorkspaceDevelopmentController:
     """Persist accepted Runner lifecycle intents and expose only authenticated observations."""
 
-    def __init__(self, registry, gate: Callable[[str], None]):
+    def __init__(self, registry: EngineeringRegistry, gate: Callable[[str], None]):
         if registry is None or not callable(getattr(registry, "admit", None)):
             raise ProbeFailure("workspace_development_engineering_registry_required")
         if not callable(gate):
             raise ProbeFailure("workspace_development_current_gate_required")
         self.registry, self.gate = registry, gate
+        self.resource_binding = None
         self._runtimes: dict[str, object] = {}
         self._mutex = threading.RLock()
         self._closed = False
 
     @contextmanager
     def _storage(self):
-        binding = getattr(self, "resource_binding", None)
+        binding = self.resource_binding
         with binding.context() if binding is not None else nullcontext():
             with self._storage_admission() as storage:
                 yield storage
 
     @contextmanager
     def _storage_admission(self):
-        current = getattr(self.registry, "current_storage", None)
-        if callable(current):
-            try:
-                storage = current()
-            except Exception as error:
-                if (type(error).__name__ != "EngineeringRegistryError"
-                        or str(error) != "engineering_storage_admission_required"):
-                    raise
-            else:
-                yield storage
-                return
+        try:
+            storage = self.registry.current_storage()
+        except EngineeringRegistryError as error:
+            if str(error) != "engineering_storage_admission_required":
+                raise
+        else:
+            yield storage
+            return
         with self.registry.admit(0) as storage:
             yield storage
-
-    def _check_ref(self, reference) -> None:
-        _check_registry_storage(self.registry, reference)
 
     def _check_storage(self, storage) -> None:
         try:
@@ -301,23 +284,26 @@ class WorkspaceDevelopmentController:
             raise ProbeFailure("workspace_development_storage_admission_required") from None
 
     def _runtime(self, spec: WorkspaceDevelopmentEnvironmentSpec, prepare_operation_id: str):
-        self._check_ref(spec.storage_ref)
+        registration = self.registry.registration
+        if registration is None or registration.storage != spec.storage_ref:
+            raise ProbeFailure("workspace_development_registry_storage_mismatch")
         with self._mutex:
             if self._closed:
                 raise ProbeFailure("workspace_development_controller_closed")
             runtime = self._runtimes.get(spec.environment_id)
-            if runtime is not None and getattr(runtime, "prepare_operation_id", None) not in (
+            if runtime is not None and runtime.prepare_operation_id not in (
                     None, prepare_operation_id):
                 raise ProbeFailure("workspace_development_runtime_prepare_identity_mismatch")
             if runtime is None:
-                binding = getattr(self, "resource_binding", None)
+                binding = self.resource_binding
                 with binding.context() if binding is not None else nullcontext():
-                    runtime = _make_runtime(spec)
+                    runtime = _runtime_type()(spec)
+                    runtime.acquire_storage_pin()
                 self._runtimes[spec.environment_id] = runtime
             else:
                 runtime.spec = spec
                 runtime.binding = spec.binding
-                if getattr(runtime, "pin", None) is None:
+                if runtime.pin is None:
                     runtime.acquire_storage_pin()
             if runtime.prepare_operation_id is None:
                 runtime.prepare_operation_id = prepare_operation_id
@@ -533,14 +519,9 @@ class WorkspaceDevelopmentController:
 
     @staticmethod
     def _safe_dependency_evidence(runtime) -> dict | None:
-        provider = getattr(runtime, "dependency_evidence", None)
-        if not callable(provider):
-            return None
         try:
-            raw = provider()
+            raw = runtime.dependency_evidence()
         except Exception:
-            return None
-        if not isinstance(raw, dict):
             return None
         fields = ("reused", "environment_key", "lock_digest", "dependency_cache_key",
                   "toolchain_digest", "snapshot_digest", "snapshot_bytes")
@@ -600,8 +581,6 @@ class WorkspaceDevelopmentController:
             environment["physical_state"] = "stopped"
             environment["updated_at"] = _now()
             session.write_environment(environment)
-            environment_path = storage.workspace_root / "runtime-environments" / request.environment_id
-            _runtime_mounts_absent(storage, environment_path)
             _remove_environment_data(runtime, storage, request.operation_id, self.gate)
             return self._stop_observation(intent, spec, low_level.stop_fact, "disposed",
                 request.expected_data_generation, request.expected_data_revision,
@@ -817,8 +796,6 @@ class WorkspaceDevelopmentController:
                 raise ProbeFailure("workspace_development_prepare_identity_missing")
             with self._storage() as storage:
                 from .workspace_development_docker import WorkspaceDevelopmentDocker, METHOD
-                from .workspace_development_inputs import workspace_storage_id
-                from packages.contracts.p1.workspace_candidates import workspace_runtime_scope_id
 
                 scope = workspace_runtime_scope_id(binding)
                 expected = str(storage.workspace_root / workspace_storage_id(binding) / "files")
@@ -834,11 +811,6 @@ class WorkspaceDevelopmentController:
                     readers.append(RegisteredWorkspaceReader(container_id=record["container_id"],
                         operation_id=prepare_operation_id, scope=scope, method=METHOD))
             for reader in readers:
-                if (reader.operation_id != prepare_operation_id
-                        or reader.scope != workspace_runtime_scope_id(binding)
-                        or reader.method != "p1-workspace-development-r1"
-                        or reader.mount_destination != "/workspace"):
-                    raise ProbeFailure("workspace_development_reader_identity_mismatch")
                 if reader.container_id in result and result[reader.container_id] != reader:
                     raise ProbeFailure("workspace_development_reader_identity_conflict")
                 result[reader.container_id] = reader
@@ -999,8 +971,6 @@ class WorkspaceDevelopmentController:
             raise
         except Exception:
             raise ProbeFailure("workspace_development_probe_observation_unavailable") from None
-        if not isinstance(result, dict):
-            raise ProbeFailure("workspace_development_probe_observation_invalid")
         evidence = dict(environment.get("method_probe_evidence") or {})
         evidence[kind] = result
         environment["method_probe_evidence"] = evidence

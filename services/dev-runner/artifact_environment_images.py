@@ -1,8 +1,7 @@
-"""Trusted OCI intake/load and a strict archive of the fixed PostgreSQL dependency."""
+"""Trusted OCI loading and a strict archive of the fixed PostgreSQL dependency."""
 
 from __future__ import annotations
 
-import hashlib
 import io
 import json
 import os
@@ -25,32 +24,6 @@ def _new_file(path: Path):
     return os.fdopen(os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600), "wb")
 
 
-def intake(store: ArtifactStore, source: ArtifactStore, receipt: ArtifactContent, directory: Path):
-    """Copy the already verified inode into the admitted pool, then re-publish it."""
-    if source.query(receipt.storage_id) != receipt:
-        raise ProbeFailure("artifact_environment_source_receipt_mismatch")
-    path = directory / "intake.oci.tar"
-    try:
-        digest, size = hashlib.sha256(), 0
-        with source.open_archive(receipt.storage_id) as stream, _new_file(path) as output:
-            while chunk := stream.read(65536):
-                size += len(chunk)
-                if size > receipt.archive_bytes:
-                    raise ProbeFailure("artifact_environment_intake_bound_exceeded")
-                digest.update(chunk)
-                output.write(chunk)
-            output.flush()
-            os.fsync(output.fileno())
-        if size != receipt.archive_bytes or "sha256:" + digest.hexdigest() != receipt.archive_digest:
-            raise ProbeFailure("artifact_environment_intake_changed")
-        saved = store.publish(path, expected_archive_digest=receipt.archive_digest)
-        if saved != receipt:
-            raise ProbeFailure("artifact_environment_saved_receipt_mismatch")
-        return saved
-    finally:
-        path.unlink(missing_ok=True)
-
-
 def load(store: ArtifactStore, receipt: ArtifactContent) -> dict:
     with store.open_archive(receipt.storage_id) as stream:
         with tarfile.open(fileobj=stream, mode="r:") as archive:
@@ -71,11 +44,6 @@ def load(store: ArtifactStore, receipt: ArtifactContent) -> dict:
             "config_digest": receipt.config.digest, "oci_config_image_id": receipt.image_id,
             "actual_image_id": actual["Id"], "docker_identity_kind": "oci_manifest",
             "rootfs_diff_ids_and_runtime_configuration_verified": True, "platform": "linux/amd64"}
-
-
-def verify_postgres_receipt(receipt: ArtifactContent):
-    if receipt.manifest.digest != POSTGRES_MANIFEST or receipt.manifest.size_bytes != 3628:
-        raise ProbeFailure("artifact_environment_postgres_not_fixed_dependency")
 
 
 def _tar_member(target, name: str, size: int, source):

@@ -20,8 +20,7 @@ def workspace_metadata_digest(value: GitMetadata) -> str:
     """Hash the exact versioned metadata, independently of Git or manifest digests."""
     if type(value) not in (RegisteredGitSource, WorkspaceBinding, WorkspaceFiles, CandidateSnapshot):
         raise TypeError("workspace_metadata_type_invalid")
-    checked = type(value).model_validate(value.model_dump(mode="python"))
-    encoded = rfc8785.dumps(checked.model_dump(mode="json"))
+    encoded = rfc8785.dumps(value.model_dump(mode="json"))
     limit = 16384 if isinstance(value, (RegisteredGitSource, WorkspaceBinding)) else 32768
     if len(encoded) > limit:
         raise ValueError("workspace_metadata_too_large")

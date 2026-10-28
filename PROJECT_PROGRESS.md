@@ -2,6 +2,22 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.4`、D02/D03/D04/D06/D06a `v4.7.2`、D01/D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-10-28：扩大过度设计复查 T-SIMPLIFY-02
+
+- 原因与授权：用户指出上一轮仅净删 224 行，要求继续查找遗漏的过度设计与非必要实现。入口 `dev / 19e896d`；已跟踪文件干净，原有 `.playwright-cli/` 保留。
+- 重构范围与预期边界：扫描全部受版本控制的产品源码与调用，优先清理历史实验执行类、无人消费的声明和固定内部实现的动态适配。当前产品、授权/版本/状态、物理停止、unknown、构建身份、持久回执及独立契约/验收资产的外部行为保持原边界，不开放 P2.1-02。
+- 初始清点：338 份 Python/TypeScript/TSX/Rust 文件、42,502 物理行（包含当前脚本、迁移和契约，排除 docs/examples、依赖、构建及忽略目录）；不是逐行人工审查完成结论。下一步按计划 R01～R04 追踪消费者，必要验证集中在集成后一次执行。
+- 执行安排：主会话先固定计划，四个新的 `gpt-6.1-terra / max` 小任务分别核对构建实验残留、固定制品实验环境、Workspace 内部适配与内部摘要序列化；互不重叠，主会话负责其余源码及最终集成。
+- 已完成 R01/R02：删除无当前产品、脚本/CI 或本地 Python/Markdown 方法消费者的 `capabilities.py`、`offline_image_runtime.py`、`python_dependency_runtime.py`、`artifact_environment.py`、`artifact_environment_runtime.py`、`artifact_environment_proxy.py`，不搬入新目录继续维护。清理专用策略、OCI intake/无调用回执核对及 BuildKit 旧分支和无人消费的进程命令行采集；保留进程起始身份、cgroup、挂载 inode、内存峰值及停止核对。种子获取、实际 OCI 加载/导出、共享 Docker/EnvironmentGroup 和存储维护锁继续维护；历史方法从删除前提交 `19e896d` 独立检出。
+- 已完成 R03：固定内部 Runtime 使用延迟相对导入；EngineeringRegistry/current_storage 与运行时属性直接流转。删除无调用的 write_secret、本地构造读者/探针的重复判断及处置前重复的挂载盘点，保留最终删除前盘点、存储准入复用/新准入、依赖证据白名单、unknown、持久日志及旧安装发现/停止。
+- 已完成 R04/R04a：全库执行声明、导入、属性读写及消费者扫描，沿实际构造方复核候选。删除低层 WorkspaceRuntime 无调用的 observe_stop、registered_readers 转发链、query/内存观测缓存、无人读取的全局 Runtime 索引及闲置属性；Hub 只接受具体持久 Controller，其当前 query、registered_readers、stop_services/stop 与恢复路径保留。五类摘要、公共结果序列化、内部已证明的目标事实和 DBOS 交接不再将同一模型 dump 后重复 validate；同一 BuildDefinition 的摘要只算一次。原 JSON/数据库/物理内容边界、摘要规范、大小限制及事务/授权检查保留。
+- 保留依据：连续时钟证据与当前远端/交付方法有关；远端登记、凭据登记及 Task 物理事实归档是维护/生产者接口；Workspace 的 status/diff 是既有低层接口；P0 决定函数及公开能力/环境契约属于已固定契约和检查范围。没有仅因入口未在产品内被 import 就删除这些内容。本轮扫描与定向调用复核不等同于 338 份文件逐行人工审查，也不声称所有过度设计均已消除。
+- 版本与规模：源码、Python/npm/Cargo 元数据及锁同步 `0.11.2`，依赖不变；DBOS 应用仍为 `cloudhelm-hub/0.7.0`，迁移 head 仍为 `0012_p2_agent_runtime`。Python 源码增加 42 行、删除 1,483 行，净减少 1,441 行；从首轮前 `4b3a5dc` 累计净减少 1,665 行，不计文档、锁和版本清单。没有新增产品模块。Workspace Runtime/Controller 仍超规模建议线，本轮保留既有生命周期职责，不为行数引入新抽象；已删除可独立确认的死路径，未重写状态机。
+- 集中定向结果：在 WSL Ubuntu-24.04 / Python 3.12.13 执行 `.venv/bin/python -B .thesis-work/t-simplify-02/verify.py`，于 `2026-10-28T07:33:06.890208+00:00`～`07:33:31.195752+00:00` 一次通过。16 份受影响 Python 源码导入通过；与 `19e896d` 比较 6 组规范字节/摘要/公共结果相同，原始非法 Workspace/npm/制品输入仍拒绝；两类 DBOS 交接的绑定写入/队列参数相同且无事务时拒绝；存储复用和新准入两分支通过。DBOS/准入使用内存记录器，不构成真实数据库或物理环境验证。
+- 契约与内容核对：同一方法内 Hub/Remote OpenAPI 快照一致（48 paths / 50 operations / 129 schemas；Remote 8 paths），现有合成 OCI 内容方法 `p1-artifact-content-r2` passed，无 Docker load。另 `uv lock --check --offline` 通过（49 包、无依赖变化）；30 份修改文本 UTF-8、16 份 Python AST、153 个本地链接、8 处版本字段及无退役产品导入残留通过，最终 `git diff --check` 通过。未运行全量、数据库/worker、真实容器、收费模型或 Desktop 编译/原生验收；本轮 Desktop 仅同步版本元数据，既有原生结果不扩展。
+- Git 交付：按同一次 dev 提交推送，最终提交与同步状态以本地/远端引用为准；原有 `.playwright-cli/`、本轮被忽略的方法和运行数据不入库，不创建 PR、tag 或 Release。
+- 进行中：无新增实现工作，本轮结果按开发分支流程交付。阻塞与风险：无新增阻塞；移除进程命令行读取后，退出极快的进程可能使 tracked_processes 观测计数与旧方法不同，停止裁决仍以起始身份及 cgroup 为准；本轮没有物理重验，不扩大旧支持证据。实际投入及剩余产品工作待估。下一项具体任务：本轮交付后结束，P2.1-02 继续待用户安排。主要文件见 PROJECT_PLAN.md 的专项归属及上述开发说明。
+
 ## 2026-10-28：全部八项过度设计精简 T-SIMPLIFY-01
 
 - 原因与授权：用户引用“审查过度设计代码”，要求全部、快速优化并减少测试。入口 `dev / 4b3a5dc`；原有未跟踪 `.playwright-cli/` 保留，不纳入提交。

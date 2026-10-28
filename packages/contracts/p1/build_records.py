@@ -15,18 +15,18 @@ from packages.contracts.p1.workspace_git import CandidateSnapshot, content_diges
 
 
 def build_digest(value: Contract) -> str:
-    checked = type(value).model_validate(value.model_dump(mode="python"))
-    return content_digest(rfc8785.dumps(checked.model_dump(mode="json")))
+    return content_digest(rfc8785.dumps(value.model_dump(mode="json")))
 
 
 def build_input_references(source: InputSet, candidate: CandidateSnapshot, definition: BuildDefinition):
+    definition_digest = build_digest(definition)
     refs = (*source.references, EngineeringRef(
         kind="candidate", object_id=candidate.candidate_id, revision=candidate.candidate_commit,
         authority="workspaces", digest=build_digest(candidate), digest_algorithm="sha256",
     ), EngineeringRef(
-        kind="build", object_id="definition-" + build_digest(definition)[7:],
+        kind="build", object_id="definition-" + definition_digest[7:],
         revision=definition.schema_revision, authority="delivery",
-        digest=build_digest(definition), digest_algorithm="sha256",
+        digest=definition_digest, digest_algorithm="sha256",
     ))
     return refs
 

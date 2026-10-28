@@ -1,6 +1,6 @@
 # 基础 Desktop 与项目同步
 
-正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.11.1`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。内部 Agent Runtime 见[独立说明](p2-runtime.md)；固定恢复副本的收尾使用 [本机维护 CLI](p1-delivery.md#31-独立恢复副本的受限维护)，普通 ready 环境仍可使用交付 API；既有原生调试程序和原生验收证据仍绑定 `0.8.1`，不追认为新版本验收。
+正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.11.2`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。内部 Agent Runtime 见[独立说明](p2-runtime.md)；固定恢复副本的收尾使用 [本机维护 CLI](p1-delivery.md#31-独立恢复副本的受限维护)，普通 ready 环境仍可使用交付 API；既有原生调试程序和原生验收证据仍绑定 `0.8.1`，不追认为新版本验收。
 
 ## 启动与连接
 

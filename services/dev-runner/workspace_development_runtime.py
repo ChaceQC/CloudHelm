@@ -24,7 +24,7 @@ from packages.contracts.p1.development_environment import (
     WorkspaceDevelopmentRuntimeFact, WorkspaceDevelopmentStopFact,
     WorkspaceDevelopmentEnvironmentSpec, workspace_development_operation_digest,
 )
-from packages.contracts.p1.workspace_candidates import RegisteredWorkspaceReader, workspace_runtime_scope_id
+from packages.contracts.p1.workspace_candidates import workspace_runtime_scope_id
 from packages.contracts.p1.workspace_git import WorkspaceBinding, content_digest
 
 from .artifact_environment_docker import EnvironmentGroup, METHOD as ARTIFACT_METHOD, command
@@ -54,7 +54,6 @@ from .workspace_development_source import WorkspaceSourceObservation, observe_wo
 
 RUNTIME_DIRECTORY = "runtime-environments"
 MAX_DATABASE_PASSWORD_BYTES = 256
-_ACTIVE_RUNTIMES: dict[str, "WorkspaceDevelopmentRuntime"] = {}
 
 
 def _invoke_gate(gate, operation_id: str) -> None:
@@ -165,7 +164,6 @@ class WorkspaceDevelopmentRuntime:
         self.runtime_directory: Path | None = None
         self.database_directory: Path | None = None
         self.secrets_directory: Path | None = None
-        self.application_password_path: Path | None = None
         self._runtime_fd = -1
         self._database_fd = -1
         self._secrets_fd = -1
@@ -178,7 +176,6 @@ class WorkspaceDevelopmentRuntime:
         self.data_generation = spec.data_generation
         self.last_source_digest: str | None = None
         self.last_process_id: str | None = None
-        self.observations: dict[str, WorkspaceDevelopmentEnvironmentObservation] = {}
 
     def acquire_storage_pin(self) -> None:
         """Acquire the long-lived backing pin before opening a short storage admission."""
@@ -291,7 +288,6 @@ class WorkspaceDevelopmentRuntime:
                 runtime_fd = database_fd = secrets_fd = -1
                 self.runtime_directory, self.database_directory, self.secrets_directory = (
                     runtime_path, database_path, secrets_path)
-                self.application_password_path = runtime_path / "application-password"
             self._load_or_create_credentials(create=create)
         except ProbeFailure:
             raise
@@ -567,8 +563,6 @@ class WorkspaceDevelopmentRuntime:
         self.latest_operation_id, self.latest_request_digest = operation_id, request_digest
         self.binding, self.spec, self.data_generation = spec.binding, spec, data_generation
         self.last_source_digest, self.last_process_id, self.state = source.manifest_digest, process_id, "ready"
-        self.observations[operation_id] = result
-        _ACTIVE_RUNTIMES[self.spec.environment_id] = self
         return result
 
     def _wait_ready(self, storage: EngineeringStorage, spec: WorkspaceDevelopmentEnvironmentSpec,
@@ -691,7 +685,6 @@ class WorkspaceDevelopmentRuntime:
         self._hold_pin(storage)
         self._validate_storage(storage)
         self.prepare_operation_id = prepare_operation_id
-        self._latest_operation_id = self.latest_operation_id or prepare_operation_id
         self._open_runtime_directories(storage, create=False)
         self._open_workspace_files(storage, self.binding)
         if self.client is None:
@@ -984,50 +977,6 @@ class WorkspaceDevelopmentRuntime:
         except (OSError, ValueError, WorkspaceFileError):
             return None
 
-    def observe_stop(self, prepare_operation_id: str, binding: WorkspaceBinding,
-                     storage: EngineeringStorage) -> WorkspaceDevelopmentStopFact | None:
-        """Read-only stop reconciliation, including unknown readers of pinned paths."""
-        _safe_id(prepare_operation_id, r"workspace-dev-env-prepare-[0-9a-f]{32}",
-                 "workspace_development_prepare_operation_invalid")
-        if not self._same_workspace(self.spec.binding, binding):
-            raise ProbeFailure("workspace_development_stop_binding_mismatch")
-        self._hold_pin(storage)
-        self._validate_storage(storage)
-        source = observe_workspace_source(storage, binding)
-        scope_id = workspace_runtime_scope_id(binding)
-        records = WorkspaceDevelopmentDocker.discover_owned(
-            self.spec.environment_id, scope_id, operation_id=prepare_operation_id)
-        identities = {item["container_id"] for item in records}
-        if any(item["running"] or item["process_id"] not in (0, None)
-               or item["paused"] or item["restarting"] for item in records):
-            return None
-        try:
-            from modules.workspaces.candidate_freeze import _inventory
-            from modules.workspaces.candidate_writers import overlaps
-
-            protected = [source.source_path,
-                str(Path(storage.workspace_root) / RUNTIME_DIRECTORY / self.spec.environment_id)]
-            for item in _inventory():
-                relevant = any(mount.get("Source", "").startswith("/") and any(
-                    overlaps(os.path.realpath(mount["Source"]), target) for target in protected)
-                    for mount in item["mounts"])
-                if relevant and item["id"] not in identities:
-                    return None
-                if relevant and (item["status"] in {"running", "paused"} or item["pid"] not in (0, None)):
-                    return None
-        except (WorkspaceFileError, OSError, KeyError, TypeError):
-            return None
-        group_path = Path("/sys/fs/cgroup") / self.group.unit
-        if (group_path / "cgroup.events").exists():
-            if "populated 0" not in (group_path / "cgroup.events").read_text(encoding="utf-8").splitlines():
-                return None
-        runner = self._runner(prepare_operation_id, binding, source.manifest_digest,
-            {"physical_stop_observed": True,
-             "containers": sorted((item["container_id"], item["status"], item["process_id"]) for item in records),
-             "workspace_manifest_digest": source.manifest_digest})
-        return WorkspaceDevelopmentStopFact(outcome="confirmed_stopped", process_id=None,
-            runner=runner, binding=binding)
-
     def prepare(self, request: PrepareWorkspaceDevelopmentEnvironment, storage: EngineeringStorage, *, gate=None
                 ) -> WorkspaceDevelopmentEnvironmentObservation:
         if type(request) is not PrepareWorkspaceDevelopmentEnvironment:
@@ -1203,32 +1152,16 @@ class WorkspaceDevelopmentRuntime:
                 migration_revision=self.spec.migration_revision, data_revision=self.spec.data_revision,
                 data_generation=self.data_generation, state="disposed", runtime_fact=runtime,
                 stop_fact=stop_fact)
-            self.observations[request.operation_id] = result
             self.latest_operation_id = request.operation_id
             self.latest_request_digest = result.request_digest
             self.state = "disposed"
             self._release_pin()
             self._close_fds()
-            _ACTIVE_RUNTIMES.pop(self.spec.environment_id, None)
             return result
         except ProbeFailure:
             raise
         except Exception:
             raise ProbeFailure("workspace_development_dispose_unconfirmed") from None
-
-    def query(self, operation_id: str) -> WorkspaceDevelopmentEnvironmentObservation:
-        value = self.observations.get(operation_id)
-        if type(value) is not WorkspaceDevelopmentEnvironmentObservation:
-            raise ProbeFailure("workspace_development_observation_unavailable")
-        return value
-
-    def registered_readers(self, binding: WorkspaceBinding | None = None) -> tuple[RegisteredWorkspaceReader, ...]:
-        selected = binding or self.binding
-        if not self._same_workspace(self.binding, selected):
-            raise ProbeFailure("workspace_development_reader_binding_mismatch")
-        if self.docker is None:
-            return ()
-        return self.docker.registered_readers()
 
     def probe_devmarker(self, storage: EngineeringStorage, binding: WorkspaceBinding | None = None) -> dict:
         selected = binding or self.binding

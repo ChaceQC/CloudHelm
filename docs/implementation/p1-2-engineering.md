@@ -72,7 +72,7 @@ P1.2 新增受控初次工程 InputSet 绑定接口，消费已存在且可核�
 
 Runner 只接受封闭的注册操作，`RunnerOperationSpec` 绑定原操作/摘要、项目/Task、执行器身份、工作区或候选、InputSet、修订/代次、工具链、策略、开发限额记录和 UTC 截止时间。公共调用者不能给出任意命令、挂载、Docker 选项或已授权/已预留断言。实际文件位置和限额必须从受控注册记录解析。
 
-首个能力探针仅开放 `probe_capabilities`。`RunnerCapabilityReport` 分别记录 rootless UID 映射、PID/proc 隔离、CPU/内存/PID 父级硬限、存储硬限、网络隔离、停止事实及固定工具链身份，每项为 verified/unsupported/unverified。配置声明、目录存在、容器启动不等于能力已验证。
+历史首个能力探针仅开放 `probe_capabilities`，其执行实现已于 T-SIMPLIFY-02 从当前树退役，复验按原候选独立检出。`RunnerCapabilityReport` 分别记录 rootless UID 映射、PID/proc 隔离、CPU/内存/PID 父级硬限、存储硬限、网络隔离、停止事实及固定工具链身份，每项为 verified/unsupported/unverified。配置声明、目录存在、容器启动不等于能力已验证。
 
 按 D03 优先验证 rootless BuildKit：固定镜像 digest，使用 `native` snapshotter，保留 process sandbox，外层 Docker 使用独立非 host 网络命名空间。所需 seccomp/proc 例外随方法记录；禁止 `--oci-worker-no-process-sandbox`、privileged、宿主 Docker socket、控制面数据库、长期凭据和任意宿主挂载。不能支持的组合明确拒绝。
 
@@ -110,7 +110,7 @@ Runner 只接受封闭的注册操作，`RunnerOperationSpec` 绑定原操作/�
 
 ## 8. 增量开发环境与验证约定
 
-本节保留可变开发 profile、所有权与验证方法的实施约定；实际完成范围和当前入口分别见 [P1.2 记录](../acceptance/p1/p1-2.md) 与 [项目计划](../../PROJECT_PLAN.md)。历史轮次与当轮代理配置只在计划中回查，本节不重新分派任务。`ArtifactEnvironment` 继续只承担固定制品验证；Workspace 开发环境由 `workspaces` 保存业务记录，Runner 提供实际运行事实。
+本节保留可变开发 profile、所有权与验证方法的实施约定；实际完成范围和当前入口分别见 [P1.2 记录](../acceptance/p1/p1-2.md) 与 [项目计划](../../PROJECT_PLAN.md)。历史轮次与当轮代理配置只在计划中回查，本节不重新分派任务。历史 `ArtifactEnvironment` 固定制品验证实现已从当前树退役，旧方法从删除前提交 `19e896d` 独立检出；Workspace 开发环境仍由 `workspaces` 保存业务记录，Runner 提供实际运行事实。
 
 首个受限 profile 为 `notes-backend-dev-r1`：固定 Python/uv、linux/amd64 和既有便签后端；Workspace 源码只读挂载，源码修改继续由共同排他锁保护的受控文件服务执行。工作区内私有依赖按项目／Workspace、工具链、锁文件实际摘要、平台和安装参数分键；已核验 wheel 下载种子只读。不得把 `generation` 当作真实依赖变化的替身。原锁及明确获准的固定锁变体分别核验字节，未知依赖继续拒绝。
 

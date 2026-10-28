@@ -18,7 +18,6 @@ from modules.execution.docker_endpoint import socket_path
 CPU_QUOTA, CPU_PERIOD = 150000, 100000
 MEMORY_BYTES, PIDS_LIMIT = 896 * 1024**2, 256
 ENVIRONMENT = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
-SCOPE = "p1-artifact-environment"
 METHOD = "p1-artifact-environment-r1"
 
 

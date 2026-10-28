@@ -26,9 +26,8 @@ class CandidateFreezeSpec(WorkspaceReadSpec):
 
 
 def candidate_freeze_digest(spec: CandidateFreezeSpec) -> str:
-    checked = CandidateFreezeSpec.model_validate(spec.model_dump())
     return content_digest(rfc8785.dumps({
-        "schema_revision": "p1-workspace-candidate-r1", **checked.model_dump(mode="json"),
+        "schema_revision": "p1-workspace-candidate-r1", **spec.model_dump(mode="json"),
     }))
 
 
