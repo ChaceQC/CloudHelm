@@ -45,6 +45,7 @@ def _start_dbos(application, engine, installation_id: str, engineering, agent_ru
     from modules.workspaces.workflows import register_workspace_workflows
     from modules.workspaces.development_workflows import register_development_environment_workflows
     from modules.agent_runtime.workflows import register_agent_workflows
+    from modules.integration.workflows import register_merge_workflows
 
     DBOS(config=DBOSConfig(
         name=APPLICATION_NAME, application_version=APPLICATION_VERSION,
@@ -62,6 +63,7 @@ def _start_dbos(application, engine, installation_id: str, engineering, agent_ru
     register_deployment_workflows(application.control_engine)
     register_development_environment_workflows(engineering.development_environment)
     register_agent_workflows(agent_runtime)
+    register_merge_workflows(engineering.merge_operation)
     DBOS.listen_queues(WORKER_QUEUES)
     DBOS.launch()
     for queue in WORKER_QUEUES:

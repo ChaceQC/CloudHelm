@@ -33,6 +33,8 @@ _FORBIDDEN = {
     "info/grafts", "info/attributes", "objects/info/alternates",
     "objects/info/http-alternates", "refs/replace",
 }
+_MERGE_REF = r"refs/cloudhelm/merge-(?:intents|results|started|applied)/[0-9a-f]{64}"
+_OID = r"(?:[0-9a-f]{40}|[0-9a-f]{64})"
 
 
 def validate_bare_metadata(directory: int, object_format: str) -> None:
@@ -96,17 +98,28 @@ def _collect(process: subprocess.Popen, limit: int, deadline: float) -> bytes:
 
 
 def _allowed_arguments(arguments: tuple[str, ...]) -> bool:
-    oid = lambda value: isinstance(value, str) and re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", value)
+    oid = lambda value: isinstance(value, str) and re.fullmatch(_OID, value)
     if len(arguments) == 3 and arguments[0] == "cat-file":
         return arguments[1] in {"commit", "tree", "blob"} and bool(oid(arguments[2]))
     if len(arguments) == 4 and arguments[:2] == ("merge-base", "--is-ancestor"):
         return bool(oid(arguments[2]) and oid(arguments[3]))
+    if len(arguments) == 5 and arguments[:3] == ("merge-tree", "--write-tree", "-z"):
+        return bool(oid(arguments[3]) and oid(arguments[4]) and len(arguments[3]) == len(arguments[4]))
+    if (len(arguments) == 5 and arguments[:2] == ("update-ref", "--no-deref")
+            and re.fullmatch(_MERGE_REF, arguments[2])):
+        return bool(oid(arguments[3]) and arguments[4] == "0" * len(arguments[3]))
+    if arguments == ("update-ref", "--stdin"):
+        return True
     branch = None
     if len(arguments) == 3 and arguments[:2] == ("symbolic-ref", "--quiet"):
         branch = arguments[2]
     if (len(arguments) == 4 and arguments[:3] == ("rev-parse", "--verify", "--end-of-options")
             and arguments[3].endswith("^{commit}")):
         branch = arguments[3][:-9]
+    if len(arguments) == 5 and arguments[:4] == ("rev-parse", "--verify", "--quiet", "--end-of-options"):
+        if re.fullmatch(_MERGE_REF, arguments[4]):
+            return True
+        branch = arguments[4]
     if branch is not None:
         try:
             git_branch_ref(branch)
@@ -116,12 +129,29 @@ def _allowed_arguments(arguments: tuple[str, ...]) -> bool:
     return False
 
 
+def _allowed_input(data: bytes) -> bool:
+    pattern = (rf"start\noption no-deref\nupdate (refs/heads/[^ \n]+) ({_OID}) ({_OID})\n"
+               rf"create (refs/cloudhelm/merge-applied/[0-9a-f]{{64}}) ({_OID})\nprepare\ncommit\n")
+    try:
+        match = re.fullmatch(pattern, data.decode("utf-8"))
+        if match is None or match[2] != match[5] or len(match[2]) != len(match[3]):
+            return False
+        git_branch_ref(match[1])
+        return True
+    except (UnicodeError, ValueError):
+        return False
+
+
 def run_git(directory: int, arguments: tuple[str, ...], *, limit: int, deadline: float,
-            accepted_codes: tuple[int, ...] = (0,), object_directory: int | None = None) -> tuple[int, bytes]:
+            accepted_codes: tuple[int, ...] = (0,), object_directory: int | None = None,
+            input_data: bytes | None = None) -> tuple[int, bytes]:
     """Internal fixed callers only; no public arbitrary command adapter."""
     if time.monotonic() >= deadline:
         raise WorkspaceFileError("git_timeout")
     if not _allowed_arguments(arguments):
+        raise WorkspaceFileError("git_operation_unsupported")
+    if ((arguments == ("update-ref", "--stdin")) != (input_data is not None)
+            or input_data is not None and not _allowed_input(input_data)):
         raise WorkspaceFileError("git_operation_unsupported")
     environment, descriptors = _ENVIRONMENT, (directory,)
     if object_directory is not None:
@@ -134,9 +164,13 @@ def run_git(directory: int, arguments: tuple[str, ...], *, limit: int, deadline:
     try:
         process = subprocess.Popen(
             ["/usr/bin/git", *_OPTIONS, f"--git-dir=/proc/self/fd/{directory}", *arguments],
-            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             env=environment, cwd="/", pass_fds=descriptors, start_new_session=True,
         )
+        if input_data is not None:
+            process.stdin.write(input_data)
+            process.stdin.close()
         output = _collect(process, limit, deadline)
         code = process.wait(timeout=max(0.001, deadline - time.monotonic()))
         if code not in accepted_codes:

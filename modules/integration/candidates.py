@@ -15,6 +15,7 @@ from modules.collaboration.tables import task_inputs
 from modules.delivery.queries import build_view, read_build_intent
 from modules.identity.actors import AuthoritativeResource
 from modules.identity.authorization import authorize_current
+from modules.integration.merge_builds import verify_integration_snapshot
 from modules.sync.events import append_event
 from modules.sync.tables import event_log
 from modules.workspaces.operations import read_workspace_operation
@@ -67,15 +68,22 @@ def _fix(context, request):
     if (view.state != "succeeded" or not view.content.applicable or not view.execution.applicable):
         raise TaskBoundaryError("candidate_build_evidence_unavailable")
     snapshot = build.fixed_inputs.candidate
-    intent, _ = read_workspace_operation(uow.connection, snapshot.freeze_operation_id)
-    _operation_access(uow, context.actor, task, snapshot.freeze_operation_id)
-    source = read_workspace_registration(uow.connection, intent)
-    if (source is None or not source.applicable or type(source.receipt) is not CandidateFreezeReceipt
-            or source.receipt.snapshot != snapshot
-            or intent.result.input_set_ref != build.fixed_inputs.source_input_set_ref
-            or intent.request.expected_control_revision != task["control_revision"]
-            or intent.request.expected_input_validity_revision != task["input_validity_revision"]):
-        raise TaskBoundaryError("candidate_source_evidence_unavailable")
+    if snapshot.candidate_id.startswith("integration-candidate-"):
+        source, entry = verify_integration_snapshot(uow.connection, task, snapshot)
+        if entry.source_input_set_ref != build.fixed_inputs.source_input_set_ref:
+            raise TaskBoundaryError("candidate_source_evidence_unavailable")
+        source_authority = "integration"
+    else:
+        intent, _ = read_workspace_operation(uow.connection, snapshot.freeze_operation_id)
+        _operation_access(uow, context.actor, task, snapshot.freeze_operation_id)
+        source = read_workspace_registration(uow.connection, intent)
+        if (source is None or not source.applicable or type(source.receipt) is not CandidateFreezeReceipt
+                or source.receipt.snapshot != snapshot
+                or intent.result.input_set_ref != build.fixed_inputs.source_input_set_ref
+                or intent.request.expected_control_revision != task["control_revision"]
+                or intent.request.expected_input_validity_revision != task["input_validity_revision"]):
+            raise TaskBoundaryError("candidate_source_evidence_unavailable")
+        source_authority = "workspaces"
     environment = read_registered_reference(uow.connection, task["project_id"], request.environment_ref)
     if not isinstance(environment.metadata, EnvironmentMetadata):
         raise TaskBoundaryError("candidate_registered_environment_required")
@@ -94,7 +102,7 @@ def _fix(context, request):
         scope=scope, evidence_ref=_ref("evidence", scope + "-" + build_digest(fact)[7:],
                                       "1", authority, fact), subject_ref=subject,
     ) for scope, subject, authority, fact in (
-        ("source_snapshot", source_ref, "workspaces", source),
+        ("source_snapshot", source_ref, source_authority, source),
         ("build_execution", build_ref, "delivery", view.execution),
         ("artifact_content", build_ref, "delivery", view.content),
     ))

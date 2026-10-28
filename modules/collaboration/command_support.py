@@ -170,6 +170,11 @@ def _engineering_operation_owner(context: TaskAccessContext, operation_id: str) 
         elif operation_id.startswith("build-operation-"):
             _, intent = read_build_intent(context.uow.connection, operation_id)
             project_id, task_id = intent.project_id, intent.task_id
+        elif operation_id.startswith("merge-entry-"):
+            from modules.integration.merge_records import read_entry
+
+            entry = read_entry(context.uow.connection, operation_id)
+            project_id, task_id = entry.project_id, entry.task_id
         else:
             raise IdentityError("permission_denied")
     except TaskBoundaryError:

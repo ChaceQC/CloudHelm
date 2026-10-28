@@ -11,6 +11,7 @@ from modules.delivery.queries import build_view, read_build_intent
 from modules.delivery.compose import bind_environment_config
 from modules.delivery.release_recipe import archive_runtime, delivery_digest, runtime_verification_digest, variant_digest
 from modules.integration.validity import require_verification_evidence
+from modules.integration.merge_validity import require_merged_report
 from packages.contracts.p1.delivery_records import ReleaseManifest
 from packages.contracts.p1.task_facts import AcceptanceMetadata, EvidenceMetadata
 
@@ -45,6 +46,7 @@ def _verification(connection, row, record, references, runtime_digest):
         evidence.append(data)
         if expected.intersection(data.check_ids):
             view = require_verification_evidence(connection, task, ref, data, build_operation_id=record.operation_id)
+            require_merged_report(connection, task, view)
             verified.append(view.report)
             covered.update(view.report.passed_check_ids)
     if not verified or not expected <= covered:

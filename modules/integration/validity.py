@@ -51,6 +51,22 @@ def verification_view(connection, task, report_id):
         and candidate.build_operation_id == report.build_operation_id
         and candidate.environment_ref == report.evidence.environment_ref
         and set(report.evidence.support_scope) <= set(environment.metadata.support_scope))
+    from modules.delivery.queries import read_build_intent
+
+    _, build = read_build_intent(connection, report.build_operation_id)
+    snapshot = build.fixed_inputs.candidate
+    if snapshot.freeze_operation_id.startswith("merge-attempt-"):
+        from modules.integration.merge_records import entry_for_attempt, read_attempt
+
+        try:
+            entry = entry_for_attempt(connection, snapshot.freeze_operation_id)
+            attempt = read_attempt(connection, entry.attempt_id)
+            current = bool(current and entry.task_id == task["task_id"]
+                and entry.state in {"awaiting_evidence", "applying", "merged"}
+                and attempt is not None and attempt.snapshot == snapshot
+                and report.source_ref.revision == snapshot.candidate_commit)
+        except TaskBoundaryError:
+            current = False
     usable = current and report.evidence.result == "passed"
     return VerificationView(report=report, evidence_ref=evidence_ref,
         applicability="valid" if current else "needs_review", usable=usable,
@@ -99,6 +115,9 @@ def require_release_verification(connection, project_id, release):
         data = read_registered_reference(connection, project_id, ref).metadata
         if isinstance(data, EvidenceMetadata) and expected.intersection(data.check_ids):
             view = require_verification_evidence(connection, task, ref, data, build_operation_id=build.operation_id)
+            from modules.integration.merge_validity import require_merged_report
+
+            require_merged_report(connection, task, view)
             covered.update(view.report.passed_check_ids)
     if not expected or not expected <= covered:
         raise TaskBoundaryError("controlled_verification_required")

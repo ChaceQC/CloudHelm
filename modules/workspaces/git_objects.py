@@ -255,5 +255,18 @@ class GitObjectStore:
                 tree = _inspect(directory, source, base_commit, time.monotonic() + _OPERATION_SECONDS)
                 yield directory, tree
 
+    @contextmanager
+    def integration_repository(self, source: RegisteredGitSource):
+        """Open current registered metadata for the trusted integration service."""
+        if type(source) is not RegisteredGitSource:
+            raise WorkspaceFileError("git_source_invalid")
+        registered = self.resolve_source(source.project_id, source.source_id, source.source_revision)
+        if registered != source:
+            raise WorkspaceFileError("git_source_binding_mismatch")
+        with self._root.exclusive() as root:
+            with directory_at(root, managed_repository_slot(source)) as directory:
+                validate_bare_metadata(directory, source.object_format)
+                yield directory
+
     def close(self) -> None:
         self._root.close()

@@ -10,6 +10,7 @@ EngineeringWorkflowName = Literal[
     "projects.source_import.v1", "workspaces.operation.v1", "delivery.build.v1",
     "workspaces.development_environment.v1",
     "delivery.deployment_stage.v1",
+    "integration.merge_queue.v1",
 ]
 
 
@@ -33,6 +34,7 @@ class EngineeringWorkflowDispatch(Contract):
             "workspaces.development_environment.v1": "workspace",
             "delivery.build.v1": "build",
             "delivery.deployment_stage.v1": "deployment",
+            "integration.merge_queue.v1": "project",
         }
         if self.business_kind != expected[self.workflow_name]:
             raise ValueError("engineering_workflow_domain_mismatch")

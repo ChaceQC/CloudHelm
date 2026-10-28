@@ -60,13 +60,22 @@ def read_completion_inputs(
 
     selected = selected_verification(reader.connection, task)
     if selected is not None:
+        from modules.integration.merge_validity import require_merged_report
+        from modules.collaboration.errors import TaskBoundaryError
+
+        merged = True
+        try:
+            require_merged_report(reader.connection, task, selected)
+        except TaskBoundaryError:
+            merged = False
+            reader.block("project_integration_required")
         report = selected.report
         inputs = VerificationReference(report.evidence.input_set_ref, InputSetMetadata(input_set=report.input_set))
         source = VerificationReference(report.source_ref, SourceMetadata(commit=report.source_ref.revision))
         candidate = VerificationReference(report.evidence.subject_ref,
             CandidateMetadata(source_ref=source.reference, input_set_ref=inputs.reference))
         refs = report.input_set.references
-        current = bool(selected.usable and row is not None and all(
+        current = bool(merged and selected.usable and row is not None and all(
             item is not None and item.reference in refs for item in (requirement, acceptance, policy, resources)))
         if not current:
             reader.block("input_not_current")
@@ -77,21 +86,9 @@ def read_completion_inputs(
     input_set = reader.read(row["input_set_key"] if row else None, "input_set", missing_code="final_input_missing")
     source = reader.read(row["source_key"] if row else None, "source", missing_code="final_source_missing")
     candidate = reader.read(row["candidate_key"] if row else None, "candidate", missing_code="final_candidate_missing")
-    current = bool(task["input_status"] == "valid" and all(
-        item is not None for item in (input_set, source, candidate, requirement, acceptance, policy, resources)
-    ))
-    if current:
-        refs = input_set.metadata.input_set.references
-        required = (requirement.reference, acceptance.reference, source.reference, policy.reference, resources.reference)
-        current = (all(ref in refs for ref in required)
-                   and candidate.metadata.source_ref == source.reference
-                   and candidate.metadata.input_set_ref == input_set.reference)
-        for ref in refs:
-            if reader.read(ref) is None:
-                current = False
-    if not current:
-        reader.block("input_not_current")
-    return CompletionInputs(row, input_set, source, candidate, requirement, acceptance, policy, current)
+    reader.block("project_integration_required")
+    reader.block("input_not_current")
+    return CompletionInputs(row, input_set, source, candidate, requirement, acceptance, policy, False)
 
 
 def _applicable_evidence(reader: FactReader, task: Mapping[str, Any], inputs: CompletionInputs):

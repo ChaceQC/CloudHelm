@@ -24,6 +24,7 @@ WORKFLOW_QUEUES: dict[WorkflowName | EngineeringWorkflowName, str] = {
     DEVELOPMENT_ENVIRONMENT_WORKFLOW: "engineering",
     BUILD_WORKFLOW: "engineering",
     DEPLOYMENT_STAGE_WORKFLOW: "control",
+    "integration.merge_queue.v1": "engineering",
 }
 
 

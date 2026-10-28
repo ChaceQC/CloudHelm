@@ -11,6 +11,7 @@ from modules.delivery.receipts import (
 )
 from modules.identity.actors import AuthoritativeResource, actor_for_command
 from modules.identity.authorization import authorize_current
+from modules.integration.merge_builds import read_integration_bytes
 from modules.workspaces.safe_paths import WorkspaceFileError, read_regular
 from modules.workspaces.workspace_views import observe
 from packages.contracts.p1.build_records import BuildArtifactLocator
@@ -32,6 +33,8 @@ def _record(runtime, operation_id, *, reconciliation):
 
 def _candidate_bytes(runtime, storage, record):
     candidate = record.fixed_inputs.candidate
+    if candidate.candidate_id.startswith("integration-candidate-"):
+        return read_integration_bytes(runtime, storage, record)
     intent = runtime._intent(candidate.freeze_operation_id)
     with runtime._git(storage, record.project_id) as git:
         store = runtime._candidate_store(storage, git, intent, reconciliation=True)

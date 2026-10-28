@@ -15,6 +15,7 @@ from modules.integration.candidates import FixedCandidateApplication
 from modules.integration.verification import VerificationApplication
 from modules.integration.validity import VerificationImpactApplication
 from modules.workspaces.handoffs import WorkspaceHandoffApplication
+from modules.integration.merge_queue import MergeQueueApplication
 from modules.delivery.deployment_application import DeliveryApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
 
@@ -49,6 +50,7 @@ class ApiRuntime:
     verifications: VerificationApplication
     verification_impacts: VerificationImpactApplication
     handoffs: WorkspaceHandoffApplication
+    merges: MergeQueueApplication
     sync_epoch: str = field(default_factory=lambda: uuid4().hex)
 
     def close(self) -> None:
@@ -121,6 +123,8 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
             verification_impacts=VerificationImpactApplication(pools.normal),
             handoffs=WorkspaceHandoffApplication(pools.normal, pools.control,
                 enqueue_operation=engineering_enqueuer(client, "workspace")),
+            merges=MergeQueueApplication(pools.normal, pools.control,
+                enqueue_operation=engineering_enqueuer(client, "integration")),
         )
     except Exception:
         try:

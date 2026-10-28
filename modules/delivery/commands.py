@@ -17,6 +17,7 @@ from modules.delivery.queries import build_operation_digest, build_view, read_bu
 from modules.delivery.tables import build_runs
 from modules.identity.actors import AuthoritativeResource, actor_for_command, validate_actor
 from modules.identity.authorization import authorize_current
+from modules.integration.merge_builds import integration_candidate, verify_integration_snapshot
 from modules.sync.events import append_event
 from modules.workspaces.tables import workspace_candidates
 from packages.contracts.p0.engineering_contracts import InputSet, input_set_digest
@@ -29,6 +30,8 @@ from packages.contracts.p1.workspace_records import workspace_metadata_digest
 
 
 def _candidate(connection, task, candidate_id):
+    if candidate_id.startswith("integration-candidate-"):
+        return integration_candidate(connection, task, candidate_id)
     row = connection.execute(select(workspace_candidates).where(
         workspace_candidates.c.candidate_id == candidate_id,
         workspace_candidates.c.project_id == task["project_id"],
@@ -173,6 +176,10 @@ def resolve_build_operation_in_uow(uow, operation_id):
     )).scalar_one_or_none()
     if current != row["input_set_key"]:
         raise BuildBoundaryError("build_input_not_current")
+    if record.fixed_inputs.candidate.candidate_id.startswith("integration-candidate-"):
+        _, entry = verify_integration_snapshot(uow.connection, task, record.fixed_inputs.candidate)
+        if entry.source_input_set_ref != record.fixed_inputs.source_input_set_ref:
+            raise BuildBoundaryError("build_input_not_current")
     assert_schema_ready(uow.connection)
     return record
 

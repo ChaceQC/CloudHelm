@@ -22,7 +22,8 @@ def build_input_references(source: InputSet, candidate: CandidateSnapshot, defin
     definition_digest = build_digest(definition)
     refs = (*source.references, EngineeringRef(
         kind="candidate", object_id=candidate.candidate_id, revision=candidate.candidate_commit,
-        authority="workspaces", digest=build_digest(candidate), digest_algorithm="sha256",
+        authority="integration" if candidate.candidate_id.startswith("integration-candidate-") else "workspaces",
+        digest=build_digest(candidate), digest_algorithm="sha256",
     ), EngineeringRef(
         kind="build", object_id="definition-" + definition_digest[7:],
         revision=definition.schema_revision, authority="delivery",

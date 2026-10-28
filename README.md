@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-**Hub 开发源码 `0.15.0` · 数据库迁移 `0015` · 尚无正式发布、tag 或 GitHub Release**
+**Hub 开发源码 `0.16.0` · 数据库迁移 `0016` · 尚无正式发布、tag 或 GitHub Release**
 
 仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、历史接缝记录和全栈参照项目**，已具备的能力为：
 
@@ -15,6 +15,7 @@
 - 绑定精确构建、制品和受控验证环境的不可变候选/InputSet，见[固定候选说明](docs/development/p2-candidates.md)；
 - 受控正式 HTTP 验收、不可变完整性报告、精确证据选择与输入变化后的消费者门禁，见[正式验收说明](docs/development/p2-verification.md)；
 - 服务端受控人工接管、按版本编辑及显式交还，固定前后快照和文件差异，见[写入权交接说明](docs/development/p2-handoffs.md)；
+- 项目合并队列、最终提交的独立验证与审查，以及权威分支条件更新，见[集成说明](docs/development/p2-merge-queue.md)；
 - 共享宿主资源预留、Runner 注册、本地持久确认、受限 scratch 及固定工程资源组；
 - 受管构建/开发环境、进程与磁盘分维释放，以及 backing 持续占账；
 - 固定参照的归档 Release、独立环境配置、部署计划、人类摘要批准和启动前复核；

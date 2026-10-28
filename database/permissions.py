@@ -65,6 +65,8 @@ def apply_runtime_permissions(connection: Connection) -> None:
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
         connection.exec_driver_sql(f"GRANT INSERT, UPDATE (applicability) ON cloudhelm.verification_dependencies TO {name}")
         connection.exec_driver_sql(f"GRANT INSERT, UPDATE (state, record_json) ON cloudhelm.workspace_handoffs TO {name}")
+        connection.exec_driver_sql(f"GRANT INSERT, UPDATE (state, record_json) ON cloudhelm.merge_queue TO {name}")
+        connection.exec_driver_sql(f"GRANT USAGE ON SEQUENCE cloudhelm.merge_queue_position_seq TO {name}")
         for table in TASK_MUTABLE_TABLES:
             connection.exec_driver_sql(f"GRANT UPDATE ON cloudhelm.{table} TO {name}")
         for table, columns in {**_IDENTITY_UPDATES[role], "outbox": ("dispatched_at",),

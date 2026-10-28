@@ -33,6 +33,8 @@ P2 的固定候选契约独立位于 [`../p2/candidates.py`](../p2/candidates.py
 
 P2 的正式验收契约位于 [`../p2/verification.py`](../p2/verification.py)，区分预期/实际检查、失败/未知/未执行报告和当前适用性。Hub 仅开放查询、受版本约束的通过证据选择和明确旧引用的影响失效；不接受公开上传的成功报告或执行参数，见[正式验收说明](../../../docs/development/p2-verification.md)。
 
+P2.3 的项目队列契约位于 [`../p2/merge_queue.py`](../p2/merge_queue.py)。最终候选沿原 BuildRun/正式验证类型传递，固定的 integration 尝试成为实际源码生产者；独立人类审查、当前队首及最终证据共同约束条件合入。只有已合入且适用的最终报告可进入 Task 完成及 Release/部署消费者，见[集成说明](../../../docs/development/p2-merge-queue.md)。
+
 项目 developer 绑定可显式授予 `workspace.write`、`candidate.submit`、`operation.request`。旧 owner/角色/委托不因动作枚举扩展自动得到新权限；原结果回读仍须当前权。首次 InputSet 绑定使用 Task 元数据权限，不替代后续工程动作授权。
 
 身份、工程引用及 Task 控制规则显式复用 [P0 决定契约](../p0/README.md)，沿用 `p0-decisions-r1` 与 `cloudhelm-jcs-sha256-r1` 的含义；新增路由绑定独立的固定请求 schema 修订。软件版本、业务迁移、DBOS SDK、工作流应用和 API/schema 修订独立管理，P0 历史字节不重算或改写。

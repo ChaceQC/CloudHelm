@@ -45,6 +45,11 @@ class EngineeringRuntime:
         self.instance_id = "engineering-worker-" + uuid4().hex
         self.sources = SourceImportApplication(engine, control_engine)
         self.handoffs = WorkspaceHandoffApplication(engine, control_engine)
+        from modules.integration.merge_queue import MergeQueueApplication
+        from modules.workflow.engineering_enqueuers import engineering_enqueuer
+
+        self.merges = MergeQueueApplication(engine, control_engine,
+            enqueue_operation=engineering_enqueuer(client, "integration") if client is not None else None)
         if client is not None:
             from modules.agent_runtime.operations import notify_operation_in_uow
 
@@ -233,6 +238,11 @@ class EngineeringRuntime:
         from .engineering_build import execute_build
 
         return execute_build(self, operation_id)
+
+    def merge_operation(self, operation_id):
+        from modules.integration.merge_execution import execute_merge
+
+        return execute_merge(self, operation_id)
 
 
 def create_engineering_runtime(pools, registration=None, *, development_controller_factory=None, client=None):

@@ -18,6 +18,7 @@ from .routes_development import router as development_router
 from .routes_resources import router as resources_router
 from .routes_delivery import router as delivery_router
 from .routes_sync import router as sync_router
+from .routes_integration import router as integration_router
 from .runtime import start_runtime
 
 
@@ -50,6 +51,7 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     app.include_router(resources_router)
     app.include_router(delivery_router)
     app.include_router(sync_router)
+    app.include_router(integration_router)
 
     @app.get("/health/live", response_model=Liveness, tags=["health"])
     def liveness():

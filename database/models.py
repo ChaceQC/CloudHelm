@@ -17,6 +17,7 @@ TABLE_MODULES = (
     "modules.agent_runtime.billing_tables", "modules.agent_runtime.operation_tables",
     "modules.integration.tables",
     "modules.workspaces.handoff_tables",
+    "modules.integration.merge_tables",
 )
 
 
