@@ -11,6 +11,7 @@ from database.settings import DatabaseSettings, load_database_settings
 from database.uow import UnitOfWork
 from modules.projects.commands import ProjectApplication
 from modules.execution.application import ResourceApplication
+from modules.integration.candidates import FixedCandidateApplication
 from modules.delivery.deployment_application import DeliveryApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
 
@@ -41,6 +42,7 @@ class ApiRuntime:
     development: "WorkspaceDevelopmentApplication"
     resources: ResourceApplication
     delivery: DeliveryApplication
+    candidates: FixedCandidateApplication
     sync_epoch: str = field(default_factory=lambda: uuid4().hex)
 
     def close(self) -> None:
@@ -108,6 +110,7 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
             resources=ResourceApplication(pools.normal, pools.control),
             delivery=DeliveryApplication(pools.normal, pools.control,
                 enqueue_deployment=engineering_enqueuer(client, "deployment")),
+            candidates=FixedCandidateApplication(pools.normal, pools.control),
         )
     except Exception:
         try:

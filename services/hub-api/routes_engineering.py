@@ -20,6 +20,7 @@ from packages.contracts.p1.workspace_requests import (
     CreateWorkspaceRequest, MaterializeWorkspaceRequest, SubmitWorkspaceCandidateRequest,
     WorkspaceCommandResult, WorkspaceView,
 )
+from packages.contracts.p2.candidates import FixCandidateCommandResult, FixCandidateRequest, FixedCandidateView
 from .auth import control_actor, get_runtime, normal_actor
 from .contracts import ApiErrorResponse
 from .errors import ApiRequestError
@@ -125,3 +126,15 @@ def request_build(request: Request, task_id: Identifier, actor: NormalActor, ide
 @router.get("/tasks/{task_id}/builds/{operation_id}", response_model=BuildView)
 def build_status(request: Request, task_id: Identifier, operation_id: Identifier, actor: ControlActor):
     return get_runtime(request).builds.query(actor, task_id, operation_id)
+
+
+@router.post("/tasks/{task_id}/candidates", response_model=FixCandidateCommandResult, status_code=201,
+             responses=_command_errors(FixCandidateCommandResult))
+def fix_candidate(request: Request, task_id: Identifier, actor: NormalActor, idempotency_key: IdempotencyKey,
+                  body: FixCandidateRequest = Depends(strict_body(FixCandidateRequest))):
+    return _response(get_runtime(request).candidates.fix(actor, task_id, body, idempotency_key=idempotency_key))
+
+
+@router.get("/tasks/{task_id}/candidates/{candidate_id}", response_model=FixedCandidateView)
+def fixed_candidate_status(request: Request, task_id: Identifier, candidate_id: Identifier, actor: ControlActor):
+    return get_runtime(request).candidates.query(actor, task_id, candidate_id)

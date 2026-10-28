@@ -518,7 +518,7 @@ dependencies = [
 
 [[package]]
 name = "cloudhelm-desktop"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "keyring",
  "percent-encoding",

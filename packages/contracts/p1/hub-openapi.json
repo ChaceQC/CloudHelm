@@ -4391,6 +4391,332 @@
         }
       }
     },
+    "/api/tasks/{task_id}/candidates": {
+      "post": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Fix Candidate",
+        "operationId": "fix_candidate_api_tasks__task_id__candidates_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FixCandidateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixCandidateCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FixCandidateCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Fix Candidate Api Tasks  Task Id  Candidates Post"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FixCandidateCommandResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ApiErrorResponse"
+                    }
+                  ],
+                  "title": "Response 422 Fix Candidate Api Tasks  Task Id  Candidates Post"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/candidates/{candidate_id}": {
+      "get": {
+        "tags": [
+          "engineering"
+        ],
+        "summary": "Fixed Candidate Status",
+        "operationId": "fixed_candidate_status_api_tasks__task_id__candidates__candidate_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "candidate_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Candidate Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FixedCandidateView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspace_id}/development-environments": {
       "post": {
         "tags": [
@@ -9134,6 +9460,33 @@
         ],
         "title": "CancellationIntent"
       },
+      "CandidateEvidenceLink": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "source_snapshot",
+              "build_execution",
+              "artifact_content"
+            ],
+            "title": "Scope"
+          },
+          "evidence_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "subject_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "evidence_ref",
+          "subject_ref"
+        ],
+        "title": "CandidateEvidenceLink"
+      },
       "CandidateFreezeReceipt": {
         "properties": {
           "schema_revision": {
@@ -11372,6 +11725,308 @@
           "observation_status"
         ],
         "title": "EnvironmentView"
+      },
+      "EvidenceApplicability": {
+        "properties": {
+          "evidence_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "consumer_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "needs_review",
+              "superseded"
+            ],
+            "title": "Status"
+          },
+          "rule_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Rule Id"
+          },
+          "rule_version": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Rule Version"
+          },
+          "reason_code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reason Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evidence_ref",
+          "consumer_ref",
+          "input_set_ref",
+          "input_validity_revision",
+          "status",
+          "rule_id",
+          "rule_version",
+          "reason_code"
+        ],
+        "title": "EvidenceApplicability"
+      },
+      "FixCandidateCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "rejected"
+            ],
+            "title": "Outcome"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "project_id",
+          "task_id",
+          "version",
+          "control_revision",
+          "input_validity_revision",
+          "outcome",
+          "code"
+        ],
+        "title": "FixCandidateCommandResult"
+      },
+      "FixCandidateRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "build_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Build Operation Id"
+          },
+          "environment_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "build_operation_id",
+          "environment_ref"
+        ],
+        "title": "FixCandidateRequest"
+      },
+      "FixedCandidateRecord": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p2-fixed-candidate-r1",
+            "title": "Schema Revision",
+            "default": "p2-fixed-candidate-r1"
+          },
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "task_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Task Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "source_input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "build_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Build Operation Id"
+          },
+          "input_set": {
+            "$ref": "#/components/schemas/InputSet"
+          },
+          "environment_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateEvidenceLink"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Evidence"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "command_id",
+          "project_id",
+          "task_id",
+          "task_version",
+          "control_revision",
+          "input_validity_revision",
+          "source_input_set_ref",
+          "build_operation_id",
+          "input_set",
+          "environment_ref",
+          "evidence",
+          "created_at"
+        ],
+        "title": "FixedCandidateRecord"
+      },
+      "FixedCandidateView": {
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/FixedCandidateRecord"
+          },
+          "applicability": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceApplicability"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Applicability"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "record",
+          "applicability"
+        ],
+        "title": "FixedCandidateView"
       },
       "GitSourceRecord": {
         "properties": {

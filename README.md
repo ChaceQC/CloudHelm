@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-**Hub 开发源码 `0.12.0` · 数据库迁移 `0013` · 尚无正式发布、tag 或 GitHub Release**
+**Hub 开发源码 `0.13.0` · 数据库迁移 `0013` · 尚无正式发布、tag 或 GitHub Release**
 
 仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、历史接缝记录和全栈参照项目**，已具备的能力为：
 
@@ -12,6 +12,7 @@
 - 独立运行的 API 与单 worker 进程；
 - 真实 PydanticAI 的有界内部 Run、逐次模型/工具准入、供应商 usage/精确费用及 Workspace 长工具等待，见[Runtime 说明](docs/development/p2-runtime.md)；
 - 固定参照的 Git 工作区、候选、离线构建和制品记录；
+- 绑定精确构建、制品和受控验证环境的不可变候选/InputSet，见[固定候选说明](docs/development/p2-candidates.md)；
 - 共享宿主资源预留、Runner 注册、本地持久确认、受限 scratch 及固定工程资源组；
 - 受管构建/开发环境、进程与磁盘分维释放，以及 backing 持续占账；
 - 固定参照的归档 Release、独立环境配置、部署计划、人类摘要批准和启动前复核；
