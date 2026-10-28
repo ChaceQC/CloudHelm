@@ -32,9 +32,10 @@ class ToolGateway:
             response = next(message for message in reversed(ctx.messages) if isinstance(message, ModelResponse))
             calls = [part for part in response.parts if isinstance(part, ToolCallPart)]
             if len(calls) > 8 or len(calls) > 1 and any(
-                part.args_as_dict().get("name") in {"submit_operation", "await_operation"} for part in calls
+                part.args_as_dict().get("name") in {"submit_operation", "await_operation",
+                    "workspace.create_file", "workspace.apply_patch"} for part in calls
             ):
-                raise ModelRetry("Submit or await one operation in a separate tool batch; query batches allow at most 8 calls.")
+                raise ModelRetry("Submit, edit or await one operation in a separate tool batch; query batches allow at most 8 calls.")
             try:
                 await self._admit_tool(name)
             except Exception:

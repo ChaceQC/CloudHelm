@@ -191,7 +191,7 @@ class WorkspaceFileService:
                                  and intent.binding.project_id == spec.binding.project_id for intent, receipt in journal.records(root))
                 return status_result(spec, initial, base, observe(files), paths, unresolved)
 
-    def diff(self, operation_id, path):
+    def diff(self, operation_id, path, *, expected_manifest_digest=None):
         try:
             path = workspace_path(path)
         except ValueError:
@@ -200,6 +200,8 @@ class WorkspaceFileService:
             spec = self._current(operation_id, WorkspaceReadSpec)
             with self._workspace(root, spec) as (files, _, base):
                 current = observe(files)
+                if expected_manifest_digest is not None and current.digest != expected_manifest_digest:
+                    raise WorkspaceFileError("workspace_manifest_mismatch")
                 before = next((entry for entry in base.files if entry.path == path), None)
                 after = next((entry for entry in current.manifest.files if entry.path == path), None)
                 old, new = b"", b""

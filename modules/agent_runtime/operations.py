@@ -55,11 +55,11 @@ def _receipt(result):
 
 
 def _result_in_uow(uow, source_command_id, request, operation_id):
-    """Only the original principal's materialization for this work item is exposed."""
+    """Only the original principal's supported operation for this work item is exposed."""
     actor = actor_for_command(uow, source_command_id)
     intent, _ = read_workspace_operation(uow.connection, operation_id)
     operation_actor = actor_for_command(uow, intent.result.command_id)
-    if (intent.result.kind != "materialize" or intent.result.task_id != request.runtime_input.task_id
+    if (intent.result.kind not in {"materialize", "mutate"} or intent.result.task_id != request.runtime_input.task_id
             or intent.result.binding.work_item_id != request.context.work_item_id
             or operation_actor.principal != actor.principal):
         raise TaskBoundaryError("agent_operation_not_found", status_code=404)
@@ -90,14 +90,15 @@ class OperationGateway:
             if (binding.task_id != task["task_id"] or binding.work_item_id != request.context.work_item_id):
                 raise TaskBoundaryError("agent_workspace_not_found", status_code=404)
             previous_id = uow.connection.scalar(select(commands.c.command_id).where(
-                commands.c.idempotency_key == key, commands.c.project_id == task["project_id"],
+                commands.c.idempotency_key.startswith(key), commands.c.project_id == task["project_id"],
                 commands.c.resource_kind == "task", commands.c.resource_id == task["task_id"],
                 commands.c.caller_kind == actor.principal.kind, commands.c.subject_id == actor.principal.subject_id,
                 commands.c.delegator_id == actor.principal.delegator_id))
             if previous_id is not None:
                 previous = get_by_id(uow.connection, previous_id)
                 result = WorkspaceCommandResult.model_validate(previous.result)
-                if (previous.envelope.action != "workspace.write" or result.kind != "materialize"
+                if (previous.envelope.idempotency_key != key
+                        or previous.envelope.action != "workspace.write" or result.kind != "materialize"
                         or result.task_id != task["task_id"] or result.workspace_id != workspace_id):
                     raise TaskBoundaryError("agent_tool_call_identity_conflict")
                 if result.outcome == "accepted":

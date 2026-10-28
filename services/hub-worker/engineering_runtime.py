@@ -90,11 +90,20 @@ class EngineeringRuntime:
 
     def read_workspace_code(self, spec, name, query):
         from modules.agent_runtime.code_reading import read_workspace_code
+        from modules.agent_runtime.code_editing import prepare_workspace_edit
+        from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
+
+        if name == "workspace.diff":
+            from .engineering_context import read_workspace_diff
+
+            return read_workspace_diff(self, spec, query)
 
         with self.registry.admit(0) as storage:
             service = WorkspaceFileService(storage.workspace_root, None, lambda _: spec)
             try:
                 with service.open_read(spec.materialization_operation_id) as (files, binding):
+                    if name in WORKSPACE_EDIT_SCHEMAS:
+                        return prepare_workspace_edit(files, binding, name, query)
                     return read_workspace_code(files, binding, name, query)
             finally:
                 service.close()

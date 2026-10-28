@@ -58,8 +58,20 @@ class WorkspaceSearch(WorkspacePathRequest):
         return value
 
 
+class WorkspaceDiff(WorkspaceToolRequest):
+    """View a bounded file diff against the materialized base commit."""
+
+    path: str
+
+    @field_validator("path")
+    @classmethod
+    def check_path(cls, value: str) -> str:
+        return workspace_path(value)
+
+
 WORKSPACE_TOOL_SCHEMAS = {
     "workspace.list_directory": WorkspaceListDirectory,
     "workspace.read_file": WorkspaceReadFile,
     "workspace.search": WorkspaceSearch,
+    "workspace.diff": WorkspaceDiff,
 }

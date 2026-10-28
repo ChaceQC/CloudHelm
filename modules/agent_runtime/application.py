@@ -22,6 +22,7 @@ from packages.contracts.p0.core_contracts import TurnResult
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
+from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -34,17 +35,19 @@ from .registration import start_run
 from .sdk import RuntimeFailure, run_turn
 from .tables import agent_histories, agent_model_requests, agent_runs, agent_sessions
 from .workspace_tools import WorkspaceCodeGateway
+from .workspace_edits import WorkspaceEditGateway
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
 
 class AgentRuntimeApplication:
     def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None,
-                 workspace_reader=None):
+                 workspace_reader=None, workspace_editor=None, stage_workspace_content=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
         self.workspace_reader = workspace_reader
+        self.workspace_editor, self.stage_workspace_content = workspace_editor, stage_workspace_content
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -123,6 +126,13 @@ class AgentRuntimeApplication:
                 return workspace_tools.query(run_id, route, arguments)
 
             routes[name] = read_code
+        workspace_edits = WorkspaceEditGateway(self.engine, self.client,
+            self.workspace_editor, self.stage_workspace_content)
+        for name in WORKSPACE_EDIT_SCHEMAS:
+            async def edit_code(arguments, tool_call_id, route=name):
+                return workspace_edits.submit(run_id, tool_call_id, route, arguments)
+
+            routes[name] = edit_code
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,

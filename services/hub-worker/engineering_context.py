@@ -1,9 +1,29 @@
-"""Read already fixed human-return snapshots; never recapture mutable files."""
+"""Bounded diffs of current workspace files and already fixed human-return snapshots."""
 
 from modules.agent_runtime.source_context import safe_context_text, secret_context_path
 from modules.workspaces.candidate_store import CandidateStore
+from modules.workspaces.file_operations import WorkspaceFileService
 from modules.workspaces.safe_paths import WorkspaceFileError, read_regular
 from modules.workspaces.workspace_views import diff_result, file_parent, file_state
+
+
+def read_workspace_diff(runtime, spec, query):
+    if secret_context_path(query.path):
+        raise WorkspaceFileError("workspace_code_secret_path")
+    with runtime.registry.admit(0) as storage, runtime._git(storage, spec.binding.project_id) as git:
+        service = WorkspaceFileService(storage.workspace_root, git, lambda _: spec)
+        try:
+            diff = service.diff(spec.materialization_operation_id, query.path,
+                                expected_manifest_digest=query.expected_manifest_digest)
+            result = diff.model_dump(mode="json")
+            patch = safe_context_text(diff.patch).encode("utf-8")
+            result.update(patch=patch[:8192].decode("utf-8", errors="ignore"),
+                          truncated=diff.truncated or len(patch) > 8192)
+            if len(patch) > 8192:
+                result["reason_code"] = "output_limit"
+            return result
+        finally:
+            service.close()
 
 
 def read_handoff_context(runtime, summary):

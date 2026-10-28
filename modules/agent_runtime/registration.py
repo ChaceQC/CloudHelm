@@ -20,6 +20,7 @@ from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
+from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from .tables import agent_runs, agent_sessions
 
 WORKFLOW_NAME = "agent_runtime.advance.v1"
@@ -151,7 +152,7 @@ def _check_context(uow, task, authorization, request, *, allow_deferred=False):
             or context.source_ref != declaration.source_ref
             or context.permission_revision != authorization.envelope.permission_revision
             or set(context.tool_names) - ({"task.read", "submit_operation", "query_operation", "await_operation"}
-                                         | WORKSPACE_TOOL_SCHEMAS.keys())
+                                         | WORKSPACE_TOOL_SCHEMAS.keys() | WORKSPACE_EDIT_SCHEMAS.keys())
             or context.budget_currency != declaration.budget.currency
             or context.budget_limit > Decimal(declaration.budget.amount)
             or incoming.pending_messages is not None

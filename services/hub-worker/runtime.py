@@ -110,7 +110,9 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
         agent_runtime = AgentRuntimeApplication(pools.normal, client, configured_provider(),
                                                source_loader=engineering.load_source_context,
                                                handoff_loader=engineering.load_handoff_context,
-                                               workspace_reader=engineering.read_workspace_code)
+                                               workspace_reader=engineering.read_workspace_code,
+                                               workspace_editor=engineering.read_workspace_code,
+                                               stage_workspace_content=engineering.stage_mutation_content)
         dbos_attempted = True
         _start_dbos(application, system_engine, baseline.installation_id, engineering, agent_runtime)
         if not stop.is_set():
