@@ -4,7 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import case, exists, func, insert, select, update
 
 from database.readiness import assert_runtime_ready
 from database.uow import UnitOfWork
@@ -14,6 +14,7 @@ from modules.collaboration.facts import read_declaration
 from modules.collaboration.guards import require_ordinary_progress
 from modules.identity.actors import actor_for_command
 from packages.contracts.p2.runtime import RuntimeStartRequest
+from .billing import model_request_bound_exceeded, model_request_cost
 from .tables import agent_model_requests, agent_runs, agent_sessions
 
 
@@ -31,6 +32,11 @@ def current_run(uow, run_id):
     require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
         expected_control_revision=incoming.expected_task_control_revision,
         expected_input_validity_revision=incoming.expected_input_validity_revision)
+    exceeded = uow.connection.scalar(select(exists(select(1).select_from(
+        agent_model_requests.join(agent_runs).join(agent_sessions)).where(
+        agent_sessions.c.task_id == incoming.task_id, model_request_bound_exceeded()))))
+    if exceeded:
+        raise TaskBoundaryError("model_reservation_bound_exceeded")
     session = uow.connection.execute(select(agent_sessions).where(
         agent_sessions.c.session_id == incoming.session_id).with_for_update()).mappings().one()
     run = uow.connection.execute(select(agent_runs).where(
@@ -62,11 +68,14 @@ class RuntimeAdmission:
             bound = policy.per_request_cost_upper_bound
             if bound < required:
                 raise TaskBoundaryError("model_reservation_bound_insufficient")
-            spent = uow.connection.scalar(select(func.coalesce(func.sum(agent_model_requests.c.reserved_cost), 0))
+            cost = model_request_cost()
+            spent, run_spent = uow.connection.execute(select(
+                func.coalesce(func.sum(cost), 0),
+                func.coalesce(func.sum(case((agent_model_requests.c.run_id == self.run_id, cost), else_=0)), 0))
                 .select_from(agent_model_requests.join(agent_runs).join(agent_sessions))
-                .where(agent_sessions.c.task_id == task["task_id"]))
+                .where(agent_sessions.c.task_id == task["task_id"])).one()
             if (context.budget_currency != "USD" or declaration.budget.currency != "USD"
-                    or run["reserved_cost"] + bound > context.budget_limit
+                    or run_spent + bound > context.budget_limit
                     or spent + bound > Decimal(declaration.budget.amount)):
                 raise TaskBoundaryError("model_budget_exhausted")
             record_id = "request-" + uuid4().hex
@@ -81,7 +90,8 @@ class RuntimeAdmission:
     async def tool(self, name: str) -> None:
         with UnitOfWork(self.engine) as uow:
             _, _, _, request, _ = current_run(uow, self.run_id)
-            if name not in request.context.tool_names or name != "task.read":
+            if (name not in request.context.tool_names
+                    or name not in {"task.read", "submit_operation", "query_operation", "await_operation"}):
                 raise TaskBoundaryError("agent_tool_not_allowed")
 
     def begin(self):

@@ -20,10 +20,11 @@ from packages.contracts.p1.workspace_requests import (
 
 class WorkspaceApplication:
     def __init__(self, engine, control_engine, *, admit_operation=None, runtime_scope_for=None,
-                 load_mutation_content=None, enqueue_operation=None):
+                 load_mutation_content=None, enqueue_operation=None, notify_materialization=None):
         self.engine, self.control_engine = engine, control_engine
         self.admit_operation, self.runtime_scope_for = admit_operation, runtime_scope_for
         self.load_mutation_content, self.enqueue_operation = load_mutation_content, enqueue_operation
+        self.notify_materialization = notify_materialization
 
     def _command(self, actor, target_id, request: WorkspaceRequest, schema, idempotency_key):
         if type(request) is not schema:
@@ -100,7 +101,10 @@ class WorkspaceApplication:
         binding = self.resolve_materialization_operation(operation_id, reconciliation=True)
         verified = verify_materialization(operation_id, binding, store)
         with UnitOfWork(self.engine) as uow:
-            return register_workspace_receipt_in_uow(uow, operation_id, verified)
+            result = register_workspace_receipt_in_uow(uow, operation_id, verified)
+            if self.notify_materialization is not None:
+                self.notify_materialization(uow, operation_id)
+            return result
 
     def finish_mutation(self, operation_id, service):
         verified = verify_mutation(operation_id, service)

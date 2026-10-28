@@ -36,16 +36,23 @@ def _result(operation_id, state, code, **payload):
 
 
 class EngineeringRuntime:
-    def __init__(self, engine, control_engine, registry, *, development_controller_factory=None):
+    def __init__(self, engine, control_engine, registry, *, development_controller_factory=None, client=None):
         self.engine, self.control_engine, self.registry = engine, control_engine, registry
         from .engineering_resources import EngineeringResources
 
         self.resources = EngineeringResources(engine, control_engine, registry)
         self.instance_id = "engineering-worker-" + uuid4().hex
         self.sources = SourceImportApplication(engine, control_engine)
+        if client is not None:
+            from modules.agent_runtime.operations import notify_operation_in_uow
+
+            notify = lambda uow, operation_id: notify_operation_in_uow(uow, client, operation_id)
+        else:
+            notify = None
         self.workspaces = WorkspaceApplication(
             engine, control_engine, admit_operation=self._admitted,
             runtime_scope_for=self.runtime_scope_for, load_mutation_content=self._load_mutation_content,
+            notify_materialization=notify,
         )
         self._development = EngineeringDevelopmentRuntime(
             engine, control_engine, registry, controller_factory=development_controller_factory,
@@ -222,9 +229,9 @@ class EngineeringRuntime:
         return execute_build(self, operation_id)
 
 
-def create_engineering_runtime(pools, registration=None, *, development_controller_factory=None):
+def create_engineering_runtime(pools, registration=None, *, development_controller_factory=None, client=None):
     selected = registry_module.load_registration() if registration is None else registration
     return EngineeringRuntime(
         pools.normal, pools.control, registry_module.EngineeringRegistry(selected),
-        development_controller_factory=development_controller_factory,
+        development_controller_factory=development_controller_factory, client=client,
     )

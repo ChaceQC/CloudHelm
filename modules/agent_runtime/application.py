@@ -11,13 +11,23 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from database.uow import UnitOfWork
 from modules.collaboration.errors import TaskBoundaryError
+from modules.collaboration.command_support import lock_task_access
 from modules.collaboration.guards import read_task
 from modules.collaboration.tables import work_items
+from modules.identity.actors import actor_for_command
+from modules.identity.errors import IdentityError
 from modules.tool_gateway.gateway import ToolGateway
+from modules.workspaces.tables import workspaces
+from pydantic_ai.tools import DeferredToolResults
 from packages.contracts.p0.core_contracts import TurnResult
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from .admission import RuntimeAdmission
+from .billing import RuntimeBilling
+from .operations import (
+    OperationGateway, load_deferred_results_in_uow, register_wait_in_uow,
+    resume_ready_waits_in_uow,
+)
 from .registration import start_run
 from .sdk import RuntimeFailure, run_turn
 from .tables import agent_histories, agent_model_requests, agent_runs, agent_sessions
@@ -71,52 +81,80 @@ class AgentRuntimeApplication:
                 if "sha256:" + hashlib.sha256(raw).hexdigest() != history_ref.digest:
                     raise TaskBoundaryError("agent_history_digest_mismatch")
                 history = ModelMessagesTypeAdapter.validate_json(raw)
+            deferred_results = load_deferred_results_in_uow(uow, run_id)
             item_goal = uow.connection.scalar(select(work_items.c.goal).where(
                 work_items.c.work_item_id == request.context.work_item_id,
                 work_items.c.task_id == request.runtime_input.task_id))
 
-        async def task_read(arguments):
+        async def task_read(arguments, tool_call_id):
             if arguments:
                 raise TaskBoundaryError("task_read_arguments_invalid")
             with UnitOfWork(self.engine) as uow:
                 task = read_task(uow.connection, request.runtime_input.task_id)
+                workspace_id = uow.connection.scalar(select(workspaces.c.workspace_id).where(
+                    workspaces.c.task_id == task["task_id"],
+                    workspaces.c.work_item_id == request.context.work_item_id))
                 return {"task_id": task["task_id"], "state": task["state"],
-                        "goal": goal, "work_item_goal": item_goal}
+                        "goal": goal, "work_item_goal": item_goal, "workspace_id": workspace_id}
 
-        gateway = ToolGateway({name: task_read for name in request.context.tool_names}, admission.tool)
+        operations = OperationGateway(self.engine, self.client)
+
+        async def submit_operation(arguments, tool_call_id):
+            return operations.submit_operation(run_id, tool_call_id, arguments)
+
+        async def query_operation(arguments, tool_call_id):
+            return operations.query_operation(run_id, arguments)
+
+        async def await_operation(arguments, tool_call_id):
+            return operations.await_operation(run_id, tool_call_id, arguments)
+
+        routes = {"task.read": task_read, "submit_operation": submit_operation,
+                  "query_operation": query_operation, "await_operation": await_operation}
+        gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         prompt = json.dumps({"task_goal": goal, "work_item_goal": item_goal,
             "requirement": request.context.requirement_ref.model_dump(mode="json"),
             "acceptance": request.context.acceptance_assets_ref.model_dump(mode="json"),
             "source": request.context.source_ref.model_dump(mode="json"),
-            "tools": [{"name": name, "arguments": {}} for name in request.context.tool_names]}, ensure_ascii=False)
+            "tools": [{"name": name, "arguments": (
+                {} if name == "task.read" else {"workspace_id": "workspace ID"} if name == "submit_operation"
+                else {"operation_id": "accepted operation ID"})} for name in request.context.tool_names],
+            "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll."
+            }, ensure_ascii=False)
         try:
-            new_messages = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
+            output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
                 api_key=self.provider.api_key(), prompt=prompt, message_history=history,
                 max_requests=request.policy.max_requests, max_seconds=max(0, (deadline - datetime.now(UTC)).total_seconds()),
                 max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
-                gateway=gateway)
+                record_response=RuntimeBilling(self.engine).record, gateway=gateway,
+                deferred_results=DeferredToolResults(calls=deferred_results) if deferred_results else None)
         except RuntimeFailure as failure:
             return self._finish(run_id, None, failure.code)
-        raw = ModelMessagesTypeAdapter.dump_json([*history, *new_messages])
+        raw = ModelMessagesTypeAdapter.dump_json([*history, *output.messages])
         # Canonical local representation is the history content identity.
         raw = json.dumps(json.loads(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if len(raw) > 131072:
             return self._finish(run_id, None, "agent_history_limit")
-        return self._finish(run_id, raw, None)
+        return self._finish(run_id, raw, None, output.deferred)
 
-    def _finish(self, run_id, history, failure):
+    def _finish(self, run_id, history, failure, deferred=None):
         with UnitOfWork(self.engine) as uow:
-            stored = uow.connection.execute(select(agent_runs.c.start_json).where(
-                agent_runs.c.run_id == run_id)).scalar_one()
-            request = RuntimeStartRequest.model_validate(stored)
-            task = read_task(uow.connection, request.runtime_input.task_id, for_update=True)
+            stored = uow.connection.execute(select(agent_runs).where(
+                agent_runs.c.run_id == run_id)).mappings().one()
+            request = RuntimeStartRequest.model_validate(stored["start_json"])
+            authorized = True
+            try:
+                actor = actor_for_command(uow, stored["source_command_id"])
+                task, _ = lock_task_access(uow, actor, request.runtime_input.task_id, "task.command")
+            except IdentityError:
+                authorized = False
+                task = read_task(uow.connection, request.runtime_input.task_id, for_update=True)
             session = uow.connection.execute(select(agent_sessions).where(
                 agent_sessions.c.session_id == request.runtime_input.session_id).with_for_update()).mappings().one()
             run = uow.connection.execute(select(agent_runs).where(
                 agent_runs.c.run_id == run_id).with_for_update()).mappings().one()
             if run["result_json"] is not None:
                 return run["result_json"]
-            current = (task["state"] == "active" and not task["ordinary_progress_closed"]
+            current = (authorized and task["state"] == "active" and not task["ordinary_progress_closed"]
                 and task["cancel_requested_at"] is None and task["input_status"] == "valid"
                 and task["control_revision"] == request.runtime_input.expected_task_control_revision
                 and task["input_validity_revision"] == request.runtime_input.expected_input_validity_revision)
@@ -129,13 +167,30 @@ class AgentRuntimeApplication:
                 agent_model_requests.c.run_id == run_id).order_by(agent_model_requests.c.request_sequence)))
             reference = EngineeringRef(kind="history", object_id=session["session_id"], revision=str(session["version"] + 1),
                 digest=key, digest_algorithm="sha256")
-            turn = TurnResult(run_id=run_id, outcome="continue_required", history_delta=reference,
-                request_records=ids, reason_code=failure or ("agent_turn_committed" if current else "agent_result_requires_review"))
-            result = {"state": "failed" if failure else ("succeeded" if current else "interrupted"),
-                "turn": turn.model_dump(mode="json"), "fenced_control_revision": task["control_revision"]}
+            state = "failed" if failure else ("succeeded" if current else "interrupted")
             uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(
-                state=result["state"], result_json=result))
+                state=state))
             uow.connection.execute(update(agent_sessions).where(agent_sessions.c.session_id == session["session_id"]).values(
                 version=session["version"] + 1, state="idle" if current else "paused", history_key=key,
                 epoch_id=request.policy.epoch_id))
+            waits = ()
+            if current and deferred is not None:
+                try:
+                    with uow.connection.begin_nested():
+                        waits = tuple(register_wait_in_uow(uow, self.client, run_id, call.tool_call_id,
+                            deferred.metadata[call.tool_call_id]["operation_id"]) for call in deferred.calls)
+                except (IdentityError, TaskBoundaryError):
+                    current, state = False, "interrupted"
+                    uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(state=state))
+                    uow.connection.execute(update(agent_sessions).where(
+                        agent_sessions.c.session_id == session["session_id"]).values(state="paused"))
+            turn = TurnResult(run_id=run_id, outcome="waiting_condition" if waits else "continue_required",
+                history_delta=reference, request_records=ids, wait_condition_refs=waits,
+                reason_code=failure or ("agent_operation_waiting" if waits else
+                    "agent_turn_committed" if current else "agent_result_requires_review"))
+            result = {"state": state, "turn": turn.model_dump(mode="json"),
+                      "fenced_control_revision": task["control_revision"]}
+            uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(result_json=result))
+            if current:
+                resume_ready_waits_in_uow(uow, self.client, session["session_id"])
             return result

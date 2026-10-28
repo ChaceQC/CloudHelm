@@ -71,9 +71,9 @@ def apply_runtime_permissions(connection: Connection) -> None:
         for table in WORKSPACE_INSERTS[role]:
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
         if role == "worker":
-            for table in ("agent_sessions", "agent_runs"):
+            for table in ("agent_sessions", "agent_runs", "agent_operation_waits"):
                 connection.exec_driver_sql(f"GRANT INSERT, UPDATE ON cloudhelm.{table} TO {name}")
-            for table in ("agent_histories", "agent_model_requests"):
+            for table in ("agent_histories", "agent_model_requests", "agent_model_request_results"):
                 connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.{table} TO {name}")
             connection.exec_driver_sql(f"GRANT UPDATE (lock_revision) ON cloudhelm.delivery_remote_credentials TO {name}")
             connection.exec_driver_sql(

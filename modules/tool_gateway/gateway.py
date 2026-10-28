@@ -3,10 +3,12 @@
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
-from pydantic_ai import Tool
+from pydantic_ai import RunContext, Tool
+from pydantic_ai.exceptions import CallDeferred, ModelRetry
+from pydantic_ai.messages import ModelResponse, ToolCallPart
 
 
-Route = Callable[[dict[str, Any]], Awaitable[Any]]
+Route = Callable[[dict[str, Any], str], Awaitable[Any]]
 ToolAdmission = Callable[[str], Awaitable[None]]
 
 
@@ -23,16 +25,24 @@ class ToolGateway:
         if not self._routes:
             return []
 
-        async def dispatch_tool(name: str, arguments: dict[str, Any]) -> Any:
+        async def dispatch_tool(ctx: RunContext[Any], name: str, arguments: dict[str, Any]) -> Any:
             """Call an available CloudHelm route with its validated business arguments."""
             if name not in self._routes:
                 raise GatewayFailure("tool_not_allowed")
+            response = next(message for message in reversed(ctx.messages) if isinstance(message, ModelResponse))
+            calls = [part for part in response.parts if isinstance(part, ToolCallPart)]
+            if len(calls) > 8 or len(calls) > 1 and any(
+                part.args_as_dict().get("name") in {"submit_operation", "await_operation"} for part in calls
+            ):
+                raise ModelRetry("Submit or await one operation in a separate tool batch; query batches allow at most 8 calls.")
             try:
                 await self._admit_tool(name)
             except Exception:
                 raise GatewayFailure("tool_admission_denied") from None
             try:
-                return await self._routes[name](arguments)
+                return await self._routes[name](arguments, ctx.tool_call_id)
+            except (CallDeferred, ModelRetry):
+                raise
             except Exception:
                 raise GatewayFailure("tool_execution_failed") from None
 

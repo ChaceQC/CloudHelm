@@ -133,15 +133,16 @@ def _run_history(reader: FactReader, task: Mapping[str, Any]) -> tuple[bool, boo
                 or run["fenced_control_revision"] < task["control_revision"]):
             fenced = False
     from modules.agent_runtime.tables import agent_model_requests, agent_runs, agent_sessions
+    from modules.agent_runtime.billing import model_request_unknown
     scope = agent_runs.join(agent_sessions)
     unsafe = reader.connection.scalar(select(exists(select(1).select_from(scope).where(
         agent_sessions.c.task_id == task["task_id"],
         (agent_runs.c.result_json.is_(None) | agent_runs.c.state.in_(("queued", "running")))))))
     usage_unknown = reader.connection.scalar(select(exists(select(1).select_from(
         agent_model_requests.join(agent_runs).join(agent_sessions)).where(
-        agent_sessions.c.task_id == task["task_id"], agent_model_requests.c.state == "unknown"))))
-    # Legacy links still lack a fee-domain projection. New requests retain their
-    # real unknown reservations until P2.1-02 provides usage reconciliation.
+        agent_sessions.c.task_id == task["task_id"], model_request_unknown()))))
+    # Legacy links still lack a fee-domain projection. New requests project the
+    # associated supplier results without mutating their original reservations.
     return fenced and not unsafe, bool(runs) or usage_unknown
 
 

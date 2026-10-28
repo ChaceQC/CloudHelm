@@ -17,6 +17,7 @@ from modules.collaboration.tables import task_inputs, work_items
 from modules.identity.actors import actor_for_command
 from modules.workflow.tables import workflow_bindings
 from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION
+from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from .tables import agent_runs, agent_sessions
 
@@ -58,25 +59,72 @@ def start_run(engine, client, source_command_id, request: RuntimeStartRequest):
         if uow.connection.scalar(select(agent_runs.c.run_id).where(
                 agent_runs.c.session_id == incoming.session_id, agent_runs.c.state.in_(("queued", "running")))):
             raise TaskBoundaryError("agent_session_has_active_run")
-        workflow_id = "agent-" + sha256(incoming.run_id.encode("utf-8")).hexdigest()
-        uow.connection.execute(insert(agent_runs).values(run_id=incoming.run_id, session_id=incoming.session_id,
-            source_command_id=source_command_id, workflow_id=workflow_id, request_digest=digest,
-            start_json=request.model_dump(mode="json"), state="queued"))
-        uow.connection.execute(update(agent_sessions).where(
-            agent_sessions.c.session_id == incoming.session_id).values(state="queued"))
-        uow.connection.execute(insert(workflow_bindings).values(workflow_id=workflow_id,
-            command_id=source_command_id, business_kind="agent_run", business_id=incoming.run_id,
-            process_type=WORKFLOW_NAME, advance_revision=incoming.expected_session_version,
-            workflow_name=WORKFLOW_NAME, queue_name=MODEL_QUEUE, application_name=APPLICATION_NAME,
-            application_version=APPLICATION_VERSION, request_digest=digest))
-        client.enqueue_in_transaction(uow.connection, {"workflow_name": WORKFLOW_NAME,
-            "queue_name": MODEL_QUEUE, "workflow_id": workflow_id, "workflow_id_reuse_policy": "return-existing",
-            "app_version": APPLICATION_VERSION, "application_name": APPLICATION_NAME,
-            "serialization_type": WorkflowSerializationFormat.PORTABLE}, incoming.run_id)
+        workflow_id = _enqueue_run(uow, client, source_command_id, request)
     return {"run_id": incoming.run_id, "workflow_id": workflow_id, "state": "queued"}
 
 
-def _check_context(uow, task, authorization, request):
+def _enqueue_run(uow, client, source_command_id, request):
+    incoming = request.runtime_input
+    digest = contract_digest(request)
+    workflow_id = "agent-" + sha256(incoming.run_id.encode("utf-8")).hexdigest()
+    uow.connection.execute(insert(agent_runs).values(run_id=incoming.run_id, session_id=incoming.session_id,
+        source_command_id=source_command_id, workflow_id=workflow_id, request_digest=digest,
+        start_json=request.model_dump(mode="json"), state="queued"))
+    uow.connection.execute(update(agent_sessions).where(
+        agent_sessions.c.session_id == incoming.session_id).values(state="queued"))
+    uow.connection.execute(insert(workflow_bindings).values(workflow_id=workflow_id,
+        command_id=source_command_id, business_kind="agent_run", business_id=incoming.run_id,
+        process_type=WORKFLOW_NAME, advance_revision=incoming.expected_session_version,
+        workflow_name=WORKFLOW_NAME, queue_name=MODEL_QUEUE, application_name=APPLICATION_NAME,
+        application_version=APPLICATION_VERSION, request_digest=digest))
+    client.enqueue_in_transaction(uow.connection, {"workflow_name": WORKFLOW_NAME,
+        "queue_name": MODEL_QUEUE, "workflow_id": workflow_id, "workflow_id_reuse_policy": "return-existing",
+        "app_version": APPLICATION_VERSION, "application_name": APPLICATION_NAME,
+        "serialization_type": WorkflowSerializationFormat.PORTABLE}, incoming.run_id)
+    return workflow_id
+
+
+def enqueue_wait_continuation_in_uow(uow, client, wait, result_digest):
+    """Enqueue one new Run using committed history, current authorization and the original result."""
+    previous = uow.connection.execute(select(agent_runs).where(
+        agent_runs.c.run_id == wait["from_run_id"])).mappings().one()
+    old = RuntimeStartRequest.model_validate(previous["start_json"])
+    actor = actor_for_command(uow, previous["source_command_id"])
+    task, authorization = lock_task_access(uow, actor, old.runtime_input.task_id, "task.command")
+    require_ordinary_progress(uow.connection, task["task_id"], expected_version=task["version"],
+        expected_control_revision=wait["control_revision"],
+        expected_input_validity_revision=wait["input_validity_revision"])
+    session = uow.connection.execute(select(agent_sessions).where(
+        agent_sessions.c.session_id == wait["session_id"]).with_for_update()).mappings().one()
+    if session["state"] != "idle" or uow.connection.scalar(select(agent_runs.c.run_id).where(
+        agent_runs.c.session_id == session["session_id"], agent_runs.c.state.in_(("queued", "running")))):
+        return None
+    item = uow.connection.execute(select(work_items).where(
+        work_items.c.task_id == task["task_id"],
+        work_items.c.work_item_id == old.context.work_item_id)).mappings().one_or_none()
+    if item is None or item["state"] not in {"ready", "running", "submitted"}:
+        raise TaskBoundaryError("agent_work_item_not_current")
+    suffix = sha256(wait["wait_condition_id"].encode("utf-8")).hexdigest()
+    run_id = "agent-cont-" + suffix
+    history = EngineeringRef(kind="history", object_id=session["session_id"],
+        revision=str(session["version"]), digest=session["history_key"], digest_algorithm="sha256")
+    context = old.context.model_copy(update={"context_id": "context-" + suffix,
+        "context_revision": "1", "run_id": run_id, "starting_history_ref": history,
+        "work_item_revision": item["revision"], "permission_revision": authorization.envelope.permission_revision})
+    context_ref = EngineeringRef(kind="context", object_id=context.context_id, revision=context.context_revision,
+        digest=contract_digest(context), digest_algorithm="sha256")
+    deferred = EngineeringRef(kind="deferred_results", object_id=wait["wait_condition_id"], revision="1",
+        digest=result_digest, digest_algorithm="sha256")
+    incoming = old.runtime_input.model_copy(update={"run_id": run_id,
+        "expected_session_version": session["version"], "context_package": context_ref,
+        "committed_history": history, "pending_messages": None, "deferred_results": deferred})
+    request = RuntimeStartRequest(runtime_input=incoming, context=context, policy=old.policy)
+    _check_context(uow, task, authorization, request, allow_deferred=True)
+    _enqueue_run(uow, client, previous["source_command_id"], request)
+    return run_id
+
+
+def _check_context(uow, task, authorization, request, *, allow_deferred=False):
     context, incoming = request.context, request.runtime_input
     if (incoming.committed_history.object_id != incoming.session_id
             or incoming.committed_history.revision != str(incoming.expected_session_version)):
@@ -88,10 +136,11 @@ def _check_context(uow, task, authorization, request):
             or context.acceptance_assets_ref != declaration.acceptance_assets_ref
             or context.source_ref != declaration.source_ref
             or context.permission_revision != authorization.envelope.permission_revision
-            or set(context.tool_names) - {"task.read"}
+            or set(context.tool_names) - {"task.read", "submit_operation", "query_operation", "await_operation"}
             or context.budget_currency != declaration.budget.currency
             or context.budget_limit > Decimal(declaration.budget.amount)
-            or incoming.pending_messages is not None or incoming.deferred_results is not None):
+            or incoming.pending_messages is not None
+            or (incoming.deferred_results is not None and not allow_deferred)):
         raise TaskBoundaryError("agent_context_not_current")
     current_input = uow.connection.scalar(select(task_inputs.c.input_set_key).where(
         task_inputs.c.task_id == task["task_id"],

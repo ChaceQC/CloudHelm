@@ -102,7 +102,7 @@ def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:
         )
         system_engine = create_engine_from_settings(settings, purpose="dbos")
         application = TaskApplication(pools.normal, pools.control, client)
-        engineering = create_engineering_runtime(pools)
+        engineering = create_engineering_runtime(pools, client=client)
         from modules.agent_runtime.application import AgentRuntimeApplication
         from modules.agent_runtime.provider import configured_provider
         agent_runtime = AgentRuntimeApplication(pools.normal, client, configured_provider())
