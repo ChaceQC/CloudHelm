@@ -70,6 +70,24 @@ class EngineeringRuntime:
     def development_controller_for(self, operation_id):
         return self._development.controller_for(operation_id)
 
+    def load_source_context(self, project_id, source_ref, reads):
+        from modules.agent_runtime.source_context import read_source_context
+
+        with UnitOfWork(self.control_engine) as uow:
+            revision = uow.connection.scalar(select(project_git_sources.c.source_revision).where(
+                project_git_sources.c.project_id == project_id,
+                project_git_sources.c.source_id == source_ref.object_id))
+        if revision is None:
+            raise WorkspaceFileError("agent_context_source_not_registered")
+        with self.registry.admit(0) as storage, self._git(storage, project_id) as git:
+            source = git.resolve_source(project_id, source_ref.object_id, revision)
+            return read_source_context(git, source, source_ref.revision, reads)
+
+    def load_handoff_context(self, summary):
+        from .engineering_context import read_handoff_context
+
+        return read_handoff_context(self, summary)
+
     def development_environment(self, operation_id):
         return self._development.execute(operation_id)
 

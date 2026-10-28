@@ -1,7 +1,7 @@
 # P2.1-A Agent 结构与工程循环实施映射
 
-> 修订：r2；日期：2026-10-28（Asia/Shanghai）。
-> 本说明维护 A01 的实施映射及 A02 的复用落点；A02 代码核对基线为 `dev / 1410787`、源码 `0.16.0`。下文明确标注待实现接缝，不代表角色或工程工具已接通。
+> 修订：r3；日期：2026-10-28（Asia/Shanghai）。
+> 本说明维护 A01 的实施映射、A02 复用决定及 A03 上下文加载；A03 入口为 `dev / e625b90`、交付源码 `0.17.0`。工程工具与完整角色循环仍按后续工作包交付。
 
 规则归属为 [D01](../design/01-domain-collaboration.md) 的角色、Runtime、上下文与交接；权限、物理执行和正式验收分别沿用 D05、D02/D03。任务依赖与退出条件只在 [PROJECT_PLAN](../../PROJECT_PLAN.md) 维护，实际结果只在 [PROJECT_PROGRESS](../../PROJECT_PROGRESS.md) 维护。
 
@@ -9,8 +9,8 @@
 
 |现有源码|已具备的基础|本轮主线仍需补齐|
 |---|---|---|
-|[Runtime 契约](../../packages/contracts/p2/runtime.py)、[注册](../../modules/agent_runtime/registration.py)|`RuntimeStartRequest` 绑定 ContextPackage、RunPolicy、Session/Run、版本和输入；短事务入队|角色及指令修订绑定、工程上下文解析、面向用户的启动入口|
-|[应用](../../modules/agent_runtime/application.py)、[SDK](../../modules/agent_runtime/sdk.py)|真实有界请求、合法协议历史、延迟工具交接；prompt 当前包含目标及工程引用|尚未把仓库规范、源码、需求与验收正文解析为模型可读内容；没有五类角色指令装配|
+|[Runtime 契约](../../packages/contracts/p2/runtime.py)、[注册](../../modules/agent_runtime/registration.py)|绑定 ContextPackage、文件摘要/范围、RunPolicy 角色/指令、Session/Run 与输入；短事务入队|面向用户的启动入口及自动 Epoch 切换仍待后续|
+|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)|真实有界请求、合法历史和延迟工具交接；A03 已装配需求/验收、固定源码/规范/契约、交还差异及五角色 r1 指令|角色对应的工程工具和完整实际循环仍待 A04～A11/P2.5/P3/P5，不由上下文装配放行|
 |[准入](../../modules/agent_runtime/admission.py)、[费用](../../modules/agent_runtime/billing.py)、[Gateway](../../modules/tool_gateway/gateway.py)|每次实际请求和工具的当前门禁、费用及白名单路由|工程工具适配与按角色收窄工具集合；不改成模型直连执行器|
 |[长操作](../../modules/agent_runtime/operations.py)|Workspace 物化的提交、查询、可靠等待及新 Run 续接|其他工程操作逐项适配，不将现有 `submit_operation` 宣称为通用执行工具|
 |[工作区](../../modules/workspaces/application.py)、[环境](../../modules/workspaces/development_application.py)、[worker](../../services/hub-worker/engineering_runtime.py)|已有文件变更、候选固定、受限环境和构建的领域/执行接缝|代码定位、补丁、日志、项目自测等 Agent 路由及实际反馈|
@@ -20,7 +20,7 @@
 
 ## 2. 角色策略与指令模板
 
-五类角色的职责、输入输出及结束条件以 D01 §4 为准。后续策略按角色标识和修订引用下列模板，并绑定 RunPolicy 的 `model_config_id/model_config_revision/model_name`、工具集合和预算；角色/指令修订的启动契约由 A03/A09 随实际接缝补齐，当前契约尚无这些字段。模型配置变更不得绕过 provider 能力检查；不因角色名称预置额外模型或常驻会话。
+五类角色的职责、输入输出及结束条件以 D01 §4 为准。A03 的 RunPolicy 已增加 role（默认 developer）及 instruction_revision=agent-r1，绑定下列共同/角色模板 r1 与既有 `model_config_id/model_config_revision/model_name`、工具集合和预算，并经 SDK instructions 传入。当前不支持同一 Session 改变模型、角色/指令或工具包，须新建 Session；不自动复用不兼容历史。非开发角色拒绝当前写工具 submit_operation，不因角色名称预置额外模型、工具或常驻会话；完整角色入口留给对应后续包。
 
 共同指令 `agent-common/r1`：
 
@@ -44,7 +44,7 @@ P2 先形成单开发会话，再按 P2.5 接入独立验证/审查；P3 才由�
 
 ## 3. 工程上下文装配
 
-A03 复用现有 ContextPackage 与 EngineeringRef/InputSet，在当前权限下把引用解析为有界可读内容，保留对象、修订、摘要及读取范围；不能只把摘要当作需求正文。模型启动所需内容为：
+A03 已复用现有 ContextPackage 与 EngineeringRef/InputSet，在当前权限下把引用解析为有界可读内容，保留对象、修订、摘要及读取范围；不把摘要当作需求正文。字段、读取限额、source-files 绑定、秘密筛选与兼容限制见 [Runtime 使用说明](../development/p2-runtime.md#工程上下文加载)，实际定向结果见 [A03 记录](../acceptance/p2/p2-1-a03.md)。模型启动内容为：
 
 |输入|装配与读取方式|
 |---|---|
@@ -97,4 +97,4 @@ Gateway 是模型工具入场边界，外部参数在入口校验后以类型流
 
 A02 已形成 [复用决定](../decisions/p2/agent-reuse.md)：固定 OpenHands SDK `1.58.2 / d2ee0cdea60825608c2f8906eb54e1d4d264fb42`，仅参考工程循环、动作/观察和上下文分层；保留现有 PydanticAI、Gateway、DBOS 及领域执行链，不新增 SDK 依赖或第二套历史/恢复。三项接缝静态核对及未运行的兼容范围见决定，未把参考设计写成产品能力。
 
-下一项 A03 提供上下文与指令装配，A04/A05 接通读写，A06/A07/A08 分别接通环境、构建和必要检查，A09 贯通上述有界循环，A10/A11 补齐 Task 入口与真实工程证据。验证/审查反馈、双开发协作及运维按 P2.5、P3、P5 的独立任务推进；不以 A01/A02 文档交付放行这些能力。
+上下文与指令装配已由 A03 交付。下一项 A04 接通目录、读取与搜索，A05 接通写入，A06/A07/A08 分别接通环境、构建和必要检查，A09 贯通上述有界循环，A10/A11 补齐 Task 入口与真实工程证据。验证/审查反馈、双开发协作及运维按 P2.5、P3、P5 的独立任务推进；A03 的加载与夹具核对不放行后续循环或人工验收。

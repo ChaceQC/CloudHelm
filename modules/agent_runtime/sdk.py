@@ -127,6 +127,7 @@ async def run_turn(
     deferred_results: DeferredToolResults | None = None,
     gateway: ToolGateway | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
+    instructions: str | None = None,
 ) -> TurnOutput:
     """Inputs and history live only in memory; persistence belongs to the caller."""
     try:
@@ -162,7 +163,7 @@ async def run_turn(
                     timeout=None,
                 )
                 model = OpenAIResponsesModel(model_name, provider=OpenAIProvider(openai_client=client))
-                agent = Agent(model, tools=gateway.tools() if gateway else (),
+                agent = Agent(model, tools=gateway.tools() if gateway else (), instructions=instructions,
                               output_type=[str, DeferredToolRequests])
                 result = await agent.run(
                     None if deferred_results is not None else prompt,

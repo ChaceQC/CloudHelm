@@ -71,4 +71,6 @@ def returned_handoff_context(connection, task_id, work_item_id):
     record = WorkspaceHandoffRecord.model_validate(raw)
     return {"handoff_id": record.handoff_id, "baseline": record.baseline.snapshot.model_dump(mode="json"),
             "returned": record.returned.snapshot.model_dump(mode="json"), "change_count": len(record.changes),
+            "reason": record.reason, "changes": [item.model_dump(mode="json") for item in record.changes[:32]],
+            "changes_truncated": len(record.changes) > 32,
             "diff_ref": "/api/workspaces/" + record.workspace_id + "/handoffs/" + record.handoff_id}

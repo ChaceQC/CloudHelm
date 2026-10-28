@@ -13,7 +13,6 @@ from database.uow import UnitOfWork
 from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.command_support import lock_task_access
 from modules.collaboration.guards import read_task
-from modules.collaboration.tables import work_items
 from modules.identity.actors import actor_for_command
 from modules.identity.errors import IdentityError
 from modules.tool_gateway.gateway import ToolGateway
@@ -24,6 +23,8 @@ from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
+from .context import load_context_in_uow
+from .source_context import safe_context_text
 from .operations import (
     OperationGateway, load_deferred_results_in_uow, register_wait_in_uow,
     resume_ready_waits_in_uow,
@@ -36,8 +37,10 @@ EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
 
 class AgentRuntimeApplication:
-    def __init__(self, engine, client, provider=None):
+    def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None):
         self.engine, self.client, self.provider = engine, client, provider
+        self.source_loader = source_loader
+        self.handoff_loader = handoff_loader
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -82,13 +85,8 @@ class AgentRuntimeApplication:
                     raise TaskBoundaryError("agent_history_digest_mismatch")
                 history = ModelMessagesTypeAdapter.validate_json(raw)
             deferred_results = load_deferred_results_in_uow(uow, run_id)
-            item_goal = uow.connection.scalar(select(work_items.c.goal).where(
-                work_items.c.work_item_id == request.context.work_item_id,
-                work_items.c.task_id == request.runtime_input.task_id))
-            from modules.workspaces.handoff_gates import returned_handoff_context
-
-            handoff_context = returned_handoff_context(
-                uow.connection, request.runtime_input.task_id, request.context.work_item_id)
+            request, context, prompt, instructions = load_context_in_uow(
+                uow, run_id, self.source_loader, self.handoff_loader)
 
         async def task_read(arguments, tool_call_id):
             if arguments:
@@ -99,8 +97,8 @@ class AgentRuntimeApplication:
                     workspaces.c.task_id == task["task_id"],
                     workspaces.c.work_item_id == request.context.work_item_id))
                 return {"task_id": task["task_id"], "state": task["state"],
-                        "goal": goal, "work_item_goal": item_goal, "workspace_id": workspace_id,
-                        "human_changes": handoff_context}
+                        "goal": safe_context_text(goal), "work_item_goal": context["work_item_goal"],
+                        "workspace_id": workspace_id, "human_changes": context["human_changes"]}
 
         operations = OperationGateway(self.engine, self.client)
 
@@ -116,22 +114,13 @@ class AgentRuntimeApplication:
         routes = {"task.read": task_read, "submit_operation": submit_operation,
                   "query_operation": query_operation, "await_operation": await_operation}
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
-        prompt = json.dumps({"task_goal": goal, "work_item_goal": item_goal,
-            "human_changes": handoff_context,
-            "requirement": request.context.requirement_ref.model_dump(mode="json"),
-            "acceptance": request.context.acceptance_assets_ref.model_dump(mode="json"),
-            "source": request.context.source_ref.model_dump(mode="json"),
-            "tools": [{"name": name, "arguments": (
-                {} if name == "task.read" else {"workspace_id": "workspace ID"} if name == "submit_operation"
-                else {"operation_id": "accepted operation ID"})} for name in request.context.tool_names],
-            "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll."
-            }, ensure_ascii=False)
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
                 api_key=self.provider.api_key(), prompt=prompt, message_history=history,
                 max_requests=request.policy.max_requests, max_seconds=max(0, (deadline - datetime.now(UTC)).total_seconds()),
                 max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
                 record_response=RuntimeBilling(self.engine).record, gateway=gateway,
+                instructions=instructions,
                 deferred_results=DeferredToolResults(calls=deferred_results) if deferred_results else None)
         except RuntimeFailure as failure:
             return self._finish(run_id, None, failure.code)

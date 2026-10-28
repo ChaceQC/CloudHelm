@@ -28,7 +28,9 @@ def current_run(uow, run_id):
         agent_runs.c.run_id == run_id)).scalar_one()
     request = RuntimeStartRequest.model_validate(stored)
     incoming = request.runtime_input
-    task, _ = lock_task_access(uow, actor, incoming.task_id, "task.command")
+    task, authorization = lock_task_access(uow, actor, incoming.task_id, "task.command")
+    if request.context.permission_revision != authorization.envelope.permission_revision:
+        raise TaskBoundaryError("agent_context_permission_changed")
     require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
         expected_control_revision=incoming.expected_task_control_revision,
         expected_input_validity_revision=incoming.expected_input_validity_revision)

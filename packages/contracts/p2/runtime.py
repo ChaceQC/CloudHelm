@@ -3,14 +3,30 @@
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from packages.contracts.p0.core_contracts import RuntimeInput
-from packages.contracts.p0.decision_common import Contract, Identifier, Revision
+from packages.contracts.p0.decision_common import Contract, Digest, Identifier, Revision
 from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_kind
+from packages.contracts.p1.workspace_git import workspace_path
 
 
 Amount = Annotated[Decimal, Field(ge=0, max_digits=24, decimal_places=8, allow_inf_nan=False)]
+
+
+class ContextSourceRead(Contract):
+    """A bounded excerpt in the ContextPackage's exact source commit."""
+
+    path: str
+    digest: Digest
+    purpose: Literal["repository_rules", "source", "contract", "decision", "unresolved", "acceptance"]
+    start_line: int = Field(default=1, strict=True, ge=1)
+    max_lines: int = Field(default=120, strict=True, ge=1, le=160)
+
+    @field_validator("path")
+    @classmethod
+    def check_path(cls, value):
+        return workspace_path(value)
 
 
 class ContextPackage(Contract):
@@ -27,6 +43,7 @@ class ContextPackage(Contract):
     acceptance_assets_ref: EngineeringRef
     source_ref: EngineeringRef
     baseline_commit: str = Field(pattern=r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+    source_reads: tuple[ContextSourceRead, ...] = Field(default=(), max_length=8)
     contract_refs: tuple[EngineeringRef, ...] = Field(default=(), max_length=32)
     decision_refs: tuple[EngineeringRef, ...] = Field(default=(), max_length=32)
     unresolved_refs: tuple[EngineeringRef, ...] = Field(default=(), max_length=32)
@@ -51,6 +68,14 @@ class ContextPackage(Contract):
             expect_kind(ref, "contract")
         if self.source_ref.revision != self.baseline_commit:
             raise ValueError("baseline_source_commit_mismatch")
+        for refs, purpose in ((self.contract_refs, "contract"), (self.decision_refs, "decision"),
+                              (self.unresolved_refs, "unresolved")):
+            for ref in refs:
+                if ref.authority == "source-files" and not any(
+                    item.purpose == purpose and item.path == ref.object_id and item.digest == ref.digest
+                    and ref.revision == self.baseline_commit for item in self.source_reads
+                ):
+                    raise ValueError("context_source_reference_unresolved")
         if len(set(self.tool_names)) != len(self.tool_names):
             raise ValueError("duplicate_tool_name")
         if len(set(self.permission_scopes)) != len(self.permission_scopes):
@@ -65,6 +90,8 @@ class RunPolicy(Contract):
     model_config_revision: Identifier
     model_name: Identifier
     epoch_id: Identifier
+    role: Literal["coordinator", "developer", "verifier", "reviewer", "operator"] = "developer"
+    instruction_revision: Literal["agent-r1"] = "agent-r1"
     secret_version_ref: EngineeringRef | None = None
     max_requests: int = Field(default=3, strict=True, ge=1, le=12)
     max_duration_seconds: int = Field(default=60, strict=True, ge=1, le=86400)
@@ -94,4 +121,6 @@ class RuntimeStartRequest(Contract):
                 or runtime_input.input_set != context.input_set_ref
                 or runtime_input.committed_history != context.starting_history_ref):
             raise ValueError("runtime_context_binding_mismatch")
+        if self.policy.role != "developer" and "submit_operation" in context.tool_names:
+            raise ValueError("agent_role_tool_not_allowed")
         return self

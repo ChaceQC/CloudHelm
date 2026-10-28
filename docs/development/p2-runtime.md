@@ -10,7 +10,7 @@
 
 内部入口为 `AgentRuntimeApplication.start(source_command_id, RuntimeStartRequest)`。来源必须是已接受、可恢复真实调用者且当前仍具有该 Task 命令权限的持久命令；它不以匿名身份或调用方自报权限启动。模型配置固定为 `default-responses / 1 / gpt-6-luna`，可选 `secret_version_ref` 只能指向同一受控配置和修订。
 
-`RuntimeStartRequest` 包含既有 `RuntimeInput`、受限 `ContextPackage` 与 `RunPolicy`。Context 只含当前 InputSet、工作项修订、需求/验收/源码等引用、工具和权限/预算快照；上下文引用的摘要必须与实际内容一致。初次历史引用以 Session ID 为 `object_id`，`revision` 为 `0`，内容摘要为 UTF-8 `[]` 的 SHA-256。后续使用返回的完整历史引用与新 Session 版本。
+`RuntimeStartRequest` 包含既有 `RuntimeInput`、受限 `ContextPackage` 与 `RunPolicy`。Context 只含当前 InputSet、工作项修订、需求/验收/源码等引用、选定文件摘要/行范围、工具和权限/预算快照；上下文引用的摘要必须与实际内容一致。初次历史引用以 Session ID 为 `object_id`，`revision` 为 `0`，内容摘要为 UTF-8 `[]` 的 SHA-256。后续使用返回的完整历史引用与新 Session 版本。
 
 启动在一个短事务内写 Session、Run、WorkflowBinding 并使用公开 `enqueue_in_transaction` 入队；相同 Run/正文返回原身份，异正文拒绝。同一 Session 同时最多一个 queued/running Run。worker 的 `models` 队列并发为 1，仍保留原控制队列；这是当前软件限制，不是容量验收结论。
 
@@ -28,6 +28,28 @@
 每次实际 HTTP 出站前重新检查 worker 运行门禁、真实来源权限、Task 普通推进资格、控制/输入修订、Session/Run、绝对截止时间、请求次数和预算，并先持久登记唯一请求身份、正文摘要与保守费用占账。每次工具调用独立检查相同当前资格及工具白名单，历史成功和 Context 快照不授予下一次权限。
 
 保守预留仅适用于 P0 `official-model-prices-r1` 的全球 Standard 文本/用户函数范围：使用较大的长上下文输入/缓存写入与输出费率、实际请求字节长度及固定输出上限计算最低预留，未知缓存收益不抵扣。Task 和本 Run 预算均须足够，首链只支持 USD；兼容端点的实际账单未据此认定。
+
+## 工程上下文加载
+
+A03 在现有内部启动入口装配可读内容，不新增 HTTP 路由或 Agent 工具。worker 使用受管存储与 GitObjectStore 加载实际固定 commit；未配置加载器、来源不可读或当前授权失败时，在模型请求前停止。
+
+|内容|实际来源与绑定|
+|---|---|
+|需求与验收|读取当前项目已登记的需求 statement、必需 check IDs 和 method 正文；需求、验收、源码必须属于该 Context 的 InputSet，不把摘要充当正文或验收通过事实|
+|规范、源码与契约|`ContextPackage.source_reads` 明确 path、完整文件 SHA-256、purpose、start_line 与 max_lines；源码限当前 source_ref 的精确 commit，自动加载根及所选路径祖先 AGENTS.md|
+|决定、未决项与证据|已登记引用解析其受控 metadata；源码文件型引用使用 `authority=source-files`、object_id=相对路径、revision=baseline_commit 及文件摘要，并须有匹配 purpose 的 source_reads；保留完整引用，不调用模型生成摘要|
+|人工交还|读取原交还记录的变更清单，并从原 baseline/returned 固定快照生成真实文本差异；不重新采集可变工作区|
+|运行策略|RunPolicy 增加 role（默认 developer）及固定 instruction_revision=agent-r1；共同协议和五角色 r1 指令通过 SDK instructions 提交，项目正文只作为数据|
+
+例如源码片段为 `{"path":"src/main.py","digest":"sha256:<完整文件摘要>","purpose":"source","start_line":1,"max_lines":120}`。默认不装入整个仓库；每个 Context 最多 8 个显式片段、每片最多 160 行、单文件最多 64KiB、源码返回正文合计最多 32KiB，安全路径索引最多 64 条。返回真实摘要、总行数、截断与 next_start_line；续读时在下一份 Context 中指定同一来源及新起始行。规范未读完整时不得宣称已覆盖其全部约束。非空 source_prefix 尚不支持，因为当前 Git 子树视图无法保证读取前缀外的继承规范，明确拒绝。
+
+人工修改最多装入 32 项可见变更和前 8 项差异，差异正文合计 8KiB；超量、二进制和不可生成正文保留真实标记及原交还查询引用。最终 JSON prompt 上限 64KiB，超出时拒绝；不会静默丢弃需求、证据或未决项。DBOS 参数仍只有 run_id，结果仍是有界引用；经筛选正文仅进入内存请求及既有 128KiB 上限的业务 SDK 历史，不进入工作流参数/step 返回。
+
+读取前检查当前 resource.read，实际模型/工具请求继续走原实时准入；权限修订改变时旧 Run 停止。非开发角色不能获得当前唯一写工具 submit_operation；角色名称不额外授予工具或业务权限。当前不支持同一 Session 切换模型、角色/指令或工具包，需使用新 Session；自动 Epoch 切换和历史压缩留在后续接缝。
+
+敏感路径（.env、凭据目录、私钥等）拒绝进入读取或目录投影；明确命名的敏感赋值、URL 凭据和 PEM 私钥块在请求/业务历史前过滤，原文件摘要及行号保留。规则式过滤不构成对任意未知秘密格式的识别保证，来源仍须是受控项目文本。密钥解析继续只在原 provider 出站边界按引用进行。
+
+本次为未发布内部契约的增量字段；调用方按当前 ContextPackage 重新计算 context 摘要。旧模型/工具历史不因升级自动得到新角色能力；原 HTTP 契约、数据库迁移和 DBOS 应用版本不变。开发核对与夹具限制见 [A03 记录](../acceptance/p2/p2-1-a03.md)。A04 的自主目录/文件/搜索工具、A05 写入及完整工程循环尚未接通。
 
 ## 请求结果与费用核对
 
@@ -65,4 +87,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-源码版本为 `0.14.0`，新库 head 为 `0014_p2_verification`，线性承接 `0013_p2_usage_waits`；DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.17.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

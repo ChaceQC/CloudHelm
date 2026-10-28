@@ -59,6 +59,16 @@ def start_run(engine, client, source_command_id, request: RuntimeStartRequest):
         elif (session["task_id"] != incoming.task_id or session["version"] != incoming.expected_session_version
                 or session["history_key"] != incoming.committed_history.digest):
             raise TaskBoundaryError("agent_session_version_conflict")
+        if session is not None:
+            previous = uow.connection.scalar(select(agent_runs.c.start_json).where(
+                agent_runs.c.session_id == incoming.session_id).order_by(agent_runs.c.created_at.desc()).limit(1))
+            if previous is not None:
+                old = RuntimeStartRequest.model_validate(previous)
+                if (old.policy.epoch_id, old.policy.model_config_id, old.policy.model_config_revision,
+                    old.policy.model_name, old.policy.role, old.policy.instruction_revision, old.context.tool_names) != (
+                    policy.epoch_id, policy.model_config_id, policy.model_config_revision,
+                    policy.model_name, policy.role, policy.instruction_revision, request.context.tool_names):
+                    raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
         if uow.connection.scalar(select(agent_runs.c.run_id).where(
                 agent_runs.c.session_id == incoming.session_id, agent_runs.c.state.in_(("queued", "running")))):
             raise TaskBoundaryError("agent_session_has_active_run")
@@ -154,6 +164,8 @@ def _check_context(uow, task, authorization, request, *, allow_deferred=False):
         work_items.c.work_item_id == context.work_item_id)).mappings().one_or_none()
     if item is None or item["revision"] != context.work_item_revision:
         raise TaskBoundaryError("agent_work_item_not_current")
-    for ref in (context.input_set_ref, context.requirement_ref, context.acceptance_assets_ref,
-                context.source_ref, *context.contract_refs, *context.decision_refs, *context.unresolved_refs):
+    for ref in (context.input_set_ref, context.requirement_ref, context.acceptance_assets_ref, context.source_ref):
         read_registered_reference(uow.connection, task["project_id"], ref)
+    for ref in (*context.contract_refs, *context.decision_refs, *context.unresolved_refs):
+        if ref.authority != "source-files":
+            read_registered_reference(uow.connection, task["project_id"], ref)
