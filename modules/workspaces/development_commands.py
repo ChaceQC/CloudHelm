@@ -49,10 +49,7 @@ def validated_development_request(request, expected_type=None):
     ) if expected_type == "control" else tuple(_PUBLIC_TYPES.values())
     if type(request) not in allowed:
         raise WorkspaceDevelopmentError("workspace_development_request_invalid", status_code=422)
-    try:
-        return type(request).model_validate(request.model_dump(mode="python"))
-    except ValueError:
-        raise WorkspaceDevelopmentError("workspace_development_request_invalid", status_code=422) from None
+    return request
 
 
 def prepare_development_command_context(

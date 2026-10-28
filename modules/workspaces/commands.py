@@ -23,22 +23,8 @@ from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandInt
 from packages.contracts.p1.workspace_git import WorkspaceBinding
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
 from packages.contracts.p1.workspace_requests import (
-    CreateWorkspaceRequest, MaterializeWorkspaceRequest, MutateWorkspaceFileRequest,
-    SubmitWorkspaceCandidateRequest, WorkspaceCommandResult, WorkspaceHttpResult,
-    WorkspaceRequest,
+    WorkspaceCommandResult, WorkspaceHttpResult, WorkspaceRequest,
 )
-
-REQUEST_TYPES = (CreateWorkspaceRequest, MaterializeWorkspaceRequest, MutateWorkspaceFileRequest,
-                 SubmitWorkspaceCandidateRequest)
-
-
-def _validated(request):
-    if type(request) not in REQUEST_TYPES:
-        raise WorkspaceError("workspace_request_invalid", status_code=422)
-    try:
-        return type(request).model_validate(request.model_dump(mode="python"))
-    except ValueError:
-        raise WorkspaceError("workspace_request_invalid", status_code=422) from None
 
 
 def _prepare(uow, actor, task_id, workspace_id, request, key):
@@ -185,12 +171,11 @@ def _accept(context, request, workspace, runtime_scope_for, has_enqueue):
 
 
 def _accept_workspace_command(
-    uow, actor, task_id, request, *, idempotency_key, workspace_id=None,
+    uow, actor, task_id, request: WorkspaceRequest, *, idempotency_key, workspace_id=None,
     runtime_scope_for=None, enqueue_operation=None,
 ):
     """Current authority precedes replay; all new intent/enqueue writes share this UoW."""
     require_transaction(uow.connection)
-    request = _validated(request)
     if (request.kind == "create") != (workspace_id is None):
         raise WorkspaceError("workspace_request_target_invalid", status_code=422)
     context, workspace, existing = _prepare(uow, actor, task_id, workspace_id, request, idempotency_key)
@@ -218,7 +203,7 @@ def _accept_workspace_command(
 
 
 def accept_workspace_command_in_uow(
-    uow, actor, task_id, request, *, idempotency_key, workspace_id=None,
+    uow, actor, task_id, request: WorkspaceRequest, *, idempotency_key, workspace_id=None,
     runtime_scope_for=None, enqueue_operation=None,
 ):
     """Keep failed enqueue atomic even when the UoW owner catches its exception."""

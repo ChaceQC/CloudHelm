@@ -28,7 +28,6 @@ def reserve_in_uow(uow, actor, task_id, request: ReserveResourcesRequest, *, ide
 
 
 def _reserve(uow, actor, task_id, request, key):
-    request = ReserveResourcesRequest.model_validate(request.model_dump(mode="python"))
     assert_schema_ready(uow.connection)
     task, authorization = lock_task_access(uow, actor, task_id, "operation.request")
     resource = task_resource(task)

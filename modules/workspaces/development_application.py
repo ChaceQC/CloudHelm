@@ -26,7 +26,7 @@ from modules.workspaces.operations import (
     current_engineering_input, pending_workspace_operations, read_workspace_operation, read_workspace_row,
 )
 from packages.contracts.p1.workspace_development_requests import (
-    WorkspaceDevelopmentHttpResult,
+    PrepareWorkspaceDevelopmentRequest, WorkspaceDevelopmentControlRequest, WorkspaceDevelopmentHttpResult,
 )
 from packages.contracts.p1.workspace_git import WorkspaceBinding
 
@@ -210,7 +210,7 @@ class WorkspaceDevelopmentApplication:
         self.prepared_spec_for, self.runtime_for = prepared_spec_for, runtime_for
         self.enqueue_operation = enqueue_operation
 
-    def prepare(self, actor, workspace_id, request, key):
+    def prepare(self, actor, workspace_id, request: PrepareWorkspaceDevelopmentRequest, key):
         request = validated_development_request(request, "prepare")
         validate_actor(actor)
         command_id = uuid4().hex
@@ -233,7 +233,7 @@ class WorkspaceDevelopmentApplication:
                 resolver_error=resolver_error, enqueue_operation=self.enqueue_operation,
             )
 
-    def control(self, actor, environment_id, request, key):
+    def control(self, actor, environment_id, request: WorkspaceDevelopmentControlRequest, key):
         request = validated_development_request(request, "control")
         validate_actor(actor)
         command_id = uuid4().hex

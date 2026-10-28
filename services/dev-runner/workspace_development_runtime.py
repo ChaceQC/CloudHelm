@@ -210,11 +210,7 @@ class WorkspaceDevelopmentRuntime:
             return
         try:
             owner = DevelopmentStorage(self.spec.storage_ref.storage_id)
-            pin_admission = getattr(owner, "pin_admission", None)
-            if callable(pin_admission):
-                self.pin_context = pin_admission(storage.admission)
-            else:
-                self.pin_context = owner.pin_ref(self.spec.storage_ref, requested_bytes=0)
+            self.pin_context = owner.pin_admission(storage.admission)
             self.pin = self.pin_context.__enter__()
             data_root = self.pin.directory.parent
             self.pinned_storage = EngineeringStorage(

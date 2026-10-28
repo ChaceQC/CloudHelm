@@ -8,7 +8,7 @@
 
 环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
 
-当前开发源码为 `0.9.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，业务迁移 head 为 `0010_p1_archive_closeout`（从 `0009_p1_5_sync` 线性前进）。旧版安装必须另行完成受控升级，`database.manage initialize` 会拒绝版本不匹配的现有安装。P1.2 历史固定候选仍按原版本与证据适用；受管执行的登记、启动和限制见[共享资源说明](p1-resources.md)及 [T-SIM-06](../implementation/t-sim-06-resources.md)，归档编制见[交付说明](p1-delivery.md)，远端通道/账本及门禁见[Remote Agent 说明](p1-remote-agent.md)。
+当前开发源码为 `0.11.1`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库业务迁移 head 为 `0012_p2_agent_runtime`（从 `0011_p1_archive_maintenance` 线性前进）。旧版安装必须另行完成受控升级，`database.manage initialize` 会拒绝版本不匹配的现有安装；固定旧快照的受限维护副本继续限定在 `0011`。P1.2 历史固定候选仍按原版本与证据适用；受管执行的登记、启动和限制见[共享资源说明](p1-resources.md)及 [T-SIM-06](../implementation/t-sim-06-resources.md)，归档编制见[交付说明](p1-delivery.md)，远端通道/账本及门禁见[Remote Agent 说明](p1-remote-agent.md)。
 
 工作文件、受管 Git 元数据、候选、下载缓存、制品和执行临时目录具有独立位置与用途。受控运行数据放在 Linux 原生私有目录，不能放在 `/mnt/e` 的仓库工作树内；配置仅传受保护文件引用，不向命令参数、日志或公开输出写入密钥。
 
@@ -21,6 +21,10 @@
 ## 3. Runner 检查与历史方法
 
 历史固定能力探针入口 `scripts.p1.probe_runner` 已移除。构建运行实际依赖的 Runner、工具链与隔离代码继续保留；其已取得的能力记录仍按原候选和固定环境适用。
+
+产品前后端构建共用 `buildkit_container.py` 中的容器边界、进程观测、停止核对和有界 OCI 收集，分别固定来源挂载、方法身份和运行时限。产品构建器不再继承历史能力/离线图像探针；仍被独立方法与依赖运行时使用的探针入口保留。
+
+后端构建只走固定 context、完整制品收集和 `primary` 身份；前端将首次验证的只读候选字节和回执传到构建，不重复计算同一内存内容的摘要。磁盘依赖种子、实际挂载以及导出制品仍分别核验，既有输入摘要与构建身份保持兼容。
 
 日常检查见[精简验证入口](checks.md)。需要复现原 rootless BuildKit 能力或构建实验时，在[原提交独立检出](p0-seams.md#取回历史方法)中使用当时的完整方法；不以静态检查代替物理执行证据。
 

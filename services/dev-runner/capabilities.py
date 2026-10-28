@@ -13,7 +13,8 @@ from pathlib import Path
 from packages.contracts.p1.runner_contracts import CapabilityEvidence
 
 from . import policy
-from .toolchain import DockerClient, ProbeFailure, classify_diagnostic, safe_diagnostic
+from .buildkit_container import BuildKitContainer, process_identity
+from .toolchain import DockerClient, ProbeFailure
 
 PROBE_SCRIPT = """set -eu
 b=/bin/busybox
@@ -57,23 +58,11 @@ def evidence(name: str, passed: bool, reason: str, *observations: str) -> Capabi
                               reason=reason, observations=observations)
 
 
-def process_identity(pid: int) -> str | None:
-    try:
-        value = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
-        return value.rsplit(")", 1)[1].split()[19]
-    except FileNotFoundError:
-        return None
-
-
-class CapabilityProbe:
+class CapabilityProbe(BuildKitContainer):
     def __init__(self, client: DockerClient, operation_id: str, directory: Path,
                  image: str, started: float) -> None:
-        self.client, self.operation_id, self.directory = client, operation_id, directory
-        self.image, self.started = image, started
-        self.container_id: str | None = None
-        self.cgroup: Path | None = None
+        super().__init__(client, operation_id, directory, image, started)
         self.records: dict[str, CapabilityEvidence] = {}
-        self.processes: dict[int, str | None] = {}
         self.sleeper_processes: dict[int, str | None] = {}
         self.outer_pid_namespace = ""
         self.host_network_namespace = os.readlink("/proc/self/ns/net")
@@ -92,10 +81,6 @@ class CapabilityProbe:
         policy.ensure_owned(metadata, self.operation_id)
         return metadata
 
-    def execute(self, *arguments: str, ceiling: int = 20, required: bool = True):
-        return self.client.run("exec", "--user=1000:1000", self.container_id, *arguments,
-                               timeout=self.remaining(ceiling), required=required)
-
     def create(self) -> None:
         existing = self.client.run("ps", "--all", "--quiet", "--filter", f"label={policy.SCOPE_LABEL}")
         if existing.stdout.strip():
@@ -108,29 +93,6 @@ class CapabilityProbe:
             raise ProbeFailure("probe_container_identity_unavailable")
         self.client.run("start", self.container_id, timeout=self.remaining())
         self._wait_for_worker()
-
-    def _wait_for_worker(self) -> None:
-        for _ in range(25):
-            result = self.execute("buildctl", "--addr", "unix:///run/user/1000/buildkit/buildkitd.sock",
-                                  "debug", "workers", "--verbose", required=False)
-            if result.returncode == 0:
-                labels = {}
-                for line in result.stdout.splitlines():
-                    key, separator, value = line.partition(":")
-                    if separator:
-                        labels[key.strip()] = value.strip()
-                native = labels.get("org.mobyproject.buildkit.worker.snapshotter") == "native"
-                sandbox = labels.get("org.mobyproject.buildkit.worker.oci.process-mode") == "sandbox"
-                if not native or not sandbox:
-                    raise ProbeFailure("probe_worker_snapshotter_or_process_sandbox_mismatch")
-                return
-            if not self.metadata()["State"]["Running"]:
-                logs = self.client.run("logs", "--tail=30", self.container_id, required=False)
-                raise ProbeFailure("probe_rootless_worker_start_failed",
-                                   classify_diagnostic(logs.stdout + logs.stderr),
-                                   safe_diagnostic(logs.stdout + logs.stderr))
-            time.sleep(0.2)
-        raise ProbeFailure("probe_worker_readiness_unconfirmed")
 
     def observe_boundary(self) -> None:
         metadata = self.metadata()
@@ -183,28 +145,12 @@ class CapabilityProbe:
                 raise ProbeFailure("probe_builder_tmpfs_limit_mismatch")
         self._observe_processes()
 
-    def _observe_processes(self) -> None:
-        result = self.client.run("top", self.container_id, "-eo", "pid", timeout=self.remaining())
-        for line in result.stdout.splitlines()[1:]:
-            fields = line.split()
-            if len(fields) != 1 or not fields[0].isdigit():
-                raise ProbeFailure("probe_process_observation_invalid")
-            pid = int(fields[0])
-            identity = process_identity(pid)
-            if identity is None:
-                continue
-            try:
-                group = Path(f"/proc/{pid}/cgroup").read_text(encoding="utf-8").strip()
-                command_line = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
-            except FileNotFoundError:
-                continue
-            expected = "/" + str(self.cgroup.relative_to("/sys/fs/cgroup"))
-            if not any(line == f"0::{expected}" or line.startswith(f"0::{expected}/")
-                       for line in group.splitlines()):
-                raise ProbeFailure("probe_child_outside_parent_cgroup")
-            self.processes[pid] = identity
+    def _observe_processes(self) -> list[tuple[int, str, list[bytes]]]:
+        observed = super()._observe_processes()
+        for pid, identity, command_line in observed:
             if b"sleep" in command_line and b"300" in command_line:
                 self.sleeper_processes[pid] = identity
+        return observed
 
     def prepare_input(self, host_port: int) -> None:
         context = self.directory / "context"
@@ -270,30 +216,3 @@ class CapabilityProbe:
             and facts["network"] == "host_loopback_and_public_unreachable",
             "actual_host_sentinel_public_egress_and_namespace", f"run={facts['net_ns']}",
             f"host={self.host_network_namespace}", "ipv4_routes=none", "docker_network=none")
-
-    def stop_and_remove(self) -> CapabilityEvidence:
-        if self.container_id is None:
-            return CapabilityEvidence(capability="stop_confirmation", status="unverified", reason="not_started")
-        metadata = self.metadata()
-        if metadata["State"]["Running"]:
-            self.client.run("stop", "--time=3", self.container_id, timeout=15)
-        stopped = self.metadata()
-        remaining = [pid for pid, identity in self.processes.items() if process_identity(pid) == identity]
-        populated = False
-        if self.cgroup is not None and self.cgroup.exists():
-            populated = "populated 1" in (self.cgroup / "cgroup.events").read_text(encoding="utf-8")
-        verified = not stopped["State"]["Running"] and stopped["State"]["Pid"] == 0 and not remaining and not populated
-        if not verified:
-            raise ProbeFailure("probe_stop_unconfirmed_reconciliation_required")
-        self.client.run("rm", "--volumes", self.container_id, timeout=15)
-        exists = self.client.run("ps", "--all", "--quiet", "--filter",
-                                f"label=cloudhelm.operation_id={self.operation_id}")
-        if exists.stdout.strip():
-            raise ProbeFailure("probe_owned_container_cleanup_unconfirmed")
-        if self.cgroup is None:
-            return CapabilityEvidence(capability="stop_confirmation", status="unverified",
-                reason="host_process_group_not_observed", observations=(
-                    "docker_running=false", "docker_pid=0", "owned_container_removed=true"))
-        return evidence("stop_confirmation", True, "docker_and_host_process_stop_confirmed",
-                        f"tracked_processes={len(self.processes)}", "remaining_processes=0",
-                        "cgroup_populated=false", "owned_container_removed=true")

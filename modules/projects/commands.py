@@ -111,10 +111,6 @@ class ProjectApplication:
     def _execute(self, actor, project_id, request, schema, key) -> ProjectHttpResult:
         if type(request) is not schema:
             raise ValueError("project_request_schema_invalid")
-        try:
-            request = schema.model_validate(request.model_dump(mode="python"))
-        except ValueError:
-            raise ValueError("project_request_schema_invalid") from None
         validate_actor(actor)
         with UnitOfWork(self.engine) as uow:
             resource = _target_and_locks(uow, actor, project_id, request)

@@ -12,10 +12,10 @@ from modules.artifacts.errors import ArtifactContentError
 from packages.contracts.p1.npm_cache import NPM_VERSION, NpmDownloadSpec
 
 from .frontend_build_boundary import FrontendBuildBoundary, OUTPUT_BYTES
-from .frontend_build_inputs import prepare_context, verify_source
+from .frontend_build_inputs import VerifiedFrontendSource, prepare_context
 from .frontend_images import prepare_frontend_layouts, verify_frontend_image
 from .npm_downloads import NpmDownloadError, NpmDownloadStore
-from .offline_image_runtime import SOCKET
+from .buildkit_container import SOCKET
 from .toolchain import ProbeFailure, ensure_toolchain, private_directory, safe_diagnostic
 
 
@@ -101,7 +101,7 @@ class FrontendBuildRuntime(FrontendBuildBoundary):
 
 
 def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
-                   expected_seed_manifest_digest: str, *, source_inputs: dict[str, bytes],
+                   expected_seed_manifest_digest: str, *, source_inputs: dict[str, bytes] | VerifiedFrontendSource,
                    expected_source_manifest_digest: str, content_store,
                    seed_spec: NpmDownloadSpec) -> dict:
     """Run a registered fixed-reference build; the caller holds authorization and admission.
@@ -118,9 +118,12 @@ def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
                for value in (expected_seed_manifest_digest, expected_source_manifest_digest)):
             raise ProbeFailure("frontend_expected_input_digests_required")
         private_directory(directory)
-        candidate = dict(source_inputs)
-        result["source"] = prepare_context(directory, candidate,
-            expected_manifest_digest=expected_source_manifest_digest)
+        source = (source_inputs if isinstance(source_inputs, VerifiedFrontendSource)
+                  else VerifiedFrontendSource.from_inputs(source_inputs))
+        if source.receipt["manifest_digest"] != expected_source_manifest_digest:
+            raise ProbeFailure("frontend_source_manifest_digest_mismatch")
+        candidate = source.inputs
+        result["source"] = prepare_context(directory, source)
         with NpmDownloadStore(seed_root) as seeds:
             seed = seeds.verify(seed_spec, expected_manifest_digest=expected_seed_manifest_digest)
         result["seed"] = seed.model_dump(mode="json")
@@ -144,7 +147,6 @@ def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
         with NpmDownloadStore(seed_root) as seeds:
             if seeds.verify(seed_spec, expected_manifest_digest=seed.manifest_digest) != seed:
                 raise ProbeFailure("frontend_seed_changed_after_build")
-        verify_source(candidate, expected_source_manifest_digest)
     except ProbeFailure as failure:
         result["failures"].append({"category": failure.category, "diagnostic": failure.diagnostic,
                                    "detail": failure.detail})

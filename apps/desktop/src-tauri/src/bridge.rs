@@ -124,19 +124,18 @@ pub async fn hub_connect(window: WebviewWindow, state: State<'_, HubState>, gene
     Ok(Connected { identity: reply.body, generation })
 }
 
-fn validate(request: &HubRequest) -> Result<(), String> {
+fn validate(request: &HubRequest) -> Result<Option<(&str, &Value)>, String> {
     if !security::route_allowed(&request.method, &request.route) { return Err("route_not_allowed".into()); }
-    if request.method == "POST" {
-        let key = request.idempotency_key.as_deref().ok_or("idempotency_key_required")?;
-        if key.is_empty() || key.len() > 160 || !key.bytes().all(|b| b.is_ascii_graphic()) {
-            return Err("idempotency_key_invalid".into());
-        }
-        let body = request.body.as_ref().ok_or("command_body_required")?;
-        if serde_json::to_vec(body).map_err(|_| "command_invalid")?.len() > 65536 {
-            return Err("command_too_large".into());
-        }
+    if request.method != "POST" { return Ok(None); }
+    let key = request.idempotency_key.as_deref().ok_or("idempotency_key_required")?;
+    if key.is_empty() || key.len() > 160 || !key.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err("idempotency_key_invalid".into());
     }
-    Ok(())
+    let body = request.body.as_ref().ok_or("command_body_required")?;
+    if serde_json::to_vec(body).map_err(|_| "command_invalid")?.len() > 65536 {
+        return Err("command_too_large".into());
+    }
+    Ok(Some((key, body)))
 }
 
 pub fn command_id(reply: &Reply) -> Option<&str> {
@@ -149,21 +148,19 @@ fn confirmed(reply: &Reply) -> bool {
     (200..500).contains(&reply.status) && command_id(reply).is_some()
 }
 
-async fn send(app: &AppHandle, state: &HubState, session: &Session, request: &HubRequest) -> Result<Reply, String> {
-    validate(request)?;
+async fn send(app: &AppHandle, state: &HubState, session: &Session, request: &HubRequest,
+              post: Option<(&str, &Value)>) -> Result<Reply, String> {
     let method = reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|_| "method_invalid")?;
     let mut builder = session.client.request(method, format!("{}{}", session.base, request.route))
         .bearer_auth(&session.token).header("X-CloudHelm-Api-Schema", API_SCHEMA).timeout(Duration::from_secs(15));
-    if request.method == "POST" {
-        builder = builder.header("Idempotency-Key", request.idempotency_key.as_deref().ok_or("idempotency_key_required")?)
-            .json(request.body.as_ref().ok_or("command_body_required")?);
+    if let Some((key, body)) = post {
+        builder = builder.header("Idempotency-Key", key).json(body);
     }
     selected_session(state, &session.generation)?;
     let response = builder.send().await.map_err(|_| "request_unconfirmed")?;
     let mut reply = bounded_reply(response).await?;
-    if request.method == "POST" && confirmed(&reply) {
-        reply = crate::journal::record(app, &session.account,
-            request.idempotency_key.as_deref().ok_or("idempotency_key_required")?, &reply)?;
+    if let Some((key, _)) = post.filter(|_| confirmed(&reply)) {
+        reply = crate::journal::record(app, &session.account, key, &reply)?;
     }
     selected_session(state, &session.generation)?;
     Ok(reply)
@@ -174,9 +171,9 @@ pub async fn hub_request(window: WebviewWindow, app: AppHandle, state: State<'_,
                          generation: String, request: HubRequest) -> Result<Reply, String> {
     security::trusted(&window)?;
     let current = selected_session(&state, &generation)?;
-    validate(&request)?;
-    if request.method == "POST" { crate::journal::prepare(&app, &current.account, &request)?; }
-    send(&app, &state, &current, &request).await
+    let post = validate(&request)?;
+    if let Some((key, _)) = post { crate::journal::prepare(&app, &current.account, &request, key)?; }
+    send(&app, &state, &current, &request, post).await
 }
 
 #[tauri::command]
@@ -184,10 +181,11 @@ pub async fn hub_retry(window: WebviewWindow, app: AppHandle, state: State<'_, H
                        generation: String, key: String) -> Result<Reply, String> {
     security::trusted(&window)?;
     let current = selected_session(&state, &generation)?;
-    let (request, _) = crate::journal::get(&app, &current.account, &key)?;
+    let request = crate::journal::get(&app, &current.account, &key)?;
     selected_session(&state, &generation)?;
+    let post = validate(&request)?;
     // Reauthorize even a locally stored receipt before exposing it in a later session.
-    send(&app, &state, &current, &request).await
+    send(&app, &state, &current, &request, post).await
 }
 
 #[tauri::command]

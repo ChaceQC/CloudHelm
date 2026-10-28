@@ -6,7 +6,10 @@ import hashlib
 import json
 import os
 import stat
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 
 from modules.artifacts.content_files import file_shape
 from packages.contracts.p1.npm_cache import INSTALL_OPTIONS, LOCK_DIGEST, PACKAGE_DIGEST
@@ -27,6 +30,18 @@ SOURCE_DIGESTS = {
     "src/main.tsx": "ccbefe7be6c69706a1bb01c4c3f20492eb002435af6ba7e5a6d45f7c6aa3a140",
     "src/styles.css": "5f6d7e79cf6550f595d6179b0990193cc026050e58fe0189bf54deff71d21b2e",
 }
+
+
+@dataclass(frozen=True)
+class VerifiedFrontendSource:
+    inputs: Mapping[str, bytes]
+    receipt: dict
+
+    @classmethod
+    def from_inputs(cls, source_inputs: Mapping[str, bytes]):
+        inputs = dict(source_inputs)
+        receipt = verify_source(inputs)
+        return cls(MappingProxyType(inputs), receipt)
 
 
 def verify_source(inputs: dict[str, bytes], expected_manifest_digest: str | None = None) -> dict:
@@ -77,10 +92,8 @@ def reference_inputs(frontend: Path = FRONTEND) -> dict[str, bytes]:
     return inputs
 
 
-def prepare_context(directory: Path, source_inputs: dict[str, bytes], *,
-                    expected_manifest_digest: str) -> dict:
-    inputs = dict(source_inputs)
-    source = verify_source(inputs, expected_manifest_digest)
+def prepare_context(directory: Path, source: VerifiedFrontendSource) -> dict:
+    inputs = source.inputs
     recipe = _read_fixed(RECIPE)
     command = b"npm ci " + " ".join(INSTALL_OPTIONS).encode("ascii")
     if recipe.count(command) != 1:
@@ -88,7 +101,7 @@ def prepare_context(directory: Path, source_inputs: dict[str, bytes], *,
     context = directory / "context"
     context.mkdir(mode=0o700)
     (context / "src").mkdir(mode=0o700)
-    for name, raw in (inputs | {"Dockerfile": recipe}).items():
+    for name, raw in {**inputs, "Dockerfile": recipe}.items():
         descriptor = os.open(context / name, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o400)
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(raw)
@@ -96,6 +109,6 @@ def prepare_context(directory: Path, source_inputs: dict[str, bytes], *,
             os.fsync(stream.fileno())
     (context / "src").chmod(0o500)
     context.chmod(0o500)
-    return source | {"recipe_digest": "sha256:" + hashlib.sha256(recipe).hexdigest(),
+    return source.receipt | {"recipe_digest": "sha256:" + hashlib.sha256(recipe).hexdigest(),
         "recipe_variant": "fixed-notes-npm-offline-ignore-scripts-r2",
         "install_options": INSTALL_OPTIONS}

@@ -16,6 +16,7 @@ from modules.collaboration.tables import work_items
 from modules.tool_gateway.gateway import ToolGateway
 from packages.contracts.p0.core_contracts import TurnResult
 from packages.contracts.p0.engineering_contracts import EngineeringRef
+from packages.contracts.p2.runtime import RuntimeStartRequest
 from .admission import RuntimeAdmission
 from .registration import start_run
 from .sdk import RuntimeFailure, run_turn
@@ -28,7 +29,7 @@ class AgentRuntimeApplication:
     def __init__(self, engine, client, provider=None):
         self.engine, self.client, self.provider = engine, client, provider
 
-    def start(self, source_command_id, request):
+    def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
             raise TaskBoundaryError("agent_provider_not_configured")
         self.provider.check(request.policy)
@@ -89,14 +90,14 @@ class AgentRuntimeApplication:
             "source": request.context.source_ref.model_dump(mode="json"),
             "tools": [{"name": name, "arguments": {}} for name in request.context.tool_names]}, ensure_ascii=False)
         try:
-            result = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
+            new_messages = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
                 api_key=self.provider.api_key(), prompt=prompt, message_history=history,
                 max_requests=request.policy.max_requests, max_seconds=max(0, (deadline - datetime.now(UTC)).total_seconds()),
                 max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
                 gateway=gateway)
         except RuntimeFailure as failure:
             return self._finish(run_id, None, failure.code)
-        raw = ModelMessagesTypeAdapter.dump_json([*history, *result.new_messages])
+        raw = ModelMessagesTypeAdapter.dump_json([*history, *new_messages])
         # Canonical local representation is the history content identity.
         raw = json.dumps(json.loads(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if len(raw) > 131072:
@@ -107,7 +108,6 @@ class AgentRuntimeApplication:
         with UnitOfWork(self.engine) as uow:
             stored = uow.connection.execute(select(agent_runs.c.start_json).where(
                 agent_runs.c.run_id == run_id)).scalar_one()
-            from packages.contracts.p2.runtime import RuntimeStartRequest
             request = RuntimeStartRequest.model_validate(stored)
             task = read_task(uow.connection, request.runtime_input.task_id, for_update=True)
             session = uow.connection.execute(select(agent_sessions).where(

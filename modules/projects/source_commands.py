@@ -39,14 +39,12 @@ def current_project_access(uow, actor, project_id):
     return resource, decision
 
 
-def accept_reference_import(uow, actor, project_id, request, *, idempotency_key, enqueue_operation=None):
+def accept_reference_import(
+    uow, actor, project_id, request: ImportReferenceSourceRequest, *, idempotency_key, enqueue_operation=None,
+):
     """Participate in the caller's UoW; current permission precedes durable replay."""
     if type(request) is not ImportReferenceSourceRequest:
         raise SourceImportError("source_import_request_invalid")
-    try:
-        request = ImportReferenceSourceRequest.model_validate(request.model_dump(mode="python"))
-    except ValueError:
-        raise SourceImportError("source_import_request_invalid") from None
     resource, authorization = current_project_access(uow, actor, project_id)
     project = uow.connection.execute(select(projects).where(
         projects.c.project_id == project_id,
@@ -120,7 +118,7 @@ class SourceImportApplication:
         self.engine, self.control_engine = engine, control_engine
         self.enqueue_operation = enqueue_operation
 
-    def import_reference(self, actor, project_id, request, *, idempotency_key) -> SourceImportHttpResult:
+    def import_reference(self, actor, project_id, request: ImportReferenceSourceRequest, *, idempotency_key) -> SourceImportHttpResult:
         with UnitOfWork(self.engine) as uow:
             return accept_reference_import(uow, actor, project_id, request, idempotency_key=idempotency_key,
                                            enqueue_operation=self.enqueue_operation)

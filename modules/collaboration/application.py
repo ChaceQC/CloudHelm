@@ -29,15 +29,6 @@ from packages.contracts.p1.task_requests import (
 from packages.contracts.p1.task_results import TaskCommandResult, TaskHttpResult, TaskView
 
 
-def _validated(request, schema):
-    if type(request) is not schema:
-        raise TaskBoundaryError("task_request_schema_invalid", status_code=422)
-    try:
-        return schema.model_validate(request.model_dump(mode="python"))
-    except ValueError:
-        raise TaskBoundaryError("task_request_schema_invalid", status_code=422) from None
-
-
 class TaskApplication:
     def __init__(self, engine: Engine, control_engine: Engine, dbos_client: DBOSClient) -> None:
         self.engine = engine
@@ -45,7 +36,8 @@ class TaskApplication:
         self.dbos_client = dbos_client
 
     def create(self, actor: Actor, project_id: str, request: CreateTaskRequest, *, idempotency_key: str) -> TaskHttpResult:
-        request = _validated(request, CreateTaskRequest)
+        if type(request) is not CreateTaskRequest:
+            raise TaskBoundaryError("task_request_schema_invalid", status_code=422)
         validate_actor(actor)
         try:
             with UnitOfWork(self.engine) as uow:
@@ -91,7 +83,8 @@ class TaskApplication:
         return register_write_intent(context, request)
 
     def _execute(self, actor, task_id, request, schema, key, engine):
-        request = _validated(request, schema)
+        if type(request) is not schema:
+            raise TaskBoundaryError("task_request_schema_invalid", status_code=422)
         validate_actor(actor)
         try:
             with UnitOfWork(engine) as uow:

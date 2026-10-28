@@ -1,6 +1,6 @@
 # CloudHelm 项目执行计划
 
-> 计划修订：45
+> 计划修订：46
 > 建立日期：2026-10-13（Asia/Shanghai）
 > 修订日期：2026-10-28（Asia/Shanghai）
 > 设计依据：总体设计 v4.7；详细设计索引 v4.7.4，D02/D03/D04/D06/D06a v4.7.2，D01/D05 v4.7.1
@@ -8,7 +8,24 @@
 
 ## 1. 当前入口与计划边界
 
-**P1 已完成；本次仅开放 P2.1-01。** 2026-10-28 按用户明确决定完成 P1 阶段收口，P1.1～P1.5 已交付范围不再追加开发要求。既有证据按原版本和支持范围引用；历史部署及未执行验收分别保留记录，不再作为 P1 未完成的理由。按本次任务接入真实 PydanticAI、有界 Run、受限上下文及逐次准入；P2.1-02 与其余 P2 工作包尚未开放。
+### 过度设计精简专项 T-SIMPLIFY-01
+
+2026-10-28 用户授权处理 `dev / 4b3a5dc` 只读审查确认的全部 8 项。此专项仅精简现有 P1/P2.1-01 实现，不开放 P2.1-02，不改变业务状态、授权、请求身份、构建摘要及恢复语义。由主会话集成，按下表分派独立小任务。
+
+|小步|输入与负责文件|交付物与退出条件|
+|---|---|---|
+|S01 请求校验|Hub `requests.py`、Task/Project 及实际同类 Workspace/Execution/Delivery 应用命令|严格 JSON 在入口解析并只做一次结构校验；内部传递模型，保留当前授权/版本/状态检查|
+|S02 构建固定路径与摘要|Runner 后端输入/运行时/服务、前端输入/运行时、engineering_definition、engineering_build_runner|删除无调用的命名上下文、延迟封口、不收集制品和探针 generation；复用已验证内存输入，保留磁盘/挂载/制品核验及 primary 摘要|
+|S03 Desktop 请求日志|`apps/desktop/src-tauri/src/bridge.rs`、`journal.rs` 及必须调整的调用方|新请求和日志重投各校验一次，私有发送消费已校验请求；日志查询只读取实际消费的请求|
+|S04 Runtime 内部对象|`modules/agent_runtime/sdk.py`、`provider.py`、`packages/contracts/p2/runtime.py` 及必须调整的内部调用方|删除无人消费的 SDK 返回/异常字段；能力声明接入现有限制或删除重复声明，保留能力表、持久请求与费用占账|
+|S05 构建共享职责与固定存储|Runner 前后端 boundary、buildkit_container、offline_image_runtime、capabilities、workspace_development_runtime|产品构建器脱离历史探针继承；共享现有容器观测/停止职责，保留真实使用的独立探针入口；固定 DevelopmentStorage 直接调用 pin_admission|
+|S06 集成与交付|主会话负责计划、进度、使用说明及 Git|核对八项结果与最终差异；仅做受影响契约、Python 语法/导入和 Rust 必要编译检查，不跑全量、数据库、容器或收费模型验证；提交推送 dev|
+
+静态未引用但仍有历史验证用途的 ArtifactEnvironment/PythonDependencyRuntime 不在本次删除范围；旧环境查询/停止兼容和连续时钟证据继续保留。
+
+专项结果：S01～S06 的代码与必要定向核对已完成，源码版本同步为 `0.11.1`，数据库/执行协议/DBOS 应用版本不变；实际方法和支持限制见 [PROJECT_PROGRESS.md](PROJECT_PROGRESS.md#2026-10-28全部八项过度设计精简-t-simplify-01)。后续阶段入口不因本专项扩展。
+
+**P1 已完成；P2 仅开放 P2.1-01，当前执行上述精简专项。** 2026-10-28 按用户明确决定完成 P1 阶段收口，P1.1～P1.5 已交付范围不再追加功能要求。既有证据按原版本和支持范围引用；历史部署及未执行验收分别保留记录，不再作为 P1 未完成的理由。P2.1-01 接入真实 PydanticAI、有界 Run、受限上下文及逐次准入；P2.1-02 与其余 P2 工作包尚未开放。
 
 以下保留收口前的执行安排，当前阶段状态以本节完成结论为准。
 

@@ -59,10 +59,6 @@ def bind_initial_input_in_uow(
     require_transaction(uow.connection)
     if type(request) is not BindInitialTaskInputRequest:
         raise TaskBoundaryError("task_request_schema_invalid", status_code=422)
-    try:
-        request = BindInitialTaskInputRequest.model_validate(request.model_dump(mode="python"))
-    except ValueError:
-        raise TaskBoundaryError("task_request_schema_invalid", status_code=422) from None
     validate_actor(actor)
     try:
         context, existing = prepare_task_command(uow, actor, task_id, request, idempotency_key)

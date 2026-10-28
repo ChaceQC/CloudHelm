@@ -7,7 +7,7 @@ from database.uow import UnitOfWork
 from modules.collaboration.command_support import lock_task_access
 from modules.collaboration.guards import require_ordinary_progress
 from modules.identity.actors import actor_for_command
-from packages.contracts.p0.resource_contracts import ResourceAllocation
+from packages.contracts.p0.resource_contracts import ResourceAdjustment, ResourceAllocation
 from packages.contracts.p1.resource_protocol import ReserveResourcesRequest, match_runner
 from .commands import reserve_in_uow
 from .errors import ResourceError
@@ -28,7 +28,7 @@ class ResourceApplication:
     def __init__(self, engine, control_engine):
         self.engine, self.control_engine = engine, control_engine
 
-    def adjust(self, actor, reservation_id, request):
+    def adjust(self, actor, reservation_id, request: ResourceAdjustment):
         from .adjustments import adjust
 
         try:
@@ -38,7 +38,7 @@ class ResourceApplication:
                 raise
             raise ResourceError(str(error)) from None
 
-    def reserve(self, actor, task_id, request, *, idempotency_key):
+    def reserve(self, actor, task_id, request: ReserveResourcesRequest, *, idempotency_key):
         try:
             with UnitOfWork(self.engine) as uow:
                 return reserve_in_uow(uow, actor, task_id, request, idempotency_key=idempotency_key)

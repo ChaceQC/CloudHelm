@@ -14,9 +14,8 @@ from packages.contracts.p1.workspace_git import content_digest
 
 from .artifact_environment_docker import engine
 from .artifact_environment_images import export_postgres, load
-from .engineering_definition import definition_for_candidate, split_sources
+from .engineering_definition import definition_and_frontend_for_candidate, split_sources
 from .engineering_seeds import prepare_build_seeds
-from .frontend_build_inputs import verify_source as verify_frontend
 from .frontend_build_runtime import build_frontend
 from .toolchain import DockerClient, ProbeFailure, private_directory
 
@@ -96,7 +95,10 @@ class ControlledBuildRunner:
         if self.exists():
             return
         self.gate()
-        if definition_for_candidate(files, self.record.fixed_inputs.definition.acceptance_assets_ref) != self.record.fixed_inputs.definition:
+        files = dict(files)
+        definition, frontend = definition_and_frontend_for_candidate(
+            files, self.record.fixed_inputs.definition.acceptance_assets_ref)
+        if definition != self.record.fixed_inputs.definition:
             raise ProbeFailure("engineering_build_definition_mismatch")
         # A retained unknown build blocks another build group in this pool.
         for directory in self.directory.parent.iterdir():
@@ -135,10 +137,9 @@ class ControlledBuildRunner:
                         seeds["python_manifest"], source_files=backend,
                         source_ref=self.record.fixed_inputs.candidate.candidate_commit, content_store=content)
                 else:
-                    frontend = split_sources(files, "frontend")
                     report = build_frontend(self.client, operation, directory, seeds["npm_root"],
                         seeds["npm_manifest"], source_inputs=frontend,
-                        expected_source_manifest_digest=verify_frontend(frontend)["manifest_digest"],
+                        expected_source_manifest_digest=frontend.receipt["manifest_digest"],
                         content_store=content, seed_spec=seeds["npm_spec"])
                 reports[role] = report
                 self._write(role + ".json", report)

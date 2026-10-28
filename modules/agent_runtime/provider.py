@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from pydantic import SecretStr
 
 from modules.collaboration.errors import TaskBoundaryError
-from packages.contracts.p2.runtime import ProviderCapabilities
-
-CAPABILITIES = ProviderCapabilities()
 
 
 @dataclass(frozen=True, repr=False)

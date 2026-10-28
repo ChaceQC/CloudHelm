@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import json
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
 
 import httpx
 import rfc8785
@@ -23,18 +22,10 @@ RequestAdmission = Callable[[str, int], Awaitable[str]]
 MAX_REQUEST_BYTES = 1024 * 1024
 
 
-@dataclass(frozen=True)
-class TurnResult:
-    output: str
-    new_messages: tuple[ModelMessage, ...]
-    request_record_ids: tuple[str, ...]
-
-
 class RuntimeFailure(Exception):
-    def __init__(self, code: str, request_record_ids: tuple[str, ...] = ()):
+    def __init__(self, code: str):
         super().__init__(code)
         self.code = code
-        self.request_record_ids = request_record_ids
 
 
 class _RuntimeStop(Exception):
@@ -47,15 +38,14 @@ class _AdmittedTransport(httpx.AsyncBaseTransport):
         inner: httpx.AsyncBaseTransport,
         admit_request: RequestAdmission,
         max_requests: int,
-        request_record_ids: list[str],
     ):
         self._inner = inner
         self._admit_request = admit_request
         self._max_requests = max_requests
-        self._request_record_ids = request_record_ids
+        self._request_count = 0
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        if len(self._request_record_ids) >= self._max_requests:
+        if self._request_count >= self._max_requests:
             raise _RuntimeStop("request_limit_reached")
         raw = await request.aread()
         if len(raw) > MAX_REQUEST_BYTES:
@@ -67,10 +57,10 @@ class _AdmittedTransport(httpx.AsyncBaseTransport):
             raise _RuntimeStop("unsupported_model_request")
         digest = "sha256:" + hashlib.sha256(rfc8785.dumps(body)).hexdigest()
         try:
-            record_id = await self._admit_request(digest, len(raw))
+            await self._admit_request(digest, len(raw))
         except Exception:
             raise _RuntimeStop("request_admission_denied") from None
-        self._request_record_ids.append(record_id)
+        self._request_count += 1
         return await self._inner.handle_async_request(request)
 
     async def aclose(self) -> None:
@@ -90,14 +80,11 @@ async def run_turn(
     admit_request: RequestAdmission,
     gateway: ToolGateway | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
-) -> TurnResult:
+) -> tuple[ModelMessage, ...]:
     """Inputs and history live only in memory; persistence belongs to the caller."""
-    request_record_ids: list[str] = []
     try:
         async with asyncio.timeout(max_seconds):
-            admitted = _AdmittedTransport(
-                transport or httpx.AsyncHTTPTransport(), admit_request, max_requests, request_record_ids
-            )
+            admitted = _AdmittedTransport(transport or httpx.AsyncHTTPTransport(), admit_request, max_requests)
             async with httpx.AsyncClient(transport=admitted, follow_redirects=False) as http_client:
                 client = AsyncOpenAI(
                     api_key=api_key.get_secret_value(),
@@ -115,7 +102,7 @@ async def run_turn(
                                     "openai_store": False, "openai_service_tier": "default"},
                     usage_limits=UsageLimits(request_limit=max_requests, output_tokens_limit=max_output_tokens),
                 )
-                return TurnResult(result.output, tuple(result.new_messages()), tuple(request_record_ids))
+                return tuple(result.new_messages())
     except TimeoutError:
         code = "turn_timeout"
     except (_RuntimeStop, GatewayFailure) as error:
@@ -125,4 +112,4 @@ async def run_turn(
     except Exception:
         code = "model_request_failed"
     # Raise outside the handler so provider, callback, and history exceptions are not chained.
-    raise RuntimeFailure(code, tuple(request_record_ids))
+    raise RuntimeFailure(code)

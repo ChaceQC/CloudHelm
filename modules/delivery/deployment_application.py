@@ -64,7 +64,6 @@ _REQUESTS = {
 def execute_delivery(uow, actor, project_id, request, *, idempotency_key, target_id=None, enqueue_deployment=None):
     if type(request) not in _REQUESTS:
         raise TaskBoundaryError("delivery_request_invalid", status_code=422)
-    request = type(request).model_validate(request.model_dump(mode="python"))
     approving = isinstance(request, ApproveDeploymentPlanRequest)
     closing = isinstance(request, CloseDeploymentRequest)
     context = delivery_context(uow, actor, project_id, "deployment.approve" if approving or closing else "project.manage")

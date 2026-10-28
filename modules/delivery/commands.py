@@ -117,16 +117,12 @@ def _accept(context, request):
     return result
 
 
-def accept_build(uow, actor, task_id, request, *, idempotency_key, enqueue_operation=None) -> BuildHttpResult:
+def accept_build(uow, actor, task_id, request: RequestBuildRequest, *, idempotency_key, enqueue_operation=None) -> BuildHttpResult:
     """Current auth precedes replay; enqueue failure rolls back the entire caller UoW."""
     require_transaction(uow.connection)
     validate_actor(actor)
     if type(request) is not RequestBuildRequest:
         raise BuildBoundaryError("build_request_invalid", status_code=422)
-    try:
-        request = RequestBuildRequest.model_validate(request.model_dump(mode="python"))
-    except ValueError:
-        raise BuildBoundaryError("build_request_invalid", status_code=422) from None
     task, authorization = lock_task_access(uow, actor, task_id, "operation.request")
     resource = task_resource(task)
     intent = CommandIntent(request_schema_revision=BUILD_REQUEST_SCHEMA, caller=actor.principal,
@@ -185,7 +181,7 @@ class BuildApplication:
     def __init__(self, engine, control_engine, *, enqueue_operation=None):
         self.engine, self.control_engine, self.enqueue_operation = engine, control_engine, enqueue_operation
 
-    def request(self, actor, task_id, request, *, idempotency_key):
+    def request(self, actor, task_id, request: RequestBuildRequest, *, idempotency_key):
         with UnitOfWork(self.engine) as uow:
             return accept_build(uow, actor, task_id, request, idempotency_key=idempotency_key,
                                 enqueue_operation=self.enqueue_operation)

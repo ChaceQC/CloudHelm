@@ -78,16 +78,6 @@ class RunPolicy(Contract):
         return self
 
 
-class ProviderCapabilities(Contract):
-    """The initial supported Responses path, not a provider configuration API."""
-
-    api: Literal["responses"] = "responses"
-    text: Literal[True] = True
-    user_functions: Literal[True] = True
-    streaming: Literal[False] = False
-    provider_managed_tools: Literal[False] = False
-
-
 class RuntimeStartRequest(Contract):
     """Internal registration input; durable workflow parameters use RuntimeInput refs."""
 

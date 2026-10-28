@@ -12,8 +12,7 @@ from .registry import lock_pool
 from .tables import resource_adjustments
 
 
-def adjust(application, actor, reservation_id, request):
-    request = ResourceAdjustment.model_validate(request.model_dump(mode="python"))
+def adjust(application, actor, reservation_id, request: ResourceAdjustment):
     if request.request_digest != adjustment_digest(request):
         raise ValueError("resource_adjustment_digest_mismatch")
     if request.identity.reservation_id != reservation_id:

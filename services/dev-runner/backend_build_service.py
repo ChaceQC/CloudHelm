@@ -153,7 +153,6 @@ def build_backend(client, operation_id: str, directory: Path, seed_root: Path,
         result["dependencies"] = probe.dependency_evidence(manifest, seed["distributions"], source_files=candidate)
         if verify_admitted_seed(seed_root, dependency_input, source_files=candidate) != seed:
             raise ProbeFailure("backend_seed_changed_after_build")
-        inputs.verify_source(candidate)
     except ProbeFailure as failure:
         result["failures"].append({"category": failure.category, "diagnostic": failure.diagnostic,
                                    "detail": failure.detail})

@@ -25,7 +25,6 @@ MODEL_QUEUE = "models"
 
 
 def start_run(engine, client, source_command_id, request: RuntimeStartRequest):
-    request = RuntimeStartRequest.model_validate(request.model_dump(mode="python"))
     incoming, policy = request.runtime_input, request.policy
     digest = contract_digest(request)
     with UnitOfWork(engine) as uow:

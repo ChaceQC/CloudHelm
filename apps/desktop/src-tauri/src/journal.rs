@@ -32,12 +32,11 @@ pub fn load(app: &AppHandle, account: &str) -> Result<Vec<HubRequest>, String> {
     Ok(result)
 }
 
-pub fn prepare(app: &AppHandle, account: &str, request: &HubRequest) -> Result<(), String> {
+pub fn prepare(app: &AppHandle, account: &str, request: &HubRequest, key: &str) -> Result<(), String> {
     let mut db = database(app)?;
     let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|_| "command_journal_unavailable")?;
     let value = serde_json::to_string(request).map_err(|_| "command_invalid")?;
-    let key = request.idempotency_key.as_deref().ok_or("idempotency_key_required")?;
     let previous: Option<String> = tx.query_row("SELECT request FROM pending_commands WHERE account=?1 AND key=?2", params![account,key],
         |row| row.get(0)).optional().map_err(|_| "command_journal_unavailable")?;
     if previous.is_some() { return Err("original_command_unresolved".into()); }
@@ -49,17 +48,14 @@ pub fn prepare(app: &AppHandle, account: &str, request: &HubRequest) -> Result<(
     tx.commit().map_err(|_| "command_journal_unavailable".into())
 }
 
-pub fn get(app: &AppHandle, account: &str, key: &str) -> Result<(HubRequest, Option<Reply>), String> {
+pub fn get(app: &AppHandle, account: &str, key: &str) -> Result<HubRequest, String> {
     let db = database(app)?;
-    let (request, receipt): (String, Option<String>) = db.query_row(
-        "SELECT p.request, r.reply FROM pending_commands p LEFT JOIN command_receipts r
-         ON p.account=r.account AND p.key=r.key WHERE p.account=?1 AND p.key=?2",
-        params![account, key], |row| Ok((row.get(0)?, row.get(1)?)))
+    let request: String = db.query_row(
+        "SELECT request FROM pending_commands WHERE account=?1 AND key=?2",
+        params![account, key], |row| row.get(0))
         .optional().map_err(|_| "command_journal_unavailable")?.ok_or("original_command_unavailable")?;
     let request = serde_json::from_str(&request).map_err(|_| "command_journal_invalid")?;
-    let receipt = receipt.map(|value| serde_json::from_str(&value).map_err(|_| "command_journal_invalid"))
-        .transpose()?;
-    Ok((request, receipt))
+    Ok(request)
 }
 
 pub fn record(app: &AppHandle, account: &str, key: &str, reply: &Reply) -> Result<Reply, String> {

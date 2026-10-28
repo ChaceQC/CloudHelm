@@ -9,7 +9,7 @@ from packages.contracts.p1.development_environment import POSTGRES_REFERENCE
 from packages.contracts.p1.workspace_git import content_digest
 
 from .backend_build_inputs import _read_fixed, verify_source as verify_backend
-from .frontend_build_inputs import SOURCE_DIGESTS, verify_source as verify_frontend
+from .frontend_build_inputs import SOURCE_DIGESTS, VerifiedFrontendSource
 from .frontend_images import BASES
 from .offline_images import SOURCE_REFERENCE
 from .toolchain import TOOLCHAIN_DIGEST
@@ -47,10 +47,11 @@ def _reference(name, reference):
                           digest=digest, digest_algorithm="sha256")
 
 
-def definition_for_candidate(files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> BuildDefinition:
-    """Consume immutable candidate bytes; no implicit fallback to the working tree."""
+def definition_and_frontend_for_candidate(
+        files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> tuple[BuildDefinition, VerifiedFrontendSource]:
+    """Fix the definition and retain its verified frontend candidate for the builder."""
     verify_backend(split_sources(files, "backend"))
-    verify_frontend(split_sources(files, "frontend"))
+    frontend = VerifiedFrontendSource.from_inputs(split_sources(files, "frontend"))
     if "compose.yaml" not in files:
         raise WorkspaceFileError("build_candidate_compose_missing")
 
@@ -68,7 +69,7 @@ def definition_for_candidate(files: Mapping[str, bytes], acceptance_ref: Enginee
         digest=content_digest(_controlled("runtime.compose.yaml")), digest_algorithm="sha256")
     toolchain = EngineeringRef(kind="artifact", object_id="moby-buildkit-rootless", revision="0.34.0",
         authority="runner", digest=TOOLCHAIN_DIGEST, digest_algorithm="sha256")
-    return BuildDefinition(
+    definition = BuildDefinition(
         recipes=tuple(controlled(name) for name in ("backend.offline.Dockerfile", "frontend.offline.Dockerfile")),
         locks=tuple(candidate(path) for path in ("backend/uv.lock", "frontend/package-lock.json")),
         toolchain_refs=(toolchain,), base_image_refs=tuple(_reference(name, reference) for name, reference in (
@@ -79,3 +80,9 @@ def definition_for_candidate(files: Mapping[str, bytes], acceptance_ref: Enginee
         migrations=tuple(candidate(path) for path in sorted(files) if path.startswith("backend/migrations/")),
         acceptance_assets_ref=acceptance_ref,
     )
+    return definition, frontend
+
+
+def definition_for_candidate(files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> BuildDefinition:
+    """Return only the definition for local methods that do not start a build."""
+    return definition_and_frontend_for_candidate(files, acceptance_ref)[0]

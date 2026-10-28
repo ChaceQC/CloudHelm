@@ -14,6 +14,7 @@ from modules.workspaces.receipts import (
 )
 from packages.contracts.p1.workspace_requests import (
     CreateWorkspaceRequest, MaterializeWorkspaceRequest, MutateWorkspaceFileRequest, SubmitWorkspaceCandidateRequest,
+    WorkspaceRequest,
 )
 
 
@@ -24,7 +25,7 @@ class WorkspaceApplication:
         self.admit_operation, self.runtime_scope_for = admit_operation, runtime_scope_for
         self.load_mutation_content, self.enqueue_operation = load_mutation_content, enqueue_operation
 
-    def _command(self, actor, target_id, request, schema, idempotency_key):
+    def _command(self, actor, target_id, request: WorkspaceRequest, schema, idempotency_key):
         if type(request) is not schema:
             raise WorkspaceError("workspace_request_invalid", status_code=422)
         with UnitOfWork(self.engine) as uow:
@@ -35,16 +36,16 @@ class WorkspaceApplication:
                 runtime_scope_for=self.runtime_scope_for, enqueue_operation=self.enqueue_operation,
             )
 
-    def create(self, actor, task_id, request, *, idempotency_key):
+    def create(self, actor, task_id, request: CreateWorkspaceRequest, *, idempotency_key):
         return self._command(actor, task_id, request, CreateWorkspaceRequest, idempotency_key)
 
-    def materialize(self, actor, workspace_id, request, *, idempotency_key):
+    def materialize(self, actor, workspace_id, request: MaterializeWorkspaceRequest, *, idempotency_key):
         return self._command(actor, workspace_id, request, MaterializeWorkspaceRequest, idempotency_key)
 
-    def mutate(self, actor, workspace_id, request, *, idempotency_key):
+    def mutate(self, actor, workspace_id, request: MutateWorkspaceFileRequest, *, idempotency_key):
         return self._command(actor, workspace_id, request, MutateWorkspaceFileRequest, idempotency_key)
 
-    def submit_candidate(self, actor, workspace_id, request, *, idempotency_key):
+    def submit_candidate(self, actor, workspace_id, request: SubmitWorkspaceCandidateRequest, *, idempotency_key):
         return self._command(actor, workspace_id, request, SubmitWorkspaceCandidateRequest, idempotency_key)
 
     def query(self, actor, workspace_id):
