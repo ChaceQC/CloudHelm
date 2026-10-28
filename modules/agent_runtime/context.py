@@ -14,6 +14,7 @@ from modules.workspaces.tables import workspaces
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
+from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS
 from .admission import current_run
 from .source_context import safe_context_text
 
@@ -113,8 +114,10 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
                    "max_duration_seconds": request.policy.max_duration_seconds,
                    "budget_limit": str(context.budget_limit), "budget_currency": context.budget_currency},
         "tools": [{"name": name, "arguments": (
-            (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS)[name].model_json_schema()
-            if name in WORKSPACE_TOOL_SCHEMAS or name in WORKSPACE_EDIT_SCHEMAS or name in WORKSPACE_ENVIRONMENT_SCHEMAS
+            (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
+             | WORKSPACE_BUILD_SCHEMAS)[name].model_json_schema()
+            if name in (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
+                        | WORKSPACE_BUILD_SCHEMAS)
             else {} if name == "task.read" else {"workspace_id": "workspace ID"} if name == "submit_operation"
             else {"operation_id": "accepted operation ID"})} for name in context.tool_names],
         "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll.",

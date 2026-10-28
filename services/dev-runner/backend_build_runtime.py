@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .backend_build_boundary import BackendBuildBoundary, OUTPUT_BYTES
 from .backend_build_inputs import digest
 from .buildkit_container import SOCKET
+from .build_logs import retain_build_output
 from .python_dependencies import verify_derived_inputs
 from .toolchain import ProbeFailure, safe_diagnostic
 
@@ -44,13 +45,14 @@ class BackendBuildRuntime(BackendBuildBoundary):
             "--oci-layout=python=/probe/base", "--opt=context:pythonbase=oci-layout://python@" + manifest_digest,
             "--opt=platform=linux/amd64", "--progress=plain"]
 
-    def _run_build(self, arguments: list[str]) -> str:
+    def _run_build(self, arguments: list[str], *, log_name="build-output") -> str:
         with ThreadPoolExecutor(max_workers=1) as executor:
             build = executor.submit(self.execute, *arguments, ceiling=240, required=False)
             while not build.done():
                 self._observe_processes()
                 time.sleep(0.25)
             result = build.result()
+        retain_build_output(self.directory, result, name=log_name)
         output = result.stdout + result.stderr
         if result.returncode:
             lines = [line for line in output.splitlines() if (
@@ -103,7 +105,7 @@ class BackendBuildRuntime(BackendBuildBoundary):
     def dependency_evidence(self, base_manifest_digest: str, distributions: dict, *, source_files=None) -> dict:
         output = self._run_build(self._arguments(base_manifest_digest)
             + ["--opt=target=verification",
-            "--output=type=local,dest=/probe/output/verification"])
+            "--output=type=local,dest=/probe/output/verification"], log_name="dependency-output")
         raw = self.execute("cat", "/probe/output/verification/dependency-result.json").stdout
         if len(raw) > 65536:
             raise ProbeFailure("backend_dependency_evidence_bound_exceeded")

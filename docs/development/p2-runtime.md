@@ -100,7 +100,27 @@ A06 在新 ContextPackage 显式授予下列开发工具，限当前项目、Tas
 
 日志返回 `source=live`、`history_available=false`，空窗口为真实空文本，不回读启动前输出。Docker 日志驱动仍为 none；原始捕获最多 64KiB/160 行，仅在有界内存中沿 A03 规则筛选，不保证识别任意未知秘密格式。关闭 socket 不写 stdin、不发信号、不停止容器。读取后重新检查当前 Run；原控制器仍要求原操作主体当前具备写入和操作查询权限，撤权时拒绝。状态、停止、分维释放和保留磁盘继续归原 Runner/账本负责。
 
-旧 Context/Session 不自动获得新工具；同一 Session 仍不能换工具集合。本次不改 HTTP、数据库、DBOS 应用或工作流步骤。参数、证据及本机真实 notes 启动被旧执行核对门禁拒绝的范围见 [A06 记录](../acceptance/p2/p2-1-a06.md)。构建、自测及完整真实循环由 A07～A11 接入。
+旧 Context/Session 不自动获得新工具；同一 Session 仍不能换工具集合。本次不改 HTTP、数据库、DBOS 应用或工作流步骤。参数、证据及本机真实 notes 启动被旧执行核对门禁拒绝的范围见 [A06 记录](../acceptance/p2/p2-1-a06.md)。构建接线见下节，自测及完整真实循环由 A08～A11 接入。
+
+## 固定候选构建与结果
+
+A07 在新的开发角色 ContextPackage 中显式授予下列内部工具；参数 Schema 随上下文提供。
+
+|工具|参数|作用|
+|---|---|---|
+|`workspace.submit_candidate`|`workspace_id`、`expected_workspace_revision`、`expected_write_generation`、`expected_manifest_digest`|沿原工作区冻结命令提交准确物理候选；返回原 Operation 的 accepted 回执|
+|`build.request`|`workspace_id`、`candidate_id`|对当前工作项已登记的不可变物理候选申请真实 BuildRun；返回原构建 Operation 回执|
+|`build.result`|`operation_id`；可选 `log_role=backend/frontend`、`log_offset=0`、`max_bytes=8192`（4～8192）|返回原 BuildView 与有界日志/失败诊断；状态、执行观察、固定输入和制品引用保持原事实|
+
+先提交物理候选，按需 `await_operation` 取得含 snapshot/candidate_id 的最终采集回执，再提交构建；需要构建结果时等待同一 Operation。候选及构建回执在原登记事务中通知可靠等待，新 Run 按原协议续接。pending/running/unknown 不解除等待，accepted 不表示成功；构建成功、失败及退出码以原 BuildView/观察为准，日志的逐命令退出码不替代整次构建结论。
+
+构建请求只接受当前项目、Task 和 WorkItem 的物理候选。服务端从该候选的实际字节计算已支持的 notes 离线构建声明，固定 recipe、锁、工具链、基础镜像、运行契约及验收引用；模型不传命令、宿主路径或构建定义。声明读取在事务外，接受事务重新检查当前 Run，沿原 `accept_build` 同事务入队。构建继续读独立快照，后续工作区编辑不改变该轮输入。同 Run/tool-call/规范参数重投返回原命令，异参或跨工具复用身份拒绝。
+
+`build.result` 限当前工作项和原命令主体，并检查当前 `resource.read`、`operation.query`；私有 journal 的 intent 必须等于原 BuildRun，读取后复核当前 Run。查询不创建 Runner、启动命令或重放未知构建。`build` 是业务记录，`diagnostics` 是读取时的原物理 journal，二者可能在构建收尾期间处于不同观察时点；不能据诊断文字提升业务状态。
+
+新构建在实际命令返回后保存筛选过的 stdout、stderr（按该顺序拼接），每条命令最多保留末尾 64KiB；后端运行镜像及依赖检查、前端构建分别记录真实退出码、UTC 捕获时间和截断标记。日志先按 A03 规则筛选再限长入私有文件，不保存新增原始日志；未知秘密格式仍受原筛选限制。返回页按保留文本的 UTF-8 字节偏移续读，使用 `next_offset`；可分别查询 backend/frontend。命令尚未返回、早期失败或旧构建没有日志时如实返回 unavailable，不能补造历史日志。
+
+该工具固定的是构建源码快照及 BuildFixedInputs；后续正式验证环境与三类事实仍由既有 `FixedCandidateApplication.fix` 登记，不因构建工具接通自动形成正式验收或完成报告。现有受限 notes 配方、受管资源/停止核对、内容及输入适用性边界保持原范围。软件 `0.21.0`；无 HTTP、数据库、依赖或 DBOS 应用版本变化。方法与未验证范围见 [A07 记录](../acceptance/p2/p2-1-a07.md)。
 
 ## 请求结果与费用核对
 

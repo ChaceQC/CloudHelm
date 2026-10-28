@@ -34,7 +34,7 @@ class ToolGateway:
             if len(calls) > 8 or len(calls) > 1 and any(
                 part.args_as_dict().get("name") in {"submit_operation", "await_operation",
                     "workspace.create_file", "workspace.apply_patch", "workspace.prepare_environment",
-                    "workspace.control_environment"} for part in calls
+                    "workspace.control_environment", "workspace.submit_candidate", "build.request"} for part in calls
             ):
                 raise ModelRetry("Submit, edit or await one operation in a separate tool batch; query batches allow at most 8 calls.")
             try:

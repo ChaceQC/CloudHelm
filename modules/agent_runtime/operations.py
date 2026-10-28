@@ -1,4 +1,4 @@
-"""One Workspace operation route and its durable, on-demand result wait."""
+"""Original engineering operations and their durable, on-demand result waits."""
 
 import hashlib
 from datetime import UTC
@@ -15,7 +15,10 @@ from modules.collaboration.guards import require_ordinary_progress
 from modules.collaboration.records import reference_key
 from modules.collaboration.tables import task_wait_conditions
 from modules.identity.actors import actor_for_command
+from modules.identity.actors import AuthoritativeResource
+from modules.identity.authorization import authorize_current
 from modules.identity.errors import IdentityError
+from modules.delivery.queries import build_view, read_build_intent
 from modules.workflow.engineering_enqueuers import engineering_enqueuer
 from modules.workspaces.commands import accept_workspace_command_in_uow
 from modules.workspaces.development_queries import (
@@ -60,6 +63,22 @@ def _receipt(result):
 def _result_in_uow(uow, source_command_id, request, operation_id):
     """Only the original principal's supported operation for this work item is exposed."""
     actor = actor_for_command(uow, source_command_id)
+    if operation_id.startswith("build-operation-"):
+        _, record = read_build_intent(uow.connection, operation_id)
+        operation_actor = actor_for_command(uow, record.command_id)
+        binding = record.fixed_inputs.candidate.binding
+        if (record.task_id != request.runtime_input.task_id
+                or binding.work_item_id != request.context.work_item_id
+                or operation_actor.principal != actor.principal):
+            raise TaskBoundaryError("agent_operation_not_found", status_code=404)
+        lock_task_access(uow, actor, record.task_id, "resource.read")
+        authorize_current(uow, actor, AuthoritativeResource(
+            record.project_id, "operation", operation_id, task_id=record.task_id), "operation.query")
+        view = build_view(uow.connection, record)
+        if view.state not in {"succeeded", "failed"}:
+            return None
+        return {"operation_id": operation_id, "request_digest": record.request_digest,
+                "state": "registered", "registration": view.model_dump(mode="json")}
     if operation_id.startswith("workspace-dev-env-"):
         intent, _, _, accepted, _ = read_development_operation_record(uow.connection, operation_id)
         operation_actor = actor_for_command(uow, accepted.command_id)
@@ -76,7 +95,7 @@ def _result_in_uow(uow, source_command_id, request, operation_id):
                     "observation": view.observation.model_dump(mode="json")}}
     intent, _ = read_workspace_operation(uow.connection, operation_id)
     operation_actor = actor_for_command(uow, intent.result.command_id)
-    if (intent.result.kind not in {"materialize", "mutate"} or intent.result.task_id != request.runtime_input.task_id
+    if (intent.result.kind not in {"materialize", "mutate", "candidate"} or intent.result.task_id != request.runtime_input.task_id
             or intent.result.binding.work_item_id != request.context.work_item_id
             or operation_actor.principal != actor.principal):
         raise TaskBoundaryError("agent_operation_not_found", status_code=404)

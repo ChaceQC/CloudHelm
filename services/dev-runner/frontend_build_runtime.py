@@ -16,6 +16,7 @@ from .frontend_build_inputs import VerifiedFrontendSource, prepare_context
 from .frontend_images import prepare_frontend_layouts, verify_frontend_image
 from .npm_downloads import NpmDownloadError, NpmDownloadStore
 from .buildkit_container import SOCKET
+from .build_logs import retain_build_output
 from .toolchain import ProbeFailure, ensure_toolchain, private_directory, safe_diagnostic
 
 
@@ -49,6 +50,7 @@ class FrontendBuildRuntime(FrontendBuildBoundary):
                 self._observe_processes()
                 time.sleep(0.25)
             result = build.result()
+        retain_build_output(self.directory, result)
         output = result.stdout + result.stderr
         if result.returncode:
             lines = [line for line in output.splitlines() if len(line) < 1500 and re.search(

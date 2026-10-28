@@ -24,6 +24,7 @@ from packages.contracts.p2.runtime import RuntimeStartRequest
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
+from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS, WORKSPACE_BUILD_WRITES
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -38,6 +39,7 @@ from .tables import agent_histories, agent_model_requests, agent_runs, agent_ses
 from .workspace_tools import WorkspaceCodeGateway
 from .workspace_edits import WorkspaceEditGateway
 from .workspace_environment import WorkspaceEnvironmentGateway
+from .workspace_builds import WorkspaceBuildGateway
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
@@ -45,13 +47,15 @@ EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 class AgentRuntimeApplication:
     def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None,
                  workspace_reader=None, workspace_editor=None, stage_workspace_content=None,
-                 development_application=None, environment_log_reader=None):
+                 development_application=None, environment_log_reader=None,
+                 build_definition_loader=None, build_result_reader=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
         self.workspace_reader = workspace_reader
         self.workspace_editor, self.stage_workspace_content = workspace_editor, stage_workspace_content
         self.development_application, self.environment_log_reader = development_application, environment_log_reader
+        self.build_definition_loader, self.build_result_reader = build_definition_loader, build_result_reader
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -146,6 +150,15 @@ class AgentRuntimeApplication:
                 return environments.query(run_id, route, arguments)
 
             routes[name] = environment_tool
+        builds = WorkspaceBuildGateway(self.engine, self.client,
+                                       self.build_definition_loader, self.build_result_reader)
+        for name in WORKSPACE_BUILD_SCHEMAS:
+            async def build_tool(arguments, tool_call_id, route=name):
+                if route in WORKSPACE_BUILD_WRITES:
+                    return builds.submit(run_id, tool_call_id, route, arguments)
+                return builds.query(run_id, route, arguments)
+
+            routes[name] = build_tool
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,

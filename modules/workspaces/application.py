@@ -117,4 +117,7 @@ class WorkspaceApplication:
     def finish_candidate(self, operation_id, store):
         verified = verify_candidate(operation_id, store)
         with UnitOfWork(self.engine) as uow:
-            return register_workspace_receipt_in_uow(uow, operation_id, verified)
+            result = register_workspace_receipt_in_uow(uow, operation_id, verified)
+            if self.notify_materialization is not None:
+                self.notify_materialization(uow, operation_id)
+            return result

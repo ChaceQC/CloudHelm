@@ -39,6 +39,7 @@ def _result(operation_id, state, code, **payload):
 class EngineeringRuntime:
     def __init__(self, engine, control_engine, registry, *, development_controller_factory=None, client=None):
         self.engine, self.control_engine, self.registry = engine, control_engine, registry
+        self.client = client
         from .engineering_resources import EngineeringResources
 
         self.resources = EngineeringResources(engine, control_engine, registry)
@@ -281,6 +282,16 @@ class EngineeringRuntime:
         from .engineering_build import execute_build
 
         return execute_build(self, operation_id)
+
+    def build_definition(self, snapshot, acceptance_ref):
+        from .engineering_build import definition_for_snapshot
+
+        return definition_for_snapshot(self, snapshot, acceptance_ref)
+
+    def read_build_result(self, record, **query):
+        from .engineering_build import read_build_result
+
+        return read_build_result(self, record, **query)
 
     def merge_operation(self, operation_id):
         from modules.integration.merge_execution import execute_merge
