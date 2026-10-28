@@ -21,6 +21,7 @@ from pydantic_ai.tools import DeferredToolResults
 from packages.contracts.p0.core_contracts import TurnResult
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
+from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -32,15 +33,18 @@ from .operations import (
 from .registration import start_run
 from .sdk import RuntimeFailure, run_turn
 from .tables import agent_histories, agent_model_requests, agent_runs, agent_sessions
+from .workspace_tools import WorkspaceCodeGateway
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
 
 class AgentRuntimeApplication:
-    def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None):
+    def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None,
+                 workspace_reader=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
+        self.workspace_reader = workspace_reader
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -113,6 +117,12 @@ class AgentRuntimeApplication:
 
         routes = {"task.read": task_read, "submit_operation": submit_operation,
                   "query_operation": query_operation, "await_operation": await_operation}
+        workspace_tools = WorkspaceCodeGateway(self.engine, self.workspace_reader)
+        for name in WORKSPACE_TOOL_SCHEMAS:
+            async def read_code(arguments, tool_call_id, route=name):
+                return workspace_tools.query(run_id, route, arguments)
+
+            routes[name] = read_code
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,

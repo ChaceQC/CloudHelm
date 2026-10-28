@@ -14,6 +14,7 @@ from modules.collaboration.facts import read_declaration
 from modules.collaboration.guards import require_ordinary_progress
 from modules.identity.actors import actor_for_command
 from packages.contracts.p2.runtime import RuntimeStartRequest
+from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from .billing import model_request_bound_exceeded, model_request_cost
 from .tables import agent_model_requests, agent_runs, agent_sessions
 
@@ -96,7 +97,8 @@ class RuntimeAdmission:
         with UnitOfWork(self.engine) as uow:
             _, _, _, request, _ = current_run(uow, self.run_id)
             if (name not in request.context.tool_names
-                    or name not in {"task.read", "submit_operation", "query_operation", "await_operation"}):
+                    or name not in {"task.read", "submit_operation", "query_operation", "await_operation"}
+                    | WORKSPACE_TOOL_SCHEMAS.keys()):
                 raise TaskBoundaryError("agent_tool_not_allowed")
 
     def begin(self):

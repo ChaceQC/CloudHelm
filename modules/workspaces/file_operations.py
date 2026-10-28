@@ -169,6 +169,14 @@ class WorkspaceFileService:
             except OSError:
                 raise WorkspaceFileError("workspace_file_unconfirmed") from None
 
+    @contextmanager
+    def open_read(self, operation_id):
+        """Hold the existing private-root lock while an authorized reader observes files."""
+        with self._root.exclusive() as root:
+            spec = self._current(operation_id, WorkspaceReadSpec)
+            with self._workspace(root, spec) as (files, _, _):
+                yield files, spec.binding
+
     def status(self, operation_id, paths=()):
         if not isinstance(paths, (tuple, list)) or len(paths) > 32:
             raise WorkspaceFileError("workspace_path_limit_exceeded")

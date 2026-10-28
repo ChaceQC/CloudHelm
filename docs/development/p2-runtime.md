@@ -19,7 +19,7 @@
 |固定能力|当前支持|
 |---|---|
 |模型与协议|`gpt-6-luna`、PydanticAI 2.55.0、Responses 文本；本次方法按 2026-10-28 固定|
-|工具|`task.read`、`submit_operation`、`query_operation`、`await_operation`；逐次准入并顺序执行|
+|工具|`task.read`、`submit_operation`、`query_operation`、`await_operation`，以及开发角色的 `workspace.list_directory`、`workspace.read_file`、`workspace.search`；逐次准入并顺序执行|
 |请求限制|默认 3 次、整轮 60 秒；明确的输出 token 上限；真实 HTTP 请求体最多 1MiB|
 |重试与修复|SDK 500/连接重试和工具参数修复均经同一个传输准入；上限包含真实 HTTP 尝试|
 |流式/托管工具|关闭；不开放模型直连 shell、工作区或 MCP|
@@ -49,7 +49,25 @@ A03 在现有内部启动入口装配可读内容，不新增 HTTP 路由或 Age
 
 敏感路径（.env、凭据目录、私钥等）拒绝进入读取或目录投影；明确命名的敏感赋值、URL 凭据和 PEM 私钥块在请求/业务历史前过滤，原文件摘要及行号保留。规则式过滤不构成对任意未知秘密格式的识别保证，来源仍须是受控项目文本。密钥解析继续只在原 provider 出站边界按引用进行。
 
-本次为未发布内部契约的增量字段；调用方按当前 ContextPackage 重新计算 context 摘要。旧模型/工具历史不因升级自动得到新角色能力；原 HTTP 契约、数据库迁移和 DBOS 应用版本不变。开发核对与夹具限制见 [A03 记录](../acceptance/p2/p2-1-a03.md)。A04 的自主目录/文件/搜索工具、A05 写入及完整工程循环尚未接通。
+本次为未发布内部契约的增量字段；调用方按当前 ContextPackage 重新计算 context 摘要。旧模型/工具历史不因升级自动得到新角色能力；原 HTTP 契约、数据库迁移和 DBOS 应用版本不变。上下文开发核对与夹具限制见 [A03 记录](../acceptance/p2/p2-1-a03.md)。A04 的当前工作区读取见下节；A05 写入及完整工程循环尚未接通。
+
+## 工作区目录、读取与搜索
+
+A04 在原 `dispatch_tool(name, arguments)` 接入三条开发角色路由。调用方在新的 ContextPackage.tool_names 中显式授予工具，并绑定新的 Context 摘要；同一 Session 仍不能更换工具集合，旧 Session 不自动升级。工具参数 JSON Schema 随上下文送达模型。
+
+每条路由均需 `workspace_id`，只允许读取当前 Run 的项目、Task 和 WorkItem 所属且已物化的工作区。Gateway 先按当前 Run 和 `resource.read` 取得既有 WorkspaceReadSpec，再由 worker 在受管存储与原读锁下读取；参数不接受宿主路径、外部仓库、任意 commit 或执行命令。验证/审查角色的固定候选工具由 P2.5 接入，本包不授予它们可变工作区读取。
+
+|工具|参数与返回|
+|---|---|
+|`workspace.list_directory`|`path` 默认空根、`offset` 默认 0、`max_entries` 默认/最多 64；列出直接子目录和文件，返回总数、路径、文件摘要/大小、`truncated/next_offset`|
+|`workspace.read_file`|必填相对 `path`；`start_line/start_column` 默认 1、`max_lines` 默认 120/最多 160；单文件最多 64KiB，返回最多 8192 字符的安全 UTF-8 文本、文件摘要、总行数、截断及 `next_start_line/next_start_column`，长行可继续读取|
+|`workspace.search`|`query` 为 1～256 字符、区分大小写的单行字面文本；`path` 默认空根，可限制到目录或文件；`offset` 默认 0、`max_results` 默认/最多 32；每个命中行返回首个位置、文件摘要和最多 240 字符片段，按 UTF-8 路径及行号续读|
+
+结果共同返回工作区 `binding`（含版本、写入代次与基线）和当前文件 `manifest_digest`。续读传入前页摘要作为 `expected_manifest_digest`；文件视图改变即返回 `workspace_manifest_mismatch`，应重新定位，不能拼接成同一版本。目录/搜索 JSON 页面限约 32KiB，超量明确标记截断并提供下页 offset。读取/搜索的行列针对过滤后的安全文本；原文件摘要保留。
+
+敏感路径不会进入目录/搜索结果，也不能直接读取；文本先复用 A03 秘密筛选再返回或搜索。搜索跳过超过 64KiB 或非文本文件并分别计数；分页中计数只覆盖已扫描前缀，`skipped_counts_complete=true` 才表示整个所选范围已扫描。参数、范围及可预期读取拒绝返回固定 code，不回传原始输入或存储异常。
+
+本工具提供当前文件观察，不形成固定候选或验收证据。原 manifest 只涵盖文件，空目录增删不会改变其摘要；规则式秘密筛选不保证识别所有未知格式，来源仍须受控。实际开发核对及夹具范围见 [A04 记录](../acceptance/p2/p2-1-a04.md)。
 
 ## 请求结果与费用核对
 
@@ -87,4 +105,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-当前源码版本为 `0.17.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.18.0`，新库 head 为 `0016_p2_merge_queue`；本包未新增迁移。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

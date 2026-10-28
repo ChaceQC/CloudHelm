@@ -88,6 +88,17 @@ class EngineeringRuntime:
 
         return read_handoff_context(self, summary)
 
+    def read_workspace_code(self, spec, name, query):
+        from modules.agent_runtime.code_reading import read_workspace_code
+
+        with self.registry.admit(0) as storage:
+            service = WorkspaceFileService(storage.workspace_root, None, lambda _: spec)
+            try:
+                with service.open_read(spec.materialization_operation_id) as (files, binding):
+                    return read_workspace_code(files, binding, name, query)
+            finally:
+                service.close()
+
     def development_environment(self, operation_id):
         return self._development.execute(operation_id)
 
