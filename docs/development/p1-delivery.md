@@ -1,7 +1,7 @@
 # 归档 Release、环境配置与部署计划
 
-当前源码为 `0.9.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
-`0010_p1_archive_closeout`（前驱 `0009_p1_5_sync`）。使用 [Hub 开发入口](p1-hub.md)
+当前源码为 `0.10.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
+`0011_p1_archive_maintenance`（前驱 `0010_p1_archive_closeout`）。使用 [Hub 开发入口](p1-hub.md)
 准备 WSL 锁定环境和独立数据库角色；`initialize` 不升级旧安装。
 
 ## 1. 当前支持范围
@@ -78,6 +78,49 @@ developer/reviewer 的原动作上限和 Agent 委托不增加批准权限。
 准确摘要必须取自原计划与固定回执，示例中的占位值不能直接发送。成功返回 `closed / deployment_closed_retained`，
 表示原身份已收尾且磁盘继续占账；原步骤 unknown 保留，不能显示为部署成功。同键返回原命令结果，新键返回同一收尾对象并保留新的命令回执，
 不会重复领域事件；其他安装、错误摘要或后续运行步骤均不能利用此入口释放占用。后续新部署仍须重新固定计划、批准及当前时间/代次。
+
+### 3.1 独立恢复副本的受限维护
+
+源码 `0.10.0` 增加固定 `0008_p1_4_remote` 快照的维护升级，不改变 `initialize` 的新安装语义。
+仅在已授权的独立恢复副本、旧控制面静止、新数据库访问凭据和固定快照/隔离证据下使用；具体边界见
+[C08/C09 约定](../implementation/p1-current-delivery.md#21-本轮有限维护入口)。维护角色直接登录，凭据仍由
+`CLOUDHELM_MIGRATOR_DATABASE_URL_FILE` 指向的私有文件提供，不放进命令参数。
+
+```bash
+python -B -m database.manage prepare-archive-closeout \
+  --expected-installation-id ORIGINAL_HUB_INSTALLATION_ID \
+  --operation-id ORIGINAL_OPERATION_ID \
+  --snapshot-digest sha256:SNAPSHOT_DIGEST \
+  --isolation-evidence-digest sha256:ISOLATION_EVIDENCE_DIGEST
+```
+
+命令先持久关闭普通推进，再沿线性迁移至 `0011_p1_archive_maintenance`，固定唯一来源和原 project/plan/binding。
+同一输入可续接，来源或身份变化拒绝。成功状态仍为 `recovery_required`，不调用 DBOS.launch/migrate，
+不自动恢复旧工作流、普通 API 或许可。升级成功不表示该副本取得普通运行资格。
+
+在同一维护范围内，本机 CLI 可以为项目既有且当前具有 `deployment.approve` 的活跃用户签发当前会话，
+以及认证接收原 C07 回执；只从当前 UID 所有、非符号链接、无 group/other 权限的文件读取凭据和请求：
+
+```bash
+python -B -m database.archive_closeout issue-session \
+  --operation-id ORIGINAL_OPERATION_ID --user-id EXISTING_USER_ID \
+  --credential-file /private/current-human-session
+python -B -m database.archive_closeout receive-receipt \
+  --operation-id ORIGINAL_OPERATION_ID --token-file /private/current-remote-token \
+  --receipt-file /private/original-closeout-receipt.json
+```
+
+签发会话或接收回执不表示人类已确认收尾。准确计划和回执摘要经当前人类确认后，使用前述 JSON 正文的受限文件提交：
+
+```bash
+python -B -m database.archive_closeout close \
+  --operation-id ORIGINAL_OPERATION_ID --bearer-file /private/current-human-session \
+  --request-file /private/confirmed-closeout-request.json --idempotency-key CURRENT_REQUEST_KEY
+```
+
+此入口复用普通收尾的身份、权限、幂等、领域事实和唯一事件，不能执行其他交付命令或新步骤许可。
+DeviceSession 沿用现有结构；维护库开放普通运行前须撤销或明确处理该维护会话。原 unknown 与完整磁盘占账继续保留，
+下一次部署仍须当前目标/时间/代次和准确新摘要批准。任意旧库、损坏账本、迁移/服务已开始和完整 P4 恢复不在此入口支持范围。
 
 配置的 `configuration` 使用现有 `ComposeEnvironmentConfig`：
 

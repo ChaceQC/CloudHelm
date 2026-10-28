@@ -2,11 +2,13 @@
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict
 
 from sqlalchemy import inspect, select
 
+from database.archive_maintenance import prepare_archive_maintenance
 from database.connection import create_engine_from_settings
 from database.maintenance import MaintenanceError, initialize_database
 from database.readiness import DatabaseNotReady, assert_schema_ready, require_maintenance_role
@@ -35,14 +37,29 @@ def _status(settings: DatabaseSettings) -> dict[str, object]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="CloudHelm controlled database maintenance")
-    parser.add_argument("action", choices=("initialize", "status"))
-    parser.add_argument("--operation-id", help="Stable identity when resuming interrupted initialization")
+    parser.add_argument("action", choices=("initialize", "status", "prepare-archive-closeout"))
+    parser.add_argument("--operation-id", help="Stable original operation identity")
+    parser.add_argument("--expected-installation-id", help="Original Hub installation identity")
+    parser.add_argument("--snapshot-digest", help="SHA-256 digest of the fixed original snapshot")
+    parser.add_argument("--isolation-evidence-digest", help="SHA-256 digest of the isolation evidence")
     args = parser.parse_args()
     try:
+        if args.action == "prepare-archive-closeout" and (
+            not os.environ.get("CLOUDHELM_MIGRATOR_DATABASE_URL_FILE")
+            or "CLOUDHELM_MIGRATOR_DATABASE_URL" in os.environ
+        ):
+            raise DatabaseConfigurationError("database_credential_file_required")
         settings = load_database_settings("migrator")
         if args.action == "initialize":
             baseline = initialize_database(settings, operation_id=args.operation_id)
             result = {"status": "ready", **asdict(baseline)}
+        elif args.action == "prepare-archive-closeout":
+            scope = prepare_archive_maintenance(
+                settings, expected_installation_id=args.expected_installation_id,
+                operation_id=args.operation_id, snapshot_digest=args.snapshot_digest,
+                isolation_evidence_digest=args.isolation_evidence_digest,
+            )
+            result = {"status": "recovery_required", **asdict(scope)}
         else:
             result = _status(settings)
         print(json.dumps(result, ensure_ascii=False))

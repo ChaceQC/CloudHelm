@@ -1,7 +1,7 @@
 # Remote Agent 开发入口与启用门禁
 
-当前源码 `0.9.0`，工作流应用单独保留 `cloudhelm-hub/0.7.0`，新隔离库业务 head 为
-`0010_p1_archive_closeout`（前驱 `0009_p1_5_sync`）。P1.4-02 开发切片已接入；完整退出条件及实际结果以
+当前源码 `0.10.0`，工作流应用单独保留 `cloudhelm-hub/0.7.0`，新隔离库业务 head 为
+`0011_p1_archive_maintenance`（前驱 `0010_p1_archive_closeout`）。P1.4-02 开发切片已接入；完整退出条件及实际结果以
 [进度](../../PROJECT_PROGRESS.md) 为准。尚无适用时钟证明，默认普通启动保持关闭。
 本文不构成产品安装包、完整独立交付或整机重启验收。
 
@@ -115,6 +115,13 @@ Docker daemon 的结果仍须核对，内核不可中断 I/O 也可能延迟本�
 执行器要求该 service 的固定 `ExecStart` 使用绝对 `dockerd` 路径，并显式绑定相同的 `--data-root` / `--pidfile`；
 原单元的 Slice 也须匹配 cgroup_parent。只在内存解析必需路径，不输出完整参数或读取 daemon 配置。
 系统进程必须可完整观测；存在无法排除归属的 dockerd/containerd、运行容器/业务卷或未核实边界时拒绝。
+
+在已核对的独立 Docker/containerd 布局中，可在维护 resources 显式提供 `closeout_unrelated_docker_socket`。
+维护入口只读核对实际 socket/监听 fd、有效 Docker root、containerd metadata fd、shim cwd 和卷来源，
+确认这些进程与原有界文件系统、backing 和专属 cgroup 无关联后才排除；未配置或归属不清仍拒绝。
+该分支只支持已记录的单 dockerd/containerd 与 moby shim 布局，不停止其他项目，也不放开普通启动。
+原 Docker volumes 内仅接受已知 `metadata.db` 及与同一有界文件系统设备精确匹配的 `backingFsBlockDev` 元数据；
+其他目录项仍按未知运行对象阻断。
 
 ```bash
 uv run --locked --offline --no-sync python -B -m services.remote-agent \

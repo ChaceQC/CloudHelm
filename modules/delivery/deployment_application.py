@@ -65,12 +65,40 @@ def execute_delivery(uow, actor, project_id, request, *, idempotency_key, target
     if type(request) not in _REQUESTS:
         raise TaskBoundaryError("delivery_request_invalid", status_code=422)
     request = type(request).model_validate(request.model_dump(mode="python"))
-    schema, apply = _REQUESTS[type(request)]
     approving = isinstance(request, ApproveDeploymentPlanRequest)
     closing = isinstance(request, CloseDeploymentRequest)
     context = delivery_context(uow, actor, project_id, "deployment.approve" if approving or closing else "project.manage")
     if closing and not isinstance(actor, AuthenticatedActor):
         raise TaskBoundaryError("deployment_closeout_requires_human", status_code=403)
+    return _execute_delivery(context, request, idempotency_key=idempotency_key, target_id=target_id,
+        enqueue_deployment=enqueue_deployment)
+
+
+def _execute_archive_closeout(uow, actor, operation_id, request, *, idempotency_key):
+    from database.archive_maintenance import assert_archive_maintenance
+
+    if type(request) is not CloseDeploymentRequest:
+        raise TaskBoundaryError("archive_maintenance_scope_invalid", status_code=403)
+    scope = assert_archive_maintenance(uow.connection, operation_id)
+    if not isinstance(actor, AuthenticatedActor):
+        raise TaskBoundaryError("deployment_closeout_requires_human", status_code=403)
+    validate_actor(actor)
+    decision = authorize_current(uow, actor, AuthoritativeResource(scope.project_id, "project", scope.project_id),
+        "deployment.approve")
+    plan = read_object(uow.connection, scope.project_id, "plan", scope.plan_id)
+    approval = read_object(uow.connection, scope.project_id, "approval", scope.plan_id).value
+    if (approval.operation_id != scope.operation_id or approval.plan_id != scope.plan_id
+            or plan.value.binding.binding_id != scope.binding_id):
+        raise TaskBoundaryError("archive_maintenance_scope_invalid", status_code=403)
+    context = DeliveryContext(uow, actor, scope.project_id, decision)
+    return _execute_delivery(context, request, idempotency_key=idempotency_key, target_id=scope.plan_id)
+
+
+def _execute_delivery(context, request, *, idempotency_key, target_id=None, enqueue_deployment=None):
+    uow, actor, project_id = context.uow, context.actor, context.project_id
+    schema, apply = _REQUESTS[type(request)]
+    approving = isinstance(request, ApproveDeploymentPlanRequest)
+    closing = isinstance(request, CloseDeploymentRequest)
     resource = AuthoritativeResource(project_id, "project", project_id)
     intent = CommandIntent(request_schema_revision=schema, caller=actor.principal,
         scope=resource.scope, target=resource.target_scope, action=context.authorization.envelope.action,

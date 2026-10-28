@@ -107,8 +107,10 @@ def closeout(ledger, registration, operation_id, resource_config):
             config = dict(resource_config)
             docker_root = config.pop("closeout_docker_root")
             unit = config.pop("closeout_daemon_unit")
+            unrelated_socket = config.pop("closeout_unrelated_docker_socket", None)
             resources = Resources(None, **config)
-            physical = closeout_facts.collect(ledger, resources, docker_root, unit, plan.configuration.resources.disk_bytes)
+            physical = closeout_facts.collect(
+                ledger, resources, docker_root, unit, plan.configuration.resources.disk_bytes, unrelated_socket)
         except (KeyError, TypeError, OSError, ValueError):
             raise RemoteError("remote_closeout_physical_evidence_unavailable") from None
         receipt = RemoteCloseoutReceipt(**fence, environment_revision=1, fence_digest=fence_digest,

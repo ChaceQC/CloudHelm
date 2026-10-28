@@ -7,10 +7,11 @@ import stat
 import subprocess
 from pathlib import Path
 
+from . import closeout_daemons
 from .ledger import RemoteError
 
 
-def _processes(group):
+def _processes(group, mount, docker_root, unrelated_socket):
     root = Path("/sys/fs/cgroup")
     if not (root / "cgroup.controllers").is_file() or not group.is_relative_to(root):
         raise RemoteError("remote_closeout_cgroup_unverified")
@@ -27,7 +28,7 @@ def _processes(group):
         for current, _, _ in os.walk(group, onerror=fail, followlinks=False):
             if (Path(current) / "cgroup.procs").read_text(encoding="utf-8").strip():
                 raise RemoteError("remote_closeout_processes_present")
-    count = 0
+    count, daemons = 0, {}
     for process in Path("/proc").iterdir():
         if not process.name.isdecimal():
             continue
@@ -39,11 +40,12 @@ def _processes(group):
         count += 1
         if any(line == expected or line.startswith(expected + "/") for line in groups):
             raise RemoteError("remote_closeout_processes_present")
-        # Without inspecting other installations' configuration, an unrelated daemon
-        # cannot be proven not to hold this data root. Do not inspect secret arguments.
         if name == "dockerd" or name.startswith("containerd"):
-            raise RemoteError("remote_closeout_daemon_scope_unverified")
-    return count
+            if unrelated_socket is None:
+                raise RemoteError("remote_closeout_daemon_scope_unverified")
+            daemons[int(process.name)] = name
+    scope = closeout_daemons.verify(unrelated_socket, mount, docker_root, daemons) if daemons else None
+    return count, scope
 
 
 def _daemon(resources, unit, docker_root):
@@ -89,7 +91,7 @@ def _daemon(resources, unit, docker_root):
         "unit_file_state": fields["UnitFileState"], "main_pid": 0, "pid_file_present": pid_file.exists()}
 
 
-def collect(ledger, resources, docker_root, unit, disk_cap):
+def collect(ledger, resources, docker_root, unit, disk_cap, unrelated_socket=None):
     try:
         mount = resources.mount
         root = Path(docker_root).resolve(strict=True)
@@ -114,12 +116,20 @@ def collect(ledger, resources, docker_root, unit, disk_cap):
             if directory.is_symlink() or not directory.is_dir() or directory.stat().st_dev != device:
                 raise RemoteError("remote_closeout_runtime_objects_unverified")
             for entry in directory.iterdir():
-                if name != "volumes" or entry.name != "metadata.db" or not stat.S_ISREG(entry.lstat().st_mode):
-                    raise RemoteError("remote_closeout_runtime_objects_present")
+                value = entry.lstat()
+                if name == "volumes" and value.st_dev == device:
+                    if entry.name == "metadata.db" and stat.S_ISREG(value.st_mode):
+                        continue
+                    if entry.name == "backingFsBlockDev" and stat.S_ISBLK(value.st_mode) and value.st_rdev == device:
+                        continue
+                raise RemoteError("remote_closeout_runtime_objects_present")
         daemon = _daemon(resources, unit, root)
-        count = _processes(group)
-        return {"mount": str(mount), "device": device, "filesystem_bytes": total, "docker_root": str(root),
+        count, scope = _processes(group, mount, root, unrelated_socket)
+        evidence = {"mount": str(mount), "device": device, "filesystem_bytes": total, "docker_root": str(root),
             "containers_empty": True, "business_volumes_empty": True, "cgroup": str(group),
             "cgroup_present": group.exists(), "processes_scanned": count, "daemon": daemon}
+        if scope is not None:
+            evidence["unrelated_docker_scope"] = scope
+        return evidence
     except (OSError, ValueError, subprocess.SubprocessError):
         raise RemoteError("remote_closeout_physical_evidence_unavailable") from None

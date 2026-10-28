@@ -24,11 +24,16 @@ def _digest(token):
     return hashlib.sha256(token.get_secret_value().encode("ascii")).digest()
 
 
-def authenticate_remote(uow, token):
+def _authenticate_remote_credential(uow, token):
     row = uow.connection.execute(select(remote_credentials).where(
         remote_credentials.c.token_digest == _digest(token)).with_for_update(read=True)).mappings().one_or_none()
     now = uow.connection.scalar(select(func.clock_timestamp()))
     if row is None or row["revoked"] or now >= row["expires_at"]:
         raise TaskBoundaryError("remote_authentication_failed", status_code=401)
+    return row
+
+
+def authenticate_remote(uow, token):
+    row = _authenticate_remote_credential(uow, token)
     assert_schema_ready(uow.connection)
     return row

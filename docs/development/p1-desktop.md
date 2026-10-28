@@ -1,6 +1,6 @@
 # 基础 Desktop 与项目同步
 
-正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.9.0`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。本轮同步版本元数据及“收尾待确认/已收尾·磁盘保留”的状态文字，维护收尾仍使用 [交付 API](p1-delivery.md)；既有原生调试程序和编译证据仍绑定 `0.8.1`，不追认为新版本验收。
+正式工程位于 [apps/desktop](../../apps/desktop/README.md)，界面采用工程工作台。源码版本为 `0.10.0`，同步协议为 `p1-sync-r1`；DBOS 工作流应用独立保留 `cloudhelm-hub/0.7.0`。本入口覆盖 P1.5-01 和 P1.5-02 的回执恢复修复；单 worker 故障与控制延迟见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 P1 出口分别取证。本轮仅同步 Desktop 版本元数据，固定恢复副本的收尾使用 [本机维护 CLI](p1-delivery.md#31-独立恢复副本的受限维护)，普通 ready 环境仍可使用交付 API；既有原生调试程序和编译证据仍绑定 `0.8.1`，不追认为新版本验收。
 
 ## 启动与连接
 
@@ -14,7 +14,7 @@ npm.cmd run desktop:dev
 
 生成本机调试程序：`npm.cmd run desktop:build -- --debug`；输出为 `src-tauri/target/debug/cloudhelm-desktop.exe`，不生成安装器。图标的矢量源为 `src-tauri/icon.svg`，可用 `npx.cmd tauri icon src-tauri/icon.svg --output src-tauri/icons` 重建，只维护实际引用的 `icon.ico`、`icon.png`。
 
-Hub、数据库和 worker 仍在 WSL Ubuntu-24.04 运行，初始化、用户、项目、签发会话和服务启动见 [Hub 开发说明](p1-hub.md)。新隔离库迁移 head 为 `0010_p1_archive_closeout`，线性承接 `0009_p1_5_sync`；旧安装不由 initialize 自动升级。不得为打开 Desktop 清空旧库或绕过恢复门禁。
+Hub、数据库和 worker 仍在 WSL Ubuntu-24.04 运行，初始化、用户、项目、签发会话和服务启动见 [Hub 开发说明](p1-hub.md)。新隔离库迁移 head 为 `0011_p1_archive_maintenance`，线性承接 `0010_p1_archive_closeout`；旧安装不由 initialize 自动升级。不得为打开 Desktop 清空旧库或绕过恢复门禁；recovery_required 的独立维护副本不提供普通 Desktop 连接。
 
 在“连接”页输入 HTTPS Hub 根地址，勾选导入后点击连接，使用系统文件选择器选择受控交付到当前 Windows 用户的会话凭据文件。文件内容不进入页面或剪贴板；原生层验证会话后保存到 Windows 凭据存储，服务名为 `com.cloudhelm.desktop`，按 Hub 地址区分条目。后续可取消勾选直接使用已保存凭据。断开不取消服务端任务；删除本机凭据不等于服务端撤销会话。
 

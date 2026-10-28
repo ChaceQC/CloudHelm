@@ -7,7 +7,7 @@ from sqlalchemy import MetaData
 from database.metadata import metadata
 
 TABLE_MODULES = (
-    "database.tables", "database.commands", "modules.sync.tables", "modules.workflow.tables",
+    "database.tables", "database.archive_maintenance_tables", "database.commands", "modules.sync.tables", "modules.workflow.tables",
     "modules.identity.tables", "modules.projects.tables", "modules.collaboration.tables",
     "modules.projects.source_tables", "modules.projects.source_import_tables", "modules.workspaces.tables",
     "modules.workspaces.development_tables", "modules.delivery.tables", "modules.execution.tables",
