@@ -238,6 +238,9 @@ def read_development_operation(uow: UnitOfWork, operation_id: str, *, reconcilia
     if not reconciliation:
         cleanup = client_request.action in {"suspend", "dispose"}
         if not cleanup:
+            from modules.workspaces.handoff_gates import require_workspace_writer
+
+            require_workspace_writer(uow.connection, workspace, actor, "development")
             task = require_ordinary_progress(
                 uow.connection, row["task_id"], expected_version=task["version"],
                 expected_control_revision=client_request.expected_control_revision,

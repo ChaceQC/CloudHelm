@@ -2,6 +2,8 @@
 
 实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。本入口覆盖 P2.1-01/02 的内部 Runtime、逐请求费用和 Workspace 物化的长工具等待，未提供 Desktop Agent 启动界面。
 
+源码 `0.15.0` 在新 Run、实际请求/工具及结果提交边界读取[工作区写入权](p2-handoffs.md)。接管期间本工作项停止新推进；交还后须先复核输入，后续 Run 收到固定人工修改及差异引用，旧 Run 不恢复普通写入资格。
+
 ## 启动与上下文
 
 在 WSL 的现有 worker 环境配置 `CLOUDHELM_AGENT_MODEL_KEY_FILE`；文件为当前服务用户所有的普通 UTF-8 文件，权限只允许该用户读写，最多 4096 字节。只填写实际密钥，不能提交或打印文件内容。`CLOUDHELM_AGENT_MODEL_BASE_URL` 可指定受控 Responses 端点，默认官方 `/v1`；配置只由 worker 读取，模型输入和 DBOS 参数不携带凭据或宿主文件路径。

@@ -41,6 +41,9 @@ def _workspace_binding(context, request, workspace_id, *, environment=None):
             or binding.write_generation != request.expected_write_generation):
         raise WorkspaceDevelopmentError("workspace_development_workspace_generation_conflict")
     if request.action not in {"suspend", "dispose"}:
+        from modules.workspaces.handoff_gates import require_workspace_writer
+
+        require_workspace_writer(connection, workspace, context.actor, "development")
         item = connection.execute(select(work_items).where(
             work_items.c.work_item_id == binding.work_item_id, work_items.c.task_id == task["task_id"],
         ).with_for_update()).mappings().one_or_none()

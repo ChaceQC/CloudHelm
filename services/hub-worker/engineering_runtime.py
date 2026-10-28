@@ -18,6 +18,7 @@ from modules.workspaces.candidate_store import CandidateStore
 from modules.workspaces.candidate_writers import process_start_ticks
 from modules.workspaces.file_operations import WorkspaceFileService
 from modules.workspaces.git_objects import GitObjectStore
+from modules.workspaces.handoffs import WorkspaceHandoffApplication
 from modules.workspaces.operations import resolve_workspace_operation_in_uow
 from modules.workspaces.safe_paths import PrivateRoot, WorkspaceFileError, exists_at
 from modules.workspaces.source_import import ReferenceSourceImporter
@@ -43,6 +44,7 @@ class EngineeringRuntime:
         self.resources = EngineeringResources(engine, control_engine, registry)
         self.instance_id = "engineering-worker-" + uuid4().hex
         self.sources = SourceImportApplication(engine, control_engine)
+        self.handoffs = WorkspaceHandoffApplication(engine, control_engine)
         if client is not None:
             from modules.agent_runtime.operations import notify_operation_in_uow
 
@@ -197,6 +199,10 @@ class EngineeringRuntime:
             store.close()
 
     def workspace_operation(self, operation_id):
+        if operation_id.startswith("workspace-handoff-"):
+            from .engineering_handoffs import execute_handoff
+
+            return execute_handoff(self, operation_id)
         with self.registry.admit(128 * 1024**2) as storage:
             intent = self._intent(operation_id)
             with self._git(storage, intent.result.binding.project_id) as git:

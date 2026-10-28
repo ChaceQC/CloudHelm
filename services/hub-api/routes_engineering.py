@@ -24,6 +24,7 @@ from packages.contracts.p2.candidates import FixCandidateCommandResult, FixCandi
 from packages.contracts.p2.verification import (
     AcceptVerificationRequest, DependencyImpactRequest, DependencyImpactResult, VerificationSelection, VerificationView,
 )
+from packages.contracts.p2.handoffs import WorkspaceHandoffRecord, WorkspaceHandoffRequest, WorkspaceHandoffResult
 from .auth import control_actor, get_runtime, normal_actor
 from .contracts import ApiErrorResponse
 from .errors import ApiRequestError
@@ -81,6 +82,17 @@ def create_workspace(request: Request, task_id: Identifier, actor: NormalActor, 
 @router.get("/workspaces/{workspace_id}", response_model=WorkspaceView)
 def workspace_status(request: Request, workspace_id: Identifier, actor: ControlActor):
     return get_runtime(request).workspaces.query(actor, workspace_id)
+
+
+@router.post("/workspaces/{workspace_id}/handoffs", response_model=WorkspaceHandoffResult, status_code=202)
+def request_handoff(request: Request, workspace_id: Identifier, actor: NormalActor, idempotency_key: IdempotencyKey,
+                    body: WorkspaceHandoffRequest = Depends(strict_body(WorkspaceHandoffRequest))):
+    return get_runtime(request).handoffs.request(actor, workspace_id, body, idempotency_key=idempotency_key)
+
+
+@router.get("/workspaces/{workspace_id}/handoffs/{handoff_id}", response_model=WorkspaceHandoffRecord)
+def handoff_status(request: Request, workspace_id: Identifier, handoff_id: Identifier, actor: ControlActor):
+    return get_runtime(request).handoffs.query(actor, workspace_id, handoff_id)
 
 
 @router.post("/workspaces/{workspace_id}/materialize", response_model=WorkspaceCommandResult, status_code=202,

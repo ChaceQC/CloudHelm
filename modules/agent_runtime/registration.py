@@ -41,6 +41,9 @@ def start_run(engine, client, source_command_id, request: RuntimeStartRequest):
         require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
             expected_control_revision=incoming.expected_task_control_revision,
             expected_input_validity_revision=incoming.expected_input_validity_revision)
+        from modules.workspaces.handoff_gates import require_agent_workspace
+
+        require_agent_workspace(uow.connection, incoming.task_id, request.context.work_item_id)
         _check_context(uow, task, authorization, request)
         session = uow.connection.execute(select(agent_sessions).where(
             agent_sessions.c.session_id == incoming.session_id).with_for_update()).mappings().one_or_none()

@@ -85,6 +85,10 @@ class AgentRuntimeApplication:
             item_goal = uow.connection.scalar(select(work_items.c.goal).where(
                 work_items.c.work_item_id == request.context.work_item_id,
                 work_items.c.task_id == request.runtime_input.task_id))
+            from modules.workspaces.handoff_gates import returned_handoff_context
+
+            handoff_context = returned_handoff_context(
+                uow.connection, request.runtime_input.task_id, request.context.work_item_id)
 
         async def task_read(arguments, tool_call_id):
             if arguments:
@@ -95,7 +99,8 @@ class AgentRuntimeApplication:
                     workspaces.c.task_id == task["task_id"],
                     workspaces.c.work_item_id == request.context.work_item_id))
                 return {"task_id": task["task_id"], "state": task["state"],
-                        "goal": goal, "work_item_goal": item_goal, "workspace_id": workspace_id}
+                        "goal": goal, "work_item_goal": item_goal, "workspace_id": workspace_id,
+                        "human_changes": handoff_context}
 
         operations = OperationGateway(self.engine, self.client)
 
@@ -112,6 +117,7 @@ class AgentRuntimeApplication:
                   "query_operation": query_operation, "await_operation": await_operation}
         gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
         prompt = json.dumps({"task_goal": goal, "work_item_goal": item_goal,
+            "human_changes": handoff_context,
             "requirement": request.context.requirement_ref.model_dump(mode="json"),
             "acceptance": request.context.acceptance_assets_ref.model_dump(mode="json"),
             "source": request.context.source_ref.model_dump(mode="json"),
@@ -158,6 +164,12 @@ class AgentRuntimeApplication:
                 and task["cancel_requested_at"] is None and task["input_status"] == "valid"
                 and task["control_revision"] == request.runtime_input.expected_task_control_revision
                 and task["input_validity_revision"] == request.runtime_input.expected_input_validity_revision)
+            if current:
+                from modules.workspaces.handoff_gates import active_handoff
+
+                workspace_id = uow.connection.scalar(select(workspaces.c.workspace_id).where(
+                    workspaces.c.task_id == task["task_id"], workspaces.c.work_item_id == request.context.work_item_id))
+                current = workspace_id is None or active_handoff(uow.connection, workspace_id) is None
             key = request.runtime_input.committed_history.digest
             if history is not None:
                 key = "sha256:" + hashlib.sha256(history).hexdigest()

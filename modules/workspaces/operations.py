@@ -205,6 +205,9 @@ def resolve_workspace_operation_in_uow(uow, operation_id, *, reconciliation=Fals
     if workspace["task_id"] != task["task_id"]:
         raise WorkspaceError("workspace_task_binding_mismatch")
     if not reconciliation:
+        from modules.workspaces.handoff_gates import require_workspace_writer
+
+        require_workspace_writer(uow.connection, workspace, actor, intent.request.kind, executing=True)
         require_ordinary_progress(
             uow.connection, task["task_id"], expected_version=task["version"],
             expected_control_revision=intent.request.expected_control_revision,

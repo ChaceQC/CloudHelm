@@ -75,6 +75,9 @@ def _guard(context, request, workspace):
     if workspace is None:
         return registration
     binding = WorkspaceBinding.model_validate(workspace["binding_json"])
+    from modules.workspaces.handoff_gates import require_workspace_writer
+
+    require_workspace_writer(context.uow.connection, workspace, context.actor, request.kind)
     if binding.workspace_revision != request.expected_workspace_revision:
         raise WorkspaceError("workspace_revision_conflict")
     if binding.write_generation != request.expected_write_generation:

@@ -32,6 +32,9 @@ def current_run(uow, run_id):
     require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
         expected_control_revision=incoming.expected_task_control_revision,
         expected_input_validity_revision=incoming.expected_input_validity_revision)
+    from modules.workspaces.handoff_gates import require_agent_workspace
+
+    require_agent_workspace(uow.connection, incoming.task_id, request.context.work_item_id)
     exceeded = uow.connection.scalar(select(exists(select(1).select_from(
         agent_model_requests.join(agent_runs).join(agent_sessions)).where(
         agent_sessions.c.task_id == incoming.task_id, model_request_bound_exceeded()))))
