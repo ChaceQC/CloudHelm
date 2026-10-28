@@ -12,7 +12,8 @@
 - 自动验证：WSL Ubuntu-24.04、Python 3.12.13、Docker 29.1.3、固定 PostgreSQL 16.13，`PYTHONPATH=. PYTHONUTF8=1 .venv/bin/python -B .thesis-work/p2-1-01/verify.py` 最终于 `2026-10-28T06:29:12.594990+00:00`～`06:29:24.330887+00:00` 退出 0；覆盖实库初始化、事务回滚/去重、SDK 本地 HTTP 与合法历史续接、真实请求数/预算限制、恢复不重发、输入/撤权/取消及合成终态阻断、Task 历史与未知费用投影。首次夹具初始化曾报未取到具体安全码的 `DatabaseFixtureError`，后续成功，不回写初次结论。输入/方法摘要及支持范围见 [P2.1-01 记录](docs/acceptance/p2/p2-1-01.md)。
 - SDK 定向方法：真实 SDK + MockTransport 的正常、500/连接重试、工具参数修复、逐次 Gateway/顺序执行、总时限/请求体上限及异常脱敏通过；UTF-8/语法、导入、固定迁移/元数据、版本、离线锁检查与 Git 差异检查通过。未执行收费模型、真实 worker 故障恢复、自动压缩调度、Desktop 构建/原生、部署或产品验收，原因是本轮仅内部 Runtime 小包开发验证，不扩大既有证据。
 - 规模评估：普通新增模块均少于 300 物理行；Run 注册函数略超 60 行，属于一次启动的统一短事务，保留连续锁顺序和原子入队，不为行数继续拆 helper。表/固定迁移为集中声明式结构；不新增无关回归框架。
-- 进行中：保存本工作包文档与 Git 交付。阻塞与风险：无新增；usage/费用仍 unknown，真实 worker/提供方及原生/产品结论仅按后续实际证据记录。实际人日及剩余工作待估。
+- Git 交付：实现提交 `551ee80` 已推送 `origin/dev`；进入任务前的 P1 改动由 `b2b8493` 单独保存并推送。工作树仅保留原有本地 `.playwright-cli/`，未纳入提交。
+- 进行中：无。阻塞与风险：无新增；usage/费用仍 unknown，真实 worker/提供方及原生/产品结论仅按后续实际证据记录。实际人日及剩余工作待估。
 - 下一项具体任务：P2.1-02 待用户安排，本次不启动；主要文件为 `packages/contracts/p2/runtime.py`、`modules/agent_runtime/`、`modules/tool_gateway/`、worker、Task 投影、0012 迁移及 [Runtime 使用说明](docs/development/p2-runtime.md)。
 
 ## 2026-10-28：提交既有 P1 维护改动
