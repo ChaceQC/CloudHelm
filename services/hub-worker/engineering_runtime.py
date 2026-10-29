@@ -122,6 +122,16 @@ class EngineeringRuntime:
     def development_environment(self, operation_id):
         return self._development.execute(operation_id)
 
+    def preview_environment(self, operation_id):
+        from .engineering_previews import execute_preview
+
+        return execute_preview(self, operation_id)
+
+    def preview_maintenance(self):
+        from .engineering_previews import maintain_previews
+
+        return maintain_previews(self)
+
     def close(self):
         self._development.close()
 

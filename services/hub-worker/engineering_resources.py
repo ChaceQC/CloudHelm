@@ -112,7 +112,7 @@ class EngineeringResources:
         if allocation.accounted_vector.disk_bytes != vector.disk_bytes or allocation.state not in {"active", "releasing"}:
             raise ValueError("engineering_backing_ownership_unconfirmed")
 
-    def binding(self, *, key, task_id, command_id, deadline, storage, start):
+    def binding(self, *, key, task_id, command_id, deadline, storage, start, preview=False):
         process, backing = self._configuration()
         identity = "engineering-resource-" + canonical_digest({"key": key, "storage": process.storage.model_dump(mode="json")})[7:47]
         existing = self._existing(identity)
@@ -120,9 +120,14 @@ class EngineeringResources:
             return None  # Only queries/stops use this legacy compatibility route.
         if existing is None:
             self._storage_owner(self.registry.registration, backing, storage, task_id, command_id, deadline)
-        envelope = import_module(runner_module + "resource_development").ENVELOPE
+        profiles = import_module(runner_module + "resource_development")
+        envelope = profiles.PREVIEW_ENVELOPE if preview else profiles.ENVELOPE
         request, allocation = self._reserve(process, identity, task_id, command_id, identity, envelope, deadline,
             ("engineering-storage-" + process.storage.storage_id,))
+        if preview and (request.resources.request_vector != envelope
+                        or request.resources.accounted_vector != envelope
+                        or request.resources.hard_limits != envelope):
+            raise ValueError("engineering_preview_requires_new_resource_reservation")
         dispatcher = self._dispatcher(process)
         if start:
             if allocation.state == "reserved":
@@ -141,9 +146,11 @@ class EngineeringResources:
                 raise ValueError("engineering_shared_resources_not_configured")
             return None
         environment = access.environment
+        preview = access.intent.request.action == "prepare" and access.client_request.preview
         return self.binding(key="environment:" + environment["environment_id"],
             task_id=environment["task_id"], command_id=environment["created_by_command_id"],
-            deadline=environment["created_at"] + timedelta(hours=2), storage=storage, start=start)
+            deadline=environment["created_at"] + timedelta(hours=2), storage=storage, start=start,
+            preview=preview)
 
     @contextmanager
     def build(self, record, storage, gate):

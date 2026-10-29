@@ -32,6 +32,7 @@ class ResolveReworkRequest(Contract):
     issue_id: Identifier
     verification_report_id: Identifier
     review_run_id: Identifier | None = None
+    human_test_session_id: Identifier | None = None
 
 
 class ReworkIssue(Contract):
@@ -40,7 +41,7 @@ class ReworkIssue(Contract):
     task_id: Identifier
     work_item_id: Identifier
     owner_session_id: Identifier | None
-    source_kind: Literal["review", "verification"]
+    source_kind: Literal["review", "verification", "human_test"]
     source_id: Identifier
     candidate_id: Identifier
     candidate_commit: GitObjectId

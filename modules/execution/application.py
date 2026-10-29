@@ -5,13 +5,13 @@ from sqlalchemy import func, select
 from database.readiness import assert_schema_ready
 from database.uow import UnitOfWork
 from modules.collaboration.command_support import lock_task_access
-from modules.collaboration.guards import require_ordinary_progress
 from modules.identity.actors import actor_for_command
 from packages.contracts.p0.resource_contracts import ResourceAdjustment, ResourceAllocation
 from packages.contracts.p1.resource_protocol import ReserveResourcesRequest, match_runner
 from .commands import reserve_in_uow
 from .errors import ResourceError
 from .registry import lock_pool, read_runner
+from .preview_admission import require_resource_progress
 from .tables import resource_reservations
 
 
@@ -70,10 +70,7 @@ class ResourceApplication:
             actor = actor_for_command(uow, row["command_id"])
             task, _ = lock_task_access(uow, actor, row["task_id"], "operation.request")
             request = ReserveResourcesRequest.model_validate(row["request_json"])
-            require_ordinary_progress(uow.connection, row["task_id"], expected_version=task["version"],
-                expected_control_revision=request.expected_control_revision,
-                expected_input_validity_revision=request.expected_input_validity_revision,
-                allowed_states=("draft", "active"))
+            require_resource_progress(uow, actor, task, request, at_start=True)
             registration = lock_pool(uow, row["host_resource_pool_id"])
             allocation = ResourceAllocation.model_validate(read_reservation(uow, reservation_id)["allocation_json"])
             identity = allocation.identity

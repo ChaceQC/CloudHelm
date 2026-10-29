@@ -18,6 +18,7 @@ from .resource_storage import observe_backing
 RUNTIME_BYTES = 16 * 1024**2
 ENVELOPE = ResourceVector(memory_mib=4096, cpu_millicores=3000, pids=512,
                           disk_bytes=4 * 1024**3 + RUNTIME_BYTES, heavy_slots=1)
+PREVIEW_ENVELOPE = ResourceVector.model_validate(ENVELOPE.model_dump() | {"preview_slots": 1})
 
 
 def development_recipe(reference, owner):
@@ -73,7 +74,8 @@ class DevelopmentBoundary(DockerScratchBoundary):
             command(["/usr/bin/systemctl", "stop", name])
 
     def check_capability(self, request):
-        if (request.hard_limits != ENVELOPE or request.accounted_vector != ENVELOPE
+        if (request.hard_limits not in (ENVELOPE, PREVIEW_ENVELOPE)
+                or request.accounted_vector != request.hard_limits
                 or request.identity.resource_group_digest != self.registration.recipe_digest
                 or request.identity.cpu_period_us != 100000):
             raise ValueError("resource_development_fixed_envelope_required")

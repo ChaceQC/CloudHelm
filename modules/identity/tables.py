@@ -57,7 +57,7 @@ role_bindings = Table(
     Column("revision", BigInteger, nullable=False, server_default="1"),
     Column("revoked_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    CheckConstraint("role IN ('developer', 'reviewer', 'deployment_approver')", name="binding_supported_role"),
+    CheckConstraint("role IN ('developer', 'reviewer', 'tester', 'deployment_approver')", name="binding_supported_role"),
     CheckConstraint("cardinality(actions) BETWEEN 1 AND 20", name="binding_action_count"),
     CheckConstraint("array_position(actions, NULL) IS NULL", name="binding_actions_not_null"),
     CheckConstraint("revision BETWEEN 1 AND 9007199254740991", name="binding_revision_positive"),

@@ -18,6 +18,10 @@ from modules.integration.verification import VerificationApplication
 from modules.integration.validity import VerificationImpactApplication
 from modules.workspaces.handoffs import WorkspaceHandoffApplication
 from modules.integration.merge_queue import MergeQueueApplication
+from modules.integration.human_test_wiring import human_test_application
+from modules.workspaces.preview_access import PreviewAccessApplication
+from modules.workspaces.preview_environments import PreviewEnvironmentApplication
+from packages.contracts.p0.preview_contracts import PreviewProxyIdentity
 from modules.delivery.deployment_application import DeliveryApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
 
@@ -54,6 +58,9 @@ class ApiRuntime:
     handoffs: WorkspaceHandoffApplication
     merges: MergeQueueApplication
     agents: TaskAgentApplication
+    previews: PreviewAccessApplication
+    preview_environments: PreviewEnvironmentApplication
+    human_tests: object
     sync_epoch: str = field(default_factory=lambda: uuid4().hex)
 
     def close(self) -> None:
@@ -104,6 +111,12 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
             use_listen_notify=False, retry_connection_errors=False,
             system_database_polling_concurrency=1, observability_query_timeout_sec=5,
         )
+        from modules.workflow.engineering_enqueuers import preview_environment_enqueuer
+
+        proxy_identity = PreviewProxyIdentity(proxy_id="hub-preview", boot_id=uuid4().hex)
+        previews = PreviewAccessApplication(pools.normal, pools.control, proxy_identity=proxy_identity)
+        preview_environments = PreviewEnvironmentApplication(pools.normal, pools.control,
+            enqueue=preview_environment_enqueuer(client), proxy_identity=proxy_identity)
         return ApiRuntime(
             pools=pools, client=client, projects=ProjectApplication(pools.normal),
             tasks=TaskApplication(pools.normal, pools.control, client),
@@ -130,6 +143,8 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
                 enqueue_operation=engineering_enqueuer(client, "integration")),
             agents=TaskAgentApplication(pools.normal, pools.control, client,
                 diff_reader=lambda spec: read_task_workspace_diff(pools.control, spec)),
+            previews=previews, preview_environments=preview_environments,
+            human_tests=human_test_application(pools.normal, pools.control, preview_environments),
         )
     except Exception:
         try:

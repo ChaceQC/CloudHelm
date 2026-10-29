@@ -44,8 +44,8 @@ def read_human_fact(
     proof = evidence.metadata if evidence else None
     bound = (isinstance(proof, EvidenceMetadata) and proof.role == "human_test"
              and proof.evidence.input_set_ref == conclusion.input_set_ref
-             and proof.evidence.result in {"passed", "failed"}
-             and (conclusion.conclusion != "passed" or proof.evidence.result == "passed"))
+             and (proof.evidence.result == {"passed": "passed", "changes_requested": "failed"}.get(conclusion.conclusion)
+                  or conclusion.conclusion == "skipped" and proof.evidence.result in {"not_run", "failed"}))
     if not authorized or not bound:
         reader.block("human_conclusion_not_authorized", conclusion.session_id, "human_test")
         return HumanTestCompletionFact(**fields)

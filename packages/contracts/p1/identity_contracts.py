@@ -10,7 +10,7 @@ from packages.contracts.p0.identity_contracts import Action
 
 
 IDENTITY_SCHEMA_REVISION = "p1-identity-r1"
-MemberRole = Literal["developer", "reviewer", "deployment_approver"]
+MemberRole = Literal["developer", "reviewer", "tester", "deployment_approver"]
 IdentityErrorCode = Literal[
     "authentication_required", "authentication_failed", "identity_not_current",
     "permission_denied", "role_action_denied", "delegation_not_current",

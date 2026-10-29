@@ -19,7 +19,9 @@ from modules.collaboration.tables import task_fact_sources, task_reference_recor
 from packages.contracts.p0.decision_common import Contract
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.identity_contracts import AuthorizationEnvelope, parse_request
-from packages.contracts.p1.task_facts import RegisteredReference, TaskFactSource
+from packages.contracts.p1.task_facts import (
+    EnvironmentMetadata, EvidenceMetadata, HumanConclusionMetadata, MethodMetadata, RegisteredReference, TaskFactSource,
+)
 from packages.contracts.p1.task_requests import TaskDeclaration
 
 
@@ -127,6 +129,10 @@ def register_reference(
     if authorization.caller != source.principal:
         raise TaskBoundaryError("fact_source_principal_mismatch", status_code=403)
     _check_producer(source, record)
+    return _store_reference(connection, record, source_bytes, authorization)
+
+
+def _store_reference(connection, record, source_bytes, authorization):
     source_digest = validate_source_payload(record, source_bytes)
     key, digest = reference_key(record.project_id, record.reference), contract_digest(record)
     reference = record.reference
@@ -144,6 +150,47 @@ def register_reference(
     if row is None or row.record_digest != digest:
         raise TaskBoundaryError("reference_identity_conflict", object_ids=(reference.object_id,))
     return key
+
+
+def register_human_test_reference(connection, record, *, source_bytes, authorization):
+    """Register only integration-produced facts derived from this human decision."""
+    require_transaction(connection)
+    target = authorization.target
+    actions = {"human_test.pass": "passed", "human_test.request_changes": "changes_requested",
+               "human_test.skip": "skipped"}
+    result = actions.get(authorization.action)
+    if (not authorization.allowed or result is None or authorization.caller.kind != "human"
+            or authorization.scope.project_id != record.project_id or target.project_id != record.project_id
+            or target.resource_kind != "human_test_session"):
+        raise TaskBoundaryError("human_test_fact_registration_not_authorized", status_code=403)
+    session_id, metadata = target.resource_id, record.metadata
+    source = read_fact_source(connection, record.project_id, record.source_id)
+    if (source.producer_domain != "integration" or source.authority != "integration" or source.purpose != "product"
+            or record.reference.authority != "integration"):
+        raise TaskBoundaryError("human_test_product_source_required")
+    if isinstance(metadata, MethodMetadata):
+        valid = (record.reference.object_id == "human-method-" + session_id and metadata.description ==
+                 "Explicit conclusion by the assigned human tester for the fixed human-test session.")
+    elif isinstance(metadata, EnvironmentMetadata):
+        valid = (result == "skipped" and record.reference.object_id == "human-not-run-" + session_id
+                 and metadata.description == "Human test was not deployed or run; this is a skip decision context."
+                 and metadata.support_scope == ("human_test_not_run",))
+    elif isinstance(metadata, EvidenceMetadata):
+        valid = (metadata.role == "human_test" and metadata.evidence.evidence_id == "human-evidence-" + session_id
+                 and metadata.evidence.method_ref.object_id == "human-method-" + session_id
+                 and metadata.evidence.result == {"passed": "passed", "changes_requested": "failed",
+                                                  "skipped": "not_run"}[result])
+    elif isinstance(metadata, HumanConclusionMetadata):
+        valid = (record.reference.object_id == "human-conclusion-" + session_id
+                 and metadata.session_id == session_id and metadata.concluded_by == authorization.caller
+                 and metadata.authorization_decision_id == authorization.decision_id
+                 and metadata.conclusion == result and metadata.evidence_ref.object_id == "human-evidence-" + session_id)
+    else:
+        valid = False
+    if not valid:
+        raise TaskBoundaryError("human_test_fact_binding_mismatch")
+    _check_producer(source, record)
+    return _store_reference(connection, record, source_bytes, authorization)
 
 
 def read_registered_reference(

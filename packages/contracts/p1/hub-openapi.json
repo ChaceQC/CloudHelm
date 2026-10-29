@@ -10556,6 +10556,2750 @@
           }
         }
       }
+    },
+    "/api/tasks/{task_id}/human-tests": {
+      "get": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Tests",
+        "operationId": "human_tests_api_tasks__task_id__human_tests_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HumanTestSession"
+                  },
+                  "title": "Response Human Tests Api Tasks  Task Id  Human Tests Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Start Human",
+        "operationId": "start_human_api_tasks__task_id__human_tests_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartHumanTestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/human-test-options": {
+      "get": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Options",
+        "operationId": "human_options_api_tasks__task_id__human_test_options_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestOptions"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}": {
+      "get": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Session",
+        "operationId": "human_session_api_human_tests__session_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}/ready": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Ready",
+        "operationId": "human_ready_api_human_tests__session_id__ready_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanTestSessionGuard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}/conclusion": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Conclusion",
+        "operationId": "human_conclusion_api_human_tests__session_id__conclusion_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanTestConclusionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}/activity": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Test.Activity",
+        "operationId": "human_test_activity_api_human_tests__session_id__activity_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanTestSessionGuard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}/renew": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Test.Renew",
+        "operationId": "human_test_renew_api_human_tests__session_id__renew_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanTestSessionGuard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}/yield": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Test.Give Up",
+        "operationId": "human_test_give_up_api_human_tests__session_id__yield_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanTestSessionGuard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/human-tests/{session_id}/cancel": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Human Test.Cancel",
+        "operationId": "human_test_cancel_api_human_tests__session_id__cancel_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanTestSessionGuard"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumanTestCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/candidate-previews": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Candidate Preview",
+        "operationId": "candidate_preview_api_tasks__task_id__candidate_previews_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartCandidatePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewEnvironmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/development-previews": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Development Preview",
+        "operationId": "development_preview_api_tasks__task_id__development_previews_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachDevelopmentPreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewEnvironmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/preview-environments/{environment_id}": {
+      "get": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Preview Environment",
+        "operationId": "preview_environment_api_preview_environments__environment_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewEnvironmentView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/preview-environments/{environment_id}/stop": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Stop Preview",
+        "operationId": "stop_preview_api_preview_environments__environment_id__stop_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewEnvironmentControlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewEnvironmentResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/preview-environments/{environment_id}/access-request": {
+      "get": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Access Parameters",
+        "operationId": "access_parameters_api_preview_environments__environment_id__access_request_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewAccessRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/preview-environments/{environment_id}/access": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Preview Access",
+        "operationId": "preview_access_api_preview_environments__environment_id__access_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Environment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewAccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/preview-authorizations/{authorization_id}": {
+      "get": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Preview Authorization",
+        "operationId": "preview_authorization_api_preview_authorizations__authorization_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "authorization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Authorization Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewAuthorizationRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/preview-authorizations/{authorization_id}/revoke": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Revoke",
+        "operationId": "revoke_api_preview_authorizations__authorization_id__revoke_post",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "authorization_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Authorization Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewAuthorizationRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -14121,6 +16865,7 @@
             "enum": [
               "developer",
               "reviewer",
+              "tester",
               "deployment_approver"
             ],
             "title": "Role"
@@ -14140,7 +16885,11 @@
                 "candidate.submit",
                 "operation.request",
                 "deployment.approve",
-                "review.submit"
+                "review.submit",
+                "human_test.enter",
+                "human_test.pass",
+                "human_test.request_changes",
+                "human_test.skip"
               ]
             },
             "type": "array",
@@ -14744,6 +17493,11 @@
             "maximum": 9007199254740991.0,
             "minimum": 0.0,
             "title": "Expected Write Generation"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -15858,6 +18612,7 @@
             "enum": [
               "developer",
               "reviewer",
+              "tester",
               "deployment_approver"
             ],
             "title": "Role"
@@ -20012,6 +22767,1522 @@
           "truncated"
         ],
         "title": "TaskAgentView"
+      },
+      "AttachDevelopmentPreviewRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "prepare_operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Prepare Operation Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "prepare_operation_id"
+        ],
+        "title": "AttachDevelopmentPreviewRequest"
+      },
+      "HumanConclusionMetadata": {
+        "properties": {
+          "record_kind": {
+            "type": "string",
+            "const": "human_conclusion",
+            "title": "Record Kind",
+            "default": "human_conclusion"
+          },
+          "session_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Session Id"
+          },
+          "policy_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "conclusion": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "changes_requested",
+              "skipped"
+            ],
+            "title": "Conclusion"
+          },
+          "concluded_by": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "concluded_at_utc": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Concluded At Utc"
+          },
+          "evidence_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "authorization_decision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Authorization Decision Id"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "policy_ref",
+          "input_set_ref",
+          "conclusion",
+          "concluded_by",
+          "concluded_at_utc",
+          "evidence_ref",
+          "authorization_decision_id"
+        ],
+        "title": "HumanConclusionMetadata"
+      },
+      "HumanPolicyMetadata": {
+        "properties": {
+          "record_kind": {
+            "type": "string",
+            "const": "human_policy",
+            "title": "Record Kind",
+            "default": "human_policy"
+          },
+          "is_completion_gate": {
+            "type": "boolean",
+            "title": "Is Completion Gate"
+          },
+          "skip_allowed": {
+            "type": "boolean",
+            "title": "Skip Allowed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "is_completion_gate",
+          "skip_allowed"
+        ],
+        "title": "HumanPolicyMetadata"
+      },
+      "HumanTestCommandResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "session": {
+            "$ref": "#/components/schemas/HumanTestSession"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "session"
+        ],
+        "title": "HumanTestCommandResult"
+      },
+      "HumanTestConclusionRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "expected_session_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Session Revision"
+          },
+          "conclusion": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "changes_requested",
+              "skipped"
+            ],
+            "title": "Conclusion"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HumanTestFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "expected_session_revision",
+          "conclusion"
+        ],
+        "title": "HumanTestConclusionRequest"
+      },
+      "HumanTestFeedback": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected"
+          },
+          "actual": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual"
+          },
+          "attachment_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Attachment Refs",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "HumanTestFeedback"
+      },
+      "HumanTestOption": {
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "test_config_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "dataset_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "candidate_id",
+          "label",
+          "test_config_ref",
+          "dataset_ref"
+        ],
+        "title": "HumanTestOption"
+      },
+      "HumanTestOptions": {
+        "properties": {
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/HumanTestOption"
+            },
+            "type": "array",
+            "maxItems": 128,
+            "title": "Candidates",
+            "default": []
+          },
+          "tester_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Tester Id"
+          },
+          "management_start_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Management Start Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tester_id"
+        ],
+        "title": "HumanTestOptions"
+      },
+      "HumanTestSession": {
+        "properties": {
+          "schema_revision": {
+            "type": "string",
+            "const": "p2-human-test-r1",
+            "title": "Schema Revision",
+            "default": "p2-human-test-r1"
+          },
+          "session_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Session Id"
+          },
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "round_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Round Id"
+          },
+          "revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "task_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Task Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          },
+          "candidate_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "verification_report_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Verification Report Id"
+          },
+          "source_input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "final_input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "input_set": {
+            "$ref": "#/components/schemas/InputSet"
+          },
+          "artifact_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Artifact Refs"
+          },
+          "requirement_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "acceptance_assets_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "policy_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/HumanPolicyMetadata"
+          },
+          "test_config_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "dataset_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "tester": {
+            "$ref": "#/components/schemas/Principal"
+          },
+          "environment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Environment Id"
+          },
+          "environment_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "awaiting_human",
+              "testing",
+              "completed",
+              "expired",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "preparation_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preparation Reason"
+          },
+          "wait_condition_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wait Condition Id"
+          },
+          "entry_authorization_decision_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Entry Authorization Decision Id"
+          },
+          "access_authorization_decision_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Authorization Decision Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "last_human_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Human Activity At"
+          },
+          "idle_warning_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idle Warning At"
+          },
+          "renewed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Renewed At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HumanTestFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conclusion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HumanConclusionMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conclusion_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "command_id",
+          "project_id",
+          "task_id",
+          "round_id",
+          "revision",
+          "task_version",
+          "control_revision",
+          "input_validity_revision",
+          "candidate_id",
+          "candidate_ref",
+          "verification_report_id",
+          "source_input_set_ref",
+          "final_input_set_ref",
+          "input_set",
+          "artifact_refs",
+          "requirement_ref",
+          "acceptance_assets_ref",
+          "policy_ref",
+          "policy",
+          "test_config_ref",
+          "dataset_ref",
+          "tester",
+          "state",
+          "entry_authorization_decision_id",
+          "created_at"
+        ],
+        "title": "HumanTestSession"
+      },
+      "HumanTestSessionGuard": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "expected_session_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Session Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "expected_session_revision"
+        ],
+        "title": "HumanTestSessionGuard"
+      },
+      "PreviewAccessRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "expected_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Environment Revision"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "expected_environment_revision",
+          "expires_at"
+        ],
+        "title": "PreviewAccessRequest"
+      },
+      "PreviewAuthorizationRecord": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "environment_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Environment Id"
+          },
+          "environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Environment Revision"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/PreviewBinding"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issued At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "ticket_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ticket Expires At"
+          },
+          "required_proxies": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewProxyIdentity"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Required Proxies"
+          },
+          "ticket_state": {
+            "type": "string",
+            "enum": [
+              "unused",
+              "consumed"
+            ],
+            "title": "Ticket State",
+            "default": "unused"
+          },
+          "redemption_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redemption Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoking",
+              "revoked"
+            ],
+            "title": "State",
+            "default": "active"
+          },
+          "revocation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PreviewRevocation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "local_closures": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewLocalClosure"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Local Closures",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "environment_id",
+          "environment_revision",
+          "binding",
+          "control_revision",
+          "input_validity_revision",
+          "issued_at",
+          "expires_at",
+          "ticket_expires_at",
+          "required_proxies"
+        ],
+        "title": "PreviewAuthorizationRecord"
+      },
+      "PreviewBinding": {
+        "properties": {
+          "authorization_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Authorization Id"
+          },
+          "authorization_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Authorization Revision"
+          },
+          "subject_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Subject Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "environment_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "policy_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "development",
+              "candidate",
+              "human_test"
+            ],
+            "title": "Purpose"
+          },
+          "permission": {
+            "type": "string",
+            "const": "preview.access",
+            "title": "Permission",
+            "default": "preview.access"
+          },
+          "scope": {
+            "type": "string",
+            "const": "one_environment_instance",
+            "title": "Scope",
+            "default": "one_environment_instance"
+          },
+          "workspace_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Id"
+          },
+          "candidate_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_set_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artifact_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "human_test_session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Test Session Id"
+          },
+          "test_round": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Round"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "authorization_id",
+          "authorization_revision",
+          "subject_id",
+          "project_id",
+          "environment_ref",
+          "policy_ref",
+          "purpose"
+        ],
+        "title": "PreviewBinding"
+      },
+      "PreviewEnvironmentControlRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "expected_environment_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Environment Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "expected_environment_revision"
+        ],
+        "title": "PreviewEnvironmentControlRequest"
+      },
+      "PreviewEnvironmentResult": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Command Id"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/PreviewEnvironmentView"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "environment"
+        ],
+        "title": "PreviewEnvironmentResult"
+      },
+      "PreviewEnvironmentView": {
+        "properties": {
+          "environment_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Environment Id"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "actual_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Revision"
+          },
+          "resource_reservation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Reservation Id"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "revocation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revocation Status"
+          },
+          "management_start_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Management Start Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "environment_id",
+          "purpose",
+          "state",
+          "expires_at"
+        ],
+        "title": "PreviewEnvironmentView"
+      },
+      "PreviewLocalClosure": {
+        "properties": {
+          "proxy": {
+            "$ref": "#/components/schemas/PreviewProxyIdentity"
+          },
+          "denied_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Denied At"
+          },
+          "closed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Closed At"
+          },
+          "client_connections": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Client Connections"
+          },
+          "upstream_connections": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Upstream Connections"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proxy",
+          "denied_at",
+          "closed_at",
+          "client_connections",
+          "upstream_connections"
+        ],
+        "title": "PreviewLocalClosure"
+      },
+      "PreviewProxyClosure": {
+        "properties": {
+          "proxy": {
+            "$ref": "#/components/schemas/PreviewProxyIdentity"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/PreviewBinding"
+          },
+          "revoke_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Revoke Revision"
+          },
+          "hub_clock_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Hub Clock Epoch"
+          },
+          "received_elapsed_upper_ms": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Received Elapsed Upper Ms"
+          },
+          "new_access_denied": {
+            "type": "boolean",
+            "title": "New Access Denied",
+            "default": false
+          },
+          "all_routes_closed": {
+            "type": "boolean",
+            "title": "All Routes Closed",
+            "default": false
+          },
+          "sessions_disabled": {
+            "type": "boolean",
+            "title": "Sessions Disabled",
+            "default": false
+          },
+          "remaining_client_connections": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Remaining Client Connections"
+          },
+          "remaining_upstream_connections": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Remaining Upstream Connections"
+          },
+          "denied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Denied At"
+          },
+          "connections_closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connections Closed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proxy",
+          "binding",
+          "revoke_revision",
+          "hub_clock_epoch",
+          "received_elapsed_upper_ms",
+          "remaining_client_connections",
+          "remaining_upstream_connections"
+        ],
+        "title": "PreviewProxyClosure"
+      },
+      "PreviewProxyIdentity": {
+        "properties": {
+          "proxy_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Proxy Id"
+          },
+          "boot_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Boot Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proxy_id",
+          "boot_id"
+        ],
+        "title": "PreviewProxyIdentity"
+      },
+      "PreviewRevocation": {
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/PreviewBinding"
+          },
+          "revoke_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Revoke Revision"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          },
+          "deadline_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deadline At"
+          },
+          "hub_clock_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Hub Clock Epoch"
+          },
+          "observed_hub_clock_epoch": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Observed Hub Clock Epoch"
+          },
+          "elapsed_upper_ms": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Elapsed Upper Ms"
+          },
+          "timing_evidence_current": {
+            "type": "boolean",
+            "title": "Timing Evidence Current",
+            "default": false
+          },
+          "required_proxies": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewProxyIdentity"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Required Proxies"
+          },
+          "additional_possible_proxies": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewProxyIdentity"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Additional Possible Proxies",
+            "default": []
+          },
+          "closures": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewProxyClosure"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Closures",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding",
+          "revoke_revision",
+          "requested_at",
+          "deadline_at",
+          "hub_clock_epoch",
+          "observed_hub_clock_epoch",
+          "elapsed_upper_ms",
+          "required_proxies"
+        ],
+        "title": "PreviewRevocation"
+      },
+      "StartCandidatePreviewRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "candidate_id"
+        ],
+        "title": "StartCandidatePreviewRequest"
+      },
+      "StartHumanTestRequest": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "expected_control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Control Revision"
+          },
+          "expected_input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Expected Input Validity Revision"
+          },
+          "candidate_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Candidate Id"
+          },
+          "tester_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Tester Id"
+          },
+          "test_config_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "dataset_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "expected_control_revision",
+          "expected_input_validity_revision",
+          "candidate_id",
+          "tester_id",
+          "test_config_ref",
+          "dataset_ref"
+        ],
+        "title": "StartHumanTestRequest",
+        "description": "An explicit opt-in; fixed facts and the round identity come from the server."
       }
     },
     "securitySchemes": {

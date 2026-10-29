@@ -8,7 +8,7 @@ from database.commands import lock_and_get, save_result
 from database.readiness import assert_schema_ready
 from database.uow import require_transaction
 from modules.collaboration.command_support import lock_task_access
-from modules.collaboration.guards import require_ordinary_progress, task_resource
+from modules.collaboration.guards import task_resource
 from modules.sync.events import append_event
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p0.resource_contracts import ResourceAllocation, validate_admission
@@ -16,6 +16,7 @@ from packages.contracts.p1.resource_protocol import (
     PROTOCOL, STORAGE_BACKEND, ReservationResult, ReserveResourcesRequest, match_runner,
 )
 from .registry import lock_pool, read_runner
+from .preview_admission import require_resource_progress
 from .tables import resource_reservations
 
 
@@ -41,12 +42,7 @@ def _reserve(uow, actor, task_id, request, key):
     previous = lock_and_get(uow.connection, envelope)
     if previous is not None:
         return ReservationResult.model_validate(previous.result)
-    require_ordinary_progress(
-        uow.connection, task_id, expected_version=request.expected_version,
-        expected_control_revision=request.expected_control_revision,
-        expected_input_validity_revision=request.expected_input_validity_revision,
-        allowed_states=("draft", "active"),
-    )
+    require_resource_progress(uow, actor, task, request)
     now = uow.connection.scalar(select(func.clock_timestamp()))
     if request.expires_at_utc <= now:
         raise ValueError("resource_request_expired")

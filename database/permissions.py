@@ -59,6 +59,7 @@ def apply_runtime_permissions(connection: Connection) -> None:
         connection.exec_driver_sql(f"REVOKE ALL ON ALL TABLES IN SCHEMA cloudhelm FROM {name}")
         connection.exec_driver_sql(f"GRANT SELECT ON ALL TABLES IN SCHEMA cloudhelm TO {name}")
         if role == "api":
+            connection.exec_driver_sql(f"GRANT UPDATE (human_conclusion_key) ON cloudhelm.task_inputs TO {name}")
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.agent_sessions, cloudhelm.agent_runs TO {name}")
             connection.exec_driver_sql(f"GRANT UPDATE (state) ON cloudhelm.agent_sessions TO {name}")
             connection.exec_driver_sql(f"GRANT INSERT ON cloudhelm.sync_streams, cloudhelm.sync_dispatch_events TO {name}")
@@ -68,6 +69,10 @@ def apply_runtime_permissions(connection: Connection) -> None:
         connection.exec_driver_sql(f"GRANT INSERT, UPDATE (applicability) ON cloudhelm.verification_dependencies TO {name}")
         connection.exec_driver_sql(f"GRANT INSERT, UPDATE (state, record_json) ON cloudhelm.workspace_handoffs TO {name}")
         connection.exec_driver_sql(f"GRANT INSERT, UPDATE (state, record_json) ON cloudhelm.merge_queue TO {name}")
+        connection.exec_driver_sql(f"GRANT INSERT, UPDATE (revision, state, record_json) ON cloudhelm.human_test_sessions TO {name}")
+        connection.exec_driver_sql(f"GRANT INSERT, UPDATE (state, entry_origin, record_json) ON cloudhelm.preview_environments TO {name}")
+        connection.exec_driver_sql(f"GRANT INSERT, UPDATE (state, session_digest, record_json) ON cloudhelm.preview_authorizations TO {name}")
+        connection.exec_driver_sql(f"GRANT INSERT, UPDATE (request_json, reason, updated_at) ON cloudhelm.preview_environment_intents TO {name}")
         connection.exec_driver_sql(f"GRANT USAGE ON SEQUENCE cloudhelm.merge_queue_position_seq TO {name}")
         for table in TASK_MUTABLE_TABLES:
             connection.exec_driver_sql(f"GRANT UPDATE ON cloudhelm.{table} TO {name}")

@@ -13,11 +13,15 @@ _TASK_CONTROL = frozenset({
 })
 # D04 permits human owners to approve their own deployment. Engineering and
 # stored delegation ceilings stay separate; agents cannot inherit approval.
-OWNER_ACTIONS = _TASK_CONTROL | {"resource.read", "project.manage", "deployment.approve", "review.submit"}
+HUMAN_TEST_ACTIONS = frozenset({
+    "human_test.enter", "human_test.pass", "human_test.request_changes", "human_test.skip",
+})
+OWNER_ACTIONS = _TASK_CONTROL | {"resource.read", "project.manage", "deployment.approve", "review.submit"} | HUMAN_TEST_ACTIONS
 ENGINEERING_ACTIONS = frozenset({"workspace.write", "candidate.submit", "operation.request"})
 ROLE_ACTIONS = {
     "developer": _TASK_CONTROL | {"resource.read"} | ENGINEERING_ACTIONS,
     "reviewer": frozenset({"resource.read", "review.submit"}),
+    "tester": frozenset({"resource.read"}) | HUMAN_TEST_ACTIONS,
     "deployment_approver": frozenset({"resource.read", "deployment.approve"}),
 }
 AGENT_ACTIONS = ROLE_ACTIONS["developer"]

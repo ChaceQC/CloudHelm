@@ -4,7 +4,7 @@
 
 ## 当前基线
 
-**Hub 开发源码 `0.27.0` · 数据库迁移 `0019` · 尚无正式发布、tag 或 GitHub Release**
+**Hub 开发源码 `0.28.0` · 数据库迁移 `0020` · 尚无正式发布、tag 或 GitHub Release**
 
 仓库当前提供 **Hub 开发源码、v4.7 设计资料、执行计划、历史接缝记录和全栈参照项目**，已具备的能力为：
 
@@ -15,6 +15,7 @@
 - 绑定精确构建、制品和受控验证环境的不可变候选/InputSet，见[固定候选说明](docs/development/p2-candidates.md)；
 - 受控正式 HTTP 验收、独立验证角色的固定候选读取/阶段执行/报告交接、不可变完整性报告、精确证据选择与输入变化后的消费者门禁，见[正式验收说明](docs/development/p2-verification.md)；
 - 只读审查角色的固定差异、代码与构建/验证证据读取，以及带位置、理由和证据的结构化反馈，见[审查说明](docs/development/p2-review.md)；
+- 增量/固定候选预览、一次性票据及可选人测，见[预览与人测说明](docs/development/p2-previews.md)；客户端路线按独立隔离证据开放，默认关闭；
 - 验证/审查问题到原开发工作项的持久返工交接、开发会话反馈、新候选重验及问题关闭依据，见[返工说明](docs/development/p2-rework.md)；
 - 服务端受控人工接管、按版本编辑及显式交还，固定前后快照和文件差异，见[写入权交接说明](docs/development/p2-handoffs.md)；
 - 项目合并队列、最终提交的独立验证与审查，以及权威分支条件更新，见[集成说明](docs/development/p2-merge-queue.md)；

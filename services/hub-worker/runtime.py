@@ -18,7 +18,7 @@ from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION, DBOS
 
 from .process_lock import acquire_worker_process_lock
 
-WORKER_QUEUES = tuple(sorted({*WORKFLOW_QUEUES.values(), "models"}))
+WORKER_QUEUES = tuple(sorted({*WORKFLOW_QUEUES.values(), "models", "maintenance"}))
 MAX_EXECUTOR_THREADS = 4
 
 
@@ -46,6 +46,7 @@ def _start_dbos(application, engine, installation_id: str, engineering, agent_ru
     from modules.workspaces.development_workflows import register_development_environment_workflows
     from modules.agent_runtime.workflows import register_agent_workflows
     from modules.integration.workflows import register_merge_workflows
+    from modules.workspaces.preview_workflows import preview_maintenance, register_preview_workflows
 
     DBOS(config=DBOSConfig(
         name=APPLICATION_NAME, application_version=APPLICATION_VERSION,
@@ -64,11 +65,20 @@ def _start_dbos(application, engine, installation_id: str, engineering, agent_ru
     register_development_environment_workflows(engineering.development_environment)
     register_agent_workflows(agent_runtime)
     register_merge_workflows(engineering.merge_operation)
+    register_preview_workflows(engineering.preview_environment, engineering.preview_maintenance)
     DBOS.listen_queues(WORKER_QUEUES)
     DBOS.launch()
     for queue in WORKER_QUEUES:
         DBOS.register_queue(queue, worker_concurrency=1, global_concurrency=1,
                             polling_interval_sec=1.0)
+    schedule = DBOS.get_schedule("cloudhelm-preview-maintenance-v1")
+    if schedule is None:
+        DBOS.create_schedule(schedule_name="cloudhelm-preview-maintenance-v1",
+            workflow_fn=preview_maintenance, schedule="* * * * *", queue_name="maintenance")
+    elif (schedule["workflow_name"] != "workspaces.preview.maintenance.v1"
+          or schedule["schedule"] != "* * * * *" or schedule["queue_name"] != "maintenance"
+          or schedule["status"] != "ACTIVE"):
+        raise WorkerRuntimeError("preview_maintenance_schedule_mismatch")
 
 
 def run_worker(stop: Event, *, shutdown_grace_seconds: int = 10) -> None:

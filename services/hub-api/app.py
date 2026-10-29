@@ -20,6 +20,9 @@ from .routes_resources import router as resources_router
 from .routes_delivery import router as delivery_router
 from .routes_sync import router as sync_router
 from .routes_integration import router as integration_router
+from .routes_previews import router as previews_router
+from .preview_proxy import PreviewProxy
+from .preview_page import ManagementHostBoundary, router as preview_page_router
 from .runtime import start_runtime
 
 
@@ -43,6 +46,8 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     )
     app.state.runtime = None
     app.add_middleware(SafeHttpBoundary)
+    app.add_middleware(ManagementHostBoundary)
+    app.add_middleware(PreviewProxy)
     install_error_handlers(app)
     app.include_router(identity_router)
     app.include_router(projects_router)
@@ -54,6 +59,8 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     app.include_router(delivery_router)
     app.include_router(sync_router)
     app.include_router(integration_router)
+    app.include_router(previews_router)
+    app.include_router(preview_page_router)
 
     @app.get("/health/live", response_model=Liveness, tags=["health"])
     def liveness():

@@ -40,3 +40,14 @@ def development_environment_enqueuer(client):
         ))
 
     return enqueue
+
+
+def preview_environment_enqueuer(client):
+    def enqueue(uow, operation_id, command_id, environment_id, advance_revision, request_digest):
+        return enqueue_engineering(uow.connection, client, EngineeringWorkflowDispatch(
+            command_id=command_id, operation_id=operation_id, workflow_id="engineering-" + operation_id,
+            business_kind="workspace", business_id=environment_id, advance_revision=advance_revision,
+            workflow_name="workspaces.preview.v1", request_digest=request_digest,
+        ))
+
+    return enqueue

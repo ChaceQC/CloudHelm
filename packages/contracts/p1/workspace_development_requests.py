@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, StrictBool, field_validator, model_validator
 
 from packages.contracts.p0.decision_common import Contract, Digest, Identifier, Revision
 from packages.contracts.p0.engineering_contracts import EngineeringRef, UtcTimestamp, expect_kind
@@ -30,6 +30,8 @@ class PrepareWorkspaceDevelopmentRequest(WorkspaceDevelopmentTaskGuard):
     action: Literal["prepare"] = "prepare"
     expected_workspace_revision: Revision
     expected_write_generation: Revision
+    # Omitting the default preserves the digest of previously accepted requests.
+    preview: StrictBool = Field(default=False, exclude_if=lambda value: value is False)
 
 
 class _WorkspaceDevelopmentControlRequest(WorkspaceDevelopmentTaskGuard):

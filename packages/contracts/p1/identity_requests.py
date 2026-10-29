@@ -13,6 +13,7 @@ GrantableAction = Literal[
     "workspace.write", "candidate.submit", "operation.request",
     "deployment.approve",
     "review.submit",
+    "human_test.enter", "human_test.pass", "human_test.request_changes", "human_test.skip",
 ]
 
 

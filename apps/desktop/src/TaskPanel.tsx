@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AgentPanel } from "./AgentPanel";
+import { HumanTestPanel } from "./HumanTestPanel";
 import { bodyOf, codeOf, objectPath, taskPath } from "./api";
 import type { Hub } from "./useHub";
 import type { Task } from "./types";
@@ -63,6 +64,7 @@ export function TaskPanel({ hub, task }: { hub: Hub; task?: Task }) {
     {task.cancellation && <div className="notice">取消已请求；停止与冲突占用以服务端核对事实为准。<JsonView value={task.cancellation} title="取消事实"/></div>}
     {task.completion_report_id && <Facts values={{ "完成报告": task.completion_report_id }}/>}
     <AgentPanel hub={hub} task={task}/>
+    <HumanTestPanel hub={hub} task={task}/>
     {!task.ordinary_progress_closed && <form className="cancel" onSubmit={e => {
       e.preventDefault(); hub.command(`${taskPath(task.task_id)}/cancel`, {
         expected_version: task.version, expected_control_revision: task.control_revision, cancel_reason: reason.trim(),

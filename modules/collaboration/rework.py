@@ -14,7 +14,7 @@ from modules.collaboration.rework_records import read_rework_issues, rework_view
 from modules.collaboration.tables import work_items
 from modules.identity.actors import actor_for_command
 from modules.integration.rework_resolution import verify_rework_resolution_in_uow
-from modules.integration.rework_sources import load_feedback_source
+from modules.integration.rework_sources import load_feedback_source, load_human_feedback_source
 from modules.sync.events import append_event
 from modules.sync.tables import event_log
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
@@ -24,11 +24,12 @@ from packages.contracts.p2.rework import (
 )
 
 
-def receive_feedback_in_uow(context, *, source_run_id=None, verification_report_id=None):
+def receive_feedback_in_uow(context, *, source_run_id=None, verification_report_id=None, human_session=None):
     """The caller owns Task authorization, ordinary-progress admission and transaction."""
     uow, task = context.uow, context.task
-    source = load_feedback_source(uow, context.actor, task, source_run_id=source_run_id,
-                                  verification_report_id=verification_report_id)
+    source = (load_human_feedback_source(uow, task, human_session) if human_session is not None else
+              load_feedback_source(uow, context.actor, task, source_run_id=source_run_id,
+                                   verification_report_id=verification_report_id))
     previous = read_rework_issues(uow.connection, task)
     existing_ids = {issue.issue_id for issue in previous}
     common = {key: source[key] for key in (

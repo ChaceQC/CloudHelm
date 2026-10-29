@@ -9,6 +9,7 @@ from packages.contracts.p0.decision_common import Contract, Digest, Identifier, 
 EngineeringWorkflowName = Literal[
     "projects.source_import.v1", "workspaces.operation.v1", "delivery.build.v1",
     "workspaces.development_environment.v1",
+    "workspaces.preview.v1",
     "delivery.deployment_stage.v1",
     "integration.merge_queue.v1",
 ]
@@ -32,6 +33,7 @@ class EngineeringWorkflowDispatch(Contract):
             "projects.source_import.v1": "project",
             "workspaces.operation.v1": "workspace",
             "workspaces.development_environment.v1": "workspace",
+            "workspaces.preview.v1": "workspace",
             "delivery.build.v1": "build",
             "delivery.deployment_stage.v1": "deployment",
             "integration.merge_queue.v1": "project",

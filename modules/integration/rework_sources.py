@@ -194,3 +194,41 @@ def load_feedback_source(uow, actor, task, *, source_run_id=None, verification_r
                   work_item_id=work_item_id, owner_session_id=owner_session_id,
                   control_revision=candidate.control_revision, input_validity_revision=candidate.input_validity_revision)
     return result
+
+
+def load_human_feedback_source(uow, task, session):
+    """Use the saved conclusion and the merge queue's original developer work item."""
+    from modules.integration.human_test_records import current_verification
+    from modules.integration.merge_records import entry_for_attempt
+
+    if (session.task_id != task["task_id"] or session.project_id != task["project_id"]
+            or session.state != "completed" or session.conclusion is None
+            or session.conclusion.conclusion != "changes_requested" or session.feedback is None):
+        raise TaskBoundaryError("rework_human_conclusion_required")
+    view = current_verification(uow.connection, task, session)
+    candidate = _read(uow.connection, task, session.candidate_id)
+    _, build = read_build_intent(uow.connection, candidate.build_operation_id)
+    snapshot = build.fixed_inputs.candidate
+    if snapshot.freeze_operation_id.startswith("merge-attempt-"):
+        entry = entry_for_attempt(uow.connection, snapshot.freeze_operation_id)
+        if entry.state != "merged" or entry.task_id != task["task_id"]:
+            raise TaskBoundaryError("rework_source_work_item_unavailable")
+        original = entry.candidate
+    else:
+        original = snapshot
+    work_item_id, owner_session_id = _work_item(uow, task, original)
+    feedback = session.feedback
+    detail = "\n".join(text for text in (
+        feedback.summary, "Steps: " + feedback.steps if feedback.steps else "",
+        "Expected: " + feedback.expected if feedback.expected else "",
+        "Actual: " + feedback.actual if feedback.actual else "",
+    ) if text)
+    evidence_refs = [session.conclusion.evidence_ref.model_dump(mode="json"), view.evidence_ref.model_dump(mode="json")]
+    issue = {"fingerprint": _fingerprint("human_test", feedback.summary), "title": feedback.summary[:160],
+             "reason": detail[:16384], "severity": "blocking", "path": None, "line": None,
+             "check_ids": [], "evidence_refs": evidence_refs}
+    return {"source_id": session.session_id, "source_kind": "human_test", "issues": [issue],
+        "candidate_id": session.candidate_id, "candidate_commit": snapshot.candidate_commit,
+        "source_input_set_ref": candidate.source_input_set_ref.model_dump(mode="json"),
+        "evidence_refs": evidence_refs, "work_item_id": work_item_id, "owner_session_id": owner_session_id,
+        "control_revision": candidate.control_revision, "input_validity_revision": candidate.input_validity_revision}

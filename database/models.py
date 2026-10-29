@@ -18,6 +18,9 @@ TABLE_MODULES = (
     "modules.integration.tables",
     "modules.workspaces.handoff_tables",
     "modules.integration.merge_tables",
+    "modules.integration.human_test_tables",
+    "modules.workspaces.preview_access_tables",
+    "modules.workspaces.preview_environment_tables",
 )
 
 
