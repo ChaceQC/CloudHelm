@@ -26,6 +26,7 @@ from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SC
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
 from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
+from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
 from .tables import agent_runs, agent_sessions
 
 WORKFLOW_NAME = "agent_runtime.advance.v1"
@@ -51,9 +52,9 @@ def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartReques
         if ("max_no_progress_calls" not in existing["start_json"]["policy"]
                 and "max_no_progress_calls" not in policy.model_fields_set):
             del original["policy"]["max_no_progress_calls"]
-        if ("verification" not in existing["start_json"]["context"]
-                and "verification" not in request.context.model_fields_set):
-            del original["context"]["verification"]
+        for field in ("verification", "review"):
+            if field not in existing["start_json"]["context"] and field not in request.context.model_fields_set:
+                del original["context"][field]
         digest = "sha256:" + sha256(rfc8785.dumps(original)).hexdigest()
         if existing["request_digest"] != digest or existing["source_command_id"] != source_command_id:
             raise TaskBoundaryError("agent_run_identity_conflict")
@@ -63,7 +64,7 @@ def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartReques
         expected_input_validity_revision=incoming.expected_input_validity_revision)
     from modules.workspaces.handoff_gates import require_agent_workspace
 
-    if request.context.verification is None:
+    if request.context.verification is None and request.context.review is None:
         require_agent_workspace(uow.connection, incoming.task_id, request.context.work_item_id)
     _check_context(uow, task, authorization, request, actor=actor)
     session = uow.connection.execute(select(agent_sessions).where(
@@ -93,6 +94,8 @@ def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartReques
             old_verification, new_verification = old.context.verification, request.context.verification
             if ((old_verification.candidate_id, old_verification.round_id) if old_verification else None) != (
                     (new_verification.candidate_id, new_verification.round_id) if new_verification else None):
+                raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
+            if old.context.review != request.context.review:
                 raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
     if uow.connection.scalar(select(agent_runs.c.run_id).where(
             agent_runs.c.session_id == incoming.session_id, agent_runs.c.state.in_(("queued", "running")))):
@@ -168,12 +171,11 @@ def _check_context(uow, task, authorization, request, *, actor, allow_deferred=F
             or incoming.committed_history.revision != str(incoming.expected_session_version)):
         raise TaskBoundaryError("agent_history_boundary_mismatch")
     context_digest = contract_digest(context)
-    if context.verification is None and "verification" not in context.model_fields_set:
-        legacy = context.model_dump(mode="json")
-        del legacy["verification"]
-        legacy_digest = "sha256:" + sha256(rfc8785.dumps(legacy)).hexdigest()
-    else:
-        legacy_digest = context_digest
+    legacy = context.model_dump(mode="json")
+    for field in ("verification", "review"):
+        if field not in context.model_fields_set:
+            del legacy[field]
+    legacy_digest = "sha256:" + sha256(rfc8785.dumps(legacy)).hexdigest()
     if incoming.context_package.digest not in {context_digest, legacy_digest}:
         raise TaskBoundaryError("context_digest_mismatch")
     declaration = read_declaration(uow.connection, task)
@@ -184,7 +186,8 @@ def _check_context(uow, task, authorization, request, *, actor, allow_deferred=F
             or set(context.tool_names) - ({"task.read", "submit_operation", "query_operation", "await_operation"}
                                          | WORKSPACE_TOOL_SCHEMAS.keys() | WORKSPACE_EDIT_SCHEMAS.keys()
                                          | WORKSPACE_ENVIRONMENT_SCHEMAS.keys() | WORKSPACE_BUILD_SCHEMAS.keys()
-                                         | WORKSPACE_CHECK_SCHEMAS.keys() | VERIFICATION_TOOL_SCHEMAS.keys())
+                                         | WORKSPACE_CHECK_SCHEMAS.keys() | VERIFICATION_TOOL_SCHEMAS.keys()
+                                         | REVIEW_TOOL_SCHEMAS.keys())
             or context.budget_currency != declaration.budget.currency
             or context.budget_limit > Decimal(declaration.budget.amount)
             or incoming.pending_messages is not None
@@ -208,3 +211,7 @@ def _check_context(uow, task, authorization, request, *, actor, allow_deferred=F
         from .verification import read_verification_candidate_in_uow
 
         read_verification_candidate_in_uow(uow, actor, task, request)
+    if context.review is not None:
+        from .review import read_review_evidence_in_uow
+
+        read_review_evidence_in_uow(uow, actor, task, request)

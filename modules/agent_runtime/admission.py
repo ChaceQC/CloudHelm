@@ -20,6 +20,7 @@ from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SC
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
 from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
+from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
 from .billing import model_request_bound_exceeded, model_request_cost
 from .tables import agent_model_requests, agent_runs, agent_sessions
 
@@ -42,7 +43,7 @@ def current_run(uow, run_id):
         expected_input_validity_revision=incoming.expected_input_validity_revision)
     from modules.workspaces.handoff_gates import require_agent_workspace
 
-    if request.context.verification is None:
+    if request.context.verification is None and request.context.review is None:
         require_agent_workspace(uow.connection, incoming.task_id, request.context.work_item_id)
     exceeded = uow.connection.scalar(select(exists(select(1).select_from(
         agent_model_requests.join(agent_runs).join(agent_sessions)).where(
@@ -106,7 +107,8 @@ class RuntimeAdmission:
                     or name not in {"task.read", "submit_operation", "query_operation", "await_operation"}
                     | WORKSPACE_TOOL_SCHEMAS.keys() | WORKSPACE_EDIT_SCHEMAS.keys()
                     | WORKSPACE_ENVIRONMENT_SCHEMAS.keys() | WORKSPACE_BUILD_SCHEMAS.keys()
-                    | WORKSPACE_CHECK_SCHEMAS.keys() | VERIFICATION_TOOL_SCHEMAS.keys()):
+                    | WORKSPACE_CHECK_SCHEMAS.keys() | VERIFICATION_TOOL_SCHEMAS.keys()
+                    | REVIEW_TOOL_SCHEMAS.keys()):
                 raise TaskBoundaryError("agent_tool_not_allowed")
 
     def begin(self):

@@ -30,7 +30,7 @@ from .source_context import safe_context_text
 
 
 def read_verification_candidate_in_uow(uow, actor, task, request):
-    binding = request.context.verification
+    binding = request.context.verification or request.context.review
     candidate = _read(uow.connection, task, binding.candidate_id)
     lock_task_access(uow, actor, task["task_id"], "resource.read")
     _operation_access(uow, actor, task, candidate.build_operation_id)

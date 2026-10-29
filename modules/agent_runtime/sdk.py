@@ -20,6 +20,7 @@ from pydantic_ai.usage import UsageLimits
 
 from modules.collaboration.errors import TaskBoundaryError
 from modules.tool_gateway.gateway import GatewayFailure, ToolGateway
+from packages.contracts.p2.review_agent import ReviewHandoff
 from packages.contracts.p2.runtime import DevelopmentHandoff
 from packages.contracts.p2.verification_agent import VerificationHandoff
 
@@ -35,6 +36,7 @@ class TurnOutput:
     handoff: DevelopmentHandoff | None = None
     stop_reason: str | None = None
     verification: VerificationHandoff | None = None
+    review: ReviewHandoff | None = None
 
 
 class RuntimeFailure(Exception):
@@ -144,6 +146,7 @@ async def run_turn(
     developer: bool = False,
     stop_reason: Callable[[], str | None] | None = None,
     verifier: bool = False,
+    reviewer: bool = False,
 ) -> TurnOutput:
     """Inputs and history live only in memory; persistence belongs to the caller."""
     captured: list[ModelMessage] = []
@@ -185,7 +188,8 @@ async def run_turn(
                 )
                 model = OpenAIResponsesModel(model_name, provider=OpenAIProvider(openai_client=client))
                 agent = Agent(model, tools=gateway.tools() if gateway else (), instructions=instructions,
-                              output_type=[VerificationHandoff if verifier else DevelopmentHandoff if developer else str,
+                              output_type=[ReviewHandoff if reviewer else VerificationHandoff if verifier
+                                           else DevelopmentHandoff if developer else str,
                                            DeferredToolRequests])
                 with capture_run_messages() as captured:
                     result = await agent.run(
@@ -199,7 +203,8 @@ async def run_turn(
                 return TurnOutput(tuple(result.new_messages()),
                                   result.output if isinstance(result.output, DeferredToolRequests) else None,
                                   handoff=result.output if isinstance(result.output, DevelopmentHandoff) else None,
-                                  verification=result.output if isinstance(result.output, VerificationHandoff) else None)
+                                  verification=result.output if isinstance(result.output, VerificationHandoff) else None,
+                                  review=result.output if isinstance(result.output, ReviewHandoff) else None)
     except TimeoutError:
         return TurnOutput(tuple(captured[history_length:]), None, stop_reason="turn_timeout")
     except _RuntimeStop as error:

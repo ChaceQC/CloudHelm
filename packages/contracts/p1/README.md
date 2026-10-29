@@ -31,7 +31,7 @@
 
 P2 的固定候选契约独立位于 [`../p2/candidates.py`](../p2/candidates.py)，复用本目录的物理候选、构建及制品事实。Hub 快照包含固定和查询接口，使用方式见[固定候选说明](../../../docs/development/p2-candidates.md)；事实关联不生成正式验收或 Task 完成结果。
 
-P2 的正式验收契约位于 [`../p2/verification.py`](../p2/verification.py)，区分预期/实际检查、失败/未知/未执行报告和当前适用性。Hub 仅开放查询、受版本约束的通过证据选择和明确旧引用的影响失效；不接受公开上传的成功报告或执行参数，见[正式验收说明](../../../docs/development/p2-verification.md)。
+P2 的正式验收契约位于 [`../p2/verification.py`](../p2/verification.py)，区分预期/实际检查、失败/未知/未执行报告和当前适用性。Hub 仅开放查询、受版本约束的通过证据选择和明确旧引用的影响失效；不接受公开上传的成功报告或执行参数，见[正式验收说明](../../../docs/development/p2-verification.md)。只读审查的内部绑定、差异参数与结构化反馈位于 [`../p2/review_agent.py`](../p2/review_agent.py)，不改变 HTTP 快照或人类批准契约，见[审查说明](../../../docs/development/p2-review.md)。
 
 P2.3 的项目队列契约位于 [`../p2/merge_queue.py`](../p2/merge_queue.py)。最终候选沿原 BuildRun/正式验证类型传递，固定的 integration 尝试成为实际源码生产者；独立人类审查、当前队首及最终证据共同约束条件合入。只有已合入且适用的最终报告可进入 Task 完成及 Release/部署消费者，见[集成说明](../../../docs/development/p2-merge-queue.md)。
 

@@ -9,6 +9,7 @@ from packages.contracts.p0.core_contracts import RuntimeInput
 from packages.contracts.p0.decision_common import Contract, Digest, Identifier, Revision
 from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_kind
 from packages.contracts.p1.workspace_git import workspace_path
+from .review_agent import REVIEW_TOOL_SCHEMAS, ReviewContext
 from .verification_agent import VERIFICATION_TOOL_SCHEMAS, VerificationContext
 from .workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from .workspace_edits import WORKSPACE_EDIT_SCHEMAS
@@ -60,9 +61,12 @@ class ContextPackage(Contract):
     budget_limit: Amount
     budget_currency: Literal["USD", "CNY"]
     verification: VerificationContext | None = None
+    review: ReviewContext | None = None
 
     @model_validator(mode="after")
     def check_references(self):
+        if self.verification is not None and self.review is not None:
+            raise ValueError("agent_context_binding_conflict")
         for ref, kind in (
             (self.input_set_ref, "input_set"),
             (self.requirement_ref, "requirement"),
@@ -149,8 +153,15 @@ class RuntimeStartRequest(Contract):
                 raise ValueError("verification_context_binding_invalid")
             if set(context.tool_names) - {"task.read", *VERIFICATION_TOOL_SCHEMAS}:
                 raise ValueError("agent_role_tool_not_allowed")
+        elif context.review is not None:
+            if self.policy.role != "reviewer" or self.policy.instruction_revision != "agent-r2":
+                raise ValueError("review_context_binding_invalid")
+            if set(context.tool_names) - {"task.read", *REVIEW_TOOL_SCHEMAS}:
+                raise ValueError("agent_role_tool_not_allowed")
         elif set(context.tool_names) & VERIFICATION_TOOL_SCHEMAS.keys():
             raise ValueError("verification_context_required")
+        elif set(context.tool_names) & REVIEW_TOOL_SCHEMAS.keys():
+            raise ValueError("review_context_required")
         if self.policy.role != "developer" and (
                 {"submit_operation", *WORKSPACE_TOOL_SCHEMAS, *WORKSPACE_EDIT_SCHEMAS,
                  *WORKSPACE_ENVIRONMENT_SCHEMAS, *WORKSPACE_BUILD_SCHEMAS,

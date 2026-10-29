@@ -1,6 +1,6 @@
 # 有界 Agent Runtime
 
-实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。源码 `0.25.0` 覆盖内部 Runtime、工程工具、有界开发循环、既有 Task 页面入口和独立验证角色。固定 notes 需求的真实模型工程闭环、候选/构建结果与支持限制见 [A11 记录](../acceptance/p2/p2-1-a11.md)；验证角色的内部启动与受控阶段见[正式验收说明](p2-verification.md)，审查及返工反馈按后续计划实施。
+实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。源码 `0.26.0` 覆盖内部 Runtime、工程工具、有界开发循环、既有 Task 页面入口、独立验证和只读审查角色。固定 notes 需求的真实模型工程闭环、候选/构建结果与支持限制见 [A11 记录](../acceptance/p2/p2-1-a11.md)；验证角色的内部启动与受控阶段见[正式验收说明](p2-verification.md)，固定差异、证据及结构化反馈见[审查说明](p2-review.md)，返工链按 P2.5-01 实施。
 
 源码 `0.15.0` 在新 Run、实际请求/工具及结果提交边界读取[工作区写入权](p2-handoffs.md)。接管期间本工作项停止新推进；交还后须先复核输入，后续 Run 收到固定人工修改及差异引用，旧 Run 不恢复普通写入资格。
 

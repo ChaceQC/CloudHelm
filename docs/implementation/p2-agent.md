@@ -1,7 +1,7 @@
 # P2.1-A Agent 结构与工程循环实施映射
 
-> 修订：r12；日期：2026-10-29（Asia/Shanghai）。
-> 本说明维护 A01～A11 及 P2.5-03 的接线；当前源码 `0.25.0`、新库 head `0019_p2_history_limit`。真实开发证据见 [A11 记录](../acceptance/p2/p2-1-a11.md)，验证角色及支持限制见 [P2.5-03](../acceptance/p2/p2-5-03.md)；原失败只按各自旧输入保留，不改写历史结论。
+> 修订：r13；日期：2026-10-29（Asia/Shanghai）。
+> 本说明维护 A01～A11 及 P2.5-03/04 的接线；当前源码 `0.26.0`、新库 head `0019_p2_history_limit`。真实开发证据见 [A11 记录](../acceptance/p2/p2-1-a11.md)，验证与审查角色的支持限制分别见 [P2.5-03](../acceptance/p2/p2-5-03.md) 和 [P2.5-04](../acceptance/p2/p2-5-04.md)；原失败只按各自旧输入保留，不改写历史结论。
 
 规则归属为 [D01](../design/01-domain-collaboration.md) 的角色、Runtime、上下文与交接；权限、物理执行和正式验收分别沿用 D05、D02/D03。任务依赖与退出条件只在 [PROJECT_PLAN](../../PROJECT_PLAN.md) 维护，实际结果只在 [PROJECT_PROGRESS](../../PROJECT_PROGRESS.md) 维护。
 
@@ -20,7 +20,7 @@
 
 ## 2. 角色策略与指令模板
 
-五类角色的职责、输入输出及结束条件以 D01 §4 为准。RunPolicy 的 role 默认 developer，instruction_revision 新默认 agent-r2；显式 agent-r1 保留下列原模板与文本输出。r2 开发模板补充工具顺序、失败修复和结构化交接；绑定验证上下文的 verifier 使用固定候选、受控阶段及 VerificationHandoff，其余旧角色正文不变。角色均绑定既有 `model_config_id/model_config_revision/model_name`、工具集合和预算，经 SDK instructions 传入。同一 Session 不改变模型、角色/指令或工具包；验证还固定候选/轮次，需要变化时新建 Session。非开发角色拒绝 submit_operation 及可变工作区工具；验证只开放已绑定的固定候选读取与正式验收工具，具体输入和限制见[验收说明](../development/p2-verification.md)，不因角色名称预置额外模型、工具或常驻会话。
+五类角色的职责、输入输出及结束条件以 D01 §4 为准。RunPolicy 的 role 默认 developer，instruction_revision 新默认 agent-r2；显式 agent-r1 保留下列原模板与文本输出。r2 开发模板补充工具顺序、失败修复和结构化交接；绑定验证上下文的 verifier 使用固定候选、受控阶段及 VerificationHandoff；绑定审查上下文的 reviewer 使用固定差异、原事实及 ReviewHandoff，其余旧角色正文不变。角色均绑定既有 `model_config_id/model_config_revision/model_name`、工具集合和预算，经 SDK instructions 传入。同一 Session 不改变模型、角色/指令或工具包；验证固定候选/轮次，审查固定候选/报告，需要变化时新建 Session。非开发角色拒绝 submit_operation 及可变工作区工具；验证与审查只开放各自绑定的候选读取及证据工具，具体输入和限制分别见[验收说明](../development/p2-verification.md)和[审查说明](../development/p2-review.md)，不因角色名称预置额外模型、工具或常驻会话。
 
 共同指令 `agent-common/r1`：
 
@@ -67,7 +67,7 @@ A03 已复用现有 ContextPackage 与 EngineeringRef/InputSet，在当前权限
 |依赖、环境启停、状态/日志：A06|[环境 Gateway](../../modules/agent_runtime/workspace_environment.py) 调用 `WorkspaceDevelopmentApplication.prepare/control/query`、[开发 Runner](../../services/dev-runner/workspace_development_runtime.py)|已接通固定 notes profile、suspend/resume/dispose、真实状态及约一秒实时日志；不提供历史日志或任意命令。物理事实归 Runner，停止和保留磁盘沿原资源核对；实际证据及限制见 [A06](../acceptance/p2/p2-1-a06.md)|
 |固定候选、构建及结果：A07 已接通|[构建参数](../../packages/contracts/p2/workspace_builds.py) → [Gateway](../../modules/agent_runtime/workspace_builds.py) → 原候选/构建命令及[构建 worker](../../services/hub-worker/engineering_build.py)|候选冻结及 BuildFixedInputs、可信 notes 声明、原操作等待、真实退出/有界日志及制品引用；不以可变工作区替代固定输入。正式验证环境及事实登记仍由既有 `FixedCandidateApplication.fix` 承接|
 |项目自测/静态检查：A08 已接通|[参数](../../packages/contracts/p2/workspace_checks.py) → [Gateway](../../modules/agent_runtime/workspace_checks.py) → [固定 Runner 检查](../../services/dev-runner/workspace_checks.py)|当前 notes 工作区/环境绑定、源码摘要、固定 Python 语法/API 自测、真实退出/失败及证据摘要；短时只读直接返回，开发反馈不形成正式验收报告|
-|正式验证：P2.5-03 已接线；只读审查待 P2.5-04|固定候选读取、验证 Gateway → `VerificationApplication.run_phase/finalize/query` → 结构化 Run 交接|验证绑定受控资产/方法/环境，缺项与未知如实归档；后续审查与返工不写人类批准|
+|正式验证/只读审查：P2.5-03/04 已接线|固定候选读取、验证 Gateway → `VerificationApplication`；审查 Gateway → 固定差异、构建/验证事实和结构化 Run 交接|验证绑定受控资产/方法/环境；审查反馈有位置、理由和准确证据引用，缺项与未知如实归档，不写人类批准；见[审查说明](../development/p2-review.md)|
 |接管/交还及最终集成：既有领域|[WorkspaceHandoffApplication](../../modules/workspaces/handoffs.py)、`MergeQueueApplication`|人类主动接管/交还与准确版本；队列重新固定最终输入，构建/验证/审查消费最终提交，目标变化重新取证|
 |协作与运维：P3/P5|现有 collaboration、delivery 及 Remote Agent 边界；按对应计划接通|建议经领域命令生效；运维查询/获准动作与实际运行基线关联，不扩大为任意远程终端|
 
@@ -97,4 +97,4 @@ A09 已把下列前四步及固定候选交接接入既有 SDK 工具循环，�
 
 A02 已形成 [复用决定](../decisions/p2/agent-reuse.md)：固定 OpenHands SDK `1.58.2 / d2ee0cdea60825608c2f8906eb54e1d4d264fb42`，仅参考工程循环、动作/观察和上下文分层；保留现有 PydanticAI、Gateway、DBOS 及领域执行链，不新增 SDK 依赖或第二套历史/恢复。三项接缝静态核对及未运行的兼容范围见决定，未把参考设计写成产品能力。
 
-上下文、工程工具、有界循环及 Task 入口已接通；A11 用固定 notes 需求取得真实模型定位、修改、404→200 自测、候选、三角色构建及服务端 submitted 交接，实际固定输入和限制见 [A11](../acceptance/p2/p2-1-a11.md)。SDK 完整历史与数据库固定为 256KiB，费用/请求/控制门禁不变；后端仅允许既有 app/*.py 候选变化，独立导入检查不写最终运行层。P2.5-03 复用原正式验收入口接通验证角色，真实实例准备及完整正式验收保持独立证据边界；下一项拟为 P2.5-04 只读审查，返工、双开发协作与运维仍按各自阶段实施。
+上下文、工程工具、有界循环及 Task 入口已接通；A11 用固定 notes 需求取得真实模型定位、修改、404→200 自测、候选、三角色构建及服务端 submitted 交接，实际固定输入和限制见 [A11](../acceptance/p2/p2-1-a11.md)。SDK 完整历史与数据库固定为 256KiB，费用/请求/控制门禁不变；后端仅允许既有 app/*.py 候选变化，独立导入检查不写最终运行层。P2.5-03 复用原正式验收入口接通验证角色，真实实例准备及完整正式验收保持独立证据边界；P2.5-04 接通只读固定差异/证据及结构化反馈，不代填人类批准，实际范围见[本包记录](../acceptance/p2/p2-5-04.md)。返工、双开发协作与运维仍按各自阶段实施。

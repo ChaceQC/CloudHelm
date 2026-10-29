@@ -28,6 +28,7 @@ from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SC
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS, WORKSPACE_BUILD_WRITES
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
 from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
+from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -46,6 +47,7 @@ from .workspace_environment import WorkspaceEnvironmentGateway
 from .workspace_builds import WorkspaceBuildGateway
 from .workspace_checks import WorkspaceCheckGateway
 from .verification import VerificationGateway, resolve_verification_handoff_in_uow, verification_handoff
+from .review import ReviewGateway, resolve_review_handoff_in_uow, review_handoff
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
@@ -117,7 +119,7 @@ class AgentRuntimeApplication:
                 raise TaskBoundaryError("task_read_arguments_invalid")
             with UnitOfWork(self.engine) as uow:
                 task = read_task(uow.connection, request.runtime_input.task_id)
-                workspace_id = None if request.context.verification is not None else uow.connection.scalar(select(workspaces.c.workspace_id).where(
+                workspace_id = None if request.context.verification is not None or request.context.review is not None else uow.connection.scalar(select(workspaces.c.workspace_id).where(
                     workspaces.c.task_id == task["task_id"],
                     workspaces.c.work_item_id == request.context.work_item_id))
                 return {"task_id": task["task_id"], "state": task["state"],
@@ -180,8 +182,16 @@ class AgentRuntimeApplication:
                 return verification.call(run_id, tool_call_id, route, arguments)
 
             routes[name] = verify_candidate
+        if request.context.review is not None:
+            review = ReviewGateway(self.engine, self.candidate_reader)
+            for name in REVIEW_TOOL_SCHEMAS:
+                async def review_candidate(arguments, tool_call_id, route=name):
+                    return review.call(run_id, tool_call_id, route, arguments)
+
+                routes[name] = review_candidate
         developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
         verifier = request.context.verification is not None
+        reviewer = request.context.review is not None
         loop = DevelopmentLoop(request.policy.max_no_progress_calls)
         if developer:
             for name, route in tuple(routes.items()):
@@ -200,7 +210,8 @@ class AgentRuntimeApplication:
                 max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
                 record_response=RuntimeBilling(self.engine).record, gateway=gateway,
                 instructions=instructions,
-                developer=developer, verifier=verifier, stop_reason=loop.stop_reason if developer else None,
+                developer=developer, verifier=verifier, reviewer=reviewer,
+                stop_reason=loop.stop_reason if developer else None,
                 deferred_results=DeferredToolResults(calls=deferred_results) if deferred_results else None)
         except RuntimeFailure as error:
             failure = error.code
@@ -210,7 +221,8 @@ class AgentRuntimeApplication:
         raw = json.dumps(json.loads(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if len(raw) > 262144:
             return self._finish(run_id, None, "agent_history_limit")
-        handoff = (verification_handoff(output.verification, output.stop_reason) if verifier else
+        handoff = (review_handoff(output.review, output.stop_reason) if reviewer else
+                   verification_handoff(output.verification, output.stop_reason) if verifier else
                    loop.handoff(output.handoff, output.stop_reason))
         return self._finish(run_id, raw, failure, output.deferred, handoff)
 
@@ -236,7 +248,7 @@ class AgentRuntimeApplication:
                 and task["cancel_requested_at"] is None and task["input_status"] == "valid"
                 and task["control_revision"] == request.runtime_input.expected_task_control_revision
                 and task["input_validity_revision"] == request.runtime_input.expected_input_validity_revision)
-            if current and request.context.verification is None:
+            if current and request.context.verification is None and request.context.review is None:
                 from modules.workspaces.handoff_gates import active_handoff
 
                 workspace_id = uow.connection.scalar(select(workspaces.c.workspace_id).where(
@@ -258,20 +270,24 @@ class AgentRuntimeApplication:
                     with uow.connection.begin_nested():
                         resolve_candidate_handoff_in_uow(uow, run, request, handoff)
                         resolve_verification_handoff_in_uow(uow, run, request, handoff)
+                        resolve_review_handoff_in_uow(uow, run, request, handoff)
                 except (TaskBoundaryError, IdentityError) as error:
                     handoff = {**handoff, "reason": error.code,
-                               **({"report_id": None} if request.context.verification else {"candidate_operation_id": None})}
+                               **({"report_id": None} if request.context.verification else
+                                  {"review": None} if request.context.review else {"candidate_operation_id": None})}
             delivery_refs = ()
             if current and handoff is not None and handoff["reason"] in {
-                    "agent_candidate_ready", "agent_verification_report_ready"}:
+                    "agent_candidate_ready", "agent_verification_report_ready", "agent_review_feedback_ready"}:
                 from .operations import _digest
 
                 delivery_refs = (EngineeringRef(kind="delivery", object_id=run_id,
-                    revision="agent-verification-r1" if request.context.verification else "agent-development-r1",
+                    revision="agent-review-r1" if request.context.review else
+                        "agent-verification-r1" if request.context.verification else "agent-development-r1",
                     authority="agent-runtime",
                     digest=_digest(handoff), digest_algorithm="sha256"),)
             paused = failure is not None or handoff is not None and handoff["reason"] not in {
                 "agent_candidate_ready", "agent_verification_report_ready", "agent_verification_continue_required",
+                "agent_review_feedback_ready", "agent_review_continue_required",
                 "agent_continue_required", "request_limit_reached",
                 "turn_limit_reached", "agent_request_limit", "agent_run_deadline_exceeded"}
             state = "failed" if failure else ("succeeded" if current else "interrupted")
