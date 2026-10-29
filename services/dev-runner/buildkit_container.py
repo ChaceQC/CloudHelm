@@ -269,7 +269,7 @@ class ProductBuildBoundary(OfflineBuildKitContainer):
                 "/probe/output": (OUTPUT_BYTES, "0700")}
 
     def create(self) -> None:
-        existing = self.client.run("ps", "--all", "--quiet", "--filter", "label=cloudhelm.method")
+        existing = self.client.run("ps", "--quiet", "--filter", "label=cloudhelm.method")
         if existing.stdout.strip():
             raise ProbeFailure(self.error_prefix + "_previous_execution_requires_reconciliation")
         self._create_builder(scope=self.scope, method=self.method, binds=self._binds(), tmpfs=self._tmpfs(),

@@ -42,12 +42,13 @@ def digest(raw: bytes) -> str:
     return "sha256:" + hashlib.sha256(raw).hexdigest()
 
 
-def verify_source(source_files: Mapping[str, bytes]) -> dict:
+def verify_source(source_files: Mapping[str, bytes], *, allow_app_changes: bool = False) -> dict:
     if (not isinstance(source_files, Mapping) or set(source_files) != set(SOURCE_DIGESTS)
             or any(type(raw) is not bytes or len(raw) > MAX_SOURCE_FILE_BYTES for raw in source_files.values())):
         raise ProbeFailure("backend_source_members_or_bounds_mismatch")
     actual = {name: digest(raw) for name, raw in source_files.items()}
-    if actual != SOURCE_DIGESTS:
+    if any(actual[name] != expected for name, expected in SOURCE_DIGESTS.items()
+           if not (allow_app_changes and name.startswith("app/") and name.endswith(".py"))):
         raise ProbeFailure("backend_fixed_source_digest_mismatch")
     files = {name: {"sha256": actual[name], "bytes": len(source_files[name])}
              for name in sorted(source_files)}
@@ -88,9 +89,9 @@ def reference_inputs(source_root: Path = BACKEND) -> dict[str, bytes]:
 
 def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, source_ref: str,
                     distributions: Mapping[str, str]) -> dict:
-    """Prepare the strictly fixed candidate context."""
+    """Prepare immutable candidate bytes with fixed dependency and recipe controls."""
     source = dict(source_files)
-    receipt = verify_source(source)
+    receipt = verify_source(source, allow_app_changes=True)
     if not isinstance(source_ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,191}", source_ref):
         raise ProbeFailure("backend_source_reference_invalid")
     private_directory(directory)
@@ -113,7 +114,7 @@ def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, sourc
             child.chmod(0o500)
     context.chmod(0o500)
     return receipt | {"source_ref": source_ref, "recipe_digest": digest(recipe),
-        "recipe_variant": "fixed-notes-python-offline-r2", "derived_project_digest": digest(project)}
+        "recipe_variant": "fixed-notes-python-offline-r3", "derived_project_digest": digest(project)}
 
 
 def build_input_key(source: dict, seed: dict, base_manifest_digest: str) -> str:

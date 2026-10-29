@@ -6,7 +6,7 @@ from sqlalchemy import (
 
 from database.metadata import metadata
 
-BUSINESS_REVISION = "0017_p2_agent_entry"
+BUSINESS_REVISION = "0019_p2_history_limit"
 POSTGRESQL_VERSION_NUM = 160013
 
 runtime_baseline = Table(

@@ -1,6 +1,6 @@
 # 有界 Agent Runtime
 
-实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。本入口覆盖内部 Runtime、工程工具、有界开发循环及 A10 的既有 Task 页面入口。真实模型自主工程证据由 A11 取得。
+实际 Python 包为 `modules/agent_runtime/` 和 `modules/tool_gateway/`。本入口覆盖内部 Runtime、工程工具、有界开发循环及既有 Task 页面入口。固定 notes 需求的真实模型工程闭环、候选/构建结果与支持限制见 [A11 记录](../acceptance/p2/p2-1-a11.md)；独立验证和审查反馈仍由后续任务承接。
 
 源码 `0.15.0` 在新 Run、实际请求/工具及结果提交边界读取[工作区写入权](p2-handoffs.md)。接管期间本工作项停止新推进；交还后须先复核输入，后续 Run 收到固定人工修改及差异引用，旧 Run 不恢复普通写入资格。
 
@@ -61,7 +61,7 @@ A03 在现有内部启动入口装配可读内容，不新增 HTTP 路由或 Age
 
 例如源码片段为 `{"path":"src/main.py","digest":"sha256:<完整文件摘要>","purpose":"source","start_line":1,"max_lines":120}`。默认不装入整个仓库；每个 Context 最多 8 个显式片段、每片最多 160 行、单文件最多 64KiB、源码返回正文合计最多 32KiB，安全路径索引最多 64 条。返回真实摘要、总行数、截断与 next_start_line；续读时在下一份 Context 中指定同一来源及新起始行。规范未读完整时不得宣称已覆盖其全部约束。非空 source_prefix 尚不支持，因为当前 Git 子树视图无法保证读取前缀外的继承规范，明确拒绝。
 
-人工修改最多装入 32 项可见变更和前 8 项差异，差异正文合计 8KiB；超量、二进制和不可生成正文保留真实标记及原交还查询引用。最终 JSON prompt 上限 64KiB，超出时拒绝；不会静默丢弃需求、证据或未决项。DBOS 参数仍只有 run_id，结果仍是有界引用；经筛选正文仅进入内存请求及既有 128KiB 上限的业务 SDK 历史，不进入工作流参数/step 返回。
+人工修改最多装入 32 项可见变更和前 8 项差异，差异正文合计 8KiB；超量、二进制和不可生成正文保留真实标记及原交还查询引用。最终 JSON prompt 上限 64KiB，超出时拒绝；不会静默丢弃需求、证据或未决项。DBOS 参数仍只有 run_id，结果仍是有界引用；经筛选正文仅进入内存请求及既有 256KiB 上限的业务 SDK 历史，不进入工作流参数/step 返回。
 
 读取前检查当前 resource.read，实际模型/工具请求继续走原实时准入；权限修订改变时旧 Run 停止。非开发角色不能获得 submit_operation 或当前工作区工具；角色名称不额外授予工具或业务权限。当前不支持同一 Session 切换模型、角色/指令或工具包，需使用新 Session；自动 Epoch 切换和历史压缩留在后续接缝。
 
@@ -134,7 +134,14 @@ A07 在新的开发角色 ContextPackage 中显式授予下列内部工具；参
 
 构建请求只接受当前项目、Task 和 WorkItem 的物理候选。服务端从该候选的实际字节计算已支持的 notes 离线构建声明，固定 recipe、锁、工具链、基础镜像、运行契约及验收引用；模型不传命令、宿主路径或构建定义。声明读取在事务外，接受事务重新检查当前 Run，沿原 `accept_build` 同事务入队。构建继续读独立快照，后续工作区编辑不改变该轮输入。同 Run/tool-call/规范参数重投返回原命令，异参或跨工具复用身份拒绝。
 
+当前后端配方允许既有 `app/*.py` 文件的候选修改，实际字节摘要纳入 source manifest 与构建 input_key；其余参照文件、依赖/锁、迁移及受控配方继续固定，新增文件成员仍不在此配方支持范围。参照读取入口保持原全量摘要校验，不能用候选模式替换正式来源或验收资产。
+
+后端 OCI 内容逐文件对照同一已固定候选的实际源码摘要；运行配置、证据文件、层成员及制品摘要仍沿原规则核验。
+
+后端配方变体 `fixed-notes-python-offline-r3` 在独立 `runtime-check` 阶段导入候选应用，最终镜像从未执行候选代码的 `candidate-runtime` 层继承，只复制该检查的 JSON 结果，避免导入副作用写入最终依赖或增加运行文件。该构建检查继续属于开发证据，独立验证/安全审查由后续受控资产完成。
+
 `build.result` 限当前工作项和原命令主体，并检查当前 `resource.read`、`operation.query`；私有 journal 的 intent 必须等于原 BuildRun，读取后复核当前 Run。查询不创建 Runner、启动命令或重放未知构建。`build` 是业务记录，`diagnostics` 是读取时的原物理 journal，二者可能在构建收尾期间处于不同观察时点；不能据诊断文字提升业务状态。
+
 
 新构建在实际命令返回后保存筛选过的 stdout、stderr（按该顺序拼接），每条命令最多保留末尾 64KiB；后端运行镜像及依赖检查、前端构建分别记录真实退出码、UTC 捕获时间和截断标记。日志先按 A03 规则筛选再限长入私有文件，不保存新增原始日志；未知秘密格式仍受原筛选限制。返回页按保留文本的 UTF-8 字节偏移续读，使用 `next_offset`；可分别查询 backend/frontend。命令尚未返回、早期失败或旧构建没有日志时如实返回 unavailable，不能补造历史日志。
 
@@ -155,6 +162,8 @@ A08 在新的开发角色 ContextPackage 中显式授予 `workspace.check`。参
 
 这是开发反馈，不登记 VerificationRun、正式验收报告或 Task 完成事实。正式验收继续读取独立受控资产；工具不能修改入口、关键断言或跳过规则。当前仅支持 `notes-backend-dev-r1`；真实受管容器及完整 Agent 循环另取证，方法和限制见 [A08 记录](../acceptance/p2/p2-1-a08.md)。
 
+`notes-developer-check-r2` 将固定探针已读取的 `devmarker_status`、`devmarker_digest` 一并返回；它们不改变 health/ready/notes 的通过门槛。针对该接口的需求须另核对实际状态和期望正文摘要，不能仅据 `backend.http.status=passed` 宣称该需求通过。
+
 ## 有界开发循环
 
 A09 复用同一个 PydanticAI `Agent.run` 和现有 Gateway 路由推进开发，不建立额外调度器或循环状态机。新建开发 Session 使用 `instruction_revision=agent-r2`；明确读取需求与调用关系、最小修改和 diff、刷新环境绑定、必要检查、按实际失败修复，以及固定候选后构建/读结果的顺序。工具未获授予时不能因指令获得权限。模型文字不代替执行结果，开发检查不产生正式验收结论。
@@ -173,7 +182,9 @@ A09 复用同一个 PydanticAI `Agent.run` 和现有 Gateway 路由推进开发�
 
 每次真实 HTTP 尝试前仍经过请求记录/当前门禁，普通工具也保留原准入；无进展在下一次请求前停止，同轮请求上限同时触发时优先记录已命中的无进展原因。延迟工具仍提交 `waiting_condition`，由原 Operation 结果事务触发新 Run，并校验原 tool-call ID；不使用模型轮询推进。交接只额外保存最近 4 条工具名、调用 ID 和结果摘要，实际正文沿原 SDK 历史保存。
 
-请求/时间/用量到限时保存已实际捕获的 SDK 新消息；未知错误同样携带已有消息归档，不伪造完整模型响应或 tool return。沿用历史 128KiB、Run 结果 16KiB 等现有上限；超限仍明确失败，不提供无界归档或自动压缩。旧 `agent-r1` 保持原文本输出，停止时同样记录原因；原 Run 缺新增字段且原请求也未显式传入时按原字段形状核对摘要，同参返回原身份，异正文拒绝。既有 Session 不能切换 r1/r2，须新建 Session。
+请求/时间/用量到限时保存已实际捕获的 SDK 新消息；未知错误同样携带已有消息归档，不伪造完整模型响应或 tool return。A11 实测完整工程历史会超过原 128KiB，当前软件将 SDK 历史及数据库约束固定为 256KiB，Run 结果仍为 16KiB；超限仍明确失败，不提供无界归档或自动压缩。请求数、输出、时间和费用门禁不变，不在运行时自行扩额。旧 `agent-r1` 保持原文本输出，停止时同样记录原因；原 Run 缺新增字段且原请求也未显式传入时按原字段形状核对摘要，同参返回原身份，异正文拒绝。既有 Session 不能切换 r1/r2，须新建 Session。
+
+
 
 内部方法保留 `AgentRuntimeApplication.start`，A10 从既有 Task 页面经同事务注册接入 A09；定向方法与边界分别见 [A09 记录](../acceptance/p2/p2-1-a09.md)及 [A10 记录](../acceptance/p2/p2-1-a10.md)。真实模型工程循环由 A11 取证。
 
@@ -182,6 +193,8 @@ A09 复用同一个 PydanticAI `Agent.run` 和现有 Gateway 路由推进开发�
 传输层在每次实际 HTTP 尝试前取得 `request_record_id`，完整读取响应后立即交 `RuntimeBilling.record` 记录安全的供应商响应/请求身份、实际模型、服务档位及 usage；模型修复或重试的每个 HTTP 请求分别记录。失败/取消响应也保留其中实际提供的 usage，连接中断或没有字段时仍未知。落账失败阻断当前调用，不把该失败作为网络错误自动重发。
 
 原请求的正文摘要、顺序和预留不可变，关联结果按修订追加，同请求相同结果幂等。固定计价依据沿用 [P0 决定](../decisions/p0/admitted-runtime.md)：`default` 映射 Standard，全球文本与自定义函数没有供应商托管工具收费；金额使用 `Decimal`，绑定官方价格修订。输入总量、缓存读取、缓存写入、输出及适用模型/档位缺少必要字段时，总计算金额保持 null；不从缺失的缓存字段推定 0。兼容提供方的独立账单只有同时提供金额、币种和账单证据才保存。
+
+供应商重复发送 `x-request-id` 时，HTTP 边界按响应顺序取第一个逗号分隔的标识，避免 HTTP 客户端合并多个头后污染单标识字段；内部允许字符及长度校验继续执行，`provider_response_id` 和实际 usage 独立保留。
 
 准入实时汇总已知费用及未知预留；未知时较小账单不释放预留，较大 USD 账单继续占账。真实 usage/金额超过预登记上限仍保存事实并阻断 Task 后续模型和工具准入。
 
@@ -213,4 +226,4 @@ SDK 内部只返回新增历史消息，错误只传安全码；请求身份及�
 
 Run 成功只表示本次有界推进保存，返回 `continue_required`，不完成 Task。执行期间 Task 取消、终态或输入失效关闭新请求/工具；晚到结果只保存需复核事实。Task 控制读取实际 Run 边界和未知费用，不把技术成功当业务完成。
 
-当前源码版本为 `0.24.0`，新库 head 为 `0017_p2_agent_entry`，线性承接 `0016_p2_merge_queue`。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。
+当前源码版本为 `0.24.1`，新库 head 为 `0019_p2_history_limit`，线性承接 `0018_p2_agent_environment` 和 `0017_p2_agent_entry`。0019 将完整 SDK 历史的固定数据库边界调整为 256KiB；0018 使 worker 可沿现有 Gateway 登记开发环境/操作及推进 environment_revision，业务授权仍由原命令处理器检查。DBOS 应用继续为 `cloudhelm-hub/0.7.0`，workflow/step 顺序不变，等待续接由结果事务入队。旧安装仍不会由 initialize 自动升级；固定旧快照的受限维护入口继续固定在 `0011`，保持 recovery_required，不能直接运行新 Runtime。

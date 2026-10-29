@@ -47,8 +47,8 @@ def _layer_files(archive, receipt, expected: dict) -> dict[str, bytes]:
     return actual
 
 
-def _verify_image(store, receipt, runtime_checks: dict) -> dict:
-    expected = {"app/" + name: inputs.SOURCE_DIGESTS[name] for name in inputs.RUNTIME_SOURCE}
+def _verify_image(store, receipt, runtime_checks: dict, source_files: Mapping[str, bytes]) -> dict:
+    expected = {"app/" + name: inputs.digest(source_files[name]) for name in inputs.RUNTIME_SOURCE}
     expected["backend-result.json"] = None
     with store.open_archive(receipt.storage_id) as stream, tarfile.open(fileobj=stream, mode="r:") as archive:
         configuration = json.load(archive.extractfile("blobs/sha256/" + receipt.config.digest[7:]))["config"]
@@ -148,7 +148,7 @@ def build_backend(client, operation_id: str, directory: Path, seed_root: Path,
                 or receipt.config.digest != output["exporter_config_digest"]
                 or content_store.query(receipt.storage_id) != receipt):
             raise ProbeFailure("backend_exporter_and_artifact_identity_mismatch")
-        result["runtime_image_contents"] = _verify_image(content_store, receipt, output["runtime_checks"][0])
+        result["runtime_image_contents"] = _verify_image(content_store, receipt, output["runtime_checks"][0], candidate)
         result["artifact"] = receipt.model_dump(mode="json")
         result["dependencies"] = probe.dependency_evidence(manifest, seed["distributions"], source_files=candidate)
         if verify_admitted_seed(seed_root, dependency_input, source_files=candidate) != seed:

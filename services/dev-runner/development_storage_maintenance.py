@@ -94,7 +94,10 @@ def evidence(root: int, storage_id: str, phase: str, value: dict) -> dict:
     try:
         payload = {"storage_id": storage_id, "phase": phase,
                    "observed_at": datetime.now(timezone.utc).isoformat(), **value}
-        storage.save_json(reports, storage_id + "." + phase + ".json", payload)
+        name = storage_id + "." + phase + ".json"
+        if name in os.listdir(reports):
+            name = storage_id + "." + phase + "." + uuid.uuid4().hex + ".json"
+        storage.save_json(reports, name, payload)
         return payload
     finally:
         os.close(reports)

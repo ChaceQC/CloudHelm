@@ -73,5 +73,5 @@ agent_histories = Table(
     Column("session_id", String(160), ForeignKey("cloudhelm.agent_sessions.session_id"), primary_key=True),
     Column("value_json", JSONB, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    CheckConstraint("octet_length(value_json::text) <= 131072", name="value_bounded"),
+    CheckConstraint("octet_length(value_json::text) <= 262144", name="value_bounded"),
 )

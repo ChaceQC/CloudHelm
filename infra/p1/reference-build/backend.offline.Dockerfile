@@ -14,13 +14,18 @@ COPY --from=dependencies /dependency-result.json /dependency-result.json
 COPY --from=dependencies /app/pyproject.toml /derived-pyproject.toml
 COPY --from=dependencies /app/uv.lock /derived-uv.lock
 
-FROM pythonbase AS runtime
+FROM pythonbase AS candidate-runtime
 WORKDIR /app
 COPY --from=dependencies /app/.venv ./.venv
 ENV PATH="/app/.venv/bin:${PATH}" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-ARG CLOUDHELM_BUILD_INPUT_KEY
 RUN --network=none --mount=type=bind,source=.,target=/source,readonly \
-    cp /source/pyproject.toml /source/uv.lock /source/.python-version /source/alembic.ini /app/ && cp -R /source/app /source/migrations /app/ && \
+    cp /source/pyproject.toml /source/uv.lock /source/.python-version /source/alembic.ini /app/ && cp -R /source/app /source/migrations /app/
+
+FROM candidate-runtime AS runtime-check
+ARG CLOUDHELM_BUILD_INPUT_KEY
+RUN --network=none \
     .venv/bin/python -I -c 'import sys; sys.path.insert(0,"/app"); import app.main,os,json; from alembic.config import Config; from alembic.script import ScriptDirectory; head=ScriptDirectory.from_config(Config("/app/alembic.ini")).get_current_head(); paths=set(app.main.app.openapi()["paths"]); assert {"/health","/ready","/api/notes"} <= paths; r={"python":".".join(map(str,sys.version_info[:3])),"build_input_key":os.environ["CLOUDHELM_BUILD_INPUT_KEY"],"migration_head":head,"backend_imported":True,"database_unconfigured":app.main.app.state.engine is None,"no_ipv4_routes":len(open("/proc/net/route").read().splitlines())==1,"control_paths_absent":all(not os.path.exists(p) for p in ("/var/run/docker.sock","/run/docker.sock","/probe/context","/probe/python-seed","/app/.git","/wheelhouse"))}; open("/backend-result.json","w",encoding="utf-8").write(json.dumps(r,sort_keys=True)+"\n"); print("CLOUDHELM_BACKEND_RUNTIME="+json.dumps(r,sort_keys=True),flush=True)'
+FROM candidate-runtime AS runtime
+COPY --from=runtime-check /backend-result.json /backend-result.json
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

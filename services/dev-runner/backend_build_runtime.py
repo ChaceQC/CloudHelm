@@ -31,7 +31,7 @@ def _facts(output: str, prefix: str) -> list:
 
 
 def _cached_runtime_check(output: str) -> bool:
-    identifiers = set(re.findall(r"#(\d+) \[runtime \d+/\d+\] RUN .*CLOUDHELM_BACKEND_RUNTIME=", output))
+    identifiers = set(re.findall(r"#(\d+) \[(?:runtime|runtime-check) \d+/\d+\] RUN .*CLOUDHELM_BACKEND_RUNTIME=", output))
     return any(re.search(r"(?m)^#" + number + r" CACHED\s*$", output) for number in identifiers)
 
 

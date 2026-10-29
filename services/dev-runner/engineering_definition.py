@@ -50,7 +50,7 @@ def _reference(name, reference):
 def definition_and_frontend_for_candidate(
         files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> tuple[BuildDefinition, VerifiedFrontendSource]:
     """Fix the definition and retain its verified frontend candidate for the builder."""
-    verify_backend(split_sources(files, "backend"))
+    verify_backend(split_sources(files, "backend"), allow_app_changes=True)
     frontend = VerifiedFrontendSource.from_inputs(split_sources(files, "frontend"))
     if "compose.yaml" not in files:
         raise WorkspaceFileError("build_candidate_compose_missing")

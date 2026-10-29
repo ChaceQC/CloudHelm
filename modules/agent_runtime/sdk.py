@@ -103,7 +103,7 @@ class _AdmittedTransport(httpx.AsyncBaseTransport):
         input_details = input_details if isinstance(input_details, dict) else {}
         payload = {
             "provider_response_id": data.get("id"),
-            "provider_request_id": response.headers.get("x-request-id"),
+            "provider_request_id": next(iter(response.headers.get_list("x-request-id", split_commas=True)), None),
             "response_model": data.get("model"),
             "service_tier": data.get("service_tier"),
             "usage": {

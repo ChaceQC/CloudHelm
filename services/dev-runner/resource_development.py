@@ -201,7 +201,10 @@ class DevelopmentBoundary(DockerScratchBoundary):
                 raise ValueError("resource_development_daemon_boundary_mismatch")
             for item in containers:
                 value = engine("GET", "/containers/" + item["Id"] + "/json")
-                if value["HostConfig"]["CgroupParent"] != self._unit(request):
+                state = value["State"]
+                can_execute = (state["Running"] or state["Pid"] != 0
+                               or value["HostConfig"]["RestartPolicy"]["Name"] not in {"", "no"})
+                if can_execute and value["HostConfig"]["CgroupParent"] != self._unit(request):
                     raise ValueError("resource_development_child_outside_envelope")
         pids = []
         for name in (self._service(request), self._containerd_service(request)):

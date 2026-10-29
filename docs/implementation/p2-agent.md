@@ -1,7 +1,7 @@
 # P2.1-A Agent 结构与工程循环实施映射
 
-> 修订：r10；日期：2026-10-29（Asia/Shanghai）。
-> 本说明维护 A01/A02 决定、A03 上下文、A04/A05 文件、A06 环境、A07 构建、A08 自测、A09 有界开发循环及 A10 Task 入口；A10 入口为 `dev / 1b51fa0`、交付源码 `0.24.0`。真实受管环境与完整角色循环按各自固定输入取证；A06 的旧归档资源前置仍保留，见 [A06 记录](../acceptance/p2/p2-1-a06.md)。
+> 修订：r11；日期：2026-10-29（Asia/Shanghai）。
+> 本说明维护 A01～A10 的既有接线及 A11 的受控真实工程证据；A11 入口 `dev / c5b5208`、交付源码 `0.24.1`、新库 head `0019_p2_history_limit`。当前证据见 [A11 记录](../acceptance/p2/p2-1-a11.md)；原 A06 等失败只按各自旧输入保留，不改写历史结论。
 
 规则归属为 [D01](../design/01-domain-collaboration.md) 的角色、Runtime、上下文与交接；权限、物理执行和正式验收分别沿用 D05、D02/D03。任务依赖与退出条件只在 [PROJECT_PLAN](../../PROJECT_PLAN.md) 维护，实际结果只在 [PROJECT_PROGRESS](../../PROJECT_PROGRESS.md) 维护。
 
@@ -10,7 +10,7 @@
 |现有源码|已具备的基础|本轮主线仍需补齐|
 |---|---|---|
 |[Runtime 契约](../../packages/contracts/p2/runtime.py)、[注册](../../modules/agent_runtime/registration.py)、[Task 入口](../../modules/agent_runtime/task_entry.py)|绑定 ContextPackage、RunPolicy、Session/Run 与当前输入；A10 服务端装配上下文、命令与原注册同事务入队|自动 Epoch 切换仍待后续|
-|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)、[开发交接](../../modules/agent_runtime/development.py)、[Task 面板](../../apps/desktop/src/AgentPanel.tsx)|真实有界请求、合法历史和延迟工具交接；A03～A09 工具/开发交接及 A10 启动、继续、状态/工具/等待/diff 查询|真实模型工程证据仍待 A11；独立反馈、协作和运维按 P2.5/P3/P5|
+|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)、[开发交接](../../modules/agent_runtime/development.py)、[Task 面板](../../apps/desktop/src/AgentPanel.tsx)|真实有界请求、完整合法历史和延迟工具交接；A03～A10 工具/开发交接/Task 接线及 A11 受控单 Agent 闭环|独立验证/审查反馈、协作和运维按 P2.5/P3/P5|
 |[准入](../../modules/agent_runtime/admission.py)、[费用](../../modules/agent_runtime/billing.py)、[Gateway](../../modules/tool_gateway/gateway.py)|每次实际请求和工具的当前门禁、费用及白名单路由；A04/A05 工具限当前开发工作项|后续工程工具适配继续沿用相同边界|
 |[长操作](../../modules/agent_runtime/operations.py)|Workspace 物化/文件变更/候选、开发环境和构建的原操作查询、可靠等待及新 Run 续接|其他工程操作逐项适配，不将现有 `submit_operation` 宣称为通用执行工具|
 |[工作区](../../modules/workspaces/application.py)、[环境](../../modules/workspaces/development_application.py)、[worker](../../services/hub-worker/engineering_runtime.py)|A04/A05 文件链及 A06 原环境 prepare/control/query、同事务入队和回执等待；日志/固定检查沿登记环境只读执行|完整实际循环和后续独立反馈|
@@ -97,4 +97,4 @@ A09 已把下列前四步及固定候选交接接入既有 SDK 工具循环，�
 
 A02 已形成 [复用决定](../decisions/p2/agent-reuse.md)：固定 OpenHands SDK `1.58.2 / d2ee0cdea60825608c2f8906eb54e1d4d264fb42`，仅参考工程循环、动作/观察和上下文分层；保留现有 PydanticAI、Gateway、DBOS 及领域执行链，不新增 SDK 依赖或第二套历史/恢复。三项接缝静态核对及未运行的兼容范围见决定，未把参考设计写成产品能力。
 
-上下文与指令装配已由 A03 交付，A04/A05 文件、A06 环境、A07 固定候选构建、A08 固定开发检查、A09 有界循环及 A10 Task 入口已接通；A06 真实 notes 启动的资源前置仍待原归档对象核对，未放宽门禁。下一项拟安排 A11，取得真实模型工程证据。验证/审查反馈、双开发协作及运维按 P2.5、P3、P5 的独立任务推进；本包定向方法和未验证边界见 [A10](../acceptance/p2/p2-1-a10.md)，不放行真实模型完整链路或人工验收。
+上下文、工程工具、有界循环及 Task 入口已接通；A11 用固定 notes 需求取得真实模型定位、修改、404→200 自测、候选、三角色构建及服务端 submitted 交接，实际固定输入和限制见 [A11](../acceptance/p2/p2-1-a11.md)。SDK 完整历史与数据库固定为 256KiB，费用/请求/控制门禁不变；后端仅允许既有 app/*.py 候选变化，独立导入检查不写最终运行层。下一项拟安排 P2.5-03 独立验证角色，随后按各自阶段贯通审查反馈、双开发协作及运维；本次不启动或代填这些出口。

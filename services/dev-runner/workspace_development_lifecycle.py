@@ -651,7 +651,6 @@ class WorkspaceDevelopmentController:
                     raise ProbeFailure(_failure_code(error)) from None
                 self._store_observation(session, current_operation, current_environment,
                                         intent, spec, value, runtime)
-                runtime.observations[request.operation_id] = value
                 if value.state in {"suspended", "disposed"}:
                     runtime.close()
                     with self._mutex:

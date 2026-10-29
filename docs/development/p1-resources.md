@@ -60,4 +60,6 @@ uv run --locked --offline --no-sync python -B -m services.dev-runner.resource_ho
 
 工程登记改用 `p1-engineering-registration-r2`，保留原 storage/种子引用，并填写已登记的 `resource_runner_id`、`storage_runner_id`、`storage_owner_reservation_id`。API/worker 沿原工程登记入口加载；构建和环境按稳定身份自动申请、投递并查询，缺少登记或未知旧占用时拒绝启动。旧 r1 日志只承接查询、停止和核对。
 
+复用同一受管 daemon 内容时，活跃、PID 非零或配置了自动重启的容器须属于当前 cgroup；已停止、PID=0 且禁止自动重启的历史容器不占进程额度，其磁盘仍计入原 backing owner。daemon、containerd 及当前组的内核硬限额继续逐次核对。受信任 Runner 读取本机容器库存时，保留 UID 1000 原有的本机附属组配置，切换用户的私有运行方法不得遗漏这些组。
+
 运行中调额使用新增 `POST /api/resource-reservations/{reservation_id}/adjustments`，正文为 `ResourceAdjustment`，摘要用 `adjustment_digest` 计算。相同 ID/摘要返回原结果，异输入拒绝。当前只允许记录“不变”或明确拒绝原地变更；真正更改资源须停止核对后用新身份申请。进程停止后 backing 仍全额占账，自动 GC、在线扩额及完整宿主故障恢复不在本后端的支持声明中。

@@ -23,14 +23,14 @@ WORKSPACE_RECEIPT_COLUMNS = (
 )
 WORKSPACE_DEVELOPMENT_INSERTS = {
     "api": ("workspace_development_environments", "workspace_development_environment_operations"),
-    "worker": (),
+    "worker": ("workspace_development_environments", "workspace_development_environment_operations"),
 }
 WORKSPACE_DEVELOPMENT_CONTROL_COLUMNS = (
     "environment_revision", "workspace_revision", "write_generation", "binding_json", "binding_digest",
     "source_manifest_digest", "updated_at",
 )
 WORKSPACE_DEVELOPMENT_RECEIPT_COLUMNS = (
-    "state", "data_revision", "data_generation", "runtime_fact_json", "health_probe_json",
+    "environment_revision", "state", "data_revision", "data_generation", "runtime_fact_json", "health_probe_json",
     "ready_probe_json", "stop_fact_json", "updated_at",
     "workspace_revision", "write_generation", "binding_json", "binding_digest", "source_manifest_digest",
     "original_lock_digest", "dependency_cache_key", "toolchain_json", "toolchain_digest", "migration_revision",

@@ -196,7 +196,7 @@ class AgentRuntimeApplication:
         raw = ModelMessagesTypeAdapter.dump_json([*history, *output.messages])
         # Canonical local representation is the history content identity.
         raw = json.dumps(json.loads(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        if len(raw) > 131072:
+        if len(raw) > 262144:
             return self._finish(run_id, None, "agent_history_limit")
         handoff = loop.handoff(output.handoff, output.stop_reason)
         return self._finish(run_id, raw, failure, output.deferred, handoff)

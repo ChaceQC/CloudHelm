@@ -99,7 +99,7 @@ def run_workspace_check(controller, spec, query):
             report = parse_backend_probe(process.stdout)
             details = {key: report[key] for key in (
                 "health_status", "health_digest", "ready_status", "ready_digest",
-                "notes_status", "notes_digest", "seed_verified")}
+                "notes_status", "notes_digest", "seed_verified", "devmarker_status", "devmarker_digest")}
         else:
             codes = ({90: "python_source_limit_exceeded", 91: "python_source_missing"}
                      if query.check == "backend.syntax" else HTTP_FAILURES)
@@ -109,7 +109,7 @@ def run_workspace_check(controller, spec, query):
                 details.update(json.loads(process.stdout))
         completed = exit_code in (0, 1) if query.check == "backend.syntax" else exit_code == 0 or exit_code in HTTP_FAILURES
         result = {"status": "passed" if exit_code == 0 else "failed" if completed else "unknown",
-                  "check": query.check, "method_revision": "notes-developer-check-r1",
+                  "check": query.check, "method_revision": "notes-developer-check-r2",
                   "method_digest": content_digest(script.encode("utf-8")),
                   "binding": spec.binding.model_dump(mode="json"),
                   "source_manifest_digest": source.manifest_digest,
