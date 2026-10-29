@@ -56,7 +56,10 @@ DEVELOPMENT_INSTRUCTIONS = (
     "references in the summary; human_decision_required with the specific question, object/version and "
     "impact; no_progress for repeated feedback without new evidence; otherwise continue_required with "
     "the next concrete action. Unknown operations must be reconciled under their original identity. "
-    "Never claim formal acceptance, human approval or Task completion from developer checks."
+    "Read rework notifications and preserve original issue/evidence identities. Fix the reported scope, "
+    "submit a new candidate and hand off its checks for independent re-verification/review; do not close "
+    "issues from your own checks. Never claim formal acceptance, human approval or Task completion "
+    "from developer checks."
 )
 VERIFICATION_INSTRUCTIONS = (
     "Read the exact fixed candidate, requirements and controlled acceptance method. Read candidate AGENTS.md "
@@ -185,6 +188,13 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None, candida
         if handoff_loader is None:
             raise TaskBoundaryError("agent_context_handoff_loader_unavailable")
         payload["human_changes"] = handoff_loader(payload["human_changes"])
+    if request.policy.role == "developer":
+        from modules.collaboration.rework_records import unresolved_rework
+
+        payload["rework"] = [{key: issue[key] for key in (
+            "issue_id", "source_kind", "source_id", "candidate_id", "candidate_commit", "evidence_refs",
+            "title", "reason", "severity", "path", "line", "check_ids", "previous_issue_ids", "state")}
+            for issue in unresolved_rework(uow.connection, task, work_item_id=context.work_item_id)]
     # Filter free text before it can enter model messages or persisted SDK history.
     payload = safe_context_value(payload)
     prompt = json.dumps(payload, ensure_ascii=False)

@@ -1,7 +1,7 @@
 # P2.1-A Agent 结构与工程循环实施映射
 
-> 修订：r13；日期：2026-10-29（Asia/Shanghai）。
-> 本说明维护 A01～A11 及 P2.5-03/04 的接线；当前源码 `0.26.0`、新库 head `0019_p2_history_limit`。真实开发证据见 [A11 记录](../acceptance/p2/p2-1-a11.md)，验证与审查角色的支持限制分别见 [P2.5-03](../acceptance/p2/p2-5-03.md) 和 [P2.5-04](../acceptance/p2/p2-5-04.md)；原失败只按各自旧输入保留，不改写历史结论。
+> 修订：r14；日期：2026-10-29（Asia/Shanghai）。
+> 本说明维护 A01～A11、P2.5-03/04 及 P2.5-01 的接线；当前源码 `0.27.0`、新库 head `0019_p2_history_limit`。真实开发证据见 [A11 记录](../acceptance/p2/p2-1-a11.md)，验证、审查与返工的支持限制分别见 [P2.5-03](../acceptance/p2/p2-5-03.md)、[P2.5-04](../acceptance/p2/p2-5-04.md) 和 [P2.5-01](../acceptance/p2/p2-5-01.md)；原失败只按各自旧输入保留，不改写历史结论。
 
 规则归属为 [D01](../design/01-domain-collaboration.md) 的角色、Runtime、上下文与交接；权限、物理执行和正式验收分别沿用 D05、D02/D03。任务依赖与退出条件只在 [PROJECT_PLAN](../../PROJECT_PLAN.md) 维护，实际结果只在 [PROJECT_PROGRESS](../../PROJECT_PROGRESS.md) 维护。
 
@@ -10,11 +10,11 @@
 |现有源码|已具备的基础|本轮主线仍需补齐|
 |---|---|---|
 |[Runtime 契约](../../packages/contracts/p2/runtime.py)、[注册](../../modules/agent_runtime/registration.py)、[Task 入口](../../modules/agent_runtime/task_entry.py)|绑定 ContextPackage、RunPolicy、Session/Run 与当前输入；A10 服务端装配上下文、命令与原注册同事务入队|自动 Epoch 切换仍待后续|
-|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)、[开发交接](../../modules/agent_runtime/development.py)、[Task 面板](../../apps/desktop/src/AgentPanel.tsx)|真实有界请求、完整合法历史和延迟工具交接；A03～A11 开发闭环及 P2.5-03 独立验证角色|审查/返工反馈、协作和运维按 P2.5/P3/P5|
+|[应用](../../modules/agent_runtime/application.py)、[上下文](../../modules/agent_runtime/context.py)、[SDK](../../modules/agent_runtime/sdk.py)、[开发交接](../../modules/agent_runtime/development.py)、[Task 面板](../../apps/desktop/src/AgentPanel.tsx)|真实有界请求、完整合法历史和延迟工具交接；A03～A11 开发闭环、P2.5-03/04 验证/审查及 P2.5-01 返工交接|双开发协作和运维按 P3/P5|
 |[准入](../../modules/agent_runtime/admission.py)、[费用](../../modules/agent_runtime/billing.py)、[Gateway](../../modules/tool_gateway/gateway.py)|每次实际请求和工具的当前门禁、费用及白名单路由；A04/A05 工具限当前开发工作项|后续工程工具适配继续沿用相同边界|
 |[长操作](../../modules/agent_runtime/operations.py)|Workspace 物化/文件变更/候选、开发环境和构建的原操作查询、可靠等待及新 Run 续接|其他工程操作逐项适配，不将现有 `submit_operation` 宣称为通用执行工具|
 |[工作区](../../modules/workspaces/application.py)、[环境](../../modules/workspaces/development_application.py)、[worker](../../services/hub-worker/engineering_runtime.py)|A04/A05 文件链及 A06 原环境 prepare/control/query、同事务入队和回执等待；日志/固定检查沿登记环境只读执行|完整实际循环和后续独立反馈|
-|[候选](../../modules/integration/candidates.py)、[正式验证](../../modules/integration/verification.py)、[合并队列](../../modules/integration/merge_queue.py)|固定输入与报告、项目最终集成及人类审查门禁|验证/只读审查 Agent、反馈返工链；既有领域能力不等于 Agent 已能调用|
+|[候选](../../modules/integration/candidates.py)、[正式验证](../../modules/integration/verification.py)、[合并队列](../../modules/integration/merge_queue.py)、[返工](../../modules/collaboration/rework.py)|固定输入与报告、独立验证/只读审查交接、原开发工作项返工和问题关闭依据、项目最终集成及人类审查门禁|完整产品出口仍按计划核对，不以领域接线替代真实模型及产品验收|
 
 当前 [provider](../../modules/agent_runtime/provider.py) 只接受 `default-responses / 1 / gpt-6-luna`，现有默认 Run 上限为 3 次请求、60 秒。工具除原查询/物化四条路由外，增加 `workspace.list_directory/read_file/search`、`workspace.create_file/apply_patch/diff`、环境四条路由及 `workspace.submit_candidate`、`build.request/result`、`workspace.check`，仅开发角色可操作当前工作项的受管工作区及其候选构建。产品模型配置与开发子代理配置分别管理。参数、限制及续读见 [Runtime](../development/p2-runtime.md)。
 
@@ -97,4 +97,4 @@ A09 已把下列前四步及固定候选交接接入既有 SDK 工具循环，�
 
 A02 已形成 [复用决定](../decisions/p2/agent-reuse.md)：固定 OpenHands SDK `1.58.2 / d2ee0cdea60825608c2f8906eb54e1d4d264fb42`，仅参考工程循环、动作/观察和上下文分层；保留现有 PydanticAI、Gateway、DBOS 及领域执行链，不新增 SDK 依赖或第二套历史/恢复。三项接缝静态核对及未运行的兼容范围见决定，未把参考设计写成产品能力。
 
-上下文、工程工具、有界循环及 Task 入口已接通；A11 用固定 notes 需求取得真实模型定位、修改、404→200 自测、候选、三角色构建及服务端 submitted 交接，实际固定输入和限制见 [A11](../acceptance/p2/p2-1-a11.md)。SDK 完整历史与数据库固定为 256KiB，费用/请求/控制门禁不变；后端仅允许既有 app/*.py 候选变化，独立导入检查不写最终运行层。P2.5-03 复用原正式验收入口接通验证角色，真实实例准备及完整正式验收保持独立证据边界；P2.5-04 接通只读固定差异/证据及结构化反馈，不代填人类批准，实际范围见[本包记录](../acceptance/p2/p2-5-04.md)。返工、双开发协作与运维仍按各自阶段实施。
+上下文、工程工具、有界循环及 Task 入口已接通；A11 用固定 notes 需求取得真实模型定位、修改、404→200 自测、候选、三角色构建及服务端 submitted 交接，实际固定输入和限制见 [A11](../acceptance/p2/p2-1-a11.md)。SDK 完整历史与数据库固定为 256KiB，费用/请求/控制门禁不变；后端仅允许既有 app/*.py 候选变化，独立导入检查不写最终运行层。P2.5-03 复用原正式验收入口接通验证角色，真实实例准备及完整正式验收保持独立证据边界；P2.5-04 接通只读固定差异/证据及结构化反馈，不代填人类批准，实际范围见[本包记录](../acceptance/p2/p2-5-04.md)。P2.5-01 接通问题收件、原开发会话通知及新候选的独立重验/复查关闭依据，见[返工说明](../development/p2-rework.md)；双开发协作与运维仍按各自阶段实施。

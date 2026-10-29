@@ -143,11 +143,16 @@ def read_acceptance_facts(
     reader: FactReader, task: Mapping[str, Any], inputs: CompletionInputs,
 ) -> AcceptanceFacts:
     evidence, current = _applicable_evidence(reader, task, inputs)
+    from modules.collaboration.rework_records import unresolved_rework
+
+    rework = [issue for issue in unresolved_rework(reader.connection, task) if issue["severity"] == "blocking"]
+    for issue in rework:
+        reader.block("rework_unresolved", issue["issue_id"], "rework_issue")
     checks = set(inputs.acceptance.metadata.required_check_ids) if inputs.acceptance else set()
     required_items = bounded_rows(reader.connection, select(work_items).where(
         work_items.c.task_id == task["task_id"], work_items.c.required.is_(True),
     ), "work_items_scope_too_large")
-    items_accepted = bool(required_items and inputs.row is not None)
+    items_accepted = bool(required_items and inputs.row is not None and not rework)
     if not required_items:
         reader.block("required_work_items_unaccepted")
     for item in required_items:

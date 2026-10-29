@@ -14,7 +14,7 @@
 
 模型返回[ReviewHandoff](../../packages/contracts/p2/review_agent.py)：`feedback_ready`、`human_decision_required` 或 `continue_required`，包含摘要、下一步、`findings` 和 `uncovered`。每个问题必须有相对路径、行号、blocking/advisory、标题、理由和原事实证据引用；整体输出最多 8KiB。位置及理由属于审查建议，证据引用必须来自服务端返回的准确事实，不能伪造另一候选的通过结论。
 
-服务端提交反馈前重查当前权限、控制/输入修订、固定候选与原报告，核对证据引用后把结构化反馈保存到原 Run。成功交接为 `submitted / agent_review_feedback_ready`，delivery 引用的 authority 为 `agent-runtime`、revision 为 `agent-review-r1`、object_id 为原 Run，digest 绑定交接正文。现有 Task Agent 查询可读回该反馈。P2.5-01 可据此引用原 Run、候选和问题建立返工；本包不自动创建修复工作项或关闭问题。
+服务端提交反馈前重查当前权限、控制/输入修订、固定候选与原报告，核对证据引用后把结构化反馈保存到原 Run。成功交接为 `submitted / agent_review_feedback_ready`，delivery 引用的 authority 为 `agent-runtime`、revision 为 `agent-review-r1`、object_id 为原 Run，digest 绑定交接正文。现有 Task Agent 查询可读回该反馈。源码 `0.27.0` 的 [P2.5-01 返工入口](p2-rework.md) 在同事务把问题关联原开发工作项并通知会话，关闭仍需新候选的独立验证和必要复查。
 
 审查没有工作区写入、构建、检查执行或正式验证工具。无问题反馈仍是建议，不产生 `Review.approved`、证据选择、合入或 Task 完成。既有人类审查及正式批准继续走[合并队列策略](p2-merge-queue.md)。原模型请求/费用、Run 时限与工具准入保持生效；旧未绑定请求和历史摘要兼容，使用新能力须升级 Runtime/worker。
 

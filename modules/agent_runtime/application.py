@@ -318,6 +318,12 @@ class AgentRuntimeApplication:
             if handoff is not None:
                 result["handoff"] = handoff
             uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(result_json=result))
+            if current and delivery_refs and (request.context.verification is not None or request.context.review is not None):
+                from modules.collaboration.rework import receive_run_feedback_in_uow
+
+                receipt = receive_run_feedback_in_uow(uow, run_id, run["source_command_id"])
+                result["rework"] = receipt.model_dump(mode="json")
+                uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(result_json=result))
             if current:
                 resume_ready_waits_in_uow(uow, self.client, session["session_id"])
             return result

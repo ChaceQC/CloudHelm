@@ -4,6 +4,8 @@
 
 ## 执行与报告
 
+源码 `0.27.0` 的[返工交接](p2-rework.md) 在验证 Run 提交报告时接收失败、缺项和未知问题，也支持受控调用方显式接收已有正式报告。修复使用新候选和当前完整正式验证，原受控资产、方法与报告适用性规则继续生效；不以模型自述或开发自测关闭问题。
+
 ### 独立验证角色
 
 源码 `0.25.0` 通过既有 `AgentRuntimeApplication.start` 接入 `verifier / agent-r2`，参数见[验证契约](../../packages/contracts/p2/verification_agent.py)。受控调用方在 `ContextPackage.verification` 固定 `candidate_id`、`round_id`，并可提供当下已准备的唯一 `setup`（阶段、本机 origin 和已登记准备证据）。这些属于内部可信输入，不开放 HTTP 上传，也不由模型填写。仍须使用真实持久来源命令、当前授权和原预算；当前使用验收资产登记者的 product 事实来源，另一主体不能借该来源执行。
