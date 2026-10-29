@@ -9,6 +9,7 @@ from packages.contracts.p0.core_contracts import RuntimeInput
 from packages.contracts.p0.decision_common import Contract, Digest, Identifier, Revision
 from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_kind
 from packages.contracts.p1.workspace_git import workspace_path
+from .verification_agent import VERIFICATION_TOOL_SCHEMAS, VerificationContext
 from .workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from .workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from .workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
@@ -58,6 +59,7 @@ class ContextPackage(Contract):
     permission_scopes: tuple[Identifier, ...] = Field(default=(), max_length=32)
     budget_limit: Amount
     budget_currency: Literal["USD", "CNY"]
+    verification: VerificationContext | None = None
 
     @model_validator(mode="after")
     def check_references(self):
@@ -142,6 +144,13 @@ class RuntimeStartRequest(Contract):
                 or runtime_input.input_set != context.input_set_ref
                 or runtime_input.committed_history != context.starting_history_ref):
             raise ValueError("runtime_context_binding_mismatch")
+        if context.verification is not None:
+            if self.policy.role != "verifier" or self.policy.instruction_revision != "agent-r2":
+                raise ValueError("verification_context_binding_invalid")
+            if set(context.tool_names) - {"task.read", *VERIFICATION_TOOL_SCHEMAS}:
+                raise ValueError("agent_role_tool_not_allowed")
+        elif set(context.tool_names) & VERIFICATION_TOOL_SCHEMAS.keys():
+            raise ValueError("verification_context_required")
         if self.policy.role != "developer" and (
                 {"submit_operation", *WORKSPACE_TOOL_SCHEMAS, *WORKSPACE_EDIT_SCHEMAS,
                  *WORKSPACE_ENVIRONMENT_SCHEMAS, *WORKSPACE_BUILD_SCHEMAS,

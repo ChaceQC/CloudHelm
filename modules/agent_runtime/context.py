@@ -16,6 +16,7 @@ from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
+from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
 from .admission import current_run
 from .source_context import safe_context_text
 
@@ -56,6 +57,18 @@ DEVELOPMENT_INSTRUCTIONS = (
     "the next concrete action. Unknown operations must be reconciled under their original identity. "
     "Never claim formal acceptance, human approval or Task completion from developer checks."
 )
+VERIFICATION_INSTRUCTIONS = (
+    "Read the exact fixed candidate, requirements and controlled acceptance method. Read candidate AGENTS.md "
+    "and relevant files using candidate tools; never use the mutable development workspace. Execute only the "
+    "prepared_phase through verification.run_phase, then inspect its actual checks and output digest. "
+    "The controlled executor supplies each actual setup; never invent restart/fault evidence or change assets. "
+    "For the full method the executor must prepare baseline, seed, a real restart before verify-persisted, "
+    "and a real fault before not-ready, using subsequent Runs as needed. Unprepared phases remain missing. "
+    "Use verification.finalize only when the current round is ready to close, including failed/incomplete rounds; "
+    "the report is immutable. Return VerificationHandoff with report_ready and the exact report_id, or the "
+    "specific next preparation/human decision needed. Preserve failed, missing and unknown results; "
+    "a submitted report does not mean acceptance passed, human approval or Task completion."
+)
 
 
 def safe_context_value(value):
@@ -68,13 +81,14 @@ def safe_context_value(value):
     return value
 
 
-def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
+def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None, candidate_reader=None):
     task, _, run, request, _ = current_run(uow, run_id)
     actor = actor_for_command(uow, run["source_command_id"])
     from modules.collaboration.command_support import lock_task_access
 
     lock_task_access(uow, actor, task["task_id"], "resource.read")
     context = request.context
+    verifier = context.verification is not None
     records = {}
     for name, ref in (("input_set", context.input_set_ref), ("requirement", context.requirement_ref),
                       ("acceptance", context.acceptance_assets_ref), ("source", context.source_ref)):
@@ -91,7 +105,7 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
                 record = read_registered_reference(uow.connection, task["project_id"], ref)
                 documents.append({"purpose": name, "reference": ref.model_dump(mode="json"),
                                   "content": record.metadata.model_dump(mode="json")})
-    workspace = uow.connection.execute(select(workspaces).where(
+    workspace = None if verifier else uow.connection.execute(select(workspaces).where(
         workspaces.c.task_id == task["task_id"],
         workspaces.c.work_item_id == context.work_item_id)).mappings().one_or_none()
     item = uow.connection.execute(select(work_items).where(
@@ -119,7 +133,8 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
                        "method": method.metadata.model_dump(mode="json")},
         "documents": documents,
         "workspace": dict(workspace["binding_json"]) if workspace else None,
-        "human_changes": returned_handoff_context(uow.connection, task["task_id"], context.work_item_id),
+        "human_changes": None if verifier else returned_handoff_context(
+            uow.connection, task["task_id"], context.work_item_id),
         "policy": {"role": request.policy.role, "instruction_revision": request.policy.instruction_revision,
                    "model_config_id": request.policy.model_config_id,
                    "model_config_revision": request.policy.model_config_revision,
@@ -130,16 +145,23 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
                    "budget_limit": str(context.budget_limit), "budget_currency": context.budget_currency},
         "tools": [{"name": name, "arguments": (
             (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
-             | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS)[name].model_json_schema()
+             | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS)[name].model_json_schema()
             if name in (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
-                        | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS)
+                        | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS)
             else {} if name == "task.read" else {"workspace_id": "workspace ID"} if name == "submit_operation"
             else {"operation_id": "accepted operation ID"})} for name in context.tool_names],
         "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll.",
     }
-    if source_loader is None:
+    if verifier:
+        from pathlib import Path
+        from .verification import load_verification_context_in_uow
+
+        payload["source"], payload["verification"] = load_verification_context_in_uow(
+            uow, actor, task, request, candidate_reader, Path(__file__).resolve().parents[2])
+    elif source_loader is None:
         raise TaskBoundaryError("agent_context_source_loader_unavailable")
-    payload["source"] = source_loader(task["project_id"], context.source_ref, context.source_reads)
+    else:
+        payload["source"] = source_loader(task["project_id"], context.source_ref, context.source_reads)
     if payload["human_changes"] is not None:
         if handoff_loader is None:
             raise TaskBoundaryError("agent_context_handoff_loader_unavailable")
@@ -151,5 +173,6 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
         raise TaskBoundaryError("agent_context_limit_exceeded")
     developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
     instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
-                    + ". " + (DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
+                    + ". " + (VERIFICATION_INSTRUCTIONS if verifier else
+                               DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
     return request, payload, prompt, instructions

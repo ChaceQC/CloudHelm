@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
+from pathlib import Path
 
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from sqlalchemy import select, update
@@ -26,6 +27,7 @@ from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS, WORKSPACE_BUILD_WRITES
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
+from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
 from .context import load_context_in_uow
@@ -43,6 +45,7 @@ from .workspace_edits import WorkspaceEditGateway
 from .workspace_environment import WorkspaceEnvironmentGateway
 from .workspace_builds import WorkspaceBuildGateway
 from .workspace_checks import WorkspaceCheckGateway
+from .verification import VerificationGateway, resolve_verification_handoff_in_uow, verification_handoff
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
 
@@ -51,7 +54,8 @@ class AgentRuntimeApplication:
     def __init__(self, engine, client, provider=None, *, source_loader=None, handoff_loader=None,
                  workspace_reader=None, workspace_editor=None, stage_workspace_content=None,
                  development_application=None, environment_log_reader=None,
-                 build_definition_loader=None, build_result_reader=None, workspace_check_runner=None):
+                 build_definition_loader=None, build_result_reader=None, workspace_check_runner=None,
+                 candidate_reader=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
@@ -60,6 +64,7 @@ class AgentRuntimeApplication:
         self.development_application, self.environment_log_reader = development_application, environment_log_reader
         self.build_definition_loader, self.build_result_reader = build_definition_loader, build_result_reader
         self.workspace_check_runner = workspace_check_runner
+        self.candidate_reader = candidate_reader
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
@@ -105,14 +110,14 @@ class AgentRuntimeApplication:
                 history = ModelMessagesTypeAdapter.validate_json(raw)
             deferred_results = load_deferred_results_in_uow(uow, run_id)
             request, context, prompt, instructions = load_context_in_uow(
-                uow, run_id, self.source_loader, self.handoff_loader)
+                uow, run_id, self.source_loader, self.handoff_loader, self.candidate_reader)
 
         async def task_read(arguments, tool_call_id):
             if arguments:
                 raise TaskBoundaryError("task_read_arguments_invalid")
             with UnitOfWork(self.engine) as uow:
                 task = read_task(uow.connection, request.runtime_input.task_id)
-                workspace_id = uow.connection.scalar(select(workspaces.c.workspace_id).where(
+                workspace_id = None if request.context.verification is not None else uow.connection.scalar(select(workspaces.c.workspace_id).where(
                     workspaces.c.task_id == task["task_id"],
                     workspaces.c.work_item_id == request.context.work_item_id))
                 return {"task_id": task["task_id"], "state": task["state"],
@@ -169,7 +174,14 @@ class AgentRuntimeApplication:
                 return checks.query(run_id, arguments)
 
             routes[name] = check_workspace
+        verification = VerificationGateway(self.engine, Path(__file__).resolve().parents[2], self.candidate_reader)
+        for name in VERIFICATION_TOOL_SCHEMAS:
+            async def verify_candidate(arguments, tool_call_id, route=name):
+                return verification.call(run_id, tool_call_id, route, arguments)
+
+            routes[name] = verify_candidate
         developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
+        verifier = request.context.verification is not None
         loop = DevelopmentLoop(request.policy.max_no_progress_calls)
         if developer:
             for name, route in tuple(routes.items()):
@@ -188,7 +200,7 @@ class AgentRuntimeApplication:
                 max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
                 record_response=RuntimeBilling(self.engine).record, gateway=gateway,
                 instructions=instructions,
-                developer=developer, stop_reason=loop.stop_reason if developer else None,
+                developer=developer, verifier=verifier, stop_reason=loop.stop_reason if developer else None,
                 deferred_results=DeferredToolResults(calls=deferred_results) if deferred_results else None)
         except RuntimeFailure as error:
             failure = error.code
@@ -198,7 +210,8 @@ class AgentRuntimeApplication:
         raw = json.dumps(json.loads(raw), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         if len(raw) > 262144:
             return self._finish(run_id, None, "agent_history_limit")
-        handoff = loop.handoff(output.handoff, output.stop_reason)
+        handoff = (verification_handoff(output.verification, output.stop_reason) if verifier else
+                   loop.handoff(output.handoff, output.stop_reason))
         return self._finish(run_id, raw, failure, output.deferred, handoff)
 
     def _finish(self, run_id, history, failure, deferred=None, handoff=None):
@@ -223,7 +236,7 @@ class AgentRuntimeApplication:
                 and task["cancel_requested_at"] is None and task["input_status"] == "valid"
                 and task["control_revision"] == request.runtime_input.expected_task_control_revision
                 and task["input_validity_revision"] == request.runtime_input.expected_input_validity_revision)
-            if current:
+            if current and request.context.verification is None:
                 from modules.workspaces.handoff_gates import active_handoff
 
                 workspace_id = uow.connection.scalar(select(workspaces.c.workspace_id).where(
@@ -244,17 +257,22 @@ class AgentRuntimeApplication:
                 try:
                     with uow.connection.begin_nested():
                         resolve_candidate_handoff_in_uow(uow, run, request, handoff)
+                        resolve_verification_handoff_in_uow(uow, run, request, handoff)
                 except (TaskBoundaryError, IdentityError) as error:
-                    handoff = {**handoff, "reason": error.code, "candidate_operation_id": None}
+                    handoff = {**handoff, "reason": error.code,
+                               **({"report_id": None} if request.context.verification else {"candidate_operation_id": None})}
             delivery_refs = ()
-            if current and handoff is not None and handoff["reason"] == "agent_candidate_ready":
+            if current and handoff is not None and handoff["reason"] in {
+                    "agent_candidate_ready", "agent_verification_report_ready"}:
                 from .operations import _digest
 
                 delivery_refs = (EngineeringRef(kind="delivery", object_id=run_id,
-                    revision="agent-development-r1", authority="agent-runtime",
+                    revision="agent-verification-r1" if request.context.verification else "agent-development-r1",
+                    authority="agent-runtime",
                     digest=_digest(handoff), digest_algorithm="sha256"),)
             paused = failure is not None or handoff is not None and handoff["reason"] not in {
-                "agent_candidate_ready", "agent_continue_required", "request_limit_reached",
+                "agent_candidate_ready", "agent_verification_report_ready", "agent_verification_continue_required",
+                "agent_continue_required", "request_limit_reached",
                 "turn_limit_reached", "agent_request_limit", "agent_run_deadline_exceeded"}
             state = "failed" if failure else ("succeeded" if current else "interrupted")
             uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(

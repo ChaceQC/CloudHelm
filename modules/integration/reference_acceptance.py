@@ -47,7 +47,8 @@ class CollectedPhase:
     observed_at: datetime
 
 
-def collect_reference_phase(repository, *, base_url: str, phase: str) -> CollectedPhase:
+def collect_reference_phase(repository, *, base_url: str, phase: str,
+                            timeout_seconds: float = _TIMEOUT_SECONDS) -> CollectedPhase:
     """Run one phase against a disposable local instance; caller binds setup evidence.
 
     An empty output digest means no complete, bounded output was captured. The caller
@@ -101,7 +102,7 @@ def collect_reference_phase(repository, *, base_url: str, phase: str) -> Collect
                             [sys.executable, "-I", "-S", "-X", "utf8", "-", "--base-url", origin,
                              "--phase", phase],
                             input=entry, stdout=stdout, stderr=subprocess.DEVNULL, cwd=directory,
-                            env={"LANG": "C.UTF-8"}, timeout=_TIMEOUT_SECONDS, check=False,
+                            env={"LANG": "C.UTF-8"}, timeout=min(_TIMEOUT_SECONDS, timeout_seconds), check=False,
                         )
                         exit_code = result.returncode
                     except subprocess.TimeoutExpired:

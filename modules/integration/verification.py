@@ -76,7 +76,8 @@ class VerificationApplication:
     def __init__(self, engine, control_engine, repository):
         self.engine, self.control_engine, self.repository = engine, control_engine, repository
 
-    def run_phase(self, actor, task_id, request: VerificationPhaseRequest, *, base_url, idempotency_key):
+    def run_phase(self, actor, task_id, request: VerificationPhaseRequest, *, base_url, idempotency_key,
+                  timeout_seconds=300):
         """Internal trusted runner entry, never a public endpoint accepting an origin or report.
 
         The setup producer binds the disposable instance and restart/fault preparation.
@@ -120,7 +121,8 @@ class VerificationApplication:
             _append(uow, command.command_id, task, phase_id + "-intent", "verification.phase_started", request)
             save_result(uow.connection, command, request, status_code=202, authorization=authorization.envelope)
         try:
-            collected = collect_reference_phase(self.repository, base_url=base_url, phase=request.phase)
+            collected = collect_reference_phase(self.repository, base_url=base_url, phase=request.phase,
+                                                timeout_seconds=timeout_seconds)
         except (ReferenceAssetError, ValueError):
             collected = CollectedPhase(request.phase, assets, (), (), ("verification_execution_unavailable",),
                                        None, "", datetime.now(UTC))

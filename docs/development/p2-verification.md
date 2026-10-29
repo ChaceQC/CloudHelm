@@ -4,12 +4,31 @@
 
 ## 执行与报告
 
+### 独立验证角色
+
+源码 `0.25.0` 通过既有 `AgentRuntimeApplication.start` 接入 `verifier / agent-r2`，参数见[验证契约](../../packages/contracts/p2/verification_agent.py)。受控调用方在 `ContextPackage.verification` 固定 `candidate_id`、`round_id`，并可提供当下已准备的唯一 `setup`（阶段、本机 origin 和已登记准备证据）。这些属于内部可信输入，不开放 HTTP 上传，也不由模型填写。仍须使用真实持久来源命令、当前授权和原预算；当前使用验收资产登记者的 product 事实来源，另一主体不能借该来源执行。
+
+|工具|模型参数与实际行为|
+|---|---|
+|`candidate.list_directory` / `candidate.read_file`|仅相对路径、页/行范围；从原构建的准确冻结目录读取，沿用摘要、路径、秘密过滤及字节上限，不读取活动工作区|
+|`verification.run_phase`|仅 `phase`；只执行当前受控准备的阶段，地址、证据和来源由服务端绑定，调用原 `run_phase`，保留检查 ID、失败、输出摘要和未知结果|
+|`verification.finalize`|空参数；汇总同候选/轮次的原阶段与未完成意图，调用原 `finalize`，缺项、失败、unknown、not_run 均原样保留|
+|`verification.result`|仅 `report_id`；按当前权限查询，核对准确候选/轮次并返回当前适用性及证据|
+
+验证上下文加载原需求、固定候选/InputSet、受控资产、实际方法和环境；模型输出 `VerificationHandoff`。`report_ready` 只表示报告交接，服务端重新读取原报告并核对候选、轮次和适用性后，才把结构化结果与证据引用写入 Run。模型自述不生成 passed、审查批准或 Task 完成；失败或缺项报告也可按真实状态交接。现有 Task 查询可以读取该持久交接，不新增界面或公开启动参数。
+
+四阶段顺序沿用下文。Gateway 要求前序阶段已有结果；实际重启与故障准备的证据时间必须晚于前序执行。每个 Run 只提供当下准备的一阶段，受控执行方在 seed 后实际重启、在 verify-persisted 后实际准备故障，再以新 Run 提供新证据。相同 Session 保持候选/轮次、模型/角色/工具策略和完整历史；需要不同候选/轮次时新建 Session。未准备阶段不执行，结果未知按原意图核对，不重放；关闭一轮后需重新验证时使用新轮次。同步检查的子进程超时取正式方法 300 秒上限与当前 Run 剩余时间的较小值，超时归档 unknown。
+
+当前读取适配支持既有工作区冻结候选；项目合并候选读取尚未接入，明确拒绝，不回退到活动工作区。固定候选的运行实例、真实重启及故障准备仍由受控执行方提供；现有开发实例不能冒充正式环境。本包没有新增实例调度器、部署或常驻工作流。旧无验证绑定的角色/开发请求保留原行为；旧源码不自动理解新可选字段，使用验证工具须升级 Runtime/worker。开发证据及限制见 [P2.5-03 记录](../acceptance/p2/p2-5-03.md)。
+
+### 既有受信执行入口
+
 1. 按[固定候选说明](p2-candidates.md)取得不可变候选。正式资产必须是平台受控 checkout 中已登记的固定参照修订，不能指定候选仓库中的入口或测试配置。
 2. 由受控执行方准备隔离的本机实例，将准确候选、InputSet、验证环境和准备事实绑定为已登记证据。`seed` 后的实际进程重启、`not-ready` 的真实故障准备由执行方证明；HTTP 检查本身不能证明这些准备确已发生。
 3. 受信生产者调用 `VerificationApplication.run_phase(actor, task_id, request, base_url=..., idempotency_key=...)`。`VerificationPhaseRequest` 携带当前三类修订、候选、`round_id`、生产者 `source_id`、阶段及 `setup_evidence_ref`；调用者必须匹配已启用的 integration/product 生产者，并具有当前 `fact.archive`、`resource.read` 及原构建的 `operation.query` 权限。
 4. 按 `baseline → seed → 实际重启 → verify-persisted → 实际故障准备 → not-ready` 的顺序收集四份事实。`VerificationApplication.finalize(...)` 使用同一候选/轮次的 `phase_ids` 生成不可变报告；缺项也能归档，不能被选择为通过。
 
-生产者入口是内部 Python API，不接受公开 HTTP 上传的报告、命令、执行入口或实例地址。现有 Runtime/Gateway 未增加新的自动验收调度工具。受控调用方应在现有执行边界内调用该入口；本包没有新增调度器或持久工作流。
+生产者入口是内部 Python API，不接受公开 HTTP 上传的报告、命令、执行入口或实例地址。验证角色沿上述受控 Gateway 调用该入口；实例准备仍由受控调用方负责，没有新增调度器或持久工作流。
 
 准备证据由已登记的 product 生产者提供，须满足：
 
