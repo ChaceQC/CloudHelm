@@ -1,0 +1,349 @@
+{
+  "record_revision": "p2-4-02-local-r1",
+  "business_date": "2026-10-30",
+  "source_version": "0.28.1",
+  "base_commit": "b9ab660133a2c196b16e828e74613f5c12cff900",
+  "support_granted": false,
+  "work_package_exit": "not_satisfied",
+  "tls": {
+    "management_origin": "https://manage.cloudhelm.test",
+    "preview_domain": "cloudhelm-preview.test",
+    "socket": "127.0.0.1:58443",
+    "name_resolution": "isolated Edge host-resolver rules",
+    "trust": "one ephemeral certificate SPKI pin in isolated Edge process",
+    "certificate_spki_sha256_base64": "rgzXa/MqUn4Z7tmHS9mtt57hua3fbvr6Nh6+yNDW04A=",
+    "system_dns_and_trust_store_changed": false
+  },
+  "edge": {
+    "started_at": "2026-10-29T16:40:54.530Z",
+    "finished_at": "2026-10-29T16:41:04.199Z",
+    "browser": "155.0.4283.45",
+    "runtime": "Windows Microsoft Edge",
+    "checks": [
+      {
+        "name": "real_management_document_loaded"
+      },
+      {
+        "name": "access_issued"
+      },
+      {
+        "name": "ticket_delivered_by_top_level_post"
+      },
+      {
+        "name": "strict_host_only_cookie_received"
+      },
+      {
+        "name": "management_cookie_absent_from_preview"
+      },
+      {
+        "name": "strict_cookie_same_origin_entry_works"
+      },
+      {
+        "name": "upstream_cannot_replace_platform_cookie"
+      },
+      {
+        "name": "upstream_cannot_set_management_domain_cookie"
+      },
+      {
+        "name": "browser_has_no_tauri_ipc_or_readable_platform_cookie"
+      },
+      {
+        "name": "management_cross_origin_read_and_write_blocked"
+      },
+      {
+        "name": "service_worker_registration_denied"
+      },
+      {
+        "name": "credentials_not_persisted_to_web_storage"
+      },
+      {
+        "name": "browser_response_loss_replay_no_second_cookie"
+      },
+      {
+        "name": "platform_reserved_route_not_project_content"
+      },
+      {
+        "name": "forged_management_access_request_denied",
+        "status": 409,
+        "code": "preview_request_binding_invalid"
+      },
+      {
+        "name": "real_management_revoke_accepted"
+      },
+      {
+        "name": "existing_edge_sse_terminated_and_reconnect_denied",
+        "observed_ms": 1118.679,
+        "clock": "Windows Node performance.now observation"
+      },
+      {
+        "name": "no_secret_in_any_observed_url",
+        "request_count": 13
+      },
+      {
+        "name": "no_url_secret_components"
+      }
+    ],
+    "environment_id": "p2402-local-8",
+    "authorization_id": "preview-auth-f966bf33f54a4d388bda4c5b4ded1176",
+    "screenshots_and_traces": "not_recorded_to_exclude_transient_authentication_material"
+  },
+  "transport": {
+    "started_at": "2026-10-29T16:34:42.027532+00:00",
+    "checks": [
+      {
+        "name": "ephemeral_certificate_generated"
+      },
+      {
+        "name": "real_tls_listener_started"
+      },
+      {
+        "name": "tls_redemption_p2402-local-2"
+      },
+      {
+        "name": "lost_response_replay_denied_p2402-local-2"
+      },
+      {
+        "name": "tls_sse_started_p2402-local-2"
+      },
+      {
+        "name": "tls_sse_revoke_p2402-local-2",
+        "client_eof_observed_ms": 727.824,
+        "upstream_active": 0,
+        "authority_state": "revoking",
+        "revocation_status": "pending_time_unknown",
+        "independent_confirmations": 0,
+        "local_closures": 0,
+        "deadline_at": "2026-10-29T16:41:36.332591+00:00",
+        "revoke_requested_at": "2026-10-29T16:41:26.332591+00:00",
+        "measurement_kind": "local_CLOCK_BOOTTIME_observation_no_clock_error_certification"
+      },
+      {
+        "name": "tls_redemption_p2402-local-3"
+      },
+      {
+        "name": "lost_response_replay_denied_p2402-local-3"
+      },
+      {
+        "name": "tls_sse_started_p2402-local-3"
+      },
+      {
+        "name": "tls_sse_revoke_p2402-local-3",
+        "client_eof_observed_ms": 773.303,
+        "upstream_active": 0,
+        "authority_state": "revoking",
+        "revocation_status": "pending_time_unknown",
+        "independent_confirmations": 0,
+        "local_closures": 0,
+        "deadline_at": "2026-10-29T16:41:37.290255+00:00",
+        "revoke_requested_at": "2026-10-29T16:41:27.290255+00:00",
+        "measurement_kind": "local_CLOCK_BOOTTIME_observation_no_clock_error_certification"
+      },
+      {
+        "name": "old_instance_ticket_denied_over_tls"
+      },
+      {
+        "name": "project_upstream_has_no_platform_credential",
+        "forwarded_requests": 15
+      }
+    ],
+    "limitations": [
+      "Candidate, InputSet, artifacts, resource reservation and six-group admission are fixtures.",
+      "TLS trusts one generated SPKI in the isolated Edge process; no system trust store or hosts change.",
+      "No actual Runner environment or production/raw-port/native-preview support is granted."
+    ],
+    "binding": {
+      "candidate_ref": {
+        "kind": "candidate",
+        "object_id": "fixed-candidate-2290a32987c6461da7494dab1a684c41",
+        "revision": "p2-fixed-candidate-r1",
+        "authority": "integration",
+        "digest": "sha256:89b5c331fa2cb2fe95f9efb21deeee1d6bca2028a2b43f06daff308b710c8ca5",
+        "digest_algorithm": "sha256"
+      },
+      "input_set_ref": {
+        "kind": "input_set",
+        "object_id": "inputs-fixture",
+        "revision": "1",
+        "authority": "collaboration",
+        "digest": "sha256:0096229d8034657ec5aadc14b8651195bd1b9be2d5bc49f830aa25310aaa61f0",
+        "digest_algorithm": "sha256"
+      },
+      "artifact_ref": {
+        "kind": "artifact",
+        "object_id": "oci-1111111111111111111111111111111111111111111111111111111111111111",
+        "revision": "synthetic-content-r1",
+        "authority": "artifacts",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "digest_algorithm": "sha256"
+      },
+      "policy_ref": {
+        "kind": "policy",
+        "object_id": "resource-fixture",
+        "revision": "1",
+        "authority": "identity",
+        "digest": "sha256:9baea2fa03aba0fd91abac013fc9be60b40094ad3a35ef9a5cbe3c3a12f972e4",
+        "digest_algorithm": "sha256"
+      },
+      "environment_ids": [
+        "p2402-local-1",
+        "p2402-local-2",
+        "p2402-local-3",
+        "p2402-local-4",
+        "p2402-local-5",
+        "p2402-local-6"
+      ],
+      "proxy": {
+        "proxy_id": "local-tls-proxy",
+        "boot_id": "p2402-boot-1"
+      },
+      "upstream_kind": "actual_loopback_http_adversarial_fixture",
+      "candidate_state_kind": "database_fixture"
+    },
+    "upstream": {
+      "active": 0,
+      "closed": 3,
+      "requests": 15,
+      "platform_secret_seen": false
+    },
+    "cleanup": "complete",
+    "finished_at": "2026-10-29T16:41:29.621350+00:00"
+  },
+  "native": {
+    "recorded_at_utc": "2026-10-29T16:17:28Z",
+    "scope": "existing Windows debug main window; synthetic loopback documents; no preview route",
+    "source_commit": "b9ab660",
+    "software_version": "0.28.0",
+    "runtime": {
+      "windows_display_version": "25H2",
+      "windows_build": "26200.9168",
+      "webview2_process_product_version": "154.0.4258.62",
+      "tauri": "2.12.5",
+      "wry": "0.57.1",
+      "webview2_com": "0.39.1",
+      "rustc": "1.97.1",
+      "cargo": "1.97.1"
+    },
+    "build": {
+      "working_directory": "apps/desktop/src-tauri",
+      "command": "cargo build --locked --offline",
+      "profile": "debug",
+      "outcome": "success",
+      "executable_sha256": "309230fffa2d6b5aef315e68954cd676ace61b580aa205dd36f1ae706e897aed"
+    },
+    "method": {
+      "command_from_repository_root": "python -X utf8 .thesis-work/p2-4-02/native/main_window_probe.py",
+      "fixture_sha256": "2703db102ebd50da740ce0dbcde36d18b1a0e11db2f51a822649fcc4cf4358f5",
+      "trusted_origin": "http://127.0.0.1:14200",
+      "foreign_origin": "http://127.0.0.1:14201",
+      "flow": "launch actual debug executable with a fresh user-data directory; call hub_transition with forget=false at the debug origin; navigate to the second origin and repeat the command",
+      "no_real_session_or_credentials": true,
+      "no_tls_or_cookie_flow_exercised": true
+    },
+    "result": {
+      "isolated_profile_process_seen": true,
+      "trusted_origin_invoke_present": true,
+      "trusted_origin_hub_transition": "accepted_generation_1",
+      "foreign_navigation_completed": true,
+      "foreign_origin_invoke_present": true,
+      "foreign_origin_hub_transition": "not_allowed",
+      "profile_processes_remaining": 0,
+      "isolated_profile_removed": true
+    },
+    "fixed_inputs": {
+      "candidate": null,
+      "input_set": null,
+      "artifact": null,
+      "environment_instance": null,
+      "policy_revision": null
+    },
+    "limitations": [
+      "The existing main window navigated to the foreign loopback origin; no navigation blocking was demonstrated.",
+      "The foreign invocation was rejected with a classified not-allowed response; the probe does not identify which internal check rejected it.",
+      "Only hub_transition was exercised. This does not establish denial of every IPC command, file access, other native capabilities, popups or other schemes.",
+      "No independent preview WebView, separate preview partition, protected POST, Cookie flow, project page, fixed candidate or production endpoint exists in this probe.",
+      "No Windows Tauri preview route, Linux WebKitGTK route, external-browser route, installation, restart or human acceptance is established."
+    ],
+    "source_sha256": {
+      "apps/desktop/src-tauri/src/main.rs": "256a553be4bbcde3e89f6ca562693f47a38451fca1ee8a1e52be97acd02c5f83",
+      "apps/desktop/src-tauri/src/security.rs": "e2d4cc477a06f5eba4313ac4f30795ae896fdbcd22c1f2e4753027d1227a6761",
+      "apps/desktop/src-tauri/capabilities/main.json": "7fe22eaff8102e47c0e91a1a8fc87b6e590c5e5d1135ab27cdd1b7964703d261",
+      "apps/desktop/src-tauri/tauri.conf.json": "5e15a93fc3556e7e0b70f81f225170705010675647ff6015b3547e103c634baf",
+      "apps/desktop/src-tauri/Cargo.lock": "f1be033443f3048cb40b7f1f2de0e11e6dd5a580a208dd15ed6daa5c892ce747"
+    }
+  },
+  "network": {
+    "started_at": "2026-10-29T16:27:59.042496+00:00",
+    "scope": "Actual Docker bridge reproducing CandidatePreviewDocker Internal=true/no published ports; not a registered Runner environment.",
+    "source": "unprivileged WSL host process",
+    "ports": [
+      {
+        "target_port": 80,
+        "transport": "TCP",
+        "authentication": "absent",
+        "direct_connection_status": 200,
+        "raw_bypass_blocked": false
+      },
+      {
+        "target_port": 8000,
+        "transport": "TCP",
+        "authentication": "absent",
+        "direct_connection_status": 200,
+        "raw_bypass_blocked": false
+      },
+      {
+        "target_port": 5173,
+        "transport": "TCP",
+        "authentication": "absent",
+        "direct_connection_status": 200,
+        "raw_bypass_blocked": false
+      },
+      {
+        "target_port": 5432,
+        "transport": "TCP",
+        "authentication": "absent",
+        "direct_connection_status": 200,
+        "raw_bypass_blocked": false
+      }
+    ],
+    "resources": {
+      "memory_bytes": 67108864,
+      "pids": 32
+    },
+    "network": {
+      "internal": true,
+      "ipv6_enabled": false,
+      "published_port_count": 0,
+      "address_family": "IPv4"
+    },
+    "cleanup": "complete",
+    "finished_at": "2026-10-29T16:28:02.146904+00:00",
+    "support_granted": false,
+    "conclusion": "Internal bridge and absence of published ports alone do not restrict unprivileged host callers. Actual per-caller ACL remains required."
+  },
+  "proxy_record": "# P2.4-02 E02 本机代理窄范围记录\n\n- 源码入口：Git `b9ab660133a2c196b16e828e74613f5c12cff900` 加当前 `services/hub-api/preview_proxy.py` 工作树修改；代理文件 SHA-256 `43fe2363d5314c5a61f32b2cef14502d908cf81586d39bc679ba630c64110584`，未修改的 `preview_headers.py` SHA-256 `c0df57b7e3d6ff2ded1a9ef9b709ddea797b87736175c2e35764270ea9cff653`。\n- 一次性方法：`check_proxy.py` SHA-256 `0ccea63d392e861f3cd07edc80f5e2b006661b926e870cad91dcd168804e081d`；命令 `wsl.exe -d Ubuntu-24.04 --cd /mnt/e/Project/CloudHelm -- env PYTHONPATH=. .venv/bin/python .thesis-work/p2-4-02/proxy/check_proxy.py`。\n- 环境：Ubuntu-24.04、WSL2 内核 `6.18.33.2-microsoft-standard-WSL2`、Python `3.12.13`、httpx `0.28.1`、Uvicorn `0.54.0`、Uvicorn h11。客户端、代理和上游均为同机真实 IPv4 回环 socket；ASGI scope 注入 `https`，没有 TLS；授权、会话、撤销记录、身份和确认丢失均为合成夹具，不访问实际业务数据库。无真实票据、Cookie 或配置密钥。\n- 初测 UTC `2026-10-29T16:16:27.552216+00:00` 至 `2026-10-29T16:16:38.867414+00:00`：受控查询长于 2 秒时，从最后一次有效控制到封闭入口实测 `3002 ms`。一次轮询等待 1 秒加原 2 秒调用超时耗尽 3 秒，已将控制轮询调用超时改为 1.5 秒，其他调用仍为 2 秒。\n- 复测 UTC `2026-10-29T16:18:07.491327+00:00` 至 `2026-10-29T16:18:17.711302+00:00`：普通长 HTTP 与 SSE 从夹具撤销至两端 EOF 均 `899 ms`，从封闭入口到最后 EOF `1 ms`，新请求 `403`。控制查询与授权查询均模拟长于 2 秒并失败，从最后有效控制到封闭 `2502 ms`，封闭后客户端和上游 EOF 均 `1 ms`；控制不可用时没有本地关闭报告。这是一次本机实测，并未覆盖调度/时钟误差、全局 10 秒或严格时间保证。\n- 本地关闭事实的响应在模拟提交后丢失，原运行重投两次且事实相同；未测试真实数据库持久化和独立全局确认。重启以新启动代次面对同一代理 ID 的旧代次未决撤销，旧授权请求 `403`，未接触上游，也未由新代次替旧代次报告。\n- 明确失败边界：使用真实回环 socket 的洪泛上游与停止读取的客户端，封闭后 `2100 ms` 时上游连接已关闭，但代理连接仍登记；Uvicorn 下游 transport `closing=false`、`write_paused=true`、写缓冲 `98549` 字节，客户端 EOF 未观察到，未报告本地关闭。该场景不满足 2 秒两端关闭；保留待确认，不能认定全局撤销生效或放行相应支持路线。\n- 客户端进程、Hub 认证与存储、真实 DNS/TLS、网络隔离、独立入口、全局确认和生产环境均不在此方法覆盖范围；没有运行既有 worker、工程服务或整机重启。UTF-8 读取和 Python AST 检查及 `git diff --check` 通过。\n",
+  "source_sha256": {
+    "services/hub-api/preview_page.py": "50b6d310468fd9cfb1ea6449cb1c0c44ec4ad8ffc909f1ec91a43368ccc167b2",
+    "services/hub-api/preview_proxy.py": "43fe2363d5314c5a61f32b2cef14502d908cf81586d39bc679ba630c64110584",
+    "services/hub-api/preview_headers.py": "c0df57b7e3d6ff2ded1a9ef9b709ddea797b87736175c2e35764270ea9cff653",
+    "modules/workspaces/preview_access.py": "7825884de4b5ef6bd542d1c04c61890ffcf0e98cace16661dc31b60622426b7d",
+    "modules/workspaces/preview_environments.py": "921548af42dce665c5721a9cc42d23abdde1579efe6176836a91e6078a37c6de",
+    "packages/contracts/p0/preview_contracts.py": "9709f3110a2781592256575b151a7090c8093d9af9078cc0246dfb66d9dcbb6c",
+    "packages/contracts/p2/previews.py": "0c6386c912b4f0cb6ddb37e9a52e626a6fe3f02e4aea6fce90036ea7b47d580c",
+    "pyproject.toml": "d8233741855a0cabbca75da5bbb3dd7290f2c10fc691193529e2497915b9fc17",
+    "uv.lock": "d2519f14d225cb4c0ebe84d2b1d6749c815c084f2b9e87ff16a803c660d6b815",
+    "apps/desktop/src-tauri/tauri.conf.json": "24bfbf53a3b27c4d5fa8c9b658280a54d78250d6eb4b33f3d1a11a73efcee528"
+  },
+  "method_sha256": {
+    ".thesis-work/p2-4-02/transport.py": "dcd090c2806b63123cce6454467ab2d4595f55ba15f89ee3e9c23722dc4af151",
+    ".thesis-work/p2-4-02/edge.cjs": "d4e2cb30d1bda9057e89a520d42462cf78fbe4cdbd08d969dbfed9cbbbd9eeea",
+    ".thesis-work/p2-4-02/network_probe.py": "4b4d4793f54325ed944aff48cc16e086219d8edd79686b17c64ab38887ecc6a9",
+    ".thesis-work/p2-4-02/query_fixture.py": "64946cdee294cfba08adcd9fe911dd6d78ae8d92128d2c67939f73a99ac14d92",
+    ".thesis-work/p2-4-02/repair_fixture.py": "7e2b742a8ab55b3fb8072c4b73533c875abebd4ee335e910838ce890b59c9619",
+    ".thesis-work/p2-4-02/native/main_window_probe.py": "2703db102ebd50da740ce0dbcde36d18b1a0e11db2f51a822649fcc4cf4358f5",
+    ".thesis-work/p2-4-02/proxy/check_proxy.py": "0ccea63d392e861f3cd07edc80f5e2b006661b926e870cad91dcd168804e081d",
+    ".thesis-work/p2-4-01/verify.py": "01db74bf4c1ebb3a94a928c7f733818eddbd6da8aa0a0669145f15821af26e09",
+    ".thesis-work/p2-4-01/followup.py": "34598d940bce222b85528526edd4ddcd81c9622228e8113985b8166d82433332",
+    ".thesis-work/p2-1-01/verify.py": "2bd6597e2dc7a8fff8c1c6f48281e40f0964c4b36e2bc9011565e278a39eed4d",
+    ".thesis-work/p2-2-01/verify.py": "ee84687fc5b0283da8271791886e420690c1d00a9042f01b07ed0a6f6a9fab4d"
+  }
+}

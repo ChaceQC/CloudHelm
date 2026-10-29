@@ -21,7 +21,7 @@ def start_page(request: Request, environment_id: Identifier):
     if str(request.base_url).rstrip("/") != descriptor.management_origin:
         raise ApiRequestError("preview_origin_invalid", 403)
     identifier = html.escape(environment_id, quote=True)
-    page = """<!doctype html><html lang="zh-CN"><meta charset="utf-8">
+    page = r"""<!doctype html><html lang="zh-CN"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>CloudHelm 预览访问</title>
 <style>body{font:16px system-ui;max-width:680px;margin:4rem auto;padding:1rem;color:#18202c}
 label,input,button{display:block;margin:1rem 0}input{width:95%;padding:.7rem}button{padding:.65rem 1.3rem}
@@ -68,7 +68,7 @@ document.getElementById('revoke').onclick = async () => {
 </script></html>"""
     page = page.replace("<h1>", '<body data-environment="' + identifier + '" data-domain="' +
                         html.escape(descriptor.preview_domain, quote=True) + '"><h1>', 1)
-    return HTMLResponse(page, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
+    return HTMLResponse(page, headers={"Cache-Control": "no-store", "Referrer-Policy": "strict-origin",
         "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
                                    "connect-src 'self'; form-action https://*." + descriptor.preview_domain +
                                    "; base-uri 'none'; frame-ancestors 'none'"})

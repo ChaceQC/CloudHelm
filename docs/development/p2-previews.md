@@ -1,6 +1,6 @@
 # 预览与可选人测
 
-本说明对应源码 `0.28.0`、新隔离库迁移 `0020_p2_previews`。工作流应用独立保持 `cloudhelm-hub/0.7.0`。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定](../decisions/p0/preview-access.md)；开发验证及支持限制见 [P2.4-01 记录](../acceptance/p2/p2-4-01.md)。
+本说明对应源码 `0.28.1`、新隔离库迁移 `0020_p2_previews`。工作流应用独立保持 `cloudhelm-hub/0.7.0`。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定 r2](../decisions/p0/preview-access.md)；初始开发验证见 [P2.4-01](../acceptance/p2/p2-4-01.md)，本机 HTTPS/Edge、原生及未满足门禁见 [P2.4-02](../acceptance/p2/p2-4-02.md)。完整 P2.4-02 尚未通过，所有正式客户端路线保持关闭。
 
 ## 使用入口
 
@@ -42,6 +42,10 @@ Task 页的人工测试初始关闭，显示“未执行人工测试”，不会
 撤销同事务记录原截止和原代理集合，并立即阻止新签发、兑换及后续授权；已有流执行关闭。ASGI 本机关闭只记本机事实，不能证明独立 TLS 入口的外部连接已经关闭，也不能单独结束撤销或重新签发。缺独立入口确认、控制失联或缺可信计时证据时保留 `revoking/pending_time_unknown`，不得宣称满足 3 秒失联、2 秒关流或 10 秒全部确认目标。显式重新授权须先收齐原访问关闭依据。
 
 ## API 与安装边界
+
+`0.28.1` 修正管理页内嵌脚本的转义，并仅对可信管理交付页使用 `Referrer-Policy: strict-origin`，使实际 Edge 顶层 POST 保留精确的管理 Origin。兑换完成页和项目预览仍使用 no-referrer；`null` 来源继续拒绝。控制查询超时缩为 1.5 秒，为 1 秒轮询后的 3 秒控制间隔留出余量，实际支持仍以直接计时证据为准。
+
+本机取证已确认 `internal` 网络和不发布端口不足以阻止非代理宿主调用方，回压客户端的两端关闭也未满足 2 秒；当前没有独立原生预览容器与完整外部确认。因此本机 Edge 票据流程的成功不放行任何真实安装路线，不应据其填写安装描述符的六组“已验证”字段。
 
 人测入口为 `GET/POST /api/tasks/{task_id}/human-tests`、`GET /human-test-options` 和 `/api/human-tests/{session_id}` 下的 `ready/conclusion/activity/renew/yield/cancel`。所有写命令带原幂等键和当前 Task/Session 修订，回执顶层 `command_id` 复用 Desktop 日志机制。
 

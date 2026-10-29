@@ -24,8 +24,8 @@ class _Rejected(Exception):
         self.status = status
 
 
-async def _call(method, *args):
-    return await asyncio.wait_for(asyncio.to_thread(method, *args), timeout=2)
+async def _call(method, *args, timeout=2):
+    return await asyncio.wait_for(asyncio.to_thread(method, *args), timeout=timeout)
 
 
 async def _answer(scope, send, status, body=b"", headers=()):
@@ -135,7 +135,8 @@ class PreviewProxy:
         while True:
             await asyncio.sleep(1)
             try:
-                pending = await _call(access.pending_revocations, self.identity)
+                # Leave time after the one-second polling interval to close before the three-second limit.
+                pending = await _call(access.pending_revocations, self.identity, timeout=1.5)
             except Exception:
                 self.control_at = None
                 await self._seal_all()
