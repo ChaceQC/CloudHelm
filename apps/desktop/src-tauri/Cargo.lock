@@ -518,7 +518,7 @@ dependencies = [
 
 [[package]]
 name = "cloudhelm-desktop"
-version = "0.28.1"
+version = "0.29.0"
 dependencies = [
  "keyring",
  "percent-encoding",
@@ -530,6 +530,8 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tokio",
+ "webview2-com",
+ "wry",
 ]
 
 [[package]]

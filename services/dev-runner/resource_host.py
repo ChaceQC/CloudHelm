@@ -25,10 +25,12 @@ from packages.contracts.p1.resource_protocol import BACKEND, STORAGE_BACKEND
 from .resource_channel import MAX_MESSAGE, SOCKET
 from .resource_ledger import ResourceLedger
 from .resource_runtime import ResourceRunner
+from .preview_network import PROXY_CGROUP_PATTERN
 
 
 class HostConfiguration(Contract):
     registrations: tuple[LocalRunnerConfiguration, ...] = Field(min_length=1, max_length=64)
+    preview_proxy_cgroup: str | None = Field(default=None, pattern=PROXY_CGROUP_PATTERN)
 
 
 class HostRequest(Contract):
@@ -93,10 +95,10 @@ def serve(configuration, application):
         runner = ResourceRunner(ledger, boundary_for(entry, ledger))
         dispatchers[identity] = ResourceDispatcher(application, runner)
     with _host_lock():
-        _serve_dispatchers(dispatchers)
+        _serve_dispatchers(dispatchers, configuration.preview_proxy_cgroup)
 
 
-def _serve_dispatchers(dispatchers):
+def _serve_dispatchers(dispatchers, preview_proxy_cgroup=None):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
         listener.bind(SOCKET)
         identity = os.lstat(SOCKET)
@@ -130,7 +132,8 @@ def _serve_dispatchers(dispatchers):
                                 application.check_start(request.reservation_id)
                                 from .resource_network import authorize
 
-                                authorize(dispatcher.runner.boundary, resources, request.network_id)
+                                authorize(dispatcher.runner.boundary, resources, request.network_id,
+                                          preview_proxy_cgroup=preview_proxy_cgroup)
                             dispatcher.reconcile(request.reservation_id)
                             receipt = dispatcher.runner.query(request.reservation_id)
                             response = {"status": "ok", "receipt": receipt.model_dump(mode="json")}

@@ -54,6 +54,9 @@ export interface HumanTestEnvironment {
   resource_reservation_id: string | null; expires_at: string | null; reason: string | null;
   revocation_status: string | null;
   management_start_url?: string | null;
+  entry_origin?: string | null;
+  client_route?: "browser_windows_edge" | "browser_linux_chromium" | "external_windows_edge" |
+    "external_linux_chromium" | "tauri_windows_webview2" | "tauri_linux_webkitgtk" | null;
 }
 export interface DeliveryObject {
   kind: "release" | "configuration" | "environment" | "plan"; object_id: string; digest: string;

@@ -1,8 +1,9 @@
 """Current preview authorization and single-use transactional redemption."""
 
 import hashlib
+import json
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from pydantic import SecretStr
@@ -22,10 +23,11 @@ from modules.integration.human_test_tables import human_test_sessions
 from modules.sync.events import append_event
 from modules.workspaces.operations import WorkspaceError, read_workspace_row
 from modules.workspaces.preview_access_tables import preview_authorizations, preview_environments
+from modules.workspaces.preview_timing import preview_clock
 from packages.contracts.p0.decision_common import Contract, Identifier
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p0.preview_contracts import (
-    PreviewBinding, PreviewProxyClosure, PreviewRevocation, REVOKE_TIMEOUT_MS, check_client_route,
+    PreviewBinding, PreviewProxyClosure, PreviewRevocation, REVOKE_TIMEOUT_MS, check_client_route, revocation_status,
 )
 from packages.contracts.p2.human_tests import HumanTestSession
 from packages.contracts.p2.previews import (
@@ -78,14 +80,16 @@ def _save(connection, record, **columns):
     ).values(state=record.state, record_json=record.model_dump(mode="json"), **columns))
 
 
-def _request_revocation(record, at):
-    epoch = "unknown-" + uuid4().hex
+def _request_revocation(record, at, clock=preview_clock):
+    # Called before commit, so this earlier anchor includes the commit overhead.
+    started, evidence = clock.sample()
     revocation = PreviewRevocation(binding=record.binding,
         revoke_revision=record.binding.authorization_revision + 1,
         requested_at=at, deadline_at=at + timedelta(milliseconds=REVOKE_TIMEOUT_MS),
-        hub_clock_epoch=epoch, observed_hub_clock_epoch=epoch, elapsed_upper_ms=0,
-        timing_evidence_current=False, required_proxies=record.required_proxies)
-    return record.model_copy(update={"state": "revoking", "revocation": revocation})
+        hub_clock_epoch=clock.epoch, observed_hub_clock_epoch=clock.epoch, elapsed_upper_ms=0,
+        timing_evidence_current=evidence is not None, required_proxies=record.required_proxies)
+    return record.model_copy(update={"state": "revoking", "revocation": revocation,
+        "revocation_started_boottime_ns": started, "revocation_clock_evidence_digest": evidence})
 
 
 def revoke_environment_in_uow(uow, environment_id, now=None):
@@ -183,8 +187,9 @@ def _current(uow, actor, task, environment, *, record=None):
 
 
 class PreviewAccessApplication:
-    def __init__(self, engine, control_engine, *, proxy_identity=None):
+    def __init__(self, engine, control_engine, *, proxy_identity=None, clock=preview_clock):
         self.engine, self.control_engine, self.proxy_identity = engine, control_engine, proxy_identity
+        self.clock = clock
 
     def environment_for_origin(self, target_origin):
         with UnitOfWork(self.control_engine) as uow:
@@ -291,7 +296,7 @@ class PreviewAccessApplication:
             lock_task_access(uow, actor, environment.task_id, "resource.read")
             if actor.principal.kind != "human" or actor.principal.subject_id != initial.binding.subject_id:
                 raise WorkspaceError("preview_authorization_not_found", status_code=404)
-            return _authorization(uow.connection, authorization_id)[1]
+            return self.clock.observe(_authorization(uow.connection, authorization_id)[1])
 
     def revoke(self, actor, authorization_id, key):
         if actor.principal.kind != "human" or actor.authentication_source != "device_session":
@@ -313,7 +318,7 @@ class PreviewAccessApplication:
             if existing is not None:
                 return record
             if record.state == "active":
-                record = _request_revocation(record, _now(uow.connection))
+                record = _request_revocation(record, _now(uow.connection), self.clock)
                 _save(uow.connection, record)
                 append_event(uow.connection, command_id=command.command_id, project_id=task["project_id"],
                     aggregate_kind="preview_authorization", aggregate_id=authorization_id, aggregate_version=2,
@@ -325,7 +330,7 @@ class PreviewAccessApplication:
         with UnitOfWork(self.control_engine) as uow:
             rows = uow.connection.scalars(select(preview_authorizations.c.record_json).where(
                 preview_authorizations.c.state == "revoking"))
-            records = (PreviewAuthorizationRecord.model_validate(row) for row in rows)
+            records = (self.clock.observe(PreviewAuthorizationRecord.model_validate(row)) for row in rows)
             return tuple(record for record in records if any(
                 item.proxy_id == proxy.proxy_id for item in record.revocation.required_proxies))
 
@@ -338,18 +343,61 @@ class PreviewAccessApplication:
             if record.revocation is None or proxy not in record.revocation.required_proxies:
                 raise WorkspaceError("preview_proxy_closure_binding_invalid")
             existing = next((item for item in record.local_closures if item.proxy == proxy), None)
-            if existing is not None and existing != fact:
+            if existing is not None and existing.model_copy(update={"transport_receipt_digest": None}) != fact:
                 raise WorkspaceError("preview_proxy_closure_conflict")
             closures = record.local_closures if existing is not None else (*record.local_closures, fact)
             record = record.model_copy(update={"local_closures": closures})
             _save(uow.connection, record)
             return record
 
+    def record_proxy_transport_closure(self, authorization_id, proxy, receipt):
+        """Only the controlled TLS listener's physical receipt can close its external route."""
+        owner = receipt["transport_owner"]
+        denied, closed = receipt["denied"], receipt["closed"]
+        if (not owner["external_tls"] or owner["started"] is None
+                or proxy != self.proxy_identity or receipt["client_connections"] != 0
+                or receipt["upstream_connections"] != 0
+                or not owner["started"]["boottime"] <= denied["boottime"] <= closed["boottime"]):
+            raise WorkspaceError("preview_transport_closure_invalid")
+        for connection in receipt["connections"]:
+            downstream, upstream = connection["downstream"], connection["upstream"]
+            if (not downstream["external_tls"] or downstream["connection_lost"] is None
+                    or upstream is not None and upstream["descriptor_closed"] is None):
+                raise WorkspaceError("preview_transport_closure_invalid")
+        digest = "sha256:" + hashlib.sha256(json.dumps(receipt, sort_keys=True,
+            separators=(",", ":")).encode("utf-8")).hexdigest()
+        with UnitOfWork(self.engine) as uow:
+            _, record = _authorization(uow.connection, authorization_id, lock=True)
+            revocation = record.revocation
+            if revocation is None or proxy not in revocation.required_proxies:
+                raise WorkspaceError("preview_proxy_closure_binding_invalid")
+            previous = next((item for item in record.local_closures if item.proxy == proxy), None)
+            fact = PreviewLocalClosure(proxy=proxy, denied_at=datetime.fromisoformat(denied["utc"]),
+                closed_at=datetime.fromisoformat(closed["utc"]), client_connections=0,
+                upstream_connections=0, transport_receipt_digest=digest)
+            if previous is not None and previous.transport_receipt_digest is not None and previous != fact:
+                raise WorkspaceError("preview_proxy_closure_conflict")
+            if previous != fact:
+                record = record.model_copy(update={"local_closures": tuple(
+                    item for item in record.local_closures if item.proxy != proxy) + (fact,)})
+                _save(uow.connection, record)
+            existing = next((item for item in revocation.closures if item.proxy == proxy), None)
+            if existing is not None:
+                return record
+            observed = self.clock.observe(record)
+            closure = PreviewProxyClosure(proxy=proxy, binding=record.binding,
+                revoke_revision=revocation.revoke_revision, hub_clock_epoch=revocation.hub_clock_epoch,
+                received_elapsed_upper_ms=observed.revocation.elapsed_upper_ms, new_access_denied=True,
+                all_routes_closed=True, sessions_disabled=True, remaining_client_connections=0,
+                remaining_upstream_connections=0, denied_at=fact.denied_at, connections_closed_at=fact.closed_at)
+        return self.confirm_proxy_closure(authorization_id, closure)
+
     def confirm_proxy_closure(self, authorization_id, closure: PreviewProxyClosure):
         with UnitOfWork(self.engine) as uow:
             _, record = _authorization(uow.connection, authorization_id, lock=True)
             if record.revocation is None:
                 raise WorkspaceError("preview_proxy_closure_binding_invalid")
+            record = self.clock.observe(record)
             revocation = record.revocation
             previous = next((item for item in revocation.closures if item.proxy == closure.proxy), None)
             if previous is not None and previous != closure:
@@ -359,12 +407,7 @@ class PreviewAccessApplication:
                     "closures": (*revocation.closures, closure),
                     "elapsed_upper_ms": max(revocation.elapsed_upper_ms, closure.received_elapsed_upper_ms)})
                 record = record.model_copy(update={"revocation": revocation})
-            expected = set(revocation.required_proxies) | set(revocation.additional_possible_proxies)
-            closed = {item.proxy for item in revocation.closures
-                      if item.new_access_denied and item.all_routes_closed and item.sessions_disabled
-                      and item.remaining_client_connections == item.remaining_upstream_connections == 0
-                      and item.denied_at is not None and item.connections_closed_at is not None}
-            if closed == expected:
+            if revocation_status(revocation) in {"effective", "effective_late"}:
                 record = record.model_copy(update={"state": "revoked"})
             _save(uow.connection, record)
             return record

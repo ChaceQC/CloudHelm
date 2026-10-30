@@ -14,6 +14,7 @@ from packages.contracts.p1.development_environment import (
 from .artifact_environment_docker import engine
 from .resource_development import PREVIEW_ENVELOPE
 from .toolchain import ProbeFailure
+from .preview_network import IPV6_DISABLED, addresses
 from .workspace_development_journal import WorkspaceDevelopmentJournal
 
 
@@ -95,12 +96,14 @@ class DevelopmentPreview:
     def _target(runtime, binding):
         docker = runtime.docker
         docker.verify_container("backend")
+        binding.authorize_network(docker.network_id)
         value = docker.inspect("backend")
         network = engine("GET", "/networks/" + docker.network_id)
         labels = network.get("Labels") or {}
         if (network.get("Id") != docker.network_id or network.get("Internal") is not True
                 or network.get("EnableIPv6") is not False
                 or labels.get("cloudhelm.resource-binding") != binding.binding
+                or value["HostConfig"].get("Sysctls") != IPV6_DISABLED
                 or value["HostConfig"].get("PortBindings")):
             raise ProbeFailure("preview_development_network_unconfirmed")
         endpoints = [item for item in value["NetworkSettings"]["Networks"].values()
@@ -113,6 +116,8 @@ class DevelopmentPreview:
         except (KeyError, ValueError):
             raise ProbeFailure("preview_development_target_unconfirmed") from None
         if (not isinstance(address, IPv4Address) or address != registered
+                or str(address) != addresses(network)["backend"]
+                or endpoints[0].get("GlobalIPv6Address") or endpoints[0].get("IPv6Gateway")
                 or not any(address in private for private in _PRIVATE_NETWORKS)):
             raise ProbeFailure("preview_development_target_unconfirmed")
         return {"address": str(address), "port": 8000, "protocol": "http",

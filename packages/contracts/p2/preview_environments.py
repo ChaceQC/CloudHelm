@@ -4,6 +4,7 @@ from pydantic import Field
 
 from packages.contracts.p0.decision_common import Contract, Identifier, Revision
 from packages.contracts.p0.engineering_contracts import EngineeringRef
+from packages.contracts.p0.preview_contracts import ClientRouteName
 from packages.contracts.p2.human_tests import HumanTestVersionGuard
 
 
@@ -29,6 +30,8 @@ class PreviewEnvironmentView(Contract):
     reason: str | None = None
     revocation_status: str | None = None
     management_start_url: str | None = None
+    entry_origin: str | None = None
+    client_route: ClientRouteName | None = None
 
 
 class PreviewEnvironmentResult(Contract):

@@ -12,7 +12,7 @@ def _rule(interface, comment):
     return ["-i", interface, "-o", interface, "-m", "comment", "--comment", comment, "-j", "ACCEPT"]
 
 
-def authorize(boundary, request, network_id):
+def authorize(boundary, request, network_id, *, preview_proxy_cgroup=None):
     if not re.fullmatch(r"[0-9a-f]{64}", network_id):
         raise ValueError("resource_network_identity_invalid")
     with use_socket(boundary.socket(request)):
@@ -23,6 +23,11 @@ def authorize(boundary, request, network_id):
             or (network.get("Labels") or {}).get("cloudhelm.resource-binding") != binding
             or (network.get("Options") or {}).get("com.docker.network.bridge.name", interface) != interface):
         raise ValueError("resource_network_binding_mismatch")
+    if request.hard_limits.preview_slots == 1:
+        from .preview_network import authorize as authorize_preview
+
+        authorize_preview(network, binding, preview_proxy_cgroup)
+        return
     index = int((Path("/sys/class/net") / interface / "ifindex").read_text(encoding="utf-8"))
     comment = f"cloudhelm:{binding}:{network_id}:{index}"
     rule = _rule(interface, comment)
@@ -34,6 +39,9 @@ def authorize(boundary, request, network_id):
 
 
 def release(binding):
+    from .preview_network import release as release_preview
+
+    release_preview(binding)
     result = command(["/usr/sbin/iptables", "-w", "2", "-S", "FORWARD"])
     for line in result.stdout.decode("utf-8").splitlines():
         values = shlex.split(line)

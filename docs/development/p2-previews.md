@@ -1,6 +1,6 @@
 # 预览与可选人测
 
-本说明对应源码 `0.28.1`、新隔离库迁移 `0020_p2_previews`。工作流应用独立保持 `cloudhelm-hub/0.7.0`。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定 r2](../decisions/p0/preview-access.md)；初始开发验证见 [P2.4-01](../acceptance/p2/p2-4-01.md)，本机 HTTPS/Edge、原生及未满足门禁见 [P2.4-02](../acceptance/p2/p2-4-02.md)。完整 P2.4-02 尚未通过，所有正式客户端路线保持关闭。
+本说明对应源码 `0.29.0`、新隔离库迁移 `0020_p2_previews`。工作流应用独立保持 `cloudhelm-hub/0.7.0`。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定 r2](../decisions/p0/preview-access.md)；初始开发验证见 [P2.4-01](../acceptance/p2/p2-4-01.md)，上轮边界见 [P2.4-02](../acceptance/p2/p2-4-02.md)，本轮端口ACL、物理关流、回执与原生证据见[收尾记录](../acceptance/p2/p2-4-02-followup.md)。整体退出条件尚未齐，正式客户端路线保持关闭。
 
 ## 使用入口
 
@@ -45,7 +45,13 @@ Task 页的人工测试初始关闭，显示“未执行人工测试”，不会
 
 `0.28.1` 修正管理页内嵌脚本的转义，并仅对可信管理交付页使用 `Referrer-Policy: strict-origin`，使实际 Edge 顶层 POST 保留精确的管理 Origin。兑换完成页和项目预览仍使用 no-referrer；`null` 来源继续拒绝。控制查询超时缩为 1.5 秒，为 1 秒轮询后的 3 秒控制间隔留出余量，实际支持仍以直接计时证据为准。
 
-本机取证已确认 `internal` 网络和不发布端口不足以阻止非代理宿主调用方，回压客户端的两端关闭也未满足 2 秒；当前没有独立原生预览容器与完整外部确认。因此本机 Edge 票据流程的成功不放行任何真实安装路线，不应据其填写安装描述符的六组“已验证”字段。
+`0.29.0` 为实际预览槽接入每实例宿主/转发ACL。root ResourceHost 的私有登记可添加 `preview_proxy_cgroup: "system.slice/<固定>.service"`；实际代理出站进程须由该root控制的systemd服务启动，普通同UID进程不能加入。缺配置或内核能力时拒绝预览网络准入，非预览路径保持原约定。规则绑定bridge ifindex及cgroup inode，服务重启后原网络不能静默换绑；实例显式禁用IPv6，5173仍不支持。
+
+预览HTTP入口必须使用 `services.hub-api.preview_transport.PreviewServer`，其受控h11协议提供真实关闭观测；缺接缝时预览转发拒绝。现有CLI的UDS/回环启动已接线，但非TLS本地关闭只保存本地事实；外部入口使用该Server的真实TLS监听并取得物理回执，才能记录对应代理确认。默认没有受审ClockSupport，当前安装仍为pending_time_unknown，不能重新签发。时钟接口仅由受信任宿主组合提供，不接受HTTP/项目传入证明。
+
+Windows Desktop 查询到ready且安装方登记 `tauri_windows_webview2` 时显示“打开隔离预览”。Rust重新从当前Hub查询公开固定地址，独立容器自行认证，不复制主窗口秘密；兑换尝试后限制本实例来源。正常关闭后实际删除专用分区，清理失败报告给主窗口；硬杀残留不复用。公开环境查询只新增可选 `entry_origin/client_route`，没有增加票据桥。服务端撤销主动收窗/清分区未取证，其他原生及安装组合继续关闭。
+
+本机定向证据已补齐所测端口ACL、回压物理关流和原生容器，但真实预览槽登记、同一正式固定候选全链、可信计时和上述完整客户端撤销/旧版本组合仍缺。不能据分开的本机方法填写安装描述符的六组“已验证”字段。
 
 人测入口为 `GET/POST /api/tasks/{task_id}/human-tests`、`GET /human-test-options` 和 `/api/human-tests/{session_id}` 下的 `ready/conclusion/activity/renew/yield/cancel`。所有写命令带原幂等键和当前 Task/Session 修订，回执顶层 `command_id` 复用 Desktop 日志机制。
 

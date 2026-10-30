@@ -1,9 +1,9 @@
-# 支持矩阵 r13
+# 支持矩阵 r14
 
 > 历史原始 JSON 已于 2026-10-24 从当前树移除，可按删除前提交 `b20a5e3` 查询；历史结果及支持边界仍绑定原候选。
 
-> 修订日期：2026-10-28（Asia/Shanghai）
-> 本次变化：补充 `0.9.0` 首装进入运行前的有限收尾，当前原资产完整核对及 [P1 出口核对](p1/exit-review.md)。旧部分归档仍为 unknown，原安装未实际应用收尾；历史行不扩大为当前完整部署支持。
+> 修订日期：2026-10-30（Asia/Shanghai）
+> 本次变化：补充0.29.0预览隔离定向开发证据和实际未满足门禁；历史P1安装/运行及人工验收边界保持各自记录。
 
 r6 已补充 [P1.2 增量环境与修正退出记录](p1/p1-2.md)；历史工程链、[P1.1 记录](p1/p1-1.md)和 s2413 同机准备事实保持各自范围。其余输入见 [首条参照规格](../implementation/reference-chain.md)、[A01 接缝](p0/A01.md)、[A02](p0/A02.md)、[P0 拓扑快照](p0/topology-s2413-r2.md)、[受控环境决定](../decisions/p0/s2413-development-envelope.md)、[参照适用决定](../decisions/p0/reference-applicability.md) 和 [P0 出口评审](p0/exit-review.md)。各运行证据绑定各自候选和时间，没有证据的产品组合不自动纳入支持。
 
@@ -60,7 +60,7 @@ Docker 26.1.5/Compose 2.39.4。WSL 锁定 Python 只对该机专属 PostgreSQL 1
 |正式独立交付拓扑|已有 WSL Hub 到独立 Debian 目标的限定实验，原归档未完成；s2413 同机安排与该组合分别记录|完整独立业务运行、Hub 离线及目标重启、指定整机容量仍未通过；实际拓扑和各角色范围由项目所有者/基础设施负责人确认|
 |Windows/Linux Desktop|Windows 基础工程 `0.8.1` 接入 Task/计划与快照/SSE，增加连接代次及持久回执确认；最终调试构建见[客户端说明](../development/p1-desktop.md)和[进度](../../PROJECT_PROGRESS.md)；Linux 支持未验证|Windows/WebView2 原生身份、IPC、TLS、断网/账户切换、安装/升级/隔离及人工验收未由编译放行；Linux WebKitGTK 未执行。责任客户端，P1/P2/P6 各自门禁保留|
 |P1.5-02 当前 P1 恢复/控制|源码 `0.8.1`、工作流 `0.7.0`、业务 head `0009_p1_5_sync`；真实单 worker 的 SIGKILL/提交后缺检查点恢复、原回执重投及普通槽/数据库池满时控制通道通过；未知占用/保留磁盘及恢复态拒绝见[固定记录](p1/p1-5-02.md)|Task 初始路径无 AgentRun/外部 Operation；物理 Runner 回执为合成故障输入，尚无真实模型槽或物理容量结论。显式恢复门禁不等于任意旧 ready 备份自动识别；P2/P4、原生人工、P1.4 与 P1 完整出口分别维护|
-|预览 DNS/TLS 与撤销|[P2.4-02](p2/p2-4-02.md) 取得本机 Edge 155.0.4283.45 的真实 TLS/表单/Strict Cookie 与拒绝/关流观察；使用临时单 SPKI 信任及域名映射，候选/制品/准入为夹具；P0 预览决定 r2 澄清管理交付页 strict-origin|所有正式路线继续关闭：internal/无端口发布仍允许宿主旁路，回压关流 2s 未满足，缺独立入口确认/可信计时及原生预览容器；真实安装 DNS/证书、IPv6、固定候选/旧轮次/重建组合未齐，不据本机流程宣称完整 P2 或原生支持|
+|预览 DNS/TLS 与撤销|[P2.4-02收尾](p2/p2-4-02-followup.md)新增0.29.0端口ACL、实际TLS物理关闭/传输回执与恢复、Windows独立Wry容器及真实管理POST/Strict Cookie证据；网络、业务准入、原生驱动和真实OCI各按固定输入分别记录|正式路线继续关闭：现有真实预览槽为0、缺适用正式FixedCandidateRecord/最终集成及可信ClockSupport；服务端撤销原生分区与同一正式候选旧轮次/重建组合未齐。WSL本机结果不放行真实DNS/证书安装、Linux/其他客户端、容量或人工验收|
 |许可时间|P0.3 [许可决定](../decisions/p0/time-preview-access.md) 选择 Hub 单调授权时间、整数微秒和有界误差；s2413 NTP 布尔值仍仅为历史系统快照|实际误差依据、暂停检测、认证样本和真实接受/启动/失信恢复须 P1/P4 取证；旧 grant 的窗口不刷新|
 |本机应急|[核心决定](../decisions/p0/core-boundaries.md) 固定 Unix socket、独立管理员认证、动作/期限和显式交还；本修订 enabled 只能为 false|P4 验证前关闭，未生成授权配置或认证材料，不把人类模型任务授权当作应急身份|
 

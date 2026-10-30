@@ -12,6 +12,7 @@ from modules.workspaces.candidate_writers import process_start_ticks
 
 from .artifact_environment_docker import docker, engine
 from .toolchain import DockerClient, ProbeFailure
+from .preview_network import IPV6_DISABLED, addresses, enabled as preview_enabled, endpoint
 from .workspace_development_bootstrap import bootstrap_command
 from .workspace_development_recipe import (
     BACKEND_PORT, DATABASE_APPLICATION_USER, DATABASE_COMMAND, DATABASE_ENVIRONMENT,
@@ -151,7 +152,7 @@ class WorkspaceDevelopmentDocker:
             raise ProbeFailure("workspace_development_network_already_created")
         value = engine("POST", "/networks/create", {
             "Name": self.name, "Driver": "bridge", "Internal": True, "CheckDuplicate": True,
-            "Labels": self._labels(),
+            "Labels": self._labels(), **({"EnableIPv6": False} if preview_enabled(self.resource_binding) else {}),
         })
         self.network_id = value["Id"]
         observed = engine("GET", "/networks/" + self.network_id)
@@ -163,7 +164,7 @@ class WorkspaceDevelopmentDocker:
         if self.network_id is None:
             raise ProbeFailure("workspace_development_network_required")
         memory, cpu, pids = DATABASE_LIMITS if role == "postgres" else BACKEND_LIMITS
-        return {
+        value = {
             "ReadonlyRootfs": True, "NetworkMode": self.network_id,
             "CgroupParent": self.cgroup_parent, "Memory": memory, "MemorySwap": memory,
             "CpuPeriod": 100000, "CpuQuota": cpu, "PidsLimit": pids,
@@ -172,12 +173,16 @@ class WorkspaceDevelopmentDocker:
             "LogConfig": {"Type": "none", "Config": {}}, "RestartPolicy": {"Name": "no"},
             "DnsOptions": ["timeout:1", "attempts:1"], "Tmpfs": tmpfs,
         }
+        if preview_enabled(self.resource_binding):
+            value["Sysctls"] = IPV6_DISABLED
+        return value
 
     def _base_config(self, role: str, image: str, tmpfs: dict[str, str]) -> dict:
         value = {"Image": image, "User": "1000:1000", "Labels": self._labels(role),
                  "HostConfig": self._host(role, tmpfs),
                  "NetworkingConfig": {"EndpointsConfig": {
-                     self.network_id: {"Aliases": [role]}}}}
+                     self.network_id: endpoint(self.network_id, role) if preview_enabled(self.resource_binding)
+                     else {"Aliases": [role]}}}}
         if role != "postgres":
             value["WorkingDir"] = WORKING_DIRECTORY
         return value
@@ -253,6 +258,8 @@ class WorkspaceDevelopmentDocker:
     def start(self, role: str) -> None:
         if role not in {"postgres", "backend", "migration"} or role not in self.containers:
             raise ProbeFailure("workspace_development_container_start_scope_invalid")
+        if preview_enabled(self.resource_binding):
+            self.resource_binding.authorize_network(self.network_id)
         engine("POST", "/containers/" + self.containers[role] + "/start", expected=(204,))
         self.verify_container(role, require_running=role != "migration")
 
@@ -304,6 +311,14 @@ class WorkspaceDevelopmentDocker:
         if not all(checks.values()):
             raise ProbeFailure("workspace_development_container_boundary_mismatch",
                 ",".join(key for key, passed in checks.items() if not passed))
+        if preview_enabled(self.resource_binding):
+            network = engine("GET", "/networks/" + self.network_id)
+            endpoints = list(value["NetworkSettings"]["Networks"].values())
+            if (host.get("Sysctls") != IPV6_DISABLED or len(endpoints) != 1
+                    or endpoints[0].get("NetworkID") != self.network_id
+                    or endpoints[0].get("IPAddress") != addresses(network)[role]
+                    or endpoints[0].get("GlobalIPv6Address") or endpoints[0].get("IPv6Gateway")):
+                raise ProbeFailure("workspace_development_preview_endpoint_mismatch")
         configured = self._expected_mounts(role)
         actual = {item["Destination"]: (item["Source"], not item["RW"])
                   for item in value["Mounts"] if item["Type"] == "bind"}

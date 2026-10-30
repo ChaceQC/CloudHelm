@@ -122,6 +122,7 @@ class PreviewLocalClosure(Contract):
     closed_at: UtcTimestamp
     client_connections: int = Field(strict=True, ge=0)
     upstream_connections: int = Field(strict=True, ge=0)
+    transport_receipt_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
 
     @model_validator(mode="after")
     def check_order(self):
@@ -147,6 +148,8 @@ class PreviewAuthorizationRecord(Contract):
     state: Literal["active", "revoking", "revoked"] = "active"
     revocation: PreviewRevocation | None = None
     local_closures: tuple[PreviewLocalClosure, ...] = Field(default=(), max_length=64)
+    revocation_started_boottime_ns: int | None = Field(default=None, strict=True, ge=0)
+    revocation_clock_evidence_digest: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True, slots=True)

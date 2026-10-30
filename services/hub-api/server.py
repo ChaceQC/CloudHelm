@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         if arguments.dev_loopback_port is not None and not 1024 <= arguments.dev_loopback_port <= 65535:
             raise ValueError("api_port_invalid")
         from .app import create_app
+        from .preview_transport import PreviewServer
         import uvicorn
 
         settings = {
@@ -73,10 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         }
         if arguments.uds:
             with private_socket(arguments.uds) as listener:
-                server = uvicorn.Server(uvicorn.Config(create_app(), uds=arguments.uds, **settings))
+                server = PreviewServer(uvicorn.Config(create_app(), uds=arguments.uds, **settings))
                 server.run(sockets=[listener])
         else:
-            server = uvicorn.Server(uvicorn.Config(
+            server = PreviewServer(uvicorn.Config(
                 create_app(), host="127.0.0.1", port=arguments.dev_loopback_port, **settings,
             ))
             server.run()

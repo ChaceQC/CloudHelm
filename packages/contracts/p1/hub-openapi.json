@@ -23658,6 +23658,30 @@
             "maxItems": 64,
             "title": "Local Closures",
             "default": []
+          },
+          "revocation_started_boottime_ns": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revocation Started Boottime Ns"
+          },
+          "revocation_clock_evidence_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revocation Clock Evidence Digest"
           }
         },
         "additionalProperties": false,
@@ -23945,6 +23969,36 @@
               }
             ],
             "title": "Management Start Url"
+          },
+          "entry_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Origin"
+          },
+          "client_route": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "browser_windows_edge",
+                  "browser_linux_chromium",
+                  "external_windows_edge",
+                  "external_linux_chromium",
+                  "tauri_windows_webview2",
+                  "tauri_linux_webkitgtk"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Route"
           }
         },
         "additionalProperties": false,
@@ -23981,6 +24035,18 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Upstream Connections"
+          },
+          "transport_receipt_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport Receipt Digest"
           }
         },
         "additionalProperties": false,

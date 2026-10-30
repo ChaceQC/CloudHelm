@@ -1,0 +1,1362 @@
+{
+  "schema_revision": "p2-4-02-followup-r1",
+  "business_date": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "software_version": "0.29.0",
+  "base_commit": "96d267cb71f3978681fa553ddf2b194174505931",
+  "workflow_application": "cloudhelm-hub/0.7.0",
+  "business_migration_head": "0020_p2_previews",
+  "support_granted": false,
+  "work_package_exit": "not_satisfied",
+  "source_sha256": {
+    "apps/desktop/package-lock.json": "860e7fa37965622b11c8c40812e3b73396d1438e8ade039161b9c10b42362cbe",
+    "apps/desktop/package.json": "96222726734ab71dc01cc9699162a35f754c6fd93e58822a0c09e4cc79a2c048",
+    "apps/desktop/src-tauri/Cargo.lock": "1e0d5237a9fecb2b32f2cbf774036590ef327c310e48dbd680b78655949884df",
+    "apps/desktop/src-tauri/Cargo.toml": "7ab86a7f5d474c65580ae9fcf38993ed660bc052eb85f10811fb6dee5eb57a44",
+    "apps/desktop/src-tauri/src/main.rs": "f6e726d9e01636eb78440df55dbfe033dee3daf27d257b797b3b5111803a6325",
+    "apps/desktop/src-tauri/src/preview.rs": "eb1851a92d066291d271acfd8ff0fa0111a55eb589abc5766db8c9be49480459",
+    "apps/desktop/src-tauri/src/preview_windows.rs": "a37554867ce5296832ce8e559d6d9859aab43454ba8f20e3e5e6ab083db8ccca",
+    "apps/desktop/src-tauri/tauri.conf.json": "3535a0fc2c326a170997b54264bc645b7363893fdc550a966f86bbcb3f129952",
+    "apps/desktop/src/HumanTestPanel.tsx": "839ab2d02239a29717f0cc6548dac1851fdba54be454110c07cc0c2532acdc8a",
+    "apps/desktop/src/types.ts": "2eecbdb1f34bb9c83fe62b39b556271a68cfc924ea3684fbc6a0fd0b869fab4d",
+    "apps/desktop/src/useHub.ts": "c4a518886f0ce1856012a9bb58e351c2a4044fdd7f06a95730355eb07c239596",
+    "modules/workspaces/preview_access.py": "c2494befb9dc6d69c9dbe2e508b4b84070fda5778ef8592f0378215939744524",
+    "modules/workspaces/preview_environments.py": "b1f5d3b4c406ad4a4c64b21bfce486248ad648237c15adfb4111b30bac060e20",
+    "modules/workspaces/preview_timing.py": "455ac2217ec2ed99a8a983ffaa1833b53c21cf0b88e069a88b2b05add5916e9c",
+    "packages/contracts/p1/hub-openapi.json": "8f0ae174dea842f9b1d73101a69577e25961ac2a4cc47b12b5437be139ae26fb",
+    "packages/contracts/p2/preview_environments.py": "cd02f67d89fe90cd8aa47106206cfe8a895b7ef0f68f206359cdb1abc0cf3470",
+    "packages/contracts/p2/previews.py": "210add409fd0ba76502b6585ecaa1bdc15abf7bd09cda01359ea51493bde6be1",
+    "pyproject.toml": "43dbdf760f5991a76fda44cba200c0bc712fef4f34428a4e461ffd4e21c825a8",
+    "services/dev-runner/candidate_preview_docker.py": "1c689fc9c8fa3bc60a178ef53d8d6e7a400e6ac26a9813ea9b2c7558e73ae574",
+    "services/dev-runner/preview_development.py": "cdfc9673109c787c1d446251a773ba117cfe1daa0857e82d250d22c62e3c5e79",
+    "services/dev-runner/preview_network.py": "894720ec5ba517fec85ac7ed1aa9fb5d73321392f956a777aa05dc9bb44d4126",
+    "services/dev-runner/resource_host.py": "11ca5ae9a8886ddf10533885c123ed391fce7c9ad5a89585b4e9d4d1ac712304",
+    "services/dev-runner/resource_network.py": "9911fe9b77e752d77fd0c7942e25b834c0fc248fc912e3a1a1bfb94c9d0a9a97",
+    "services/dev-runner/workspace_development_docker.py": "9eb9eae4fa9f7e0ba8ed08ab148d93c5d719e3f38bbcec766fc8155c62280d87",
+    "services/hub-api/preview_proxy.py": "d724ff24b5f54b0bf8459dd5707561faa0028c2269cf92b2b3e356025e08f0c4",
+    "services/hub-api/preview_transport.py": "f48f4aab58d23a6d655a6ec4ea0ac78be6bada8de81d559bd6091dbc93dd16da",
+    "services/hub-api/server.py": "8f566c1c64f64b99836a205f3430a0fd8135f17ad72faa68779e77a3e6f2f5da",
+    "uv.lock": "61ad69d7f46250054babe6bc9d75246974aa9c2393fa322ece418ba249dc9cb1"
+  },
+  "method_sha256": {
+    ".thesis-work/p2-4-02-followup/candidate/cache_inventory.py": "032164d46e7788056af7de27313804634372ee6f30bf1bc54501a169f742e828",
+    ".thesis-work/p2-4-02-followup/candidate/finalize.py": "6145200e15616d5dc1abad493ec52df71576fa500263d565cc864dc08b6f5086",
+    ".thesis-work/p2-4-02-followup/candidate/inventory.py": "57e8de398cc9ecadc28e0e69f265d3e477b8b32f2ab71b2bdab985a20744cd16",
+    ".thesis-work/p2-4-02-followup/candidate/physical.py": "e6d0f95a30fd340e9e57881fad09526cc41544095edd597d7f880cd171bee131",
+    ".thesis-work/p2-4-02-followup/candidate/probe_service.py": "88affab626f839032be606dae830c2a16f4fea3dcbdc240304e0a34e584af995",
+    ".thesis-work/p2-4-02-followup/export_contract_patch.py": "03291b1bac13df2944f068c903ffe89e54bccfbffee91285d743811589deb03c",
+    ".thesis-work/p2-4-02-followup/export_evidence_patch.py": "07b4c2056a6a7f4980f5799b1c196f48bd0d6b096a81fa825ae4bb16f84a1f1e",
+    ".thesis-work/p2-4-02-followup/integration.py": "b06bbdc36678d11a970d60aea6d5eb2416b1d24d40ce4edee4c070295860fcc9",
+    ".thesis-work/p2-4-02-followup/native/check_native.py": "0250d2597cc6bbd8b955f183ea7b1e57d7972b28942f22b4a2bb55b0ad11ced8",
+    ".thesis-work/p2-4-02-followup/native/check_real_native.py": "c764a47700c19d2c2478199fc6b3ab0b9d04301abf4fd937ea8f83e3baf28618",
+    ".thesis-work/p2-4-02-followup/network/check_network.py": "365bc66567c236405595eb31c1249cfb6039bc0e4b8d6ce9519276ede9c7bdfb",
+    ".thesis-work/p2-4-02-followup/new_native_environment.py": "a56a6c1ac6abc8e4ed6a6c3320d296fd8431983a9b2456696fbc826f666aaaeb",
+    ".thesis-work/p2-4-02-followup/proxy/check_finalizing.py": "ba32e0c50ea76c39177dfad0906c56eb6d0b2737022bc3f46fd367fe1d87534f",
+    ".thesis-work/p2-4-02-followup/proxy/check_physical_close.py": "cf3e71fa8fe9ce880f3119a474f07819dc0a648d83c5e409f7f85d0ed582129c",
+    ".thesis-work/p2-4-02-followup/sync_doc_patch.py": "ddd57d7beb79fa665e30d8594d9c5e3e848780b08bb530555bcedb0912163358"
+  },
+  "network": {
+    "utc": "2026-10-30T09:52:03Z",
+    "kind": "production ACL plus fixed/development Docker configuration with listening fixtures",
+    "cgroup": "system.slice/cloudhelmpreviewaclproxy-ba662f0070.service",
+    "instances": [
+      {
+        "kind": "fixed",
+        "identity": "6054c4ccf79c58031c4c9d18c4468073201c41c15a0f375064faa5720d383ba8",
+        "targets": {
+          "postgres": "172.22.0.2",
+          "migration": "172.22.0.3",
+          "backend": "172.22.0.4",
+          "frontend": "172.22.0.5"
+        },
+        "containers": {
+          "postgres": "fe6c39768e283ef59d10c5d9128dfe73caed081e90bd5902219bdb1d3f2acacc",
+          "migration": "02e81cbe72ab0610b310bbeedfc5de41891c537b1c32d1c7d2ce10f6ba7ac4e9",
+          "backend": "790356fbc66ebf5c690fb7b42d6fc4fa5f35221ace10098276ba97fec2ec11ed",
+          "frontend": "fdfa58f03b5f78e872b89a32b8afc6905edd9d8ea2cd6008f024c3baafc2b674"
+        }
+      },
+      {
+        "kind": "development",
+        "identity": "260ed57be510a251f00f680c0caf06bc6bae429200e2ff5136c7f690c456a653",
+        "targets": {
+          "postgres": "172.24.0.2",
+          "migration": "172.24.0.3",
+          "backend": "172.24.0.4",
+          "frontend": "172.24.0.5"
+        },
+        "containers": {
+          "postgres": "cfd2a2bdfa0b4ed6db65d5c4c191d754ff4f4404550756c2ef6bff970de17294",
+          "migration": "859d6c22187d72d078ee9f33f46713a3b40a22f0688c479adcc268241a584feb",
+          "backend": "3d3c55b70e170170c098d6b296057ad98988c81c8312167ca5ab60836a751faa",
+          "frontend": "dfa8ce0103c74139621a9f7f709d40864c2f212ebacc803b36fa0947806147e9"
+        }
+      }
+    ],
+    "checks": [
+      {
+        "case": "fixed:postgres:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:postgres:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:postgres:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:postgres:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:postgres:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:postgres:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:same_uid_host:postgres",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:migration:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:migration:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:migration:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:migration:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:migration:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:migration:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:same_uid_host:migration",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:backend:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:backend:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:backend:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:backend:8000",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:backend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:backend:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:same_uid_host:backend",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:frontend:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:frontend:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:frontend:80",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:frontend:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:frontend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:proxy:frontend:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:same_uid_host:frontend",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:frontend->backend:8000",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:backend->postgres:5432",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:migration->postgres:5432",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "fixed:frontend->postgres:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:backend->frontend:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:postgres->backend:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:frontend->backend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:postgres:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:postgres:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:postgres:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:postgres:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:postgres:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:postgres:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:same_uid_host:postgres",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:migration:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:migration:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:migration:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:migration:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:migration:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:migration:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:same_uid_host:migration",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:backend:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:backend:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:backend:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:backend:8000",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:backend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:backend:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:same_uid_host:backend",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:frontend:no_published_ports",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:frontend:ipv6_addresses_absent",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:frontend:80",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:frontend:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:frontend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:proxy:frontend:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:same_uid_host:frontend",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:frontend->backend:8000",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:backend->postgres:5432",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:migration->postgres:5432",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "development:frontend->postgres:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:backend->frontend:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:postgres->backend:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:frontend->backend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:cross_instance:frontend:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:cross_instance:backend:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:cross_instance:postgres:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "fixed:cross_instance:backend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:cross_instance:frontend:80",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:cross_instance:backend:8000",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:cross_instance:postgres:5432",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:cross_instance:backend:5173",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "missing_proxy_configuration_rejected",
+        "actual": "preview_network_proxy_cgroup_unconfigured",
+        "expected": "preview_network_proxy_cgroup_unconfigured",
+        "passed": true
+      },
+      {
+        "case": "proxy_restart_changed_cgroup_inode",
+        "actual": true,
+        "expected": true,
+        "passed": true
+      },
+      {
+        "case": "proxy_restart_old_raw_target_denied",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "proxy_restart_cannot_rebind_old_network",
+        "actual": "preview_network_owned_chain_changed",
+        "expected": "preview_network_owned_chain_changed",
+        "passed": true
+      },
+      {
+        "case": "fixed:old_proxy_target_stopped",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      },
+      {
+        "case": "development:old_proxy_target_stopped",
+        "actual": false,
+        "expected": false,
+        "passed": true
+      }
+    ],
+    "passed": true,
+    "cleanup": "complete"
+  },
+  "physical_transport": {
+    "started_utc": "2026-10-30T09:48:15.737779+00:00",
+    "environment": {
+      "python": "3.12.13",
+      "kernel": "6.18.33.2-microsoft-standard-WSL2",
+      "uvicorn": "0.54.0",
+      "tls": "OpenSSL 3.5.7 9 Jun 2026"
+    },
+    "scope": "Real loopback TLS/Uvicorn h11/httpx and upstream socket; synthetic authority; no database",
+    "backpressure": {
+      "actual_tls": true,
+      "paused_before_revoke": {
+        "write_paused": true,
+        "buffer_bytes": 525216
+      },
+      "trigger_to_denied_ms": 203.0173379999951,
+      "last_control_to_denied_ms": 1001.2952459999838,
+      "denied_to_downstream_connection_lost_ms": 0.960421000002043,
+      "denied_to_upstream_peer_close_ms": 1.6344530000083068,
+      "denied_to_client_observation_ms": 5.977063000017324,
+      "client_observation": "ConnectionResetError",
+      "registered_at_connection_lost": true,
+      "registrations_after_physical_close": 0,
+      "reported_without_authority": null,
+      "transport_receipts": [
+        {
+          "transport_owner": {
+            "protocol": "uvicorn_h11",
+            "started": {
+              "boottime": 130.186773172,
+              "utc": "2026-10-30T09:48:15.952574+00:00"
+            },
+            "external_tls": true
+          },
+          "denied": {
+            "boottime": 131.203980436,
+            "utc": "2026-10-30T09:48:16.969781+00:00"
+          },
+          "closed": {
+            "boottime": 131.205574111,
+            "utc": "2026-10-30T09:48:16.971373+00:00"
+          },
+          "connections": [
+            {
+              "downstream": {
+                "opened": {
+                  "boottime": 130.200474159,
+                  "utc": "2026-10-30T09:48:15.966274+00:00"
+                },
+                "abort_requested": {
+                  "boottime": 131.204054176,
+                  "utc": "2026-10-30T09:48:16.969853+00:00"
+                },
+                "connection_lost": {
+                  "boottime": 131.204940857,
+                  "utc": "2026-10-30T09:48:16.970740+00:00"
+                },
+                "external_tls": true
+              },
+              "upstream": {
+                "connected": {
+                  "boottime": 130.978673823,
+                  "utc": "2026-10-30T09:48:16.744474+00:00"
+                },
+                "descriptor_closed": {
+                  "boottime": 131.205574111,
+                  "utc": "2026-10-30T09:48:16.971373+00:00"
+                }
+              }
+            }
+          ],
+          "client_connections": 0,
+          "upstream_connections": 0
+        }
+      ]
+    },
+    "control_loss": {
+      "actual_tls": true,
+      "paused_before_revoke": null,
+      "trigger_to_denied_ms": 2406.0896519999915,
+      "last_control_to_denied_ms": 2501.280710000003,
+      "denied_to_downstream_connection_lost_ms": 0.5940190000046641,
+      "denied_to_upstream_peer_close_ms": 0.943474999985483,
+      "denied_to_client_observation_ms": 6.36586400000283,
+      "client_observation": "ConnectionResetError",
+      "registered_at_connection_lost": true,
+      "registrations_after_physical_close": 0,
+      "reported_without_authority": false,
+      "transport_receipts": []
+    },
+    "finished_utc": "2026-10-30T09:48:20.777723+00:00"
+  },
+  "finite_response_cleanup": {
+    "started_at": "2026-10-30T10:12:23.397599+00:00",
+    "finished_at": "2026-10-30T10:12:24.966818+00:00",
+    "passed": true,
+    "scope": "Real TLS finite response; controlled upstream close delay; synthetic authority",
+    "finalizing_revoke_preserves_cleanup": true,
+    "remaining_registrations": 0
+  },
+  "database_tls": {
+    "started_at": "2026-10-30T10:00:17.509278+00:00",
+    "checks": [
+      {
+        "name": "real_tls_redemption_0"
+      },
+      {
+        "name": "external_owner_confirmation_0",
+        "client_termination_ms": 718.399,
+        "independent_confirmations": 1
+      },
+      {
+        "name": "unknown_clock_blocks_reissue_0"
+      },
+      {
+        "name": "no_new_rights_0"
+      },
+      {
+        "name": "real_tls_redemption_1"
+      },
+      {
+        "name": "external_owner_confirmation_1",
+        "client_termination_ms": 473.102,
+        "independent_confirmations": 1
+      },
+      {
+        "name": "unknown_clock_blocks_reissue_1"
+      },
+      {
+        "name": "no_new_rights_1"
+      },
+      {
+        "name": "lost_confirmation_is_idempotent",
+        "attempts": 2
+      },
+      {
+        "name": "actual_new_proxy_process",
+        "boot_id": "p2402-real-restart-1889"
+      },
+      {
+        "name": "old_boot_cookie_denied_p2402-local-2"
+      },
+      {
+        "name": "old_boot_cookie_denied_p2402-local-3"
+      },
+      {
+        "name": "deadline_not_reset_p2402-local-2"
+      },
+      {
+        "name": "deadline_not_reset_p2402-local-3"
+      },
+      {
+        "name": "native_process_handoff_closed"
+      }
+    ],
+    "scope": "Real PostgreSQL, TLS listener and process restart; candidate/admission are explicit fixtures",
+    "stage": "old_cookie_p2402-local-3",
+    "finished_at": "2026-10-30T10:07:58.466364+00:00",
+    "cleanup": "complete"
+  },
+  "native_isolation": {
+    "method": "real Windows Tauri native window + raw Wry WebViews, synthetic HTTP identities/TLS assets",
+    "started_at": "2026-10-30T09:59:44.473451+00:00",
+    "checks": {
+      "two_native_containers": true,
+      "management_isolated_from_main_and_previous_container": true,
+      "instance_storage_isolated": true,
+      "no_tauri_ipc_all_documents": true,
+      "webmessage_disabled_getter_checked_before_loading": true,
+      "native_navigation_file_and_popup_denied": true,
+      "forbidden_management_and_foreign_requests_never_reach_server": true,
+      "no_ticket_or_credential_in_urls": true,
+      "closed_container_partitions_removed": true
+    },
+    "executable_sha256": "45ec17cc9a4927d38180641f3f72854eec4687bb136e081393956e39b1d98367",
+    "completed": true,
+    "runtime": {
+      "count": 1,
+      "version": "154.0.4258.62"
+    },
+    "reports": [
+      {
+        "kind": "management",
+        "visit": 1,
+        "native": {
+          "tauri": false,
+          "tauriGlobal": false,
+          "ipc": false,
+          "webMessageObject": true,
+          "webMessageCall": "returned"
+        },
+        "isolated": true,
+        "fileReadable": false,
+        "tauriReadable": false,
+        "blocked": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "popupDenied": true
+      },
+      {
+        "kind": "form-post",
+        "ticket_in_body": true,
+        "origin_exact": true,
+        "management_cookie_absent": true
+      },
+      {
+        "kind": "strict-cookie-transport",
+        "accepted": true
+      },
+      {
+        "kind": "preview",
+        "visit": 1,
+        "native": {
+          "tauri": false,
+          "tauriGlobal": false,
+          "ipc": false,
+          "webMessageObject": true,
+          "webMessageCall": "returned"
+        },
+        "isolated": true,
+        "hiddenCookie": true,
+        "fileReadable": false,
+        "tauriReadable": false,
+        "blocked": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "popupDenied": true
+      },
+      {
+        "kind": "management",
+        "visit": 2,
+        "native": {
+          "tauri": false,
+          "tauriGlobal": false,
+          "ipc": false,
+          "webMessageObject": true,
+          "webMessageCall": "returned"
+        },
+        "isolated": true,
+        "fileReadable": false,
+        "tauriReadable": false,
+        "blocked": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "popupDenied": true
+      },
+      {
+        "kind": "form-post",
+        "ticket_in_body": true,
+        "origin_exact": true,
+        "management_cookie_absent": true
+      },
+      {
+        "kind": "strict-cookie-transport",
+        "accepted": true
+      },
+      {
+        "kind": "preview",
+        "visit": 2,
+        "native": {
+          "tauri": false,
+          "tauriGlobal": false,
+          "ipc": false,
+          "webMessageObject": true,
+          "webMessageCall": "returned"
+        },
+        "isolated": true,
+        "hiddenCookie": true,
+        "fileReadable": false,
+        "tauriReadable": false,
+        "blocked": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "popupDenied": true
+      }
+    ],
+    "visited_paths": [
+      "/",
+      "/__cloudhelm/redeem",
+      "/api/auth/me",
+      "/api/preview-environments/native-051b1055205e",
+      "/api/preview-environments/native-051b1055205e/access",
+      "/cleanup-main",
+      "/download",
+      "/favicon.ico",
+      "/main-report",
+      "/main.js",
+      "/preview/start/native-051b1055205e",
+      "/report",
+      "/seed-main",
+      "/state"
+    ],
+    "failures": [],
+    "labels": [
+      "preview-52756-1793354386854552600-0",
+      "preview-52756-1793354390980386600-1"
+    ],
+    "posted_native_close": [
+      true
+    ],
+    "normal_process_exit": true,
+    "webview_processes_remaining": 0,
+    "private_tls_assets_removed": true,
+    "finished_at": "2026-10-30T09:59:57.608669+00:00"
+  },
+  "native_real_tls": {
+    "method": "real Windows Wry container + actual trusted Hub TLS management/form/cookie; metadata driver fixture",
+    "started_at": "2026-10-30T10:07:28.017794+00:00",
+    "checks": {
+      "trusted_real_management_document": true,
+      "management_no_tauri_ipc_or_storage": true,
+      "real_post_exchange_completed": true,
+      "ticket_only_in_protected_post_body": true,
+      "strict_cookie_same_origin_project_navigation": true,
+      "actual_project_get_200": true,
+      "cookie_secure_httponly_strict_hostonly": true,
+      "project_no_tauri_ipc_or_platform_cookie_js": true,
+      "project_popup_denied": true,
+      "management_return_denied": true,
+      "no_ticket_credential_or_cookie_in_observed_urls": true
+    },
+    "executable_sha256": "45ec17cc9a4927d38180641f3f72854eec4687bb136e081393956e39b1d98367",
+    "observed_request_count": 7,
+    "response_statuses": [
+      {
+        "path": "/api/preview-environments/p2402-local-7/access-request",
+        "status": 200
+      },
+      {
+        "path": "/api/preview-environments/p2402-local-7/access",
+        "status": 200
+      },
+      {
+        "path": "/__cloudhelm/redeem",
+        "status": 200
+      },
+      {
+        "path": "/",
+        "status": 200
+      },
+      {
+        "path": "/script.js",
+        "status": 200
+      },
+      {
+        "path": "/preview/start/p2402-local-7",
+        "status": 403
+      },
+      {
+        "path": "/favicon.ico",
+        "status": 200
+      }
+    ],
+    "runtime": {
+      "count": 2,
+      "version": "154.0.4258.62"
+    },
+    "label": "preview-37440-1793354850223549900-0",
+    "partition_removed": true,
+    "normal_process_exit": true,
+    "webview_processes_remaining": 0,
+    "fixture_done_requested": true,
+    "passed": true,
+    "finished_at": "2026-10-30T10:07:36.402679+00:00"
+  },
+  "candidate_physical": {
+    "started_at": "2026-10-30T09:57:00.156947+00:00",
+    "finished_at": "2026-10-30T09:57:40.081522+00:00",
+    "scope": "actual_a11_oci_physical_runtime_only",
+    "business_candidate_preview_executed": false,
+    "blocked_business_prerequisites": [
+      "a11_has_no_FixedCandidateRecord",
+      "registered_pool_preview_slots_zero",
+      "registered_runner_preview_slots_zero"
+    ],
+    "a11_evidence_sha256": "c2bb229866a9e8a0be99bdc41781979f07e6467911f88c8094ef150b37a7f06a",
+    "source_candidate": {
+      "binding": {
+        "base_commit": "7ec1ab83bdc963b4d6521d832f7f53f7a874dc11",
+        "owner_user_id": "a11-owner",
+        "project_id": "a11-p2a11-25y_9_mf",
+        "source_id": "source-705f14a9e4194cf19c8df1d923b4cfe6",
+        "source_revision": 1,
+        "task_id": "a4519fe8564b42298c3e6978f9649f7a",
+        "work_item_id": "2afc5b8d2c6840d9a56160fbb08a7bf4",
+        "workspace_id": "workspace-5f6a5ec6d32a42859ba6669be950f733",
+        "workspace_revision": 2,
+        "write_generation": 2
+      },
+      "candidate_commit": "b471238458bd4f062987c97cdf9c98d2a7956b59",
+      "candidate_id": "candidate-3fc6edadfc0e4dedb68f1854920c8af2",
+      "freeze_operation_id": "workspace-candidate-3fc6edadfc0e4dedb68f1854920c8af2",
+      "manifest_digest": "sha256:a48e2bb7ee4ee3b5d4be5e83d65c25db2351b3c3081769686e054eb2d314cf42",
+      "parent_commit": "7ec1ab83bdc963b4d6521d832f7f53f7a874dc11",
+      "storage_id": "candidate-dc0242928f26acee1ca02d751b2760e240181d394452c64286cd98d43b84df9d"
+    },
+    "source_input_set": {
+      "kind": "input_set",
+      "object_id": "reference-engineering-a582e87114826fac722c82abdaca1545cc238c9c87b4ed0b5dc7321e82d68faf",
+      "revision": "p1-reference-task-input-r1",
+      "authority": "collaboration",
+      "digest": "sha256:c0412c3632dd3b8b63787fa40c66999f12463e373db7398301952956d7cdb401",
+      "digest_algorithm": "sha256"
+    },
+    "build_input_digest": "sha256:d8d798667c11026887dbeca300ec19c89dbd50614ccda5213ae0f911c84a999d",
+    "build_operation_id": "build-operation-0ed07c4457dd4fc49e9ff479aaea4336",
+    "source_sha256": {
+      "services/dev-runner/candidate_preview_docker.py": "1c689fc9c8fa3bc60a178ef53d8d6e7a400e6ac26a9813ea9b2c7558e73ae574",
+      "services/dev-runner/preview_network.py": "894720ec5ba517fec85ac7ed1aa9fb5d73321392f956a777aa05dc9bb44d4126",
+      "services/dev-runner/resource_network.py": "9911fe9b77e752d77fd0c7942e25b834c0fc248fc912e3a1a1bfb94c9d0a9a97",
+      "services/dev-runner/resource_development.py": "d9367e4ae896cef7d8c0c0cf895d3a5e30bc8c7e4f2a059f4e49fe3ebd97f008",
+      ".thesis-work/p2-4-02-followup/candidate/physical.py": "e6d0f95a30fd340e9e57881fad09526cc41544095edd597d7f880cd171bee131",
+      ".thesis-work/p2-4-02-followup/candidate/probe_service.py": "88affab626f839032be606dae830c2a16f4fea3dcbdc240304e0a34e584af995"
+    },
+    "instances": [
+      {
+        "index": 1,
+        "operation_id": "candidate-preview-7d19b0b782ec45cc946468c0aae3160a",
+        "binding_digest": "sha256:8d60e9e58604b6a93c47c17bcd4926c6efca84af018aae7aed7466c7ee341729",
+        "ready": {
+          "state": "ready",
+          "data_revision": "reference-synthetic-r1",
+          "migration_revision": "0002_add_updated_at_index",
+          "containers": {
+            "postgres": {
+              "container_id": "c23204c5d30c6d653a4fdd11ab5b130325483b88a1bffbfb85c6731f84156cd4",
+              "ipv4": "172.28.0.2",
+              "pid": 1121
+            },
+            "backend": {
+              "container_id": "fe372128b7d98dd07996d51a1ac2e355c9ca2e439556613b5c9c82cf6a9dcdba",
+              "ipv4": "172.28.0.4",
+              "pid": 1592
+            },
+            "frontend": {
+              "container_id": "ff53acbb22cf9363af90d7d8daa9023b1c723043ffa7ba4cdd18c5096fd34d0a",
+              "ipv4": "172.28.0.5",
+              "pid": 1660
+            }
+          },
+          "targets": {
+            "frontend": {
+              "ipv4": "172.28.0.5",
+              "port": 80
+            },
+            "backend": {
+              "ipv4": "172.28.0.4",
+              "port": 8000
+            }
+          },
+          "network_id": "691c341bf5e529ccd24270a0122acf09fb39c308817648320efc46e1ca354c19",
+          "host_ports_published": false
+        },
+        "http": {
+          "/": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.5",
+            "target_port": 80,
+            "content_type": "text/html",
+            "body_bytes": 450,
+            "body_digest": "sha256:92e14f5d6c7888cbf4daed8cc09e215a4caffe007e8569eee0c3b1466f640e16",
+            "exact_a11_marker": false
+          },
+          "/health": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.5",
+            "target_port": 80,
+            "content_type": "application/json",
+            "body_bytes": 15,
+            "body_digest": "sha256:a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+            "exact_a11_marker": false
+          },
+          "/ready": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.5",
+            "target_port": 80,
+            "content_type": "application/json",
+            "body_bytes": 18,
+            "body_digest": "sha256:31bf75f4c0a97cc1f7b60df824fa390b3be9ba014f29b63c87c698ba63d9a9fd",
+            "exact_a11_marker": false
+          },
+          "/devmarker": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.4",
+            "target_port": 8000,
+            "content_type": "application/json",
+            "body_bytes": 22,
+            "body_digest": "sha256:d3ade621ea8f0d51e8e59001936825c88e7b652f6f39c7c679b5ba65cd2cade5",
+            "exact_a11_marker": true
+          }
+        },
+        "stop_facts": [
+          {
+            "container_id": "c23204c5d30c6d653a4fdd11ab5b130325483b88a1bffbfb85c6731f84156cd4",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "postgres"
+          },
+          {
+            "container_id": "ac70ce641d7dd854bc4f5b144a7b6491603c4694daeaa13d10072bd62d88fb92",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "migration"
+          },
+          {
+            "container_id": "fe372128b7d98dd07996d51a1ac2e355c9ca2e439556613b5c9c82cf6a9dcdba",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "backend"
+          },
+          {
+            "container_id": "ff53acbb22cf9363af90d7d8daa9023b1c723043ffa7ba4cdd18c5096fd34d0a",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "frontend"
+          }
+        ],
+        "old_container_and_network_lookups_http_status": 404,
+        "after_stop_http": {
+          "connected": false,
+          "error_type": "TimeoutError"
+        },
+        "runtime_after_stop": {
+          "state": "preparing"
+        }
+      },
+      {
+        "index": 2,
+        "operation_id": "candidate-preview-a37ab91e362c498b88795e5049d51905",
+        "binding_digest": "sha256:1c8bb1f865d6ba8e58cc1c5d4a09566ba1223ca8c3898a46165e929f1cd49827",
+        "ready": {
+          "state": "ready",
+          "data_revision": "reference-synthetic-r1",
+          "migration_revision": "0002_add_updated_at_index",
+          "containers": {
+            "postgres": {
+              "container_id": "e705031a29ce2b033a6b60d9e5bf1e9a5095a433065a6fc9d99390703fa6db55",
+              "ipv4": "172.28.0.2",
+              "pid": 2541
+            },
+            "backend": {
+              "container_id": "9e7c6e04ba9c937f5c8d6d8eb31ca21bda7b49469329cc90265a264817e9e21f",
+              "ipv4": "172.28.0.4",
+              "pid": 2986
+            },
+            "frontend": {
+              "container_id": "9477ed4286c46dbac95dc018a6c1a2ee3108f5c0faeed2126a47ccd24c154cc6",
+              "ipv4": "172.28.0.5",
+              "pid": 3054
+            }
+          },
+          "targets": {
+            "frontend": {
+              "ipv4": "172.28.0.5",
+              "port": 80
+            },
+            "backend": {
+              "ipv4": "172.28.0.4",
+              "port": 8000
+            }
+          },
+          "network_id": "8e944d7c7e67a9cce7d87eb591a4d51c6655d3ac5dcd24bd095716618318b6db",
+          "host_ports_published": false
+        },
+        "http": {
+          "/": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.5",
+            "target_port": 80,
+            "content_type": "text/html",
+            "body_bytes": 450,
+            "body_digest": "sha256:92e14f5d6c7888cbf4daed8cc09e215a4caffe007e8569eee0c3b1466f640e16",
+            "exact_a11_marker": false
+          },
+          "/health": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.5",
+            "target_port": 80,
+            "content_type": "application/json",
+            "body_bytes": 15,
+            "body_digest": "sha256:a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288",
+            "exact_a11_marker": false
+          },
+          "/ready": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.5",
+            "target_port": 80,
+            "content_type": "application/json",
+            "body_bytes": 18,
+            "body_digest": "sha256:31bf75f4c0a97cc1f7b60df824fa390b3be9ba014f29b63c87c698ba63d9a9fd",
+            "exact_a11_marker": false
+          },
+          "/devmarker": {
+            "connected": true,
+            "status": 200,
+            "source_ipv4": "172.28.0.1",
+            "target_ipv4": "172.28.0.4",
+            "target_port": 8000,
+            "content_type": "application/json",
+            "body_bytes": 22,
+            "body_digest": "sha256:d3ade621ea8f0d51e8e59001936825c88e7b652f6f39c7c679b5ba65cd2cade5",
+            "exact_a11_marker": true
+          }
+        },
+        "new_physical_identities": true,
+        "stop_facts": [
+          {
+            "container_id": "e705031a29ce2b033a6b60d9e5bf1e9a5095a433065a6fc9d99390703fa6db55",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "postgres"
+          },
+          {
+            "container_id": "1f416838f88702aea5d8020f3ea1394a14b75775e827deec9cd61234e7ee8b69",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "migration"
+          },
+          {
+            "container_id": "9e7c6e04ba9c937f5c8d6d8eb31ca21bda7b49469329cc90265a264817e9e21f",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "backend"
+          },
+          {
+            "container_id": "9477ed4286c46dbac95dc018a6c1a2ee3108f5c0faeed2126a47ccd24c154cc6",
+            "pid_zero": true,
+            "running": false,
+            "original_cgroup_unpopulated_or_removed": true,
+            "role": "frontend"
+          }
+        ],
+        "old_container_and_network_lookups_http_status": 404,
+        "after_stop_http": {
+          "connected": false,
+          "error_type": "TimeoutError"
+        },
+        "runtime_after_stop": {
+          "state": "preparing"
+        }
+      }
+    ],
+    "physical_resource_vector": {
+      "memory_mib": 4096,
+      "cpu_millicores": 3000,
+      "disk_bytes": 4311744512,
+      "pids": 512,
+      "heavy_slots": 1,
+      "preview_slots": 0
+    },
+    "registered_preview_slots": {
+      "pool": 0,
+      "runner": 0
+    },
+    "loaded_artifacts": [
+      {
+        "role": "backend",
+        "archive_digest": "sha256:dc2352f6cf5b028fb4f25059cba64c606ff48900b231f8e69180aa4ac008fb42",
+        "manifest_digest": "sha256:52ddd1f55f1a613aebfbfd8b38f9f2aac4da491e25b0d61ad837061ec60eb23d",
+        "config_digest": "sha256:fe1e72763f5f35684bb59508bd4afc7b35562fd7ced006e535eea813d6ca4ae8",
+        "oci_config_image_id": "sha256:fe1e72763f5f35684bb59508bd4afc7b35562fd7ced006e535eea813d6ca4ae8",
+        "actual_image_id": "sha256:52ddd1f55f1a613aebfbfd8b38f9f2aac4da491e25b0d61ad837061ec60eb23d",
+        "docker_identity_kind": "oci_manifest",
+        "rootfs_diff_ids_and_runtime_configuration_verified": true,
+        "platform": "linux/amd64"
+      },
+      {
+        "role": "frontend",
+        "archive_digest": "sha256:c20b74685b617b0e7b562d13a18786d2febc582a19e0854033efe32f8d662fc5",
+        "manifest_digest": "sha256:c9f81e53aafaf1439242c7b768b81d7e3b3234155cfb66379a84a699d98f5d4a",
+        "config_digest": "sha256:f0c75999441edb7e70c58af16302cabc04828402183f41a0babf84aa888c5c61",
+        "oci_config_image_id": "sha256:f0c75999441edb7e70c58af16302cabc04828402183f41a0babf84aa888c5c61",
+        "actual_image_id": "sha256:c9f81e53aafaf1439242c7b768b81d7e3b3234155cfb66379a84a699d98f5d4a",
+        "docker_identity_kind": "oci_manifest",
+        "rootfs_diff_ids_and_runtime_configuration_verified": true,
+        "platform": "linux/amd64"
+      },
+      {
+        "role": "postgres",
+        "archive_digest": "sha256:583c7eca614e9285b00ec975d27eb0cd498d3b723f606b2452f64a9a05346151",
+        "manifest_digest": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+        "config_digest": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+        "oci_config_image_id": "sha256:f7ebf09eb01b02bb9904972705248217baeaed03e2a0a7ed24a77740b0aee98c",
+        "actual_image_id": "sha256:3102b2114b39383b61fa194e5929734c72a56ce366dbb391509b1f07aef10f9f",
+        "docker_identity_kind": "oci_manifest",
+        "rootfs_diff_ids_and_runtime_configuration_verified": true,
+        "platform": "linux/amd64"
+      }
+    ],
+    "physical_status": "passed",
+    "resource_cleanup_confirmed": true,
+    "original_storage_mount_restored": true,
+    "formal_reports_created": false,
+    "pool_or_runner_registration_changed": false
+  },
+  "candidate_content_verification": {
+    "a11_evidence_sha256": "c2bb229866a9e8a0be99bdc41781979f07e6467911f88c8094ef150b37a7f06a",
+    "candidate_files_verified": true,
+    "candidate_file_count": 32,
+    "candidate_total_bytes": 139151
+  },
+  "image_cleanup": {
+    "deleted_count": 0,
+    "retained_existing_artifact_identities": 3,
+    "reason": "A11 already loaded the same identities; no pre-load private cache inventory proves new ownership",
+    "permanent_oci_store_unchanged": true,
+    "base_images_preserved": true,
+    "global_prune_used": false
+  },
+  "remaining": [
+    "Actual registered pool and Runner preview_slots are zero; controlled proxy service not installed",
+    "No applicable formal FixedCandidateRecord, formal verification/review/final integration chain",
+    "No reviewed current ClockSupport; do not claim 3s/2s/10s bounds from observations",
+    "Server revocation partition cleanup and one formal candidate old-round/rebuild/reconnect combination unverified"
+  ],
+  "evidence_composition": "Independent fixed methods; not one formal candidate full-chain acceptance"
+}

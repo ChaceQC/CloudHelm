@@ -170,6 +170,8 @@ class PreviewEnvironmentApplication:
             state=record.state, actual_revision=record.actual_revision,
             resource_reservation_id=record.resource_reservation_id, expires_at=record.expires_at.isoformat(),
             reason=reason, revocation_status=",".join(sorted(set(statuses))) or None,
+            entry_origin=record.entry_origin,
+            client_route=record.client_route.route if record.client_route else None,
             management_start_url=(self.installation.management_origin + "/preview/start/" + record.environment_id
                                   if self.installation else None))
 

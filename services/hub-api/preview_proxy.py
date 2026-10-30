@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import parse_qsl, quote
 
 import httpx
@@ -11,6 +11,7 @@ from pydantic import SecretStr
 from modules.identity.errors import IdentityError
 from modules.workspaces.operations import WorkspaceError
 from .preview_headers import COOKIE, cookie_and_headers, origin, platform_headers, request_allowed, response_headers, values
+from .preview_transport import EXTENSION, PreviewConnection, PreviewTransport, observed_at
 
 
 _BODY_LIMIT = 1024 * 1024
@@ -77,6 +78,11 @@ class PreviewProxy:
         self.identity = None
         self.sealed = {}
         self.connections = {}
+        self.transports = {}
+        self.transport_owner = None
+        self.denials = {}
+        self.closing = {}
+        self.receipts = {}
         self.closures = {}
         self.reported = set()
         self.monitor = None
@@ -97,9 +103,10 @@ class PreviewProxy:
             pending = await _call(access.pending_revocations, access.proxy_identity)
             self.access, self.identity = access, access.proxy_identity
             self.control_at = time.clock_gettime(time.CLOCK_BOOTTIME)
-            self.sealed = {record.binding.authorization_id: datetime.now(timezone.utc) for record in pending}
+            self.sealed, self.denials, self.closing, self.receipts = {}, {}, {}, {}
             self.closures, self.reported = {}, set()
             for record in pending:
+                await self._seal(record.binding.authorization_id)
                 if self.identity in record.revocation.required_proxies:
                     await self._report_closed(access, record)
             self.monitor = asyncio.create_task(self._monitor(access))
@@ -108,9 +115,13 @@ class PreviewProxy:
         async with self.lock:
             if authorization_id in self.sealed:
                 return
-            self.sealed[authorization_id] = datetime.now(timezone.utc)
-            for task in tuple(self.connections.get(authorization_id, ())):
-                task.cancel()
+            denied = observed_at()
+            self.sealed[authorization_id] = datetime.fromisoformat(denied["utc"])
+            self.denials[authorization_id] = denied
+            connections = tuple(self.transports[task] for task in self.connections.get(authorization_id, ()))
+            self.closing[authorization_id] = connections
+            for connection in connections:
+                connection.abort()
 
     async def _seal_all(self):
         for authorization_id in tuple(self.connections):
@@ -123,9 +134,28 @@ class PreviewProxy:
             if (denied_at is None or self.connections.get(authorization_id) or authorization_id in self.reported
                     or self.identity not in record.revocation.required_proxies):
                 return
-            fact = self.closures.setdefault(authorization_id, (denied_at, datetime.now(timezone.utc)))
+            owner = self.transport_owner
+            if owner is None or owner.started is None:
+                return
+            if authorization_id not in self.receipts:
+                connections = [connection.receipt() for connection in self.closing[authorization_id]]
+                stamps = [self.denials[authorization_id]]
+                for connection in connections:
+                    stamps.append(connection["downstream"]["connection_lost"])
+                    if connection["upstream"] is not None:
+                        stamps.append(connection["upstream"]["descriptor_closed"])
+                closed = max(stamps, key=lambda stamp: stamp["boottime"])
+                self.receipts[authorization_id] = {
+                    "transport_owner": owner.receipt(), "denied": self.denials[authorization_id],
+                    "closed": closed, "connections": connections,
+                    "client_connections": 0, "upstream_connections": 0,
+                }
+                del self.closing[authorization_id]
+            receipt = self.receipts[authorization_id]
+            fact = self.closures.setdefault(authorization_id, (denied_at, datetime.fromisoformat(receipt["closed"]["utc"])))
         try:
             await _call(access.record_local_proxy_closure, authorization_id, self.identity, *fact, 0, 0)
+            await _call(access.record_proxy_transport_closure, authorization_id, self.identity, receipt)
             self.reported.add(authorization_id)
         except Exception:
             # An unreported or unobservable closure remains pending in the authority.
@@ -247,21 +277,27 @@ class PreviewProxy:
         if (authenticated.environment != environment or self.identity not in environment.required_proxies):
             raise _Rejected()
         authorization_id = authenticated.authorization.binding.authorization_id
+        downstream = scope.get("extensions", {}).get(EXTENSION)
+        if (not isinstance(downstream, PreviewTransport) or downstream.owner is not self.transport_owner
+                or self.transport_owner.started is None):
+            raise _Rejected(503)
         task = asyncio.current_task()
+        connection = PreviewConnection(task, downstream)
         async with self.lock:
             if not self._control_current() or authorization_id in self.sealed:
                 raise _Rejected()
             self.connections.setdefault(authorization_id, set()).add(task)
+            self.transports[task] = connection
         watcher = None
         started, complete = False, False
 
         async def tracked_send(message):
             nonlocal started, complete
+            await send(message)
             if message["type"] == "http.response.start":
                 started = True
             elif message["type"] == "http.response.body" and not message.get("more_body", False):
                 complete = True
-            await send(message)
 
         try:
             body_read = asyncio.Event()
@@ -280,39 +316,40 @@ class PreviewProxy:
                             raw_path=raw_path + (b"?" + query if query else b""))
             timeout = httpx.Timeout(connect=5, read=None, write=10, pool=5)
             async with httpx.AsyncClient(timeout=timeout, trust_env=False, follow_redirects=False) as client:
-                async with client.stream(scope["method"], url, headers=headers, content=body) as response:
-                    safe_headers = response_headers(response.headers.raw, target)
+                async with client.stream(scope["method"], url, headers=headers, content=body,
+                                         extensions={"trace": connection.trace}) as response:
+                    safe_headers = [*response_headers(response.headers.raw, target), (b"connection", b"close")]
                     await tracked_send({"type": "http.response.start", "status": response.status_code,
                                         "headers": safe_headers})
                     async for chunk in response.aiter_raw():
                         await tracked_send({"type": "http.response.body", "body": chunk, "more_body": True})
             await tracked_send({"type": "http.response.body", "body": b"", "more_body": False})
         except asyncio.CancelledError:
-            if not started:
-                await _answer(scope, tracked_send, 403)
+            downstream.abort()
         except OSError:
-            return
+            downstream.abort()
         except _Rejected as error:
             if not started:
-                await _answer(scope, tracked_send, error.status)
+                await _answer(scope, tracked_send, error.status, headers=[(b"connection", b"close")])
         except Exception:
             if not started:
-                await _answer(scope, tracked_send, 502)
+                await _answer(scope, tracked_send, 502, headers=[(b"connection", b"close")])
         finally:
             if watcher is not None:
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
             if started and not complete:
-                try:
-                    await tracked_send({"type": "http.response.body", "body": b"", "more_body": False})
-                except OSError:
-                    pass
+                downstream.abort()
+            await connection.wait_closed()
             async with self.lock:
+                del self.transports[task]
                 self.connections[authorization_id].discard(task)
                 if not self.connections[authorization_id]:
                     del self.connections[authorization_id]
 
     async def __call__(self, scope, receive, send):
+        if self.transport_owner is None and "app" in scope:
+            self.transport_owner = getattr(scope["app"].state, "preview_transport_owner", None)
         if scope["type"] == "lifespan":
             async def lifespan_receive():
                 message = await receive()

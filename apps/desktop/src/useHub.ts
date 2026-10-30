@@ -261,7 +261,7 @@ export function useHub() {
     void execute({ method: "POST", route, body, idempotency_key: crypto.randomUUID() });
   };
   return { identity, projects, snapshot, connection, error, events, receipt: displayedReceipt?.reply ?? null, pending, busy,
-    connect, disconnect, selectProject, refresh, query, command,
+    connect, disconnect, selectProject, refresh, query, command, generation: renderedGeneration,
     retry: (original: PendingCommand) => {
       if (!busy && connection === "live") void execute(original, true, original.generation);
     },

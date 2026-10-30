@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import http.client
 import ipaddress
 import json
 import os
@@ -18,6 +17,7 @@ from packages.contracts.p1.development_environment import DATA_REVISION, MIGRATI
 from .artifact_environment_docker import METHOD, docker, engine, stop as stop_container
 from .candidate_preview_journal import read, write
 from .toolchain import DockerClient, ProbeFailure
+from .preview_network import IPV6_DISABLED, addresses, endpoint
 from .workspace_development_recipe import DATABASE_SQL_COMMAND, data_statements
 
 LIMITS = {"postgres": (256 * 1024**2, 50000, 64), "backend": (512 * 1024**2, 75000, 128),
@@ -61,6 +61,7 @@ class CandidatePreviewDocker:
             labels = network.get("Labels") or {}
             if (network.get("Name") != self.name or network.get("Driver") != "bridge"
                     or network.get("Internal") is not True
+                    or network.get("EnableIPv6") is not False
                     or labels.get("cloudhelm.resource-binding") != self.group.binding
                     or any(labels.get(key) != value for key, value in self.labels.items())):
                 raise ProbeFailure("candidate_preview_network_identity_mismatch")
@@ -87,13 +88,13 @@ class CandidatePreviewDocker:
                 "PidsLimit": pids, "CapDrop": ["ALL"], "SecurityOpt": ["no-new-privileges:true"],
                 "IpcMode": "private", "ShmSize": 64 * 1024**2 if role == "postgres" else 1024**2,
                 "LogConfig": {"Type": "none", "Config": {}}, "RestartPolicy": {"Name": "no"},
-                "DnsOptions": ["timeout:1", "attempts:1"],
+                "DnsOptions": ["timeout:1", "attempts:1"], "Sysctls": IPV6_DISABLED,
                 "Tmpfs": {path: f"rw,nosuid,nodev,noexec,size={size},uid=1000,gid=1000,mode=1777"
                           for path, size in TMPFS[actual_role].items()}}
         config = {"Image": self.artifacts[actual_role].manifest_digest,
                   "User": "1000:1000" if role == "postgres" else "0:0",
                   "Labels": self.labels | {"cloudhelm.role": role}, "HostConfig": host,
-                  "NetworkingConfig": {"EndpointsConfig": {self.network_id: {"Aliases": [role]}}}}
+                  "NetworkingConfig": {"EndpointsConfig": {self.network_id: endpoint(self.network_id, role)}}}
         if role == "postgres":
             host["Mounts"] = [{"Type": "bind", "Source": str(self.directory / "database"),
                                "Target": "/var/lib/postgresql/data", "ReadOnly": False},
@@ -143,7 +144,7 @@ class CandidatePreviewDocker:
         client = DockerClient.create(self.directory)
         gate()
         self.network_id = engine("POST", "/networks/create", {"Name": self.name, "Driver": "bridge",
-            "Internal": True, "CheckDuplicate": True, "Labels": self.labels})["Id"]
+            "Internal": True, "EnableIPv6": False, "CheckDuplicate": True, "Labels": self.labels})["Id"]
         self._discover()
         if self.network_id is None:
             raise ProbeFailure("candidate_preview_network_start_unconfirmed")
@@ -190,6 +191,7 @@ class CandidatePreviewDocker:
                 or {item.removeprefix("CAP_") for item in host.get("CapAdd") or []} != caps
                 or host.get("Devices") or host.get("PortBindings") or host.get("PublishAllPorts")
                 or host["NetworkMode"] != self.network_id or host["LogConfig"]["Type"] != "none"
+                or host.get("Sysctls") != IPV6_DISABLED
                 or host["RestartPolicy"]["Name"] != "no"):
             raise ProbeFailure("candidate_preview_container_boundary_mismatch")
         configured = self._configuration(role, "", "")["HostConfig"]
@@ -223,7 +225,8 @@ class CandidatePreviewDocker:
         if len(endpoints) != 1:
             raise ProbeFailure("candidate_preview_endpoint_unconfirmed")
         address = ipaddress.ip_address(endpoints[0]["IPAddress"])
-        if address.version != 4 or not address.is_private or address.is_loopback:
+        if (str(address) != addresses(engine("GET", "/networks/" + self.network_id))[role]
+                or endpoints[0].get("GlobalIPv6Address") or endpoints[0].get("IPv6Gateway")):
             raise ProbeFailure("candidate_preview_endpoint_invalid")
         return {"container_id": identity, "ipv4": str(address), "pid": state["Pid"]}
 
@@ -232,6 +235,7 @@ class CandidatePreviewDocker:
         self._discover()
         if self.network_id is None or set(self.containers) != set(ROLES):
             return {"state": "preparing"}
+        self.group.authorize_network(self.network_id)
         migration_value = engine("GET", "/containers/" + self.containers["migration"] + "/json")
         migration, host, config = migration_value["State"], migration_value["HostConfig"], migration_value["Config"]
         if (migration["Running"] or migration["Pid"] != 0 or migration["ExitCode"] != 0
@@ -253,29 +257,21 @@ class CandidatePreviewDocker:
             result = self._sql(statement, required=False)
             if result.returncode or result.stdout.strip() != expected:
                 return {"state": "preparing"}
-        for path, expected in (("/health", {"status": "ok"}), ("/ready", {"status": "ready"})):
-            connection = http.client.HTTPConnection(facts["frontend"]["ipv4"], 80, timeout=2)
-            try:
-                connection.request("GET", path)
-                response = connection.getresponse()
-                body = response.read(4097)
-                if response.status != 200 or len(body) > 4096 or json.loads(body) != expected:
+        for path, expected in (("/health", {"status": "ok"}), ("/ready", {"status": "ready"}), ("/", None)):
+            result = docker("exec", self.containers["frontend"], "/bin/busybox", "wget", "-S", "-T", "2",
+                            "-O", "-", "http://127.0.0.1" + path, required=False)
+            statuses = re.findall(rb"^\s*HTTP/\d(?:\.\d)?\s+([0-9]{3})", result.stderr, re.MULTILINE)
+            if result.returncode or not result.stdout or statuses != [b"200"]:
+                return {"state": "preparing"}
+            if expected is not None:
+                try:
+                    if len(result.stdout) > 4096 or json.loads(result.stdout) != expected:
+                        return {"state": "preparing"}
+                except ValueError:
                     return {"state": "preparing"}
-            except (OSError, ValueError, http.client.HTTPException):
+            elif not re.search(rb"^\s*Content-Type:\s*text/html(?:[;\s]|$)", result.stderr,
+                               re.IGNORECASE | re.MULTILINE):
                 return {"state": "preparing"}
-            finally:
-                connection.close()
-        connection = http.client.HTTPConnection(facts["frontend"]["ipv4"], 80, timeout=2)
-        try:
-            connection.request("GET", "/")
-            response = connection.getresponse()
-            if (response.status != 200 or not response.getheader("Content-Type", "").startswith("text/html")
-                    or not response.read(1)):
-                return {"state": "preparing"}
-        except (OSError, http.client.HTTPException):
-            return {"state": "preparing"}
-        finally:
-            connection.close()
         return {"state": "ready", "data_revision": DATA_REVISION, "migration_revision": MIGRATION_REVISION,
                 "containers": facts, "targets": {"frontend": {"ipv4": facts["frontend"]["ipv4"], "port": 80},
                                                     "backend": {"ipv4": facts["backend"]["ipv4"], "port": 8000}},

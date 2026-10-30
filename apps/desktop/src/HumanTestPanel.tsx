@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { codeOf, sessionChanged, taskPath } from "./api";
 import type { HumanTestEnvironment, HumanTestOptions, HumanTestSession, Task } from "./types";
 import type { Hub } from "./useHub";
@@ -21,6 +22,7 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
   const [environment, setEnvironment] = useState<HumanTestEnvironment | null>(null);
   const [environmentError, setEnvironmentError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [choice, setChoice] = useState<"" | "passed" | "changes_requested" | "skipped">("");
   const [summary, setSummary] = useState("");
   const [steps, setSteps] = useState("");
@@ -32,7 +34,7 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   useEffect(() => {
-    setEnvironment(null); setEnvironmentError(""); setLoading(false);
+    setEnvironment(null); setEnvironmentError(""); setLoading(false); setOpening(false);
     return () => { ++query.current; };
   }, [scope]);
 
@@ -107,6 +109,19 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
       : <p className="notice">实际运行修订和访问撤销确认尚未取得；需要时显式查询，不能由 Session 状态推断。</p>}
     {environment?.management_start_url && <p className="muted">在受信管理端打开资源查询地址：
       <code>{environment.management_start_url}</code></p>}
+    {environment?.client_route === "tauri_windows_webview2" && environment.state === "ready" &&
+      <button type="button" disabled={!hub.generation || !canEnter || opening} onClick={() => {
+        const generation = hub.generation;
+        const expectedScope = scope;
+        if (!generation) return;
+        setOpening(true);
+        void invoke<string>("preview_open", { generation, environmentId: environment.environment_id })
+          .catch(reason => {
+            if (scopeRef.current === expectedScope) setEnvironmentError(codeOf(reason));
+          }).finally(() => {
+            if (scopeRef.current === expectedScope) setOpening(false);
+          });
+      }}>{opening ? "正在打开预览…" : "打开隔离预览"}</button>}
     {session.conclusion && <Facts values={{ "人工结论": conclusions[session.conclusion.conclusion],
       "结论提交者": session.conclusion.concluded_by.subject_id, "提交时间 UTC": session.conclusion.concluded_at_utc,
       "跳过原因": session.conclusion.skip_reason, "反馈摘要": session.feedback?.summary,
@@ -212,7 +227,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
 
   return <section><div className="section-title"><h3>可选人工测试</h3>
     <button type="button" disabled={!identity || !project || !canRead || loading} onClick={loadSessions}>查询人工测试</button></div>
-    <p className="notice">当前预览访问路线尚未验证，不能在 Desktop 打开测试环境；管理端资源查询地址不授予预览访问能力。</p>
+    <p className="notice">查询实际环境后，可打开安装方已验证的 Windows 隔离预览；管理端资源查询地址不授予预览访问能力。</p>
     {!canRead && <p className="muted">当前权限不能读取人测事实。</p>}
     {loading && <p className="muted">正在查询人工测试…</p>}
     {error && <p className="error">人工测试查询：{error}</p>}
