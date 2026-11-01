@@ -53,6 +53,11 @@ pub fn close(app: &AppHandle, label: &str) {
     }
 }
 
+pub fn close_all(app: &AppHandle) {
+    let labels = CONTAINERS.with(|containers| containers.borrow().keys().cloned().collect::<Vec<_>>());
+    for label in labels { close(app, &label); }
+}
+
 pub fn shutdown(app: &AppHandle) {
     let labels = CONTAINERS.with(|containers| containers.borrow().keys().cloned().collect::<Vec<_>>());
     for label in labels { dispose(app, &label); }

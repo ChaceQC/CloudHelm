@@ -37,6 +37,7 @@ export function useHub() {
   const receiver = useRef<(notice: SyncNotice) => void>(() => {});
   const matches = (generation: string, expected: number) =>
     active.current === generation && epoch.current === expected;
+  const closePreviews = () => { void invoke("preview_close_all").catch(() => {}); };
 
   const clearScope = () => {
     subscription.current = "";
@@ -45,6 +46,7 @@ export function useHub() {
   };
   const denied = (reason: unknown) => {
     if (reason instanceof HubError && [401, 403].includes(reason.status)) {
+      closePreviews();
       ++epoch.current; ++revision.current; active.current = null; running.current = false; setRenderedGeneration(null);
       clearTimeout(timer.current); clearScope(); setBusy(false); setProjects([]); setPending([]); setConnection("revoked");
       return true;
@@ -116,6 +118,8 @@ export function useHub() {
           || batch.cursor !== (batch.events.at(-1)?.cursor ?? value.cursor)) {
         void refresh(project.current, true, generation); return;
       }
+      if (batch.events.some(event => event.event_type === "preview.revocation_requested"
+          || event.event_type === "preview.stop_requested")) closePreviews();
       setConnection("live");
       if (batch.events.length) {
         setEvents(previous => [...batch.events, ...previous].slice(0, 100));
@@ -169,6 +173,7 @@ export function useHub() {
     project.current = id; setEvents([]); setDisplayedReceipt(null); void refresh(id, true, generation);
   };
   const connect = async (baseUrl: string, importCredential: boolean, devLoopback: boolean) => {
+    closePreviews();
     const expected = ++epoch.current;
     ++revision.current; active.current = null; running.current = false; setRenderedGeneration(null);
     clearTimeout(timer.current); project.current = ""; clearScope();
@@ -194,6 +199,7 @@ export function useHub() {
     }
   };
   const disconnect = async (forget = false) => {
+    closePreviews();
     const expected = ++epoch.current;
     ++revision.current; active.current = null; running.current = false; setRenderedGeneration(null); project.current = "";
     clearTimeout(timer.current); clearScope();

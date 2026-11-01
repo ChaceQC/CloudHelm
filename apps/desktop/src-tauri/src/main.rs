@@ -11,7 +11,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             bridge::hub_transition, bridge::hub_connect, bridge::hub_request, bridge::hub_retry,
             bridge::hub_pending, bridge::hub_ack, stream::hub_subscribe,
-            preview::preview_open, preview::preview_close,
+            preview::preview_open, preview::preview_close, preview::preview_close_all,
         ])
         .build(tauri::generate_context!())
         .expect("CloudHelm desktop startup failed")

@@ -5,6 +5,17 @@
 
 本记录承接[上轮记录](p2-4-02.md)，保留其失败和原始输入。脱敏字段、方法及源码摘要见 [本轮证据](p2-4-02-followup-evidence.json)。各组输入分别固定，不能将网络监听夹具、业务准入夹具、原生方法及 A11 制品物理运行拼成同一个正式候选的全链通过。规则仍为 [P0 预览决定 r2](../../decisions/p0/preview-access.md)和 D05/D06。
 
+## 2026-11-01：真实 WSL 制品核对与撤销收窗接线
+
+本轮先启动 `Ubuntu-24.04` WSL，删除两个无容器附着的旧 Compose 网络；未执行全局 Docker 清理，也未删除 `.thesis-work` 历史方法和证据。真实核对使用 WSL `/mnt/e/Project/CloudHelm`、Python `3.12.13`、Linux `6.18.33.2-microsoft-standard-WSL2` 和 Docker `29.1.3`。
+
+- `candidate/inventory.py storage` 在实际受管存储上核对 A11 候选 32 文件/139151 bytes 和三份 OCI 内容，结果通过；实际 pool/Runner 预览槽均为 `0`，仍没有产品预览资源准入。
+- `candidate/physical.py` 使用当前真实受管存储和 Docker 完成两轮 OCI 预览启动、`/`、`/health`、`/ready`、`/devmarker` 探活、停止及新物理身份重建，结果 `passed`，资源回收和原存储挂载恢复确认；该方法仍明确不调用 CandidatePreview 业务准入。
+- `candidate/finalize.py` 核对本轮 probe service 全部 inactive、临时目录已清理。
+- Desktop `npm.cmd run build`、Rust `cargo check --locked --offline` 及相关 Python `compileall` 通过。新增代码让项目同步流中的 `preview.revocation_requested`/`preview.stop_requested` 触发原生预览收窗，并复用已有分区销毁/删除回执路径；这一步尚未取得服务端撤销到真实 Windows 分区删除的端到端运行证据。
+
+本轮实际运行仍没有把 A11 的 `CandidateSnapshot`、构建结果和运行事实变成适用的 `FixedCandidateRecord`；也没有受审 `ClockSupport`。因此以下未决项保持原状，不能用本轮真实 OCI 运行替代正式业务候选、可信时基或最终集成依据。
+
 ## 实现与直接结果
 
 |范围|实际交付与结果|适用边界|

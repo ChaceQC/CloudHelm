@@ -94,6 +94,17 @@ pub fn preview_close(window: WebviewWindow, app: AppHandle, label: String) -> Re
     Ok(())
 }
 
+#[tauri::command]
+pub fn preview_close_all(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
+    security::trusted(&window)?;
+    #[cfg(windows)]
+    {
+        app.clone().run_on_main_thread(move || platform::close_all(&app))
+            .map_err(|_| "preview_window_unavailable")?;
+    }
+    Ok(())
+}
+
 pub fn shutdown(app: &AppHandle) {
     #[cfg(windows)]
     platform::shutdown(app);

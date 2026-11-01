@@ -2,6 +2,14 @@
 
 本文件记录实际开发、验证与交付状态。当前设计基线为总体设计 `v4.7`、索引 `v4.7.5`、D01/D02/D03/D04/D06/D06a `v4.7.2`、D05 `v4.7.1`；设计版本与软件版本分别管理。
 
+## 2026-11-01：真实 WSL 制品核对与撤销收窗接线，整体仍未放行
+
+- 授权与范围：用户要求直接启动 WSL 并真实推进 P2.4-02；先删除两个无容器附着的旧 CloudHelm Compose 网络，保留 `.thesis-work` 历史方法/证据和用户已有 `PROJECT_PLAN.md` 未提交改动。未执行全局 Docker prune。
+- 已实现：Desktop 主窗口在项目同步流收到 `preview.revocation_requested` 或 `preview.stop_requested` 时调用新增的 `preview_close_all` 原生命令；Rust 复用已有窗口销毁、WebView 数据清理和分区删除回执，不增加新的预览协议或常驻线程。连接被拒绝、切换会话和主动断开也会收窗。
+- 真实验证：WSL `2026-11-01T04:04:46Z`～`04:05:17Z` 实际读取受管存储，A11 候选 32 文件/139151 bytes 及三份 OCI 内容通过；pool/Runner `preview_slots=0`。`2026-11-01T04:05:00Z` 的候选库存核对显示 `fixed_record_paths=[]`。随后实际 `candidate/physical.py` 两轮 OCI 启动/探活/停止/重建通过，`resource_cleanup_confirmed=true`、`original_storage_mount_restored=true`；`04:06:42Z` finalize 核对 probe service 已停止、临时目录已清理。Windows `npm.cmd run build`、`cargo check --locked --offline` 及相关 Python 编译检查通过。
+- 未满足与影响：真实注册仍为零预览槽，不能从产品入口申请 `preview_slots=1`；A11 仍只有 Snapshot/构建/运行事实，没有适用 `FixedCandidateRecord`、独立验证/审查及最终集成依据；默认 `PreviewClock` 没有受审 `ClockSupport`，时间门禁继续 fail-closed；新增 Desktop 收窗接线尚未获得服务端撤销到真实原生分区删除的端到端证据。同一正式候选的旧轮次、重建和重连组合也未取证，正式路线保持关闭。
+- 下一项：由资源/安装负责人在同一物理账本登记并证明预览槽和受控代理，再用既有候选/构建/验证/审查/集成命令生成正式 `FixedCandidateRecord`；由时间基础设施负责人提供当前宿主适用的 `ClockSupport`；随后在真实 Hub TLS、Windows Desktop 和同一正式候选上重跑撤销收窗及旧轮次组合。当前不进入 P3，不把本轮物理 OCI 结果写成业务预览通过。
+
 ## 2026-10-30：P2.4-02 剩余源码与定向证据交付，整体未放行
 
 - 授权与入口：用户要求依据文档快速完成 P2.4-02 剩余项，避免过度设计、非必要代码和无用测试；入口 `dev / 96d267c`。已读取引用只读聊天及本轮计划/验收记录，保留用户已有计划表格排版与 `.playwright-cli/`。
