@@ -8,7 +8,7 @@
 
 **保留现有 PydanticAI 协议 Runtime、Gateway 和 DBOS 持久执行；OpenHands SDK 本轮仅作工程结构参考，不作为产品依赖或第二套循环/历史引擎。**
 
-固定 SDK 源码存在自定义工具、请求重试和会话恢复机制，但这些机制不能直接等同于 CloudHelm 的逐次业务准入、原 Operation 核对和事务等待。尤其是未配对观察的动作会进入重新执行路径；将它接入现有 Gateway 还需要显式身份映射和未知结果核对。当前领域能力已经存在，为整体接入维护这些跨引擎适配没有足够收益。本决定不声称 OpenHands 无法改造；本轮停止继续扩展集成实验，不维护框架分叉。
+OpenHands SDK 提供自定义工具、请求重试和会话恢复；恢复时可能重跑尚未记录结果的动作。接入 CloudHelm 需要把这些动作映射到原操作身份，先核对未知结果，并接入逐次授权和事务等待。现有执行链已经提供这些能力，整体引入 SDK 会增加适配和维护成本。本轮沿用现有执行链，OpenHands 只作工程结构参考。
 
 该选择沿用 [D01](../../design/01-domain-collaboration.md) 的 Runtime/历史/等待所有权及 [D02](../../design/02-execution-recovery.md) 的 DBOS 唯一持久执行，不改变权威设计、模型配置、软件版本、数据库或工作流应用版本。
 
@@ -37,7 +37,7 @@
 |Gateway/Runner 工具及长操作|[ToolExecutor](https://github.com/OpenHands/software-agent-sdk/blob/d2ee0cdea60825608c2f8906eb54e1d4d264fb42/openhands-sdk/openhands/sdk/tool/tool.py#L283-L289) 支持自定义执行器；[动作执行](https://github.com/OpenHands/software-agent-sdk/blob/d2ee0cdea60825608c2f8906eb54e1d4d264fb42/openhands-sdk/openhands/sdk/agent/agent.py#L1466-L1557) 区分 ActionEvent 和 ObservationEvent，但 executor 调用没有直接传入整个 ActionEvent 的 `tool_call_id`。现有 [Gateway](../../../modules/tool_gateway/gateway.py) 在每次调用准入后向路由传原 tool-call ID，长操作由 [operations.py](../../../modules/agent_runtime/operations.py) 交给领域事务|可以定义受限工具并委托现有能力，但身份、权限与可靠等待需另作业务适配；SDK 自定义工具接口本身不授予文件/终端权限。未验证 accepted 与最终结果等待的完整组合，不开放内置宿主工具|
 |中断、未知结果及原身份恢复|[agent.py](https://github.com/OpenHands/software-agent-sdk/blob/d2ee0cdea60825608c2f8906eb54e1d4d264fb42/openhands-sdk/openhands/sdk/agent/agent.py#L710-L718) 会对未匹配 ObservationEvent 的动作再次 `_execute_actions`；同文件 1495～1557 行先调用 executor 再构造观察。执行成功但观察尚未持久化的间隙，不能从缺少观察推断未执行。CloudHelm 的 [workflows.py](../../../modules/agent_runtime/workflows.py) 只持久传递 `run_id`；业务请求、Operation、历史和等待各沿原身份核对|确认存在需要适配的恢复语义差异；不能直接启用 SDK 的恢复循环。没有集成 DBOS 或执行崩溃实验，不声明组合恢复通过；保留现有 Runtime 的核对及续接路径|
 
-SDK 的 telemetry 在每次外层尝试记录请求上下文/响应与指标，但不等同于 CloudHelm 的持久准入及精确费用账本，见固定 [telemetry.py 190～235 行](https://github.com/OpenHands/software-agent-sdk/blob/d2ee0cdea60825608c2f8906eb54e1d4d264fb42/openhands-sdk/openhands/sdk/llm/utils/telemetry.py#L190-L235)。这并非认定 SDK 没有扩展能力，而是本轮没有获得可以直接复用现有门禁和恢复不变量的组合证据。
+SDK 的 telemetry 在每次外层尝试记录请求上下文、响应和指标，见固定 [telemetry.py 190～235 行](https://github.com/OpenHands/software-agent-sdk/blob/d2ee0cdea60825608c2f8906eb54e1d4d264fb42/openhands-sdk/openhands/sdk/llm/utils/telemetry.py#L190-L235)。本轮静态核对未验证它与 CloudHelm 的请求准入、费用结算和恢复机制能否配合运行。
 
 工具与恢复还须区分三点：
 
@@ -49,4 +49,4 @@ SDK 的 telemetry 在每次外层尝试记录请求上下文/响应与指标，�
 
 后续只沿 [A01 实施映射](../../implementation/p2-agent.md) 推进：A03 装配角色指令与有界工程内容；A04/A05 接通现有工作区读写和差异；A06～A08 接通已有环境、固定构建及必要检查；A09 沿现有 Session/Run/Operation/WaitCondition 组织循环。动作/观察仅用于明确工具输入及真实结果，不另存一套权威业务状态；不预建通用插件、符号地图或第二套调度器。
 
-本决定不新增引擎迁移工作包。各能力仍逐项实现和估算，剩余总投入资料不足，保持待估；不把“不换引擎”换算成虚构的工时节省。下一项为待安排的 **P2.1-A03**，本次不启动。
+本决定交付时，下一项是 **P2.1-A03**。后续沿现有执行链逐项实现和估算，剩余总投入待估。

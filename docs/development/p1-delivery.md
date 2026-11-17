@@ -1,8 +1,7 @@
 # 归档 Release、环境配置与部署计划
 
-当前源码为 `0.14.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库的线性业务迁移为
-`0014_p2_verification`（前驱 `0013_p2_usage_waits`）。使用 [Hub 开发入口](p1-hub.md)
-准备 WSL 锁定环境和独立数据库角色；`initialize` 不升级旧安装。
+本说明原来的开发基线是源码 `0.14.0`、业务迁移 `0014_p2_verification`。准备 WSL 环境和数据库角色、
+确认当前迁移目标，请按 [Hub 开发入口](p1-hub.md)操作。旧安装需要单独处理，`initialize` 只用于新安装及同版本核对。
 
 正式验收报告及其当前适用性按 [P2.2-02](p2-verification.md) 检查。历史报告和旧 Release 不自动获得当前门禁通过；HTTP 验收不能替代制品运行验证。
 
@@ -34,10 +33,10 @@ P1 的逐项出口、缺失证据及 P2 入口裁决见 [出口核对](../accept
 |`verification_refs`|已登记、当前适用的独立验证证据；覆盖验收资产要求，禁止将 `protocol_validation` 来源用于产品 Release|
 |`verification_configuration`|实际制品运行验证所用配置，只允许声明参数及不可变 secret 版本引用；随证据保存，不作为其它环境默认值|
 
-独立 integration 来源按现有受控事实入口登记 `EvidenceMetadata`，主体仍是 Task 当前 Candidate。
-其中至少一条通过证据的 `check_ids` 包含 `artifact_runtime`，`fact_digest` 必须等于
-`runtime_verification_digest(record, artifacts, verification_configuration)`。该摘要固定原 BuildRun/Operation、
-构建输入、三个实际归档及镜像身份、交付运行契约和测试配置；仅构建/加载成功不足以伪造运行验证。
+创建 Release 至少需要一条当前适用的制品运行通过证据，`check_ids` 包含 `artifact_runtime`。独立 integration 来源
+为 Task 的当前候选登记 `EvidenceMetadata`，其中 `fact_digest` 必须等于
+`runtime_verification_digest(record, artifacts, verification_configuration)`。该摘要绑定原 BuildRun/Operation、
+构建输入、三个实际归档及镜像身份、交付运行契约和测试配置。
 证据的输入集、候选来源 commit、验收资产与当前适用链接须一致。所选人工测试仍按原政策核对，Agent 不提交人类结论。
 受控来源负责实际运行方法与事实，公开 API 没有证据写入或“passed”开关。
 

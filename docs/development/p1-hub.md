@@ -2,7 +2,7 @@
 
 本文对应 [P1.1 实施说明](../implementation/p1-1-foundation.md) 与当前 [工程开发说明](p1-engineering.md)。Hub API 和单 worker 共用一个 PostgreSQL 数据库，业务表在 `cloudhelm` schema，DBOS 系统表在 `dbos` schema。当前入口用于受信任平台所有者管理的开发环境；构建与增量开发的支持范围见工程说明，基础 Windows Desktop 见[客户端说明](p1-desktop.md)，单 worker、未知资源收尾及恢复门禁的当前证据见 [P1.5-02 记录](../acceptance/p1/p1-5-02.md)，完整 Agent、跨端客户端、远程交付及恢复支持按各自工作包接入。
 
-环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
+s2413 是临时同机开发组合。其快照记录采集时的系统状态，安装、配额和运行结果须在该机器上验证。正式独立交付需要在独立目标验证。见[开发组合决定](../decisions/p0/s2413-development-envelope.md)及[支持矩阵](../acceptance/support-matrix.md)。
 
 ## 1. 环境与配置
 
@@ -38,7 +38,9 @@ $UV run --locked python -m database.manage status
 $UV run --locked python -m database.manage initialize
 ```
 
-初始化保存安装身份和原操作身份，执行业务线性迁移至 `0019_p2_history_limit`（前驱 `0018_p2_agent_environment`），再使用 DBOS 公开同版初始化接口。当前工作流应用为 `cloudhelm-hub/0.7.0`；有界内部 Agent 接入见 [Runtime 说明](p2-runtime.md)。重复调用已有 `ready` 的同版目标返回原基线；并发维护、未知来源、不同版本或恢复门禁关闭时明确拒绝。包括 `0018_p2_agent_environment`、`0017_p2_agent_entry`、`0016_p2_merge_queue`、`0015_p2_handoffs`、`0014_p2_verification`、`0013_p2_usage_waits`、`0012_p2_agent_runtime`、`0011_p1_archive_maintenance`、`0010_p1_archive_closeout`、`0009_p1_5_sync`、`0008_p1_4_remote`、`0007_p1_4_delivery`/`0.6.0` 在内的旧安装不会由此命令自动升级。中断初始化需要沿原操作身份核对，`--operation-id` 用于已登记的原身份，不用新身份覆盖未知结果。固定 `0008` 快照仅在获授权的独立维护副本中按[受限维护入口](p1-delivery.md#31-独立恢复副本的受限维护)定向升级到 0011，升级后仍拒绝普通运行。资源入口和受控 Runner 命令见[共享资源说明](p1-resources.md)，Release/配置/计划与批准见[交付说明](p1-delivery.md)，Remote Agent 的默认门禁见[远端说明](p1-remote-agent.md)。
+新库的业务迁移目标是 [`0020_p2_previews`](../../database/migrations/versions/0020_p2_previews.py)，上一版为 `0019_p2_history_limit`。初始化先登记安装和原操作身份，再按顺序执行业务迁移和 DBOS 初始化。当前工作流应用为 `cloudhelm-hub/0.7.0`；它与[软件版本](../../pyproject.toml)分别管理。
+
+同版本的安装已是 `ready` 时，重复调用会返回已登记的基线。`initialize` 只用于首次准备和同版本核对；已有旧版本、来源不明、正在维护或恢复门禁关闭的安装会被拒绝。初始化中断后先查询状态；继续已登记的初始化时，将原操作 ID 传给 `initialize --operation-id`。固定 `0008` 快照只能在获授权的独立副本上按[受限维护说明](p1-delivery.md#31-独立恢复副本的受限维护)升级到 `0011`，副本仍不提供普通运行入口。
 
 成功回执中的 `dbos_schema_version` 仍可为 `null`：公开接口没有提供本轮可单独核验的精确数字版本。实际支持依据是固定 SDK、受控初始化来源及公开启动核验，不支持借此进行跨 SDK 升级、回退或旧备份自动恢复。
 

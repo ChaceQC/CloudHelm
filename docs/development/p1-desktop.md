@@ -14,7 +14,7 @@ npm.cmd run desktop:dev
 
 生成本机调试程序：`npm.cmd run desktop:build -- --debug`；输出为 `src-tauri/target/debug/cloudhelm-desktop.exe`，不生成安装器。图标的矢量源为 `src-tauri/icon.svg`，可用 `npx.cmd tauri icon src-tauri/icon.svg --output src-tauri/icons` 重建，只维护实际引用的 `icon.ico`、`icon.png`。
 
-Hub、数据库和 worker 仍在 WSL Ubuntu-24.04 运行，初始化、用户、项目、签发会话和服务启动见 [Hub 开发说明](p1-hub.md)。新隔离库迁移 head 为 `0017_p2_agent_entry`，线性承接 `0016_p2_merge_queue`；旧安装不由 initialize 自动升级。不得为打开 Desktop 清空旧库或绕过恢复门禁；recovery_required 的独立维护副本不提供普通 Desktop 连接。
+Hub、数据库和 worker 在 WSL Ubuntu-24.04 运行。按 [Hub 开发说明](p1-hub.md)核对新库迁移目标、创建用户和项目、签发会话并启动服务。A10 记录中的 `0017_p2_agent_entry` 是当时的验证基线。旧安装需要受控升级；处于 `recovery_required` 的维护副本不提供普通 Desktop 连接，保留原数据库等待恢复核对。
 
 在“连接”页输入 HTTPS Hub 根地址，勾选导入后点击连接，使用系统文件选择器选择受控交付到当前 Windows 用户的会话凭据文件。文件内容不进入页面或剪贴板；原生层验证会话后保存到 Windows 凭据存储，服务名为 `com.cloudhelm.desktop`，按 Hub 地址区分条目。后续可取消勾选直接使用已保存凭据。断开不取消服务端任务；删除本机凭据不等于服务端撤销会话。
 

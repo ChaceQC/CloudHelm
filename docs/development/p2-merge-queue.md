@@ -1,6 +1,6 @@
 # 项目合并队列
 
-源码 `0.16.0` 提供 P2.3-02。新隔离库迁移 head 为 `0016_p2_merge_queue`，承接 `0015_p2_handoffs`；DBOS 应用仍为 `cloudhelm-hub/0.7.0`，新增 integration 自有的 `integration.merge_queue.v1`，复用 engineering 队列。旧安装仍须显式升级，不由 initialize 自动迁移。
+P2.3-02 的合并流程使用 `integration.merge_queue.v1`，复用 engineering 队列。原开发版本为 `0.16.0`，对应迁移 `0016_p2_merge_queue`；当前新库目标和旧安装的处理方式见 [Hub 初始化说明](p1-hub.md#2-受控数据库初始化)。
 
 ## 操作次序
 

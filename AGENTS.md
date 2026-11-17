@@ -30,9 +30,10 @@ D01～D06 对各自负责的领域规则具有唯一权威性。跨专题冲突�
 |文档|当前版本|
 |---|---|
 |总体设计|v4.7|
-|详细设计索引|v4.7.5|
+|详细设计索引|v4.7.6|
 |D05|v4.7.1|
-|D01、D02、D03、D04、D06、D06a|v4.7.2|
+|D01、D02、D04|v4.7.2|
+|D03、D06、D06a|v4.7.3|
 
 总体设计使用 vM.N，详细专题使用 vM.N.P，二者前两位必须相同。
 软件版本、数据库迁移版本、DBOS SDK、工作流应用版本和执行协议版本分别管理，不能互相替代。
@@ -47,9 +48,14 @@ JavaScript 项目使用 npm；实际 Rust 工程使用 Cargo，Cargo.lock 与工
 非正式阶段使用 v0.y.z，例如 v0.1.0；稳定版本从 v1.0.0 开始。
 破坏性变更递增 X，向后兼容的功能递增 Y，修复、文档和重构递增 Z。
 设计文档、软件、数据库迁移、SDK、工作流应用和执行协议版本独立维护。
-P1.1 的首个 Hub 开发源码版本为 `0.1.0`，DBOS 工作流应用单独固定为 `cloudhelm-hub/0.1.0`，业务迁移为 `0001_p1_1`。这是历史交付基线，最新开发基线见下段；当前没有已发布的软件、tag 或 Release。不得将相同数值视为版本类别合并，也不得虚构 SDK 兼容结论或迁移记录。
+P1.1 的历史交付基线是 Hub 源码 `0.1.0`、DBOS 工作流应用 `cloudhelm-hub/0.1.0` 和业务迁移 `0001_p1_1`。版本号相同也仍是独立版本类别；SDK 兼容与迁移结果以各自证据为准。
 
-当前开发源码为 `0.29.0`，工作流应用单独保留 `cloudhelm-hub/0.7.0`；新隔离库业务迁移 head 为 `0020_p2_previews`，从 `0019_p2_history_limit` 线性前进。有界内部 Run、工程上下文加载、工作区读取/搜索、文件创建/精确补丁/差异、固定开发环境、候选构建/结果及后端语法/API 自测工具、有界开发循环与交接、既有 Task 页启动/显式继续及真实结果/差异/等待查询、逐次模型/Gateway 准入、供应商 usage/精确费用与工程操作可靠等待见 [Runtime 说明](docs/development/p2-runtime.md)。不可变候选/InputSet 及分范围事实关联见 [固定候选说明](docs/development/p2-candidates.md)。受控正式验收、独立验证角色的固定候选/阶段工具及报告交接、完整性报告与反向依赖门禁见 [验收说明](docs/development/p2-verification.md)。只读审查角色的固定差异、代码/证据读取及结构化反馈见 [审查说明](docs/development/p2-review.md)。验证/审查问题的持久返工、原开发会话通知、新候选重验及关闭依据见 [返工说明](docs/development/p2-rework.md)。服务端人工接管、按版本编辑、固定差异及显式交还见 [写入权说明](docs/development/p2-handoffs.md)。增量/固定候选预览、受保护票据及可选人测见 [预览说明](docs/development/p2-previews.md)，客户端路线默认关闭；本机及收尾证据与未满足的正式支持门禁见 [P2.4-02 记录](docs/acceptance/p2/p2-4-02.md)。项目 FIFO、最终提交构建/验证/审查及旧 SHA 条件合入见 [集成说明](docs/development/p2-merge-queue.md)。归档 Release/配置/计划见 [交付开发说明](docs/development/p1-delivery.md)，Remote Agent 的通道、持久账本、固定物理适配与默认关闭的普通时间门禁见 [远端说明](docs/development/p1-remote-agent.md)；进入运行前首装的有限收尾见 [实施约定](docs/implementation/p1-archive-closeout.md)，固定旧快照的独立维护副本及当前交付准备见 [C08/C09 约定](docs/implementation/p1-current-delivery.md)。旧安装不由 initialize 自动升级，受限维护副本固定在 0011，保持 recovery_required、旧工作流关闭，不能自行切为普通运行。受管执行与分维释放保留 [T-SIM-06 实施说明](docs/implementation/t-sim-06-resources.md) 的原证据边界；当前不构成完整独立交付、整机重启或容量验收。历史候选及实际限制以各自固定输入为准。正式 Windows 基础 Desktop、连接代次与回执恢复见[客户端说明](docs/development/p1-desktop.md)，单 worker 与控制通道见 [P1.5-02 记录](docs/acceptance/p1/p1-5-02.md)，P1 出口与 P2 门禁见 [出口核对](docs/acceptance/p1/exit-review.md)，原生/人工验收分别记录。
+当前软件版本见 [pyproject.toml](pyproject.toml)，工作流应用及新库迁移目标见 [Hub 初始化说明](docs/development/p1-hub.md#2-受控数据库初始化)。旧安装需要受控升级；固定旧快照的维护副本仅到 `0011`，保持 `recovery_required` 且旧工作流关闭。
+
+- Agent 开发见[运行说明](docs/development/p2-runtime.md)、[固定候选](docs/development/p2-candidates.md)、[正式验收](docs/development/p2-verification.md)、[审查](docs/development/p2-review.md)及[返工](docs/development/p2-rework.md)。
+- 人工接管、预览及合并见[写入权说明](docs/development/p2-handoffs.md)、[预览与人测](docs/development/p2-previews.md)及[合并队列](docs/development/p2-merge-queue.md)。
+- 归档与远端执行见[交付](docs/development/p1-delivery.md)、[远端说明](docs/development/p1-remote-agent.md)、[首装收尾](docs/implementation/p1-archive-closeout.md)、[C08/C09](docs/implementation/p1-current-delivery.md)及 [T-SIM-06](docs/implementation/t-sim-06-resources.md)。
+- Windows 基础 Desktop、单 worker 与控制通道分别见[客户端说明](docs/development/p1-desktop.md)和 [P1.5-02](docs/acceptance/p1/p1-5-02.md)。独立交付、整机重启、容量及原生/人工验收的范围见 [P1 出口记录](docs/acceptance/p1/exit-review.md)和[支持矩阵](docs/acceptance/support-matrix.md)。
 
 ## 3. Git 与 GitHub 工作流
 
@@ -87,7 +93,7 @@ GitHub 操作因权限、网络、策略或平台状态无法完成时，记录�
 ## 4. 进度记录与阶段入口
 
 PROJECT_PLAN.md 已将 D06 的 P0～P6 细化为任务级计划；建立计划属于独立文档任务，不表示实施或验收已经启动。
-若计划缺失或必要工作包尚未拆分，先按 v4.7 总体设计和 D06 阅读与准备，补齐计划，不伪造当前执行阶段或阶段完成状态。
+计划缺失或工作包尚未拆分时，先依据 v4.7 总体设计和 D06 补齐计划，再确定当前阶段及开放的工作包。
 建立计划后，每个实施任务只承接计划明确的当前阶段和工作包；跨阶段工作先更新计划和依赖。
 D06 所列的阶段、估算和退出条件是规划基线，不构成进度或实际投入证据。
 PROJECT_PROGRESS.md 按 Asia/Shanghai 当前日期记录实际状态，运行时间使用明确带时区的 UTC 时间戳。
@@ -119,7 +125,7 @@ Hub 业务数据与 DBOS 系统数据位于同一个 PostgreSQL 数据库的不�
 SDK 自动重试、校验修复、压缩、恢复和流式回调也属于真实出站或副作用路径，不能绕过拦截与去重。
 持久检查点只保存允许内容；不得把完整秘密、无界历史或未受控大对象写入工作流状态。
 连接池、检查点、队列和恢复开销计入整机资源预算；队列数量不能当作物理并发上限。
-代码目录依实际工程结构建立；不得为看起来完整而创建空服务、占位实现或平行架构。
+按实际工程职责组织目录。新增服务和模块应承担当前工作包所需的实际行为；改变架构须先完成设计评审。
 普通源码以 300 行为评估线，React 页面或复杂服务以 400 行为评估线；超出时评估职责拆分，并在进度中记录结论。
 函数以 60 行为评估线，每个函数、模块和类保持单一主要职责。
 相同逻辑重复出现至少 3 次时，评估抽取共享实现及其边界。
@@ -154,9 +160,9 @@ WSL 开发验证与 Windows/Linux Desktop 原生验收、真实独立机器交�
 ### 6.3 重构边界与业务实现
 
 先查明调用关系、数据所有权、事务和现有用户改动，再改代码；不凭文件名臆测行为。
-不借重构之名扩展产品范围，不顺手改无关格式、命名、依赖或架构。
+重构限于当前工作包。无关的格式、命名、依赖和架构调整另行安排。
 开始重构前，在 PROJECT_PROGRESS.md 记录重构原因、影响范围和预期行为边界。
-重构保留外部行为和数据/协议兼容；确需改变行为时先按设计和计划评审，不以“重构”名义绕过。
+重构保持外部行为与数据、协议兼容；确需改变行为时，先按设计和计划评审。
 重构前后执行验证外部行为与关键不变量所需的定向检查，并在进度中记录方法和实际结果。
 跨模块业务命令由应用命令处理器持有统一事务；领域服务校验业务规则，不独立提交。
 业务写入、事件和 DBOS 入队按 D01/D02 的同库事务契约交接。
@@ -188,7 +194,7 @@ WSL 开发验证与 Windows/Linux Desktop 原生验收、真实独立机器交�
 工作分解和当前阶段只进 PROJECT_PLAN.md。
 README 面向使用者，保持稳定、简明，只维护项目介绍、真实可用能力、安装/配置/使用说明和必要导航。提交记录、阶段状态、测试明细、开发过程和进度历史写入 PROJECT_PROGRESS.md 或对应验收记录，不堆入首页。
 docs/archive 中的设计版本和清单是有意保留的历史资料；只有明确迁移任务才改动归档。
-文档日期、修订号和链接须核实；不虚构尚未产生的 commit、SDK 版本、机器环境或测试证据。
+核实文档中的日期、修订号、链接、提交、SDK 版本和运行环境；测试结果引用实际证据。
 设计修改不改变“待实施”状态，实施修改也不自动代表通过验收。
 
 ## 8. 核心业务与技术不变量
@@ -209,9 +215,8 @@ Task 完成必须基于当前权限、来源状态、控制修订、有效输入
 
 ### 8.2 执行身份、停止与核对
 
-取消或租约到期不表示物理进程已停止；结果未知不等于失败，取消不等于回滚。
-物理操作未确认停止前，不释放冲突资源、不启动会造成冲突的新操作，也不盲目重放。
-提交回执或 HTTP 202/accepted 表示可靠接收，不表示操作、Task 或部署完成。
+收到取消请求或租约到期时查询原操作；只有确认物理进程停止后，才能释放冲突资源或启动与它冲突的新操作。结果未知时保持原状态，先核对原操作再决定是否重试；取消不等于回滚。
+提交回执或 HTTP `202 Accepted` 表示请求已可靠接收。收到后查询原操作，按操作、Task 或部署的业务结果判断是否完成。
 长工具提交与等待结果分开；需要结果时通过可靠等待，原 Run 崩溃恢复身份，等待后续接生成新 Run。
 业务数据库写入与 DBOS 入队须使用统一事务和稳定身份；不要声称跨数据库、容器或文件系统 exactly-once。
 DBOS 的成功、取消或重试状态不能替代 Task、Release、Deployment 或真实进程的业务结论。

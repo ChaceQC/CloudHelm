@@ -2,13 +2,15 @@
 
 本文对应 [P1.2 实施说明](../implementation/p1-2-engineering.md)。工程入口、支持组合和验证范围以 [P1.2 证据索引](../acceptance/p1/p1-2.md) 为准。Hub 的身份、数据库和进程入口见 [Hub 开发说明](p1-hub.md)。
 
-## 1. 当前基线与隔离范围
+## 1. 开发环境与隔离范围
 
 本机开发环境是 WSL `Ubuntu-24.04`，仓库路径 `/mnt/e/Project/CloudHelm`。Python `3.12.13`、uv `0.11.29` 和根 `uv.lock` 固定解释器与依赖；安装和运行在 WSL 内执行。
 
-环境口径：s2413 是用户选定的临时同机组合，现有快照只证明采集时的系统事实；实际安装、配额生效和运行验证分别取证。WSL 结果不能替代这些证据，正式独立目标仍是 P1.4/P1 出口前置。具体方案见 [开发组合决定](../decisions/p0/s2413-development-envelope.md)，分类结果见 [支持矩阵](../acceptance/support-matrix.md)。
+本机 WSL、s2413 同机组合和独立目标分别验证，已有结果见[支持矩阵](../acceptance/support-matrix.md)。
 
-当前开发源码为 `0.14.0`，DBOS 工作流应用为 `cloudhelm-hub/0.7.0`，新隔离库业务迁移 head 为 `0014_p2_verification`（从 `0013_p2_usage_waits` 线性前进）。旧版安装必须另行完成受控升级，`database.manage initialize` 会拒绝版本不匹配的现有安装；固定旧快照的受限维护副本继续限定在 `0011`。P1.2 历史固定候选仍按原版本与证据适用；受管执行的登记、启动和限制见[共享资源说明](p1-resources.md)及 [T-SIM-06](../implementation/t-sim-06-resources.md)，归档编制见[交付说明](p1-delivery.md)，远端通道/账本及门禁见[Remote Agent 说明](p1-remote-agent.md)。
+工程说明原先采用源码 `0.14.0`、业务迁移 `0014_p2_verification`；历史候选按各自记录的版本核对。准备新环境时，按 [Hub 初始化说明](p1-hub.md#2-受控数据库初始化)确认迁移目标。旧安装需要另行受控升级，固定旧快照的维护副本仍停在 `0011`。
+
+受管执行的登记、启动和限制见[共享资源说明](p1-resources.md)及 [T-SIM-06](../implementation/t-sim-06-resources.md)，归档编制见[交付说明](p1-delivery.md)，远端通道和账本见 [Remote Agent 说明](p1-remote-agent.md)。
 
 工作文件、受管 Git 元数据、候选、下载缓存、制品和执行临时目录具有独立位置与用途。受控运行数据放在 Linux 原生私有目录，不能放在 `/mnt/e` 的仓库工作树内；配置仅传受保护文件引用，不向命令参数、日志或公开输出写入密钥。
 

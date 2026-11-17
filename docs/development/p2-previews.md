@@ -1,6 +1,8 @@
 # 预览与可选人测
 
-本说明对应源码 `0.29.0`、新隔离库迁移 `0020_p2_previews`。工作流应用独立保持 `cloudhelm-hub/0.7.0`。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定 r2](../decisions/p0/preview-access.md)；初始开发验证见 [P2.4-01](../acceptance/p2/p2-4-01.md)，上轮边界见 [P2.4-02](../acceptance/p2/p2-4-02.md)，本轮端口ACL、物理关流、回执与原生证据见[收尾记录](../acceptance/p2/p2-4-02-followup.md)。整体退出条件尚未齐，正式客户端路线保持关闭。
+11 月 1 日，本机 WSL 和 Windows 组合已登记一个预览槽并启动受控代理。**正式客户端入口仍关闭**，尚缺同一正式候选的端到端验证和可信计时证据。详见[本机记录](../acceptance/p2/p2-4-02-closeout.md)和[支持矩阵](../acceptance/support-matrix.md)。
+
+新库目标见 [Hub 初始化说明](p1-hub.md#2-受控数据库初始化)。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定 r2](../decisions/p0/preview-access.md)。早期验证见 [P2.4-01](../acceptance/p2/p2-4-01.md)、[P2.4-02 首轮](../acceptance/p2/p2-4-02.md)和[隔离与原生验证](../acceptance/p2/p2-4-02-followup.md)。
 
 ## 使用入口
 
@@ -22,14 +24,14 @@ Task 页的人工测试初始关闭，显示“未执行人工测试”，不会
 
 - 增量预览沿原开发环境命令提交 `preview=true`，仍由原工作流准备；成功后以原 `prepare_operation_id` 关联预览记录。当前只包含后端 HTTP，没有 HMR。
 - 固定候选临时环境从可信构建查询读取前端、后端及 PostgreSQL 镜像身份，复核 InputSet、OCI 内容和受控运行配方，在独立数据集内迁移、初始化并探活。不会写入正式 EnvironmentBinding 或交付机器。
-- 两者申请的资源向量、占账和硬上限均包含 `preview_slots=1`，共享现有宿主预算；原预留为零槽的开发环境须先确认停止再新建，不能偷偷补槽。实际 Runner 和池登记须支持该槽，否则明确排队/拒绝；本包不修改既有机器登记。
+- 两种环境都需要预留一个预览槽（`preview_slots=1`），计入原宿主预算。已有环境的预留为 0 时，先确认该环境已经停止，再申请带预览槽的新环境。Runner 和资源池都必须登记该能力，否则申请排队或被拒绝。维护者应先在原账本核对占用，再按[本机登记记录](../acceptance/p2/p2-4-02-closeout.md#原账本与受控代理)使用专用入口；普通服务启动和预览申请不会改动登记。
 - 现有固定资源配方在人类等待期间保守占用整组物理额度，可能阻塞其他重任务；DBOS 队列槽与物理额度分别计算。增量环境保留原 2 小时资源期限；固定人测资源从实际准备申请固定截止，留出准备余量，准备超时进入停止核对，期限不得被查询或重试刷新。
 
 执行意图与 DBOS 入队在同一事务内保存。已有物理日志只观察原身份，不因响应丢失重新准备。维护每轮有界处理 16 条环境；就绪环境继续核对物理事实，取消、输入失效、到期和让出先撤销入口，再走原停止路径。停止未知保持 `stopping` 和原占账；完整进程组停止及账本释放分别确认，磁盘保留继续遵循现有存储账本。通过证据不会因环境回收被改写。
 
 ## 受保护访问
 
-客户端路线默认关闭。只有安装方受控的公开元数据文件 `CLOUDHELM_PREVIEW_DESCRIPTOR` 包含 `management_origin`、独立的 `preview_domain` 和通过 P0 契约检查的 `client_route`，且其 DNS/TLS、客户端运行时和六组独立证据真实适用时，才能发布访问入口。文件不存秘密；普通项目或客户端不能登记它。未配置时即使物理进程就绪，访问仍显示 `preview_route_unconfigured`。填写字段或引用本身不构成独立验收，本轮没有开放任何真实客户端组合。
+开放入口前，安装方应在受控文件 `CLOUDHELM_PREVIEW_DESCRIPTOR` 登记 `management_origin`、独立的 `preview_domain` 及通过 P0 契约检查的 `client_route`，并核对实际 DNS/TLS、客户端运行时和六组隔离证据是否适用于该安装。文件只存公开元数据，由安装方维护。没有有效配置时，访问返回 `preview_route_unconfigured`。
 
 每个实例分配独立且不复用的 HTTPS 主机名。管理资源地址为 `/preview/start/{environment_id}`，只有资源标识，不授予访问权。基础 Desktop 只显示该地址，不将票据交给主 WebView、原生命令日志或系统 URL。管理页面中的会话凭据只用于该可信文档的当前认证请求，不保存到 Web Storage。
 
@@ -47,11 +49,11 @@ Task 页的人工测试初始关闭，显示“未执行人工测试”，不会
 
 `0.29.0` 为实际预览槽接入每实例宿主/转发ACL。root ResourceHost 的私有登记可添加 `preview_proxy_cgroup: "system.slice/<固定>.service"`；实际代理出站进程须由该root控制的systemd服务启动，普通同UID进程不能加入。缺配置或内核能力时拒绝预览网络准入，非预览路径保持原约定。规则绑定bridge ifindex及cgroup inode，服务重启后原网络不能静默换绑；实例显式禁用IPv6，5173仍不支持。
 
-预览HTTP入口必须使用 `services.hub-api.preview_transport.PreviewServer`，其受控h11协议提供真实关闭观测；缺接缝时预览转发拒绝。现有CLI的UDS/回环启动已接线，但非TLS本地关闭只保存本地事实；外部入口使用该Server的真实TLS监听并取得物理回执，才能记录对应代理确认。默认没有受审ClockSupport，当前安装仍为pending_time_unknown，不能重新签发。时钟接口仅由受信任宿主组合提供，不接受HTTP/项目传入证明。
+预览 HTTP 入口必须使用 `services.hub-api.preview_transport.PreviewServer`，由 h11 传输报告实际关闭；否则拒绝转发。CLI 的 UDS 或回环入口只记录本地关闭，外部入口使用该 Server 的真实 TLS 监听和物理回执记录代理确认。可信计时证明由受信任宿主提供。
 
-Windows Desktop 查询到ready且安装方登记 `tauri_windows_webview2` 时显示“打开隔离预览”。Rust重新从当前Hub查询公开固定地址，独立容器自行认证，不复制主窗口秘密；兑换尝试后限制本实例来源。正常关闭后实际删除专用分区，清理失败报告给主窗口；硬杀残留不复用。公开环境查询只新增可选 `entry_origin/client_route`，没有增加票据桥。主窗口收到项目同步流中的 `preview.revocation_requested` 或 `preview.stop_requested` 后，会调用原生收窗并沿同一销毁路径清理全部已打开预览；这只补上客户端接线，不替代服务端逐代理确认。真实服务端撤销到原生分区清理的端到端证据仍未取得，其他原生及安装组合继续关闭。
+预览环境为 `ready` 且安装方已登记 `tauri_windows_webview2` 时，Windows Desktop 显示“打开隔离预览”。原生层从当前 Hub 读取公开地址，使用独立容器认证。兑换尝试后，容器限制在该实例来源；正常关闭时删除专用分区，清理失败会报告给主窗口，强制退出后的残留分区不会复用。公开查询只提供可选的 `entry_origin` 和 `client_route`。
 
-本机定向证据已补齐所测端口ACL、回压物理关流和原生容器，但真实预览槽登记、同一正式固定候选全链、可信计时和上述完整客户端撤销/旧版本组合仍缺。不能据分开的本机方法填写安装描述符的六组“已验证”字段。
+主窗口收到 `preview.revocation_requested` 或 `preview.stop_requested` 后，会关闭已打开的预览窗口并清理分区；服务端仍逐个核对代理关闭回执。本机验证还缺服务端撤销到 Windows 窗口关闭和分区删除的完整结果，以及同一正式候选的旧轮次、重建和重连结果。
 
 人测入口为 `GET/POST /api/tasks/{task_id}/human-tests`、`GET /human-test-options` 和 `/api/human-tests/{session_id}` 下的 `ready/conclusion/activity/renew/yield/cancel`。所有写命令带原幂等键和当前 Task/Session 修订，回执顶层 `command_id` 复用 Desktop 日志机制。
 

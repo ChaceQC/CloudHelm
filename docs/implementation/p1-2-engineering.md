@@ -118,7 +118,7 @@ Runner 只接受封闭的注册操作，`RunnerOperationSpec` 绑定原操作/�
 
 ready 至少核对实际容器／进程、运行时依赖、`/health`、`/ready`、数据库迁移 head 与当前源码清单；源码修改后等待 reload 并用预期 HTTP 行为及源码摘要核对运行修订，未确认前保持 pending/stale。服务入口仅供独立开发方法受限访问，完整预览、票据和用户访问流程仍属 P2。
 
-prepare／suspend／resume／reset_data／dispose 均登记稳定操作与规范请求摘要，绑定 Workspace 修订和写入代次、工具链、锁、缓存键、数据修订与运行状态。未收尾意图进入 Task pending。休眠先关闭可用入口，核对进程停止后才记 suspended；恢复重新核对准入和依赖；数据重置只接受已固定的合成数据修订，递增数据 generation，实际迁移和就绪后才 ready。停止未知保留 pending 和占账，保留磁盘不冒充回收。所有容器／watcher 纳入候选冻结登记及实际核对，未知写入者拒绝。
+prepare／suspend／resume／reset_data／dispose 均登记稳定操作与规范请求摘要，绑定 Workspace 修订和写入代次、工具链、锁、缓存键、数据修订与运行状态。未收尾意图进入 Task pending。休眠先关闭可用入口，核对进程停止后才记 suspended；恢复重新核对准入和依赖；数据重置只接受已固定的合成数据修订，递增数据 generation，实际迁移和就绪后才 ready。进程停止尚未确认时，操作保持 `pending`，资源继续占账。实际保留的磁盘仍计入占用。所有容器／watcher 纳入候选冻结登记及实际核对，未知写入者拒绝。
 
 开发服务长驻期间以共享 backing pin 固定实例修订、挂载和打开 FD；短时命令仍经排他 admission 锁核对，源码、依赖与数据各按所属锁和私有目录写入。整池文件系统硬上限及持续占账不变，pin 不是额外容量预留。维护卸载／换挂载／删除必须取得 backing 独占 pin 并确认无相关容器挂载；服务进程崩溃丢失 pin 后仍先核对物理容器，不因锁已释放就回收。
 

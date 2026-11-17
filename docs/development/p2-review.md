@@ -10,7 +10,7 @@
 |`candidate.diff`|`path` 默认空、`offset` 默认 0、`max_entries` 默认且最多 16；比较冻结候选的 parent commit 与 candidate commit，按 UTF-8 路径顺序分页。非空路径匹配指定文件或目录内变更|
 |`review.evidence`|空参数；回查服务端绑定的构建状态、执行/制品事实、验证结果及可引用的 `evidence_refs`，模型不能指定另一份报告或自填事实|
 
-固定差异包含新增、删除、修改、模式与前后摘要；每文件 patch 最多 8KiB，整页约 32KiB。`next_offset` 用于下一批文件；`truncated`、binary、输入/输出限额及秘密遮罩明确保留，不能声称审查了未返回内容。敏感路径被排除，检测到秘密时整个 patch 遮罩。候选源码读取仍支持按行续读，超出支持范围的内容记入未覆盖项。当前合并候选读取沿原边界明确拒绝，不回退到可变工作区。
+固定差异包含新增、删除、修改、文件模式与前后摘要；每个文件的补丁最多 8 KiB，整页约 32 KiB。使用 `next_offset` 读取下一批文件，也可以按行继续读固定候选的源码。敏感路径会被排除，检测到秘密时会遮罩整个补丁。仍未读到的内容列入 `uncovered`，注明截断（`truncated`）、二进制文件、遮罩或字节限制等原因。当前读取入口只支持工作区冻结候选，读取合并候选的请求会被拒绝。
 
 模型返回[ReviewHandoff](../../packages/contracts/p2/review_agent.py)：`feedback_ready`、`human_decision_required` 或 `continue_required`，包含摘要、下一步、`findings` 和 `uncovered`。每个问题必须有相对路径、行号、blocking/advisory、标题、理由和原事实证据引用；整体输出最多 8KiB。位置及理由属于审查建议，证据引用必须来自服务端返回的准确事实，不能伪造另一候选的通过结论。
 
