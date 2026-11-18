@@ -2,6 +2,14 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R02b 封闭失效合入的队首
+
+- 已实现：[合入 Worker](modules/integration/merge_execution.py)持项目锁完成实时证据核对和有界 Git 引用写入。证据失效或 Task 关闭推进时，[Git 尝试记录](modules/integration/git_merge.py)在原启动锁与同一只写一次的引用上持久封闭已确认未启动的尝试，之后才撤回并同事务派发下一条。既有 `reconcile` 可收尾此前卡住的条目；已合入或未知的写入保留原身份。Git 模块 361 个物理行，仍只管理受管 Git 尝试、引用和条件更新，封闭与启动共用记录，保留同一模块。HTTP 契约、迁移及工作流版本未变，[操作说明](docs/development/p2-merge-queue.md#竞争返工与核对)已同步。
+- 定向开发验证：在 WSL Ubuntu-24.04（内核 `6.18.33.2-microsoft-standard-WSL2`、Python `3.12.13`、Git `2.43.0`）执行 `PYTHONPATH=. PYTHONUTF8=1 .venv/bin/python -B .thesis-work/r02b/verify.py`。复用 [P2.3-02 夹具](docs/acceptance/p2/p2-3-02.md#固定输入与方法)，使用 PostgreSQL `16.13 / 0020_p2_previews` 隔离库、真实权限/事务/入队、报告归档与失效、bare Git 及分支条件更新。上游 Workspace 候选回执、构建结果和 HTTP 采集为合成输入，故障点由夹具注入。方法 SHA-256 `55a8679319d3d6b1a3464324971996d6fb8518c710d51334b28d49c98861c594`；`--baseline` 加载 `77410d8` 的两个合入模块，两轮隔离库均已清理。
+- 结果：基线在 UTC `2026-11-18T06:44:23.987110+00:00` 复现失效在分支写入前提交、旧流程仍写目标。修复轮于 UTC `2026-11-18T06:46:39.435333+00:00` 通过三组核对：同一时序目标 SHA 不变，未确认封闭继续阻塞；原身份核对封闭并撤回后，迟到的旧模块和新模块均不能重启，下一条独立 Task 实际生成候选；已启动未知保留阻塞，已写入结果可在证据失效后按原身份确认，报告仍不可用。一次夹具初始化鉴权失败未进入合入验证，以最终隔离运行作为证据。
+- 交付检查：五份文件 UTF-8、两份 Python 模块语法及差异格式核对通过。
+- 进行中：无。阻塞与风险：E07d 仍缺取证安装的当前 Task、队首、候选及资源前置核对。未执行真实构建、完整 Worker 循环、正式验收或部署。计划修订 81，下一项为 [R03a](PROJECT_PLAN.md#两轮审计后的执行顺序)；E06c 可独立准备。
+
 ## 2026-11-18：R02a 修正晚到报告的适用性
 
 - 已实现：[报告归档](modules/integration/verification.py)在原项目锁和事务内，用报告依赖及原始 `InputSet` 的完整引用核对同项目已登记的失效事件。命中旧引用时，依赖初始为 `needs_review`，报告及原始结果照常保存。先归档后失效继续走[既有传播](modules/integration/validity.py)，接口和迁移不变。[使用说明](docs/development/p2-verification.md#变化与消费)已同步。

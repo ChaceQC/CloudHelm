@@ -2,7 +2,9 @@
 
 import json
 import time
-from dataclasses import dataclass
+from collections.abc import Callable
+from contextlib import AbstractContextManager, nullcontext
+from dataclasses import dataclass, field
 from typing import Literal
 
 import rfc8785
@@ -16,6 +18,7 @@ from packages.contracts.p1.workspace_git import (
 )
 
 _SECONDS = 60
+_START_SECONDS = 5
 _METADATA_LIMIT = 256 * 1024
 _MERGE_OUTPUT_LIMIT = 4 * 1024 * 1024
 _UNSUPPORTED_TREE = {
@@ -35,7 +38,15 @@ class MergePreparation:
     conflict_paths_truncated: bool = False
     reason_code: str | None = None
     applied: bool = False
-    apply_state: Literal["not_started", "applied", "unknown"] = "not_started"
+    apply_state: Literal["not_started", "applied", "closed", "unknown"] = "not_started"
+    _result_oid: str | None = field(default=None, repr=False, compare=False)
+
+
+def _require_writable_source(source: RegisteredGitSource) -> None:
+    if source.source_prefix:
+        raise WorkspaceFileError("merge_source_prefix_unsupported")
+    if source.access_mode != "read_write":
+        raise WorkspaceFileError("merge_source_read_only")
 
 
 def _refs(operation_id: str) -> tuple[str, str, str, str]:
@@ -112,11 +123,15 @@ def _metadata(directory: int, source: RegisteredGitSource, ref: str, deadline: f
     return oid, payload
 
 
+def _create_ref(directory: int, ref: str, oid: str, deadline: float) -> None:
+    run_git(directory, ("update-ref", "--no-deref", ref, oid, "0" * len(oid)),
+            limit=128, deadline=deadline)
+
+
 def _publish(directory: int, source: RegisteredGitSource, ref: str, tree: str,
              parents: tuple[str, ...], payload: dict, deadline: float) -> str:
     oid = _write_object(directory, "commit", _metadata_bytes(tree, parents, payload), source.object_format)
-    run_git(directory, ("update-ref", "--no-deref", ref, oid, "0" * len(oid)),
-            limit=128, deadline=deadline)
+    _create_ref(directory, ref, oid, deadline)
     return oid
 
 
@@ -167,11 +182,13 @@ def _query(directory: int, source: RegisteredGitSource, operation_id: str, deadl
                 raise ValueError
             parents = (intent_oid,)
         if (_read_object(directory, "commit", result_oid, _METADATA_LIMIT, deadline)
-                != _metadata_bytes(tree, parents, saved) or started not in {None, integrated}
-                or applied not in {None, integrated} or applied is not None and started is None):
+                != _metadata_bytes(tree, parents, saved) or started not in {None, integrated, result_oid}
+                or applied is not None and (applied != integrated or started != integrated)):
             raise ValueError
         apply_state = "not_started"
-        if started is not None:
+        if started == result_oid:
+            apply_state = "closed"
+        elif started is not None:
             apply_state = "unknown"
             try:
                 tip = _target(directory, source, deadline)
@@ -183,7 +200,7 @@ def _query(directory: int, source: RegisteredGitSource, operation_id: str, deadl
                 pass
         return MergePreparation(saved["state"], base, candidate, integrated, paths,
                                 saved["conflict_paths_truncated"], saved["reason_code"],
-                                apply_state == "applied", apply_state)
+                                apply_state == "applied", apply_state, result_oid)
     except WorkspaceFileError:
         raise
     except (KeyError, TypeError, ValueError, UnicodeError):
@@ -220,10 +237,7 @@ class MergeGitStore:
             return _query(directory, source, operation_id, time.monotonic() + _SECONDS)
 
     def prepare(self, source: RegisteredGitSource, operation_id: str, candidate_commit: str) -> MergePreparation:
-        if source.source_prefix:
-            raise WorkspaceFileError("merge_source_prefix_unsupported")
-        if source.access_mode != "read_write":
-            raise WorkspaceFileError("merge_source_read_only")
+        _require_writable_source(source)
         _object_id(candidate_commit, source.object_format)
         with self._git.integration_repository(source) as directory:
             deadline = time.monotonic() + _SECONDS
@@ -274,15 +288,34 @@ class MergeGitStore:
                       "integrated_commit": integrated, "conflict_paths": list(paths),
                       "conflict_paths_truncated": truncated, "reason_code": reason}
             parents = (intent, integrated) if integrated is not None else (intent,)
-            _publish(directory, source, result_ref, tree, parents, result, deadline)
-            return MergePreparation(state, base, candidate_commit, integrated, paths, truncated, reason)
+            result_oid = _publish(directory, source, result_ref, tree, parents, result, deadline)
+            return MergePreparation(state, base, candidate_commit, integrated, paths, truncated, reason,
+                                    _result_oid=result_oid)
 
-    def apply(self, source: RegisteredGitSource, operation_id: str, expected_base_commit: str,
-              integrated_commit: str) -> Literal["merged", "baseline_changed", "unknown"]:
-        if source.source_prefix:
-            raise WorkspaceFileError("merge_source_prefix_unsupported")
-        if source.access_mode != "read_write":
-            raise WorkspaceFileError("merge_source_read_only")
+    def close_apply(self, source: RegisteredGitSource, operation_id: str) -> Literal["closed", "merged", "unknown"]:
+        """Permanently fence a prepared attempt whose branch write never started."""
+        _require_writable_source(source)
+        try:
+            with self._git.integration_repository(source) as directory:
+                deadline = time.monotonic() + _SECONDS
+                prepared = _query(directory, source, operation_id, deadline)
+                if prepared is None or prepared.state != "prepared" or prepared._result_oid is None:
+                    return "unknown"
+                if prepared.apply_state == "applied":
+                    return "merged"
+                if prepared.apply_state != "not_started":
+                    return prepared.apply_state
+                # Occupy the same create-only slot so an old apply still cannot start.
+                _create_ref(directory, _refs(operation_id)[2], prepared._result_oid, deadline)
+                return "closed"
+        except WorkspaceFileError:
+            return "unknown"
+
+    def apply(
+        self, source: RegisteredGitSource, operation_id: str, expected_base_commit: str, integrated_commit: str,
+        *, start_gate: Callable[[], AbstractContextManager[None]] = nullcontext,
+    ) -> Literal["merged", "baseline_changed", "closed", "unknown"]:
+        _require_writable_source(source)
         _object_id(expected_base_commit, source.object_format)
         _object_id(integrated_commit, source.object_format)
         with self._git.integration_repository(source) as directory:
@@ -292,36 +325,37 @@ class MergeGitStore:
                 raise WorkspaceFileError("merge_preparation_not_ready")
             if (prepared.base_commit, prepared.integrated_commit) != (expected_base_commit, integrated_commit):
                 raise WorkspaceFileError("merge_request_digest_conflict")
-            if prepared.applied:
+            if prepared.apply_state == "applied":
                 return "merged"
-            if prepared.apply_state == "unknown":
-                return "unknown"
-            if _target(directory, source, deadline) != expected_base_commit:
-                return "baseline_changed"
+            if prepared.apply_state != "not_started":
+                return prepared.apply_state
+            baseline_changed = _target(directory, source, deadline) != expected_base_commit
             started_ref, applied_ref = _refs(operation_id)[2:]
-            try:
-                run_git(directory, ("update-ref", "--no-deref", started_ref, integrated_commit,
-                                    "0" * len(integrated_commit)), limit=128, deadline=deadline)
-            except WorkspaceFileError:
-                return "unknown"
             transaction = (f"start\noption no-deref\nupdate {source.target_branch} {integrated_commit} {expected_base_commit}\n"
                            f"create {applied_ref} {integrated_commit}\nprepare\ncommit\n").encode("utf-8")
-            try:
-                code, _ = run_git(directory, ("update-ref", "--stdin"), input_data=transaction, limit=128,
-                                  deadline=deadline, accepted_codes=(0, 1, 128))
-            except WorkspaceFileError as error:
-                if error.code == "git_stop_unconfirmed":
-                    return "unknown"
+            with start_gate():
+                if baseline_changed:
+                    return "baseline_changed"
+                write_deadline = min(deadline, time.monotonic() + _START_SECONDS)
                 try:
-                    result = _query(directory, source, operation_id, time.monotonic() + _SECONDS)
+                    _create_ref(directory, started_ref, integrated_commit, write_deadline)
                 except WorkspaceFileError:
                     return "unknown"
-                return "merged" if result is not None and result.applied else "unknown"
+                try:
+                    code, _ = run_git(directory, ("update-ref", "--stdin"), input_data=transaction, limit=128,
+                                      deadline=write_deadline, accepted_codes=(0, 1, 128))
+                except WorkspaceFileError as error:
+                    if error.code == "git_stop_unconfirmed":
+                        return "unknown"
+                    code = None
             if code == 0:
                 return "merged"
-            result = _query(directory, source, operation_id, deadline)
-            if result is not None and result.applied:
-                return "merged"
-            if _target(directory, source, deadline) != expected_base_commit:
-                return "baseline_changed"
+            try:
+                result = _query(directory, source, operation_id, deadline)
+                if result is not None and result.applied:
+                    return "merged"
+                if code is not None and _target(directory, source, deadline) != expected_base_commit:
+                    return "baseline_changed"
+            except WorkspaceFileError:
+                return "unknown"
             return "unknown"

@@ -1,6 +1,7 @@
-"""Bounded integration steps; Git I/O stays outside short application transactions."""
+"""Bounded integration steps with a current admission fence for Git publication."""
 
 import time
+from contextlib import contextmanager
 
 from database.uow import UnitOfWork
 from modules.collaboration.command_support import lock_task_access
@@ -9,58 +10,62 @@ from modules.collaboration.guards import require_ordinary_progress
 from modules.identity.actors import actor_for_command
 from modules.integration.git_merge import MergeGitStore
 from modules.integration.merge_queue import check_entry_task, record_event
-from modules.integration.merge_records import entry_for_attempt, queue_head, read_attempt, read_entry, save_entry
+from modules.integration.merge_records import entry_for_attempt, queue_head, read_attempt, read_entry, read_review, save_entry
 from modules.integration.merge_validity import verified_final
 from modules.workspaces.git_objects import read_commit_files
 from packages.contracts.p1.workspace_git import CandidateSnapshot, content_digest, manifest_bytes
 from packages.contracts.p2.merge_queue import IntegrationAttempt
 
 
-def _access(application, attempt_id, phase, *, starting=False):
-    with UnitOfWork(application.control_engine) as uow:
-        entry = entry_for_attempt(uow.connection, attempt_id)
-        command_id = entry.apply_command_id if phase == "apply" else entry.command_id
-        actor = actor_for_command(uow, command_id)
-        task, _ = lock_task_access(uow, actor, entry.task_id, "candidate.submit")
-        if starting:
-            require_ordinary_progress(uow.connection, task["task_id"], expected_version=task["version"],
-                expected_control_revision=entry.control_revision,
-                expected_input_validity_revision=entry.input_validity_revision)
-            check_entry_task(uow.connection, task, entry)
-            head = queue_head(uow.connection, entry.project_id)
-            expected_state = "applying" if phase == "apply" else "preparing"
-            if head is None or head.entry_id != entry.entry_id or entry.state != expected_state:
-                raise TaskBoundaryError("merge_entry_not_head")
-            if phase == "apply":
-                from modules.integration.merge_records import read_review
+_CLOSE_APPLY_ON = {"merge_inputs_not_current", "input_not_current", "verification_not_applicable", "task_progress_closed"}
 
-                _, view = verified_final(uow.connection, task, entry, entry.verification_report_id)
-                review = read_review(uow.connection, entry.review_id)
-                if (review is None or review.conclusion != "approved" or review.attempt_id != attempt_id
-                        or review.input_set_ref != view.report.evidence.input_set_ref):
-                    raise TaskBoundaryError("integration_review_required")
-        return entry
+
+def _access(uow, attempt_id, phase, *, starting=False, command_id=None):
+    entry = entry_for_attempt(uow.connection, attempt_id)
+    command_id = command_id or (entry.apply_command_id if phase == "apply" else entry.command_id)
+    actor = actor_for_command(uow, command_id)
+    task, _ = lock_task_access(uow, actor, entry.task_id, "candidate.submit")
+    entry = read_entry(uow.connection, entry.entry_id)
+    if entry.attempt_id != attempt_id:
+        raise TaskBoundaryError("integration_attempt_not_current")
+    if starting:
+        head = queue_head(uow.connection, entry.project_id)
+        expected_state = "applying" if phase == "apply" else "preparing"
+        if head is None or head.entry_id != entry.entry_id or entry.state != expected_state:
+            raise TaskBoundaryError("merge_entry_not_head")
+        check_entry_task(uow.connection, task, entry)
+        if phase == "apply":
+            _, view = verified_final(uow.connection, task, entry, entry.verification_report_id)
+            review = read_review(uow.connection, entry.review_id)
+            if (review is None or review.conclusion != "approved" or review.attempt_id != attempt_id
+                    or review.input_set_ref != view.report.evidence.input_set_ref):
+                raise TaskBoundaryError("integration_review_required")
+        require_ordinary_progress(uow.connection, task["task_id"], expected_version=task["version"],
+            expected_control_revision=entry.control_revision,
+            expected_input_validity_revision=entry.input_validity_revision)
+    return entry
 
 
 def execute_merge(runtime, operation_id):
-    """One physical stage per invocation; replay queries its original Git operation."""
+    """Execute or reconcile one stage by its original Git attempt."""
     reconciling = operation_id.startswith("merge-reconcile-")
+    reconcile_command_id = None
     if reconciling:
-        attempt_id = operation_id[len("merge-reconcile-") + 33:]
-        with UnitOfWork(runtime.control_engine) as uow:
-            entry = entry_for_attempt(uow.connection, attempt_id)
-        phase = "apply" if entry.state == "applying" else "prepare"
+        reconcile_command_id, _, attempt_id = operation_id.removeprefix("merge-reconcile-").partition("-")
+        phase = None
     else:
         phase = "prepare" if operation_id.startswith("merge-prepare-") else "apply"
-    prefix = "merge-" + phase + "-"
-    if not reconciling and not operation_id.startswith(prefix):
-        raise TaskBoundaryError("merge_operation_invalid")
-    if not reconciling:
+        prefix = "merge-" + phase + "-"
+        if not operation_id.startswith(prefix):
+            raise TaskBoundaryError("merge_operation_invalid")
         attempt_id = operation_id[len(prefix):]
     application = runtime.merges
-    entry = _access(application, attempt_id, phase)
+    with UnitOfWork(application.control_engine) as uow:
+        entry = _access(uow, attempt_id, phase, command_id=reconcile_command_id)
     if entry.state in {"merged", "withdrawn"}:
         return {"entry_id": entry.entry_id, "state": entry.state}
+    if reconciling:
+        phase = "apply" if entry.state == "applying" else "prepare"
     with runtime.registry.admit(128 * 1024**2) as storage:
         with runtime._git(storage, entry.project_id) as git:
             source = git.resolve_source(entry.project_id, entry.source.source_id, entry.source.source_revision)
@@ -72,7 +77,8 @@ def execute_merge(runtime, operation_id):
                 if fixed is None:
                     if reconciling:
                         return {"entry_id": entry.entry_id, "state": "unknown"}
-                    _access(application, attempt_id, phase, starting=True)
+                    with UnitOfWork(application.control_engine) as uow:
+                        _access(uow, attempt_id, phase, starting=True)
                     fixed = store.prepare(source, attempt_id, entry.candidate.candidate_commit)
                 if fixed.state == "pending":
                     return {"entry_id": entry.entry_id, "state": "unknown"}
@@ -90,30 +96,42 @@ def execute_merge(runtime, operation_id):
                     candidate_commit=fixed.candidate_commit, state=fixed.state, snapshot=snapshot,
                     conflict_paths=fixed.conflict_paths, conflict_paths_truncated=fixed.conflict_paths_truncated,
                     reason_code=fixed.reason_code)
-                return _finish_prepare(application, entry, attempt)
-            if fixed is None or fixed.state != "prepared":
-                raise TaskBoundaryError("integration_final_candidate_required")
-            if fixed.apply_state == "unknown":
-                return {"entry_id": entry.entry_id, "state": "unknown"}
-            outcome = "merged" if fixed.applied else None
-            if outcome is None:
-                if reconciling:
-                    from modules.collaboration.guards import read_task
+                return _finish_prepare(application, entry, attempt, reconcile_command_id or entry.command_id)
+            return _execute_apply(application, entry, fixed, store, source, storage, reconcile_command_id)
 
-                    with UnitOfWork(application.control_engine) as uow:
-                        task = read_task(uow.connection, entry.task_id)
-                    if task["cancel_requested_at"] is not None and fixed.apply_state == "not_started":
-                        return _finish_apply(application, entry, "withdrawn", store, source)
-                    return {"entry_id": entry.entry_id, "state": "unknown"}
-                _access(application, attempt_id, phase, starting=True)
+
+def _execute_apply(application, entry, fixed, store, source, storage, reconcile_command_id):
+    if fixed is None or fixed.state != "prepared":
+        raise TaskBoundaryError("integration_final_candidate_required")
+    command_id = reconcile_command_id or entry.apply_command_id
+
+    @contextmanager
+    def start_gate():
+        with UnitOfWork(application.control_engine) as uow:
+            _access(uow, entry.attempt_id, "apply", starting=True, command_id=command_id)
+            # Keep evidence invalidation ordered with the bounded Git ref writes.
+            yield
+
+    outcome = {"applied": "merged", "closed": "closed", "unknown": "unknown"}.get(fixed.apply_state)
+    if outcome is None:
+        try:
+            if reconcile_command_id is not None:
+                with start_gate():
+                    outcome = "unknown"
+            else:
                 storage.observe()
-                outcome = store.apply(source, attempt_id, fixed.base_commit, fixed.integrated_commit)
-            return _finish_apply(application, entry, outcome, store, source)
+                outcome = store.apply(source, entry.attempt_id, fixed.base_commit, fixed.integrated_commit,
+                                      start_gate=start_gate)
+        except TaskBoundaryError as error:
+            if error.code not in _CLOSE_APPLY_ON:
+                raise
+            outcome = store.close_apply(source, entry.attempt_id)
+    return _finish_apply(application, entry, outcome, store, source, command_id)
 
 
-def _finish_prepare(application, original, attempt):
+def _finish_prepare(application, original, attempt, command_id):
     with UnitOfWork(application.engine) as uow:
-        actor = actor_for_command(uow, original.command_id)
+        actor = actor_for_command(uow, command_id)
         lock_task_access(uow, actor, original.task_id, "candidate.submit")
         entry = read_entry(uow.connection, original.entry_id, for_update=True)
         if entry.attempt_id != attempt.attempt_id:
@@ -126,22 +144,23 @@ def _finish_prepare(application, original, attempt):
         return {"entry_id": entry.entry_id, "state": entry.state}
 
 
-def _finish_apply(application, original, outcome, store, source):
+def _finish_apply(application, original, outcome, store, source, command_id):
     if outcome == "unknown":
         return {"entry_id": original.entry_id, "state": "unknown"}
     tip = store.current_tip(source) if outcome == "baseline_changed" else None
     with UnitOfWork(application.engine) as uow:
-        actor = actor_for_command(uow, original.apply_command_id)
+        actor = actor_for_command(uow, command_id)
         lock_task_access(uow, actor, original.task_id, "candidate.submit")
         entry = read_entry(uow.connection, original.entry_id, for_update=True)
         if entry.attempt_id != original.attempt_id:
             raise TaskBoundaryError("integration_attempt_not_current")
-        if entry.state == "merged":
+        if entry.state in {"merged", "withdrawn"}:
             return {"entry_id": entry.entry_id, "state": entry.state}
-        if outcome in {"merged", "withdrawn"}:
-            entry = save_entry(uow.connection, entry, state=outcome)
-            record_event(uow, entry, "merge-completed-" + original.attempt_id, "integration." + outcome,
-                         entry, original.apply_command_id)
+        if outcome in {"merged", "closed"}:
+            state = "merged" if outcome == "merged" else "withdrawn"
+            entry = save_entry(uow.connection, entry, state=state)
+            record_event(uow, entry, "merge-completed-" + original.attempt_id, "integration." + state,
+                         entry, command_id)
         else:
             suffix = content_digest((original.attempt_id + ":" + tip).encode("utf-8"))[7:]
             entry = save_entry(uow.connection, entry, state="queued", attempt_id="merge-attempt-" + suffix,
