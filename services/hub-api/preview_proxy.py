@@ -375,19 +375,20 @@ class PreviewProxy:
             return
         try:
             target = origin(scope)
-            if target is None:
-                environment = None
-            else:
+            environment = None
+            if target is not None:
                 runtime = getattr(scope["app"].state, "runtime", None)
-                access = getattr(runtime, "previews", None)
-                if access is None:
-                    raise _Rejected(503)
-                try:
-                    environment = await _call(access.environment_for_origin, target)
-                except WorkspaceError as error:
-                    if error.code != "preview_environment_not_found" or error.status_code != 404:
-                        raise
-                    environment = None
+                descriptor = runtime.preview_environments.installation if runtime is not None else None
+                if (descriptor is None or (target != descriptor.management_origin
+                        and target.endswith("." + descriptor.preview_domain))):
+                    access = getattr(runtime, "previews", None)
+                    if access is None:
+                        raise _Rejected(503)
+                    try:
+                        environment = await _call(access.environment_for_origin, target)
+                    except WorkspaceError as error:
+                        if error.code != "preview_environment_not_found" or error.status_code != 404:
+                            raise
         except _Rejected as error:
             await _answer(scope, send, error.status)
             return

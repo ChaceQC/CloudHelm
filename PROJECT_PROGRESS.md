@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R03c 管理入口与预览查询分流
+
+- 已实现：[Hub 预览代理](services/hub-api/preview_proxy.py)先按启动时已登记的管理 origin 和预览域分流。管理请求和域外未知 Host 进入原管理 Host 门禁；只有预览子域查询环境，继续执行原预览门禁。未配置时保留原路由行为。已同步[预览说明](docs/development/p2-previews.md#受保护访问)。代理共 428 个物理行，本次仅调整入口分流，连接和撤销职责不作拆分。
+- 定向开发验证：WSL Ubuntu-24.04（内核 `6.18.33.2-microsoft-standard-WSL2`、Python `3.12.13`、FastAPI `0.143.0`、httpx `0.28.1`）。`PYTHONPATH=. PYTHONUTF8=1 .venv/bin/python -B .thesis-work/r03c/verify.py` 使用实际 Hub ASGI 中间件和路由，注入预览查询超时及合成环境响应；`--baseline` 加载 `9d47318` 的原代理。方法 SHA-256 `4fcf03c5eedcb576441cd233799b69b3bddc9eab827ed991bcfc30fd75a9626c`。
+- 结果：基线（UTC `2026-11-18T11:51:32.379676+00:00`）管理存活请求做一次预览查询并返回 `503`。修复后（UTC `2026-11-18T11:53:09.713968+00:00`），管理 `/health/live` 和票据交付页均返回 `200`，无预览查询；近似域名带转发头、预览域根和错误管理端口均返回 `404`，也无查询。预览子域查询失败返回 `503`，恢复后不存在的实例返回 `404`、已登记实例缺授权返回 `403`。无描述时回环存活及已登记预览的原结果保持。Python AST、交付文件 UTF-8 编码及 `git diff --cached --check` 核对通过。
+- 进行中：无。阻塞与风险：本轮未执行真实 TLS、数据库联调或六组正式验收；E07d 的取证安装前置仍待核对。计划修订 84，下一项为 [R03d](PROJECT_PLAN.md#两轮审计后的执行顺序)；E06c 可独立准备。
+
 ## 2026-11-18：R03b 显示分区清理结果
 
 - 已实现：[Desktop 主窗口](apps/desktop/src/App.tsx)监听原生 `preview-cleanup`，按窗口标识分别显示分区已删除或清理失败，可逐条关闭提示。提示独立于项目和 Hub 连接，其他窗口的成功不覆盖失败。原生回执、HTTP 契约、数据库及版本元数据未改动；已同步[客户端说明](apps/desktop/README.md)和[预览说明](docs/development/p2-previews.md#api-与安装边界)。
