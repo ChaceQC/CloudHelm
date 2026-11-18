@@ -1,6 +1,7 @@
 """The single supported notes build definition, fixed from actual input bytes."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from modules.workspaces.safe_paths import WorkspaceFileError
 from packages.contracts.p0.engineering_contracts import EngineeringRef
@@ -8,8 +9,8 @@ from packages.contracts.p1.build_requests import BuildDefinition, BuildFileInput
 from packages.contracts.p1.development_environment import POSTGRES_REFERENCE
 from packages.contracts.p1.workspace_git import content_digest
 
-from .backend_build_inputs import _read_fixed, verify_source as verify_backend
-from .frontend_build_inputs import SOURCE_DIGESTS, VerifiedFrontendSource
+from .backend_build_inputs import VerifiedBackendSource, _read_fixed
+from .frontend_build_inputs import SOURCE_DIGESTS, VerifiedFrontendSource, validate_recipe
 from .frontend_images import BASES
 from .offline_images import SOURCE_REFERENCE
 from .toolchain import TOOLCHAIN_DIGEST
@@ -19,6 +20,15 @@ FRONTEND_SOURCE_METADATA = {
     ".dockerignore": "80d80bd24d6f35ad894790ce2a9a23784ccfd69e84eb41d383c3c990dfc5c9b4",
     "Dockerfile": "33fab9b0b86547f6b5c049e66c767ce1d583215c2aea2fcad52245fffeb5087a",
 }
+
+
+@dataclass(frozen=True)
+class PreparedBuild:
+    definition: BuildDefinition
+    backend: VerifiedBackendSource
+    frontend: VerifiedFrontendSource
+    backend_recipe: bytes
+    frontend_recipe: bytes
 
 
 def split_sources(files: Mapping[str, bytes], prefix: str):
@@ -47,10 +57,9 @@ def _reference(name, reference):
                           digest=digest, digest_algorithm="sha256")
 
 
-def definition_and_frontend_for_candidate(
-        files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> tuple[BuildDefinition, VerifiedFrontendSource]:
-    """Fix the definition and retain its verified frontend candidate for the builder."""
-    verify_backend(split_sources(files, "backend"), allow_app_changes=True)
+def prepare_build(files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> PreparedBuild:
+    """Fix the definition from the same verified inputs the builders will use."""
+    backend = VerifiedBackendSource.from_inputs(split_sources(files, "backend"))
     frontend = VerifiedFrontendSource.from_inputs(split_sources(files, "frontend"))
     if "compose.yaml" not in files:
         raise WorkspaceFileError("build_candidate_compose_missing")
@@ -60,29 +69,33 @@ def definition_and_frontend_for_candidate(
             raise WorkspaceFileError("build_candidate_file_missing")
         return BuildFileInput(path=path, digest=content_digest(files[path]))
 
-    def controlled(name):
+    def controlled(name: str) -> tuple[BuildFileInput, bytes]:
+        raw = _controlled(name)
         return BuildFileInput(origin="controlled_recipe", path=CONTROLLED_ROOT + name,
-                              digest=content_digest(_controlled(name)))
+                              digest=content_digest(raw)), raw
 
     runtime = EngineeringRef(kind="runtime", object_id="reference-local-artifact-verification",
         revision="p1-reference-runtime-r1", authority="runner",
         digest=content_digest(_controlled("runtime.compose.yaml")), digest_algorithm="sha256")
     toolchain = EngineeringRef(kind="artifact", object_id="moby-buildkit-rootless", revision="0.34.0",
         authority="runner", digest=TOOLCHAIN_DIGEST, digest_algorithm="sha256")
+    backend_recipe_input, backend_recipe = controlled("backend.offline.Dockerfile")
+    frontend_recipe_input, frontend_recipe = controlled("frontend.offline.Dockerfile")
+    validate_recipe(frontend_recipe)
     definition = BuildDefinition(
-        recipes=tuple(controlled(name) for name in ("backend.offline.Dockerfile", "frontend.offline.Dockerfile")),
+        recipes=(backend_recipe_input, frontend_recipe_input),
         locks=tuple(candidate(path) for path in ("backend/uv.lock", "frontend/package-lock.json")),
         toolchain_refs=(toolchain,), base_image_refs=tuple(_reference(name, reference) for name, reference in (
             ("python-base", SOURCE_REFERENCE), ("node-base", BASES["node"]), ("nginx-base", BASES["nginx"]),
             ("postgres-dependency", POSTGRES_REFERENCE))),
-        descriptor=controlled("project-descriptor.json"), compose=candidate("compose.yaml"),
-        runtime_contract_ref=runtime, config_schema=controlled("config.schema.json"),
+        descriptor=controlled("project-descriptor.json")[0], compose=candidate("compose.yaml"),
+        runtime_contract_ref=runtime, config_schema=controlled("config.schema.json")[0],
         migrations=tuple(candidate(path) for path in sorted(files) if path.startswith("backend/migrations/")),
         acceptance_assets_ref=acceptance_ref,
     )
-    return definition, frontend
+    return PreparedBuild(definition, backend, frontend, backend_recipe, frontend_recipe)
 
 
 def definition_for_candidate(files: Mapping[str, bytes], acceptance_ref: EngineeringRef) -> BuildDefinition:
     """Return only the definition for local methods that do not start a build."""
-    return definition_and_frontend_for_candidate(files, acceptance_ref)[0]
+    return prepare_build(files, acceptance_ref).definition

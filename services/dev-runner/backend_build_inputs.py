@@ -8,14 +8,17 @@ import os
 import re
 import stat
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
+
+from modules.artifacts.content_files import file_shape
 
 from .python_dependencies import INPUT_DIGESTS, derived_project
 from .toolchain import ProbeFailure, TOOLCHAIN_DIGEST, private_directory
 
 ROOT = Path(__file__).resolve().parents[2]
 BACKEND = ROOT / "examples/standalone-project/backend"
-RECIPE = ROOT / "infra/p1/reference-build/backend.offline.Dockerfile"
 MAX_SOURCE_FILE_BYTES = 128 * 1024
 SOURCE_DIGESTS = INPUT_DIGESTS | {
     ".dockerignore": "sha256:08bc12907214f2b0272a6e82f035e3cbbaf7ac16defb4ab4a95302545308d317",
@@ -36,6 +39,18 @@ SOURCE_DIGESTS = INPUT_DIGESTS | {
 }
 RUNTIME_SOURCE = tuple(name for name in SOURCE_DIGESTS if name.startswith(("app/", "migrations/"))) + (
     "alembic.ini", "pyproject.toml", "uv.lock", ".python-version")
+
+
+@dataclass(frozen=True)
+class VerifiedBackendSource:
+    inputs: Mapping[str, bytes]
+    receipt: dict
+
+    @classmethod
+    def from_inputs(cls, source_inputs: Mapping[str, bytes]) -> VerifiedBackendSource:
+        inputs = dict(source_inputs)
+        receipt = verify_source(inputs, allow_app_changes=True)
+        return cls(MappingProxyType(inputs), receipt)
 
 
 def digest(raw: bytes) -> str:
@@ -73,7 +88,7 @@ def _read_fixed(path: Path) -> bytes:
                     or before.st_size > MAX_SOURCE_FILE_BYTES):
                 raise ProbeFailure("backend_source_file_unsupported")
             raw = stream.read(MAX_SOURCE_FILE_BYTES + 1)
-            if os.fstat(stream.fileno()) != before or len(raw) != before.st_size:
+            if file_shape(os.fstat(stream.fileno())) != file_shape(before) or len(raw) != before.st_size:
                 raise ProbeFailure("backend_source_changed_during_read")
             return raw
     finally:
@@ -87,19 +102,16 @@ def reference_inputs(source_root: Path = BACKEND) -> dict[str, bytes]:
     return source_files
 
 
-def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, source_ref: str,
+def prepare_context(directory: Path, source: VerifiedBackendSource, *, recipe: bytes, source_ref: str,
                     distributions: Mapping[str, str]) -> dict:
-    """Prepare immutable candidate bytes with fixed dependency and recipe controls."""
-    source = dict(source_files)
-    receipt = verify_source(source, allow_app_changes=True)
+    """Prepare the build context from the candidate and recipe fixed at preflight."""
     if not isinstance(source_ref, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,191}", source_ref):
         raise ProbeFailure("backend_source_reference_invalid")
     private_directory(directory)
-    recipe = _read_fixed(RECIPE)
     context = directory / "context"
     context.mkdir(mode=0o700)
-    project = derived_project(source)
-    files = source | {"Dockerfile": recipe, "derived-pyproject.toml": project,
+    project = derived_project(source.inputs)
+    files = {**source.inputs, "Dockerfile": recipe, "derived-pyproject.toml": project,
         "expected-distributions.json": json.dumps(dict(distributions), sort_keys=True).encode("utf-8")}
     for name, raw in files.items():
         target = context / name
@@ -113,7 +125,7 @@ def prepare_context(directory: Path, source_files: Mapping[str, bytes], *, sourc
         if child.is_dir():
             child.chmod(0o500)
     context.chmod(0o500)
-    return receipt | {"source_ref": source_ref, "recipe_digest": digest(recipe),
+    return source.receipt | {"source_ref": source_ref, "recipe_digest": digest(recipe),
         "recipe_variant": "fixed-notes-python-offline-r3", "derived_project_digest": digest(project)}
 
 

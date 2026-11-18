@@ -18,7 +18,6 @@ from .toolchain import ProbeFailure
 
 ROOT = Path(__file__).resolve().parents[2]
 FRONTEND = ROOT / "examples/standalone-project/frontend"
-RECIPE = ROOT / "infra/p1/reference-build/frontend.offline.Dockerfile"
 SOURCE_DIGESTS = {
     "package.json": PACKAGE_DIGEST[7:], "package-lock.json": LOCK_DIGEST[7:],
     "index.html": "c271448b2dabaaf6629267df4ee9bc3ae09f152eba1a66cbbce38562e02b7fd6",
@@ -92,16 +91,17 @@ def reference_inputs(frontend: Path = FRONTEND) -> dict[str, bytes]:
     return inputs
 
 
-def prepare_context(directory: Path, source: VerifiedFrontendSource) -> dict:
-    inputs = source.inputs
-    recipe = _read_fixed(RECIPE)
+def validate_recipe(recipe: bytes) -> None:
     command = b"npm ci " + " ".join(INSTALL_OPTIONS).encode("ascii")
     if recipe.count(command) != 1:
         raise ProbeFailure("frontend_recipe_seed_install_options_mismatch")
+
+
+def prepare_context(directory: Path, source: VerifiedFrontendSource, *, recipe: bytes) -> dict:
     context = directory / "context"
     context.mkdir(mode=0o700)
     (context / "src").mkdir(mode=0o700)
-    for name, raw in {**inputs, "Dockerfile": recipe}.items():
+    for name, raw in {**source.inputs, "Dockerfile": recipe}.items():
         descriptor = os.open(context / name, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o400)
         with os.fdopen(descriptor, "wb") as stream:
             stream.write(raw)

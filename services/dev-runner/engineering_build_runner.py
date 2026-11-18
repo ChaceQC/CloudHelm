@@ -15,7 +15,7 @@ from packages.contracts.p1.workspace_git import content_digest
 
 from .artifact_environment_docker import engine
 from .artifact_environment_images import export_postgres, load
-from .engineering_definition import definition_and_frontend_for_candidate, split_sources
+from .engineering_definition import PreparedBuild
 from .engineering_seeds import prepare_build_seeds
 from .frontend_build_runtime import build_frontend
 from .toolchain import DockerClient, ProbeFailure, private_directory
@@ -174,23 +174,17 @@ class ControlledBuildRunner:
         operations = set(self._operation_ids())
         return [item for item in values if (item.get("Labels") or {}).get("cloudhelm.operation_id") in operations]
 
-    def execute(self, files):
+    def execute(self, prepared: PreparedBuild):
         if self.exists():
             return
         self.gate()
-        files = dict(files)
-        definition, frontend = definition_and_frontend_for_candidate(
-            files, self.record.fixed_inputs.definition.acceptance_assets_ref)
-        if definition != self.record.fixed_inputs.definition:
-            raise ProbeFailure("engineering_build_definition_mismatch")
         self._write("intent.json", self.record.model_dump(mode="json"))
         reports, loaded, invoked = {}, {}, []
         closure, exit_code = "closed_unstarted", None
         failure = None
         try:
             self.gate()
-            backend = split_sources(files, "backend")
-            seeds = prepare_build_seeds(self.storage, backend_source=backend)
+            seeds = prepare_build_seeds(self.storage, backend_source=prepared.backend.inputs)
             client_directory = self.directory / "client"
             private_directory(client_directory)
             self.client = _GatedDockerClient(DockerClient.create(client_directory), self.gate)
@@ -205,12 +199,12 @@ class ControlledBuildRunner:
                 invoked.append(role)
                 if role == "backend":
                     report = build_backend(self.client, operation, directory, seeds["python_root"],
-                        seeds["python_manifest"], source_files=backend,
+                        seeds["python_manifest"], source=prepared.backend, recipe=prepared.backend_recipe,
                         source_ref=self.record.fixed_inputs.candidate.candidate_commit, content_store=content)
                 else:
                     report = build_frontend(self.client, operation, directory, seeds["npm_root"],
-                        seeds["npm_manifest"], source_inputs=frontend,
-                        expected_source_manifest_digest=frontend.receipt["manifest_digest"],
+                        seeds["npm_manifest"], source_inputs=prepared.frontend, recipe=prepared.frontend_recipe,
+                        expected_source_manifest_digest=prepared.frontend.receipt["manifest_digest"],
                         content_store=content, seed_spec=seeds["npm_spec"])
                 reports[role] = report
                 self._write(role + ".json", report)

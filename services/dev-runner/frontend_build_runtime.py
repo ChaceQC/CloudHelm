@@ -103,12 +103,13 @@ class FrontendBuildRuntime(FrontendBuildBoundary):
 
 
 def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
-                   expected_seed_manifest_digest: str, *, source_inputs: dict[str, bytes] | VerifiedFrontendSource,
+                   expected_seed_manifest_digest: str, *, recipe: bytes,
+                   source_inputs: dict[str, bytes] | VerifiedFrontendSource,
                    expected_source_manifest_digest: str, content_store,
                    seed_spec: NpmDownloadSpec) -> dict:
     """Run a registered fixed-reference build; the caller holds authorization and admission.
 
-    Inputs are immutable candidate bytes, never an implicit read of the worktree.
+    The caller supplies the fixed candidate and preflighted recipe bytes.
     Returned facts include failures and physical stop evidence; they are not a BuildRun state.
     """
     result = {"all_required_verified": False, "failures": []}
@@ -125,7 +126,7 @@ def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
         if source.receipt["manifest_digest"] != expected_source_manifest_digest:
             raise ProbeFailure("frontend_source_manifest_digest_mismatch")
         candidate = source.inputs
-        result["source"] = prepare_context(directory, source)
+        result["source"] = prepare_context(directory, source, recipe=recipe)
         with NpmDownloadStore(seed_root) as seeds:
             seed = seeds.verify(seed_spec, expected_manifest_digest=expected_seed_manifest_digest)
         result["seed"] = seed.model_dump(mode="json")

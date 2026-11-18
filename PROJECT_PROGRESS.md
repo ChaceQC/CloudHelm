@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R01c 将固定候选和配方预检移到资源组启动前
+
+- 已实现：[Worker](services/hub-worker/engineering_build.py) 在同一次存储准入内，通过余量、授权及旧操作检查后，先读取固定候选并与原构建定义比对，再进入资源组。[Runner](services/dev-runner/engineering_build_runner.py) 将[预检取得的源码和两份 Dockerfile](services/dev-runner/engineering_definition.py)直接交给前后端。已有意图仍按原身份核对。验证中复现 Linux 正常读取更新访问时间被误判为文件变化，已复用现有文件身份、大小及纳秒修改/状态变更时间比较；原文件种类、链接及长度门槛保留。使用方法见[固定候选说明](docs/development/p2-candidates.md#使用顺序)。
+- WSL 定向验证：UTC `2026-11-18T05:35:41.275268+00:00`，Ubuntu-24.04、内核 `6.18.33.2-microsoft-standard-WSL2`、Python `3.12.13`。`.venv/bin/python -B .thesis-work/r01c/verify.py` 分别检出 `bae453f` 与暂存源码树 `8ff394c6ec24534af614232607df82a35084113c`，在隔离的受管 bare Git 中读取 32 文件的参照候选 `7c30a02699cce986926a4ab05cc7a592bb0d35ae`。存储准入、业务授权与资源绑定使用探针输入；在 Runner 接收处调用真实前后端上下文写入，旧观察登记使用隔离 SQLite。方法 SHA-256 `a1513b939a118744b26da0208c8bb1406b0532285f700059a01fe89143546be7`，脱敏结果在本机 `.thesis-work/r01c/result.json`。
+- 结果：基线对缺失候选和变动配方均先进入启动绑定；改后，候选 Git 对象缺失、后端配方摘要变化、前端 npm 安装选项不受支持三种输入均在绑定前拒绝，未创建构建日志。有效候选只读取一次；在绑定入口移走临时 Git 仓库和两份配方后，两端写入的源码及 Dockerfile 仍与预检一致。冷读不再误报。只有 1 字节可分配余量时，沿原意图查询两次均为 `failed`、`content_verified=false`，只登记一条原观察；没有重读候选或新启动。
+- R01c 已完成，无新增阻塞。原 Runner 文件仍超过普通源码评估线，本步移出预检职责并减少其代码，未拆动停机核对。下一项为 [R01d](PROJECT_PLAN.md#两轮审计后的执行顺序)。本轮未执行 Docker 完整构建、正式验收或部署；E07d 仍需可查询的安装基线及两端占账。
+
 ## 2026-11-18：R01b 补齐构建日志缺失时的停机核对
 
 - 已实现：[Runner](services/dev-runner/engineering_build_runner.py) 先核对原意图，再用同一预留、请求摘要和进程组的停机、组移除及临时磁盘回收回执收尾。[Worker](services/hub-worker/engineering_build.py) 将该回执交给[资源登记](modules/execution/dispatch.py) 核销原预留，按当前 Hub 观察链登记一次 `safely_stopped`。退出码和制品仍未知，不能用于固定候选。后续构建在启动资源组前核对未完整收尾的旧日志及其 Hub 观察。保留原日志、持久存储占账、外部契约和迁移版本；[使用说明](docs/development/p2-candidates.md#使用顺序)已同步。

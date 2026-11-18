@@ -9,7 +9,6 @@ import shutil
 import stat
 import tarfile
 import time
-from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
 from modules.artifacts.errors import ArtifactContentError
@@ -47,8 +46,8 @@ def _layer_files(archive, receipt, expected: dict) -> dict[str, bytes]:
     return actual
 
 
-def _verify_image(store, receipt, runtime_checks: dict, source_files: Mapping[str, bytes]) -> dict:
-    expected = {"app/" + name: inputs.digest(source_files[name]) for name in inputs.RUNTIME_SOURCE}
+def _verify_image(store, receipt, runtime_checks: dict, source: inputs.VerifiedBackendSource) -> dict:
+    expected = {"app/" + name: source.receipt["files"][name]["sha256"] for name in inputs.RUNTIME_SOURCE}
     expected["backend-result.json"] = None
     with store.open_archive(receipt.storage_id) as stream, tarfile.open(fileobj=stream, mode="r:") as archive:
         configuration = json.load(archive.extractfile("blobs/sha256/" + receipt.config.digest[7:]))["config"]
@@ -101,9 +100,9 @@ def _cleanup(directory: Path, *, remove_layout: bool) -> dict:
 
 
 def build_backend(client, operation_id: str, directory: Path, seed_root: Path,
-                  expected_seed_manifest_digest: str, *, source_files: Mapping[str, bytes],
+                  expected_seed_manifest_digest: str, *, source: inputs.VerifiedBackendSource, recipe: bytes,
                   source_ref: str, content_store) -> dict:
-    """The composition root supplies immutable candidate bytes and holds admission.
+    """The composition root supplies preflight candidate and recipe bytes and holds admission.
 
     Physical observations and stop evidence are returned to the owner of BuildRun;
     this function does not manufacture business completion or HTTP acceptance.
@@ -119,13 +118,13 @@ def build_backend(client, operation_id: str, directory: Path, seed_root: Path,
                 or not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_seed_manifest_digest)):
             raise ProbeFailure("backend_expected_seed_digest_required")
         private_directory(directory)
-        candidate = dict(source_files)
+        candidate = source.inputs
         dependency_input = PythonDependencyInput()
         seed = verify_admitted_seed(seed_root, dependency_input, source_files=candidate)
         if seed["manifest_digest"] != expected_seed_manifest_digest:
             raise ProbeFailure("backend_seed_manifest_mismatch")
         result["seed"] = seed
-        result["source"] = inputs.prepare_context(directory, candidate, source_ref=source_ref,
+        result["source"] = inputs.prepare_context(directory, source, recipe=recipe, source_ref=source_ref,
                                                    distributions=seed["distributions"])
         result["toolchain"] = ensure_toolchain(client)
         result["base"] = prepare_python_layout(client, directory)
@@ -148,7 +147,7 @@ def build_backend(client, operation_id: str, directory: Path, seed_root: Path,
                 or receipt.config.digest != output["exporter_config_digest"]
                 or content_store.query(receipt.storage_id) != receipt):
             raise ProbeFailure("backend_exporter_and_artifact_identity_mismatch")
-        result["runtime_image_contents"] = _verify_image(content_store, receipt, output["runtime_checks"][0], candidate)
+        result["runtime_image_contents"] = _verify_image(content_store, receipt, output["runtime_checks"][0], source)
         result["artifact"] = receipt.model_dump(mode="json")
         result["dependencies"] = probe.dependency_evidence(manifest, seed["distributions"], source_files=candidate)
         if verify_admitted_seed(seed_root, dependency_input, source_files=candidate) != seed:

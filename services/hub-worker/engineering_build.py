@@ -127,6 +127,7 @@ def execute_build(runtime, operation_id):
             if _record(runtime, operation_id, reconciliation=False) != record:
                 raise WorkspaceFileError("build_operation_binding_changed")
 
+        prepared = None
         if start:
             gate()
 
@@ -139,16 +140,22 @@ def execute_build(runtime, operation_id):
                     return head is not None and head.observation == observation
 
             runner_module.check_previous_builds(storage, record, registered)
-        with runtime.resources.build(record, storage, gate, start=start) as group:
-            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, start=start)
+            definitions = importlib.import_module("services.dev-runner.engineering_definition")
+            definition = record.fixed_inputs.definition
+            prepared = definitions.prepare_build(_candidate_bytes(runtime, storage, record),
+                                                 definition.acceptance_assets_ref)
+            if prepared.definition != definition:
+                raise runner_module.ProbeFailure("engineering_build_definition_mismatch")
+        with runtime.resources.build(record, storage, gate, start=prepared is not None) as group:
+            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, prepared=prepared)
 
 
-def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, *, start):
+def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, *, prepared):
     runner = runner_module.ControlledBuildRunner(storage, record, gate)
     try:
-        if start:
+        if prepared is not None:
             gate()
-            runner.execute(_candidate_bytes(runtime, storage, record))
+            runner.execute(prepared)
         with UnitOfWork(runtime.control_engine) as uow:
             previous = read_build_execution(uow.connection, record)
             runner.previous_observation = None if previous is None else previous.observation

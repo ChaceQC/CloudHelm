@@ -10,7 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from .backend_build_boundary import BackendBuildBoundary, OUTPUT_BYTES
-from .backend_build_inputs import digest
+from .backend_build_inputs import VerifiedBackendSource, digest
 from .buildkit_container import SOCKET
 from .build_logs import retain_build_output
 from .python_dependencies import verify_derived_inputs
@@ -140,9 +140,9 @@ class BackendBuildRuntime(BackendBuildBoundary):
 
 
 def build_backend(client, operation_id, directory, seed_root, expected_seed_manifest_digest, *,
-                  source_files, source_ref, content_store) -> dict:
+                  source: VerifiedBackendSource, recipe: bytes, source_ref, content_store) -> dict:
     """Synchronous trusted-runner entry point; never reads implicit worktree inputs."""
     from .backend_build_service import build_backend as execute
 
     return execute(client, operation_id, directory, seed_root, expected_seed_manifest_digest,
-                   source_files=source_files, source_ref=source_ref, content_store=content_store)
+                   source=source, recipe=recipe, source_ref=source_ref, content_store=content_store)
