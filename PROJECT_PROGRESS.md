@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R03a 修复 Desktop 撤销送达
+
+- 已实现：[项目同步](apps/desktop/src/useHub.ts)将快照游标与本机已消费的事件游标分开，普通刷新保留同范围订阅，续订从已消费位置继续。切换项目、流或权限修订变化、订阅需重建或不兼容、授权被拒时请求原生收窗；[人测入口](apps/desktop/src/HumanTestPanel.tsx)在旧打开请求晚到时按窗口标识补发关闭。同步 Hook 310 个物理行，订阅、快照和预览关闭共享连接范围，留在同一模块。HTTP、原生 IPC 和版本元数据未改动；[预览说明](docs/development/p2-previews.md#api-与安装边界)已同步。
+- 定向开发验证：Windows `10.0.26200.0`、Node `24.13.0`、Vite `6.4.4`、Edge `155.0.4283.45`，使用工作树现有 Desktop 清单 `0.30.0`。在 `.thesis-work` 执行 `playwright-cli -s=cloudhelm-r03a run-code --filename r03a/verify.js`：以真实 Desktop React UI 驱动合成的双项目快照、`hub-sync` 与预览 IPC，检查实际前端事件列表和发出的关闭命令。夹具 SHA-256 `08c9a202865d00f2e3311314e43141afd5754a8e3952cc85f85784eb789b024e3`；基线用同目录 `vite-baseline.config.mjs` 从 `04c246d` 加载两份旧客户端源码，复现刷新期间撤销 11 被跳过，未发关闭命令且续订从快照 12 开始。
+- 结果：修复轮于 `2026-11-18T07:06:32.366Z` 通过。快照请求未返回时已处理撤销 11 并请求关窗，返回快照 12 后续订仍从 11 开始；A → B → A 不保留旧窗，晚到请求收到按标识关闭；同项目权限修订变为 2 时请求收窗并从新范围快照 13 重建。Windows `apps/desktop` 的 `npm.cmd run build`（TypeScript 和 Vite）及交付差异格式检查通过。
+- 进行中：无。阻塞与风险：这次确认前端消费与 IPC 请求，未启动实际 Hub/Tauri/WebView2，原生关窗、专用分区删除及六组正式验收未执行；E07d 的取证安装前置核对仍待办。计划修订 82，下一项为 [R03b](PROJECT_PLAN.md#两轮审计后的执行顺序)；E06c 可独立准备。
+
 ## 2026-11-18：R02b 封闭失效合入的队首
 
 - 已实现：[合入 Worker](modules/integration/merge_execution.py)持项目锁完成实时证据核对和有界 Git 引用写入。证据失效或 Task 关闭推进时，[Git 尝试记录](modules/integration/git_merge.py)在原启动锁与同一只写一次的引用上持久封闭已确认未启动的尝试，之后才撤回并同事务派发下一条。既有 `reconcile` 可收尾此前卡住的条目；已合入或未知的写入保留原身份。Git 模块 361 个物理行，仍只管理受管 Git 尝试、引用和条件更新，封闭与启动共用记录，保留同一模块。HTTP 契约、迁移及工作流版本未变，[操作说明](docs/development/p2-merge-queue.md#竞争返工与核对)已同步。

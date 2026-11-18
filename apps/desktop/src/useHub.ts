@@ -5,6 +5,10 @@ import { codeOf, HubError, objectPath, read, request, sessionChanged } from "./a
 import type { Connected, Connection, HubRequest, Identity, PendingCommand, Project, Reply, Snapshot, SyncEvent, SyncNotice } from "./types";
 
 interface DisplayedReceipt { reply: Reply; key: string; generation: string; epoch: number }
+interface SyncScope {
+  projectId: string; streamId: string; permissionRevision: number;
+  consumedCursor: number; subscriptionId: string; live: boolean;
+}
 
 function hasCommandReceipt(reply: Reply) {
   const task = reply.body.task;
@@ -31,24 +35,30 @@ export function useHub() {
   const running = useRef(false);
   const transitions = useRef<Promise<void>>(Promise.resolve());
   const subscriptions = useRef<Promise<void>>(Promise.resolve());
-  const current = useRef<Snapshot | null>(null);
-  const subscription = useRef("");
+  const scope = useRef<SyncScope | null>(null);
+  const snapshotReady = useRef(false);
+  const previewEpoch = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const receiver = useRef<(notice: SyncNotice) => void>(() => {});
   const matches = (generation: string, expected: number) =>
     active.current === generation && epoch.current === expected;
-  const closePreviews = () => { void invoke("preview_close_all").catch(() => {}); };
+  const closePreviews = () => {
+    ++previewEpoch.current;
+    void invoke("preview_close_all").catch(() => {});
+  };
 
   const clearScope = () => {
-    subscription.current = "";
-    current.current = null;
+    ++revision.current;
+    clearTimeout(timer.current);
+    scope.current = null;
+    snapshotReady.current = false;
+    closePreviews();
     setSnapshot(null); setEvents([]); setDisplayedReceipt(null);
   };
   const denied = (reason: unknown) => {
     if (reason instanceof HubError && [401, 403].includes(reason.status)) {
-      closePreviews();
-      ++epoch.current; ++revision.current; active.current = null; running.current = false; setRenderedGeneration(null);
-      clearTimeout(timer.current); clearScope(); setBusy(false); setProjects([]); setPending([]); setConnection("revoked");
+      ++epoch.current; active.current = null; running.current = false; setRenderedGeneration(null);
+      clearScope(); setBusy(false); setProjects([]); setPending([]); setConnection("revoked");
       return true;
     }
     return false;
@@ -65,26 +75,31 @@ export function useHub() {
     setPending(commands);
     return commands;
   };
-  const subscribe = (value: Snapshot, generation: string, expected: number, sequence: number) => {
-    const next = subscriptions.current.then(async () => {
-      if (!matches(generation, expected) || sequence !== revision.current) throw new HubError("session_changed");
+  const retrySync = (generation: string) => {
+    setConnection("offline");
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { void refresh(project.current, generation); }, 4000);
+  };
+  const subscribe = (value: SyncScope, generation: string) => {
+    subscriptions.current = subscriptions.current.then(async () => {
+      if (scope.current !== value || value.subscriptionId) return;
       const id = crypto.randomUUID();
-      subscription.current = id;
-      await invoke("hub_subscribe", { projectId: value.project.project_id, streamId: value.stream_id,
-        after: value.cursor, permissionRevision: value.project.permission_revision, subscriptionId: id, generation });
-      if (!matches(generation, expected) || sequence !== revision.current) throw new HubError("session_changed");
+      value.subscriptionId = id;
+      await invoke("hub_subscribe", { projectId: value.projectId, streamId: value.streamId,
+        after: value.consumedCursor, permissionRevision: value.permissionRevision, subscriptionId: id, generation }).catch(reason => {
+        if (scope.current !== value || value.subscriptionId !== id) return;
+        value.subscriptionId = ""; value.live = false;
+        setError(codeOf(reason)); retrySync(generation);
+      });
     });
-    subscriptions.current = next.catch(() => {});
-    return next;
   };
 
-  const refresh = async (id = project.current, reset = false, generation = renderedGeneration) => {
+  const refresh = async (id = project.current, generation = renderedGeneration) => {
     const expected = epoch.current;
     if (!id || !generation || !matches(generation, expected)) return;
     const sequence = ++revision.current;
     clearTimeout(timer.current);
-    subscription.current = "";
-    if (reset) clearScope();
+    snapshotReady.current = false;
     setConnection("syncing");
     try {
       const next = await read<Snapshot>(generation, objectPath(id, "snapshot", "").replace(/\/$/, ""));
@@ -92,57 +107,59 @@ export function useHub() {
       if (next.schema_revision !== "p1-sync-r1" || next.project.project_id !== id) {
         clearScope(); setConnection("incompatible"); return;
       }
-      current.current = next; setSnapshot(next); setError("");
-      await subscribe(next, generation, expected, sequence);
+      const previous = scope.current;
+      if (previous && (next.stream_id !== previous.streamId || next.project.permission_revision !== previous.permissionRevision)) {
+        clearScope();
+      }
+      // Only a new scope takes its starting cursor from a snapshot.
+      const value = (scope.current ??= { projectId: id, streamId: next.stream_id,
+        permissionRevision: next.project.permission_revision, consumedCursor: next.cursor, subscriptionId: "", live: false });
+      clearTimeout(timer.current);
+      snapshotReady.current = true;
+      setSnapshot(next); setError("");
+      if (value.live) setConnection("live");
+      if (!value.subscriptionId) subscribe(value, generation);
     } catch (reason) {
       if (!matches(generation, expected) || sequence !== revision.current) return;
-      setError(codeOf(reason));
+      const code = codeOf(reason);
+      setError(code);
       if (denied(reason)) return;
-      setConnection("offline");
-      timer.current = setTimeout(() => { if (matches(generation, expected)) void refresh(id, true, generation); }, 4000);
+      if (code === "api_schema_not_supported") { clearScope(); setConnection("incompatible"); return; }
+      retrySync(generation);
     }
   };
 
   receiver.current = notice => {
-    if (notice.subscription_id !== subscription.current) return;
-    const value = current.current;
+    const value = scope.current;
     const generation = active.current;
-    const expected = epoch.current;
-    if (!value || !generation) return;
+    if (!value || notice.subscription_id !== value.subscriptionId || !generation) return;
     if (notice.kind === "batch") {
       const batch = notice.data;
-      if (!batch || batch.schema_revision !== "p1-sync-r1" || batch.stream_id !== value.stream_id
-          || !Number.isSafeInteger(batch.cursor) || batch.cursor < value.cursor
-          || batch.events.length > 32 || batch.events.some((e, i) =>
-            e.project_id !== value.project.project_id || e.cursor !== value.cursor + i + 1)
-          || batch.cursor !== (batch.events.at(-1)?.cursor ?? value.cursor)) {
-        void refresh(project.current, true, generation); return;
+      if (!batch || batch.schema_revision !== "p1-sync-r1" || batch.stream_id !== value.streamId
+          || !Number.isSafeInteger(batch.cursor) || batch.cursor < value.consumedCursor
+          || !Array.isArray(batch.events) || batch.events.length > 32 || batch.events.some((e, i) =>
+            e.project_id !== value.projectId || e.cursor !== value.consumedCursor + i + 1)
+          || batch.cursor !== (batch.events.at(-1)?.cursor ?? value.consumedCursor)) {
+        clearScope(); void refresh(value.projectId, generation); return;
       }
+      value.consumedCursor = batch.cursor;
+      value.live = true;
       if (batch.events.some(event => event.event_type === "preview.revocation_requested"
           || event.event_type === "preview.stop_requested")) closePreviews();
-      setConnection("live");
       if (batch.events.length) {
         setEvents(previous => [...batch.events, ...previous].slice(0, 100));
-        void refresh(project.current, false, generation);
-      }
+        void refresh(value.projectId, generation);
+      } else if (snapshotReady.current) setConnection("live");
     } else if (notice.kind === "access_revoked") {
       denied(new HubError("access_revoked", 403));
     } else if (notice.kind === "incompatible") {
       clearScope(); setConnection("incompatible");
     } else if (notice.kind === "reset") {
-      void refresh(project.current, true, generation);
-    } else if (notice.kind === "end") {
-      const sequence = revision.current;
-      void subscribe(value, generation, expected, sequence).catch(reason => {
-        if (matches(generation, expected) && sequence === revision.current) {
-          setError(codeOf(reason)); setConnection("offline");
-        }
-      });
+      clearScope(); void refresh(value.projectId, generation);
     } else {
-      setConnection("offline");
-      timer.current = setTimeout(() => {
-        if (matches(generation, expected)) void refresh(project.current, true, generation);
-      }, 4000);
+      value.subscriptionId = "";
+      if (notice.kind === "end") subscribe(value, generation);
+      else { value.live = false; retrySync(generation); }
     }
   };
 
@@ -169,14 +186,17 @@ export function useHub() {
   }, [displayedReceipt]);
 
   const selectProject = (id: string, generation = renderedGeneration) => {
-    if (!generation || generation !== active.current) return;
-    project.current = id; setEvents([]); setDisplayedReceipt(null); void refresh(id, true, generation);
+    if (!id || !generation || generation !== active.current) return;
+    if (id !== project.current) {
+      if (project.current) clearScope();
+      project.current = id;
+    }
+    void refresh(id, generation);
   };
   const connect = async (baseUrl: string, importCredential: boolean, devLoopback: boolean) => {
-    closePreviews();
     const expected = ++epoch.current;
-    ++revision.current; active.current = null; running.current = false; setRenderedGeneration(null);
-    clearTimeout(timer.current); project.current = ""; clearScope();
+    active.current = null; running.current = false; setRenderedGeneration(null);
+    project.current = ""; clearScope();
     setBusy(false); setIdentity(null); setProjects([]); setPending([]); setError(""); setConnection("connecting");
     try {
       const generation = await transition(false);
@@ -199,13 +219,24 @@ export function useHub() {
     }
   };
   const disconnect = async (forget = false) => {
-    closePreviews();
     const expected = ++epoch.current;
-    ++revision.current; active.current = null; running.current = false; setRenderedGeneration(null); project.current = "";
-    clearTimeout(timer.current); clearScope();
+    active.current = null; running.current = false; setRenderedGeneration(null); project.current = "";
+    clearScope();
     setBusy(false); setIdentity(null); setProjects([]); setPending([]); setConnection("disconnected");
     try { await transition(forget); }
     catch (reason) { if (epoch.current === expected) setError(codeOf(reason)); }
+  };
+  const openPreview = async (environmentId: string) => {
+    const generation = renderedGeneration;
+    if (!generation || generation !== active.current || !scope.current) throw new HubError("session_changed");
+    const expected = previewEpoch.current;
+    const label = await invoke<string>("preview_open", { generation, environmentId }).catch(reason => {
+      throw previewEpoch.current === expected ? reason : new HubError("session_changed");
+    });
+    if (previewEpoch.current !== expected) {
+      await invoke("preview_close", { label }).catch(() => {});
+      throw new HubError("session_changed");
+    }
   };
   const query = async <T,>(route: string): Promise<T> => {
     const generation = renderedGeneration;
@@ -244,7 +275,7 @@ export function useHub() {
       }
       if (result.status >= 400) setError(String(result.body.code ?? "command_rejected")
         + (hasCommandReceipt(result) ? "" : " · 原命令可能仍待核对"));
-      void refresh(project.current, false, generation);
+      void refresh(project.current, generation);
     } catch (reason) {
       if (!matches(generation, expected)) return;
       let unresolved: boolean | undefined;
@@ -267,7 +298,7 @@ export function useHub() {
     void execute({ method: "POST", route, body, idempotency_key: crypto.randomUUID() });
   };
   return { identity, projects, snapshot, connection, error, events, receipt: displayedReceipt?.reply ?? null, pending, busy,
-    connect, disconnect, selectProject, refresh, query, command, generation: renderedGeneration,
+    connect, disconnect, selectProject, refresh, query, command, openPreview, generation: renderedGeneration,
     retry: (original: PendingCommand) => {
       if (!busy && connection === "live") void execute(original, true, original.generation);
     },

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { codeOf, sessionChanged, taskPath } from "./api";
 import type { HumanTestEnvironment, HumanTestOptions, HumanTestSession, Task } from "./types";
 import type { Hub } from "./useHub";
@@ -111,13 +110,11 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
       <code>{environment.management_start_url}</code></p>}
     {environment?.client_route === "tauri_windows_webview2" && environment.state === "ready" &&
       <button type="button" disabled={!hub.generation || !canEnter || opening} onClick={() => {
-        const generation = hub.generation;
         const expectedScope = scope;
-        if (!generation) return;
         setOpening(true);
-        void invoke<string>("preview_open", { generation, environmentId: environment.environment_id })
+        void hub.openPreview(environment.environment_id)
           .catch(reason => {
-            if (scopeRef.current === expectedScope) setEnvironmentError(codeOf(reason));
+            if (scopeRef.current === expectedScope && !sessionChanged(reason)) setEnvironmentError(codeOf(reason));
           }).finally(() => {
             if (scopeRef.current === expectedScope) setOpening(false);
           });

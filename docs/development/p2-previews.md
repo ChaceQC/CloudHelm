@@ -53,7 +53,9 @@ Task 页的人工测试初始关闭，显示“未执行人工测试”，不会
 
 预览环境为 `ready` 且安装方已登记 `tauri_windows_webview2` 时，Windows Desktop 显示“打开隔离预览”。原生层从当前 Hub 读取公开地址，使用独立容器认证。兑换尝试后，容器限制在该实例来源；正常关闭时删除专用分区，清理失败会报告给主窗口，强制退出后的残留分区不会复用。公开查询只提供可选的 `entry_origin` 和 `client_route`。
 
-主窗口收到 `preview.revocation_requested` 或 `preview.stop_requested` 后，会关闭已打开的预览窗口并清理分区；服务端仍逐个核对代理关闭回执。本机验证还缺服务端撤销到 Windows 窗口关闭和分区删除的完整结果，以及同一正式候选的旧轮次、重建和重连结果。
+主窗口收到 `preview.revocation_requested` 或 `preview.stop_requested` 后，请求原生关闭已打开的预览窗口。同一项目、同步流和权限修订下，刷新快照期间继续消费事件，续订从本机最后消费的事件游标继续。切换项目或旧订阅范围失效时请求关闭旧窗；如果原打开请求晚到，按返回的窗口标识补发关闭。切回原项目需重新显式打开预览。
+
+本机收窗、专用分区实际删除和服务端逐代理关闭需要各自的证据。本机验证还缺服务端撤销到 Windows 窗口关闭和分区删除的完整结果，以及同一正式候选的旧轮次、重建和重连结果。
 
 人测入口为 `GET/POST /api/tasks/{task_id}/human-tests`、`GET /human-test-options` 和 `/api/human-tests/{session_id}` 下的 `ready/conclusion/activity/renew/yield/cancel`。所有写命令带原幂等键和当前 Task/Session 修订，回执顶层 `command_id` 复用 Desktop 日志机制。
 
