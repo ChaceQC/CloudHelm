@@ -26,7 +26,7 @@ from modules.integration.validity import selected_verification
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, Principal, request_digest
 from packages.contracts.p1.task_facts import HumanPolicyMetadata
 from packages.contracts.p2.human_tests import (
-    HUMAN_TEST_IDLE_DURATION, HUMAN_TEST_IDLE_GRACE, HUMAN_TEST_INITIAL_DURATION, HUMAN_TEST_RENEWAL_DURATION,
+    HUMAN_TEST_IDLE_DURATION, HUMAN_TEST_IDLE_GRACE, HUMAN_TEST_INITIAL_DURATION, HUMAN_TEST_MAX_DURATION,
     HUMAN_TEST_SCHEMA, HumanTestCommandResult, HumanTestSession,
 )
 
@@ -84,7 +84,7 @@ def _close_wait(connection, session):
 
 
 def _live_access(readiness, uow, actor, session):
-    if readiness is None or readiness(uow, actor, session) != (session.environment_id, session.environment_ref):
+    if readiness is None or readiness(uow, actor, session)[:2] != (session.environment_id, session.environment_ref):
         raise TaskBoundaryError("human_test_access_not_current")
 
 
@@ -192,11 +192,10 @@ class HumanTestApplication:
             require_no_active_run(uow.connection, task["task_id"])
             if session.state != "preparing" or self.readiness is None:
                 raise TaskBoundaryError("human_test_not_ready")
-            environment_id, environment_ref = self.readiness(uow, actor, session)
+            environment_id, environment_ref, at = self.readiness(uow, actor, session)
             environment = read_registered_reference(uow.connection, task["project_id"], environment_ref)
             if environment.metadata.record_kind != "environment" or "human_test" not in environment.metadata.support_scope:
                 raise TaskBoundaryError("human_test_environment_evidence_required")
-            at = now_utc(uow.connection)
             wait_id = "human-wait-" + session.command_id
             uow.connection.execute(insert(task_wait_conditions).values(wait_condition_id=wait_id,
                 task_id=task["task_id"], required_for_completion=False, state="waiting",
@@ -282,7 +281,7 @@ class HumanTestApplication:
                 if action == "renew":
                     if session.renewed_at is not None or self.can_renew is None or not self.can_renew(uow, session):
                         raise TaskBoundaryError("human_test_renewal_unavailable")
-                    changes.update(renewed_at=at, expires_at=session.expires_at + HUMAN_TEST_RENEWAL_DURATION)
+                    changes.update(renewed_at=at, expires_at=session.ready_at + HUMAN_TEST_MAX_DURATION)
             else:
                 if session.state not in {"preparing", "awaiting_human", "testing"} or self.stop is None:
                     raise TaskBoundaryError("human_test_stop_unavailable")

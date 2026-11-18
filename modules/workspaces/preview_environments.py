@@ -3,7 +3,7 @@
 import hashlib
 import json
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -16,7 +16,9 @@ from modules.collaboration.command_support import TaskCommandContext, lock_task_
 from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.facts import read_declaration
 from modules.collaboration.guards import check_task_revisions, require_ordinary_progress, task_resource
+from modules.execution.tables import resource_reservations
 from modules.integration.candidates import _read, _ref
+from modules.integration.human_test_records import now_utc
 from modules.sync.events import append_event
 from modules.workspaces.preview_access import _environment, revoke_environment_in_uow
 from modules.workspaces.preview_access_tables import preview_authorizations, preview_environments
@@ -26,10 +28,12 @@ from packages.contracts.p0.decision_common import Contract
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p0.preview_contracts import PreviewClientRoute, check_client_route, revocation_status
+from packages.contracts.p0.resource_contracts import ResourceAllocation
+from packages.contracts.p1.resource_protocol import ReserveResourcesRequest, canonical_digest
+from packages.contracts.p1.task_facts import EnvironmentMetadata, RegisteredReference
+from packages.contracts.p2.human_tests import HUMAN_TEST_INITIAL_DURATION, HUMAN_TEST_MAX_DURATION
 from packages.contracts.p2.preview_environments import PreviewEnvironmentResult, PreviewEnvironmentView
 from packages.contracts.p2.previews import PreviewAuthorizationRecord, PreviewEnvironmentRecord, PreviewUpstream
-from packages.contracts.p1.task_facts import EnvironmentMetadata, RegisteredReference
-from packages.contracts.p1.resource_protocol import canonical_digest
 
 
 class PreviewInstallation(Contract):
@@ -59,6 +63,14 @@ def _intent(connection, operation_id):
     if row is None:
         raise TaskBoundaryError("preview_intent_not_found", status_code=404)
     return row
+
+
+def _active_reservation_deadline(connection, reservation_id: str | None) -> datetime | None:
+    row = connection.execute(select(resource_reservations.c.request_json, resource_reservations.c.allocation_json)
+        .where(resource_reservations.c.reservation_id == reservation_id)).one_or_none()
+    if row is None or ResourceAllocation.model_validate(row.allocation_json).state != "active":
+        return None
+    return ReserveResourcesRequest.model_validate(row.request_json).expires_at_utc
 
 
 class PreviewEnvironmentApplication:
@@ -252,11 +264,13 @@ class PreviewEnvironmentApplication:
                    "client_route": descriptor.client_route, "required_proxies": (self.proxy_identity,),
                    "upstreams": upstreams}
         if record.state != "ready":
-            now = uow.connection.scalar(select(func.clock_timestamp()))
-            from datetime import datetime
-
             resource_deadline = datetime.fromisoformat(observation["resource_deadline"])
-            changes["expires_at"] = min(now + timedelta(hours=6 if record.purpose == "human_test" else 4), resource_deadline)
+            if record.purpose != "human_test":
+                now = uow.connection.scalar(select(func.clock_timestamp()))
+                changes["expires_at"] = min(now + timedelta(hours=4), resource_deadline)
+            elif record.entry_origin is None:
+                # The worker keeps entry_origin when a published preview returns to preparing.
+                changes["expires_at"] = resource_deadline
         changed = PreviewEnvironmentRecord.model_validate(record.model_copy(update=changes).model_dump())
         if changed != record:
             if record.state == "ready" and (changed.environment_ref != record.environment_ref
@@ -266,14 +280,14 @@ class PreviewEnvironmentApplication:
             save_environment(uow.connection, changed)
         return changed
 
-    def readiness(self, uow, actor, session):
+    def readiness(self, uow, actor, session) -> tuple[str, EngineeringRef, datetime]:
         row = uow.connection.scalar(select(preview_environments.c.record_json).where(
             preview_environments.c.task_id == session.task_id,
             preview_environments.c.record_json["human_test_session_id"].astext == session.session_id))
         if row is None:
             raise TaskBoundaryError("human_test_preview_not_ready")
         record = self.refresh_in_uow(uow, row["environment_id"])
-        now = uow.connection.scalar(select(func.clock_timestamp()))
+        now = now_utc(uow.connection)
         grants = uow.connection.scalars(select(preview_authorizations.c.record_json).where(
             preview_authorizations.c.environment_id == record.environment_id,
             preview_authorizations.c.subject_id == actor.principal.subject_id,
@@ -312,7 +326,13 @@ class PreviewEnvironmentApplication:
             _store_reference(uow.connection, registration, rfc8785.dumps(metadata.model_dump(mode="json")), auth.envelope)
         elif read_registered_reference(uow.connection, session.project_id, record.environment_ref).metadata != metadata:
             raise TaskBoundaryError("human_test_runtime_evidence_changed")
-        return record.environment_id, record.environment_ref
+        if session.state == "preparing":
+            resource_deadline = _active_reservation_deadline(uow.connection, record.resource_reservation_id)
+            if resource_deadline is None or resource_deadline < now + HUMAN_TEST_INITIAL_DURATION:
+                raise TaskBoundaryError("human_test_preview_not_ready")
+            expires_at = min(now + HUMAN_TEST_MAX_DURATION, resource_deadline)
+            save_environment(uow.connection, record.model_copy(update={"expires_at": expires_at}))
+        return record.environment_id, record.environment_ref, now
 
     def stop_human(self, uow, session):
         values = uow.connection.scalars(select(preview_environments.c.record_json).where(
@@ -333,16 +353,13 @@ class PreviewEnvironmentApplication:
             event_type="preview.stop_requested", schema_version="p2-preview-r1", payload=self.view(uow, record))
 
     def can_renew(self, uow, session):
-        from modules.execution.tables import resource_reservations
-        from packages.contracts.p0.resource_contracts import ResourceAllocation
-
         record = uow.connection.scalar(select(preview_environments.c.record_json).where(
             preview_environments.c.record_json["human_test_session_id"].astext == session.session_id))
         if record is None:
             return False
         environment = PreviewEnvironmentRecord.model_validate(record)
-        value = uow.connection.scalar(select(resource_reservations.c.allocation_json).where(
-            resource_reservations.c.reservation_id == environment.resource_reservation_id))
-        return bool(value and ResourceAllocation.model_validate(value).state == "active"
-                    and environment.state == "ready" and session.ready_at is not None
-                    and environment.expires_at >= session.ready_at + timedelta(hours=6))
+        if environment.state != "ready" or session.ready_at is None:
+            return False
+        resource_deadline = _active_reservation_deadline(uow.connection, environment.resource_reservation_id)
+        return (resource_deadline is not None
+                and min(environment.expires_at, resource_deadline) >= session.ready_at + HUMAN_TEST_MAX_DURATION)
