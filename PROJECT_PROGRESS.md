@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：R05a 工作项接受入口
+
+- 已实现：[工作项接受命令](modules/collaboration/work_item_acceptance.py)和 [Hub HTTP 入口](docs/development/p2-verification.md#查询与选择)。在现有授权和 Task 事务内核对 Task、控制、输入及工作项修订，消费准确的已选、已合入正式报告和最终 InputSet；接受证据、工作项、Task 新版本、命令与事件同事务提交。完成检查继续逐项重查证据与剩余门槛。数据库迁移、工作流应用和旧报告引用保持原样。
+- 定向开发验证：WSL Ubuntu-24.04、Python 3.12.13、业务迁移 `0020_p2_previews`。从 [E07d 原库](docs/acceptance/p2/p2-4-02-e07d.md#有权审查与合入)只读导出逻辑副本，用实际 Hub ASGI 和 PostgreSQL API 角色执行 `PYTHONUTF8=1 PYTHONPATH=. .venv/bin/python -B .thesis-work/r05a/verify.py`（SHA-256 `0302dc333afd4f9b89dce4cc9cb2fe81a039cfd6d676927746d0cf9277878a29`）。沿现有 HTTP 先选用原通过报告 `verification-c715717fc94048cea6771ed96695de9e`，再接受真实合入 `59e331eb19417ccf02f47d093e9ed99b36370f32` 的工作项：`submitted/r7 → accepted/r8`，Task 版本 `18 → 19`。原命令 `5465c98b43ad4e0c8dd638955f5466af` 同键重投返回同一结果，事件与 Outbox 各一条；同键异文、无认证、过时工作项修订、未提交项、错误报告/输入和失效输入均拒绝。失效后保留历史接受，旧证据再次阻止完成。副本于 UTC `2026-11-18T16:49:51+00:00` 前已清理，原 Task 未写入。
+- 完成门槛：E07d 另一必需项 `a6e8d035a6f54ce59d3daadd50cffc08` 仍为 `blocked / capability_not_enabled`；Task 继续 `active`，未生成完成报告。Hub 82 条路径及 Remote 8 条路径的 OpenAPI 快照核对通过。本步未重跑构建、正式验收、原生预览、部署或容量测试。
+- 进行中：无。阻塞与风险：R05a 无剩余阻塞；P2 出口未验证。下一项按[计划修订 92](PROJECT_PLAN.md#p2-退出前处理的门禁与历史查询)处理 R05b 所需的 R04 和 E04b，E07e 仍须满足预览准入后取证。增量投入与剩余工作量待估。
+
 ## 2026-11-19：移除 E06c 当前宿主补证任务
 
 - 已完成：按用户决定移除本机 WSL/Windows 的可信计时补证任务。[计划修订 91](PROJECT_PLAN.md#两轮审计后的执行顺序)将 E06c 收口为已交付的计时接线与定向开发验证，并同步[开发记录](docs/acceptance/p2/p2-4-02-e06c.md)、[开发说明](docs/development/p2-previews.md)和[支持矩阵](docs/acceptance/support-matrix.md)。

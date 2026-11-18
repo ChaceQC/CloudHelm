@@ -73,6 +73,21 @@ class CompleteTaskRequest(Contract):
     expected_input_validity_revision: Revision
 
 
+class AcceptWorkItemResultRequest(Contract):
+    expected_version: Revision
+    expected_control_revision: Revision
+    expected_input_validity_revision: Revision
+    work_item_id: Identifier
+    expected_work_item_revision: Revision
+    report_id: Identifier
+    input_set_ref: EngineeringRef
+
+    @model_validator(mode="after")
+    def check_input_set(self):
+        expect_kind(self.input_set_ref, "input_set")
+        return self
+
+
 class CancelTaskRequest(Contract):
     expected_version: Revision
     expected_control_revision: Revision
@@ -89,5 +104,5 @@ class ReconcileTaskRequest(Contract):
 
 TaskCommandRequest = (
     CreateTaskRequest | StartTaskRequest | CompleteTaskRequest
-    | CancelTaskRequest | ReconcileTaskRequest
+    | AcceptWorkItemResultRequest | CancelTaskRequest | ReconcileTaskRequest
 )

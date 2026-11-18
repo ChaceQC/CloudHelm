@@ -26,7 +26,7 @@ from packages.contracts.p1.task_internal import (
     TaskAdvanceRequest, TaskChangedEvent,
 )
 from packages.contracts.p1.task_requests import (
-    CancelTaskRequest, CompleteTaskRequest, ReconcileTaskRequest, StartTaskRequest,
+    AcceptWorkItemResultRequest, CancelTaskRequest, CompleteTaskRequest, ReconcileTaskRequest, StartTaskRequest,
 )
 from packages.contracts.p1.task_results import TaskBlocker, TaskCommandResult, TaskHttpResult
 
@@ -65,6 +65,7 @@ def normalized_request(request: Contract) -> tuple[str, Contract]:
         )
     schemas = {
         StartTaskRequest: "p1-task-start-r1", ReconcileTaskRequest: "p1-task-reconcile-r1",
+        AcceptWorkItemResultRequest: "p2-work-item-accept-r1",
         BindInitialTaskInputRequest: "p1-task-initial-input-bind-r1",
         InvalidateTaskInputRequest: "p1-task-input-invalidate-r1",
         RegisterTaskWriteIntentRequest: "p1-task-write-intent-r1", TaskAdvanceRequest: "p1-task-advance-r1",

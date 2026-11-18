@@ -97,6 +97,7 @@ worker 成功启动后输出带 UTC 时间的 `ready`。同一安装身份在受
 |项目名称、角色|`PATCH /api/projects/{project_id}`；`GET/POST /api/projects/{project_id}/role-bindings`；`POST /api/projects/{project_id}/role-bindings/revoke`|
 |Task 创建、当前状态|`POST /api/projects/{project_id}/tasks`；`GET /api/tasks/{task_id}`|
 |Task 控制|`POST /api/tasks/{task_id}/start`、`/complete`、`/cancel`、`/reconcile`|
+|工作项接受|`POST /api/tasks/{task_id}/work-items/accept`，见[正式验收与工作项接受](p2-verification.md#查询与选择)|
 |来源、工作区、候选与构建|工程申请、文件修改及原操作查询见[工程入口](p1-engineering.md#4-工程入口与本机注册)|
 |唯一完成报告|`GET /api/tasks/{task_id}/completion-report`|
 |进程存活|`GET /health/live`|

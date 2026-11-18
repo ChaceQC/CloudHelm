@@ -9,7 +9,8 @@ from modules.identity.actors import AuthenticatedActor
 from packages.contracts.p0.decision_common import Identifier
 from packages.contracts.p0.task_control_contracts import TaskCompletionReport
 from packages.contracts.p1.task_requests import (
-    CancelTaskRequest, CompleteTaskRequest, CreateTaskRequest, ReconcileTaskRequest, StartTaskRequest,
+    AcceptWorkItemResultRequest, CancelTaskRequest, CompleteTaskRequest, CreateTaskRequest,
+    ReconcileTaskRequest, StartTaskRequest,
 )
 from packages.contracts.p1.task_results import TaskCommandResult, TaskCreateRejection, TaskView
 from .auth import control_actor, get_runtime, normal_actor
@@ -63,6 +64,13 @@ def task_start(request: Request, task_id: Identifier, actor: NormalActor, idempo
 def task_complete(request: Request, task_id: Identifier, actor: ControlActor, idempotency_key: IdempotencyKey,
                   body: CompleteTaskRequest = Depends(strict_body(CompleteTaskRequest))):
     return _result(get_runtime(request).tasks.complete(actor, task_id, body, idempotency_key=idempotency_key))
+
+
+@router.post("/api/tasks/{task_id}/work-items/accept", response_model=TaskCommandResult,
+             responses=_COMMAND_RESPONSES, name="tasks.accept_work_item")
+def task_accept_work_item(request: Request, task_id: Identifier, actor: ControlActor, idempotency_key: IdempotencyKey,
+                          body: AcceptWorkItemResultRequest = Depends(strict_body(AcceptWorkItemResultRequest))):
+    return _result(get_runtime(request).tasks.accept_work_item(actor, task_id, body, idempotency_key=idempotency_key))
 
 
 @router.post("/api/tasks/{task_id}/cancel", response_model=TaskCommandResult, status_code=202,

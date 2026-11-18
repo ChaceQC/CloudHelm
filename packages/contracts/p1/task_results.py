@@ -55,7 +55,7 @@ class TaskCommandResult(Contract):
         "created", "started", "completed", "cancellation_requested", "cancelled",
         "already_completed", "already_cancelled", "reconciled", "rejected", "blocked",
         "input_invalidated", "impact_archived", "write_intent_registered",
-        "reconciliation_requested", "input_bound",
+        "reconciliation_requested", "input_bound", "work_item_accepted",
     ]
     code: Identifier
     state: TaskState

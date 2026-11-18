@@ -52,7 +52,13 @@
 
 报告完整输入保留原固定候选的源码/构建/制品/环境引用，再加入准确最终源码 commit、固定候选和阶段准备证据；同 commit 的不同构建或环境不会混为同一输入。原始源 InputSet 仍独立保留，不覆盖旧记录。`EvidenceMetadata.check_ids` 声明该报告检查范围，实际执行结果以报告的通过、失败、缺失集合为准，未知或未执行不会因此变为通过。
 
-Task 完成投影只读取显式选中的正式报告及其完整输入，工程元数据从所属领域固定事实投影，不要求把 Build/制品伪装成旧注册表对象。历史失败、unknown、not_run 报告均保留，不作为新的当前通过证据；选择也不把 WorkItem 改为 accepted，不生成 Task 完成或人工通过结论。审查和工作项接受仍按后续计划执行。
+Task 完成投影只读取显式选中的正式报告及其完整输入。报告选择、合入审查和工作项接受各有独立回执。历史失败、unknown、not_run 报告均保留，不能作为当前通过证据。
+
+项目队列合入且选用同一正式报告后，调用 `POST /api/tasks/{task_id}/work-items/accept`。请求使用 `Idempotency-Key`，正文携带当前 Task 的 `expected_version`、`expected_control_revision`、`expected_input_validity_revision`，以及 Task 查询给出的 `work_item_id`、`expected_work_item_revision` 和报告的 `report_id`、`evidence.input_set_ref`（作为正文 `input_set_ref`）。报告 InputSet 与构建候选或工作区 InputSet 分开。
+
+服务检查当前 `task.command`、Task 读取和原构建的 `operation.query` 权限。活动 Task 下已提交且未被更新的工作项，须与原候选归属一致；准确合入报告须仍可用、覆盖声明的必需检查，并且该工作项无未解决的阻塞返工。成功返回 HTTP 200 和 `work_item_accepted`，同一事务登记接受证据、更新工作项与 Task 版本并写入事件。同键原请求返回原回执，改正文须用新键。通过 `GET /api/tasks/{task_id}` 查询当前状态和该项绑定的 InputSet；输入失效保留原接受事实，旧依据不能用于完成。
+
+接受只解除该工作项的完成门槛。其余必需项、纳入策略的人测或未知写入仍按原规则检查；只有单独的 Task 完成命令可以生成完成报告。
 
 ## 变化与消费
 

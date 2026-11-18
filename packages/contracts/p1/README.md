@@ -8,10 +8,10 @@
 |`resource_protocol.py`|`p1-resources-r1` 的池/Runner 注册、Task 绑定整组申请、创建结果与执行器序列回执；沿用 P0 整数资源向量和稳定身份，新增 HTTP 只接收申请/查询，不接受公共成功回执或任意执行参数|
 |`commands.py`|有界持久命令结果、事件信封和两类 Task workflow 的交接身份；持久结果上限为 65536 个 UTF-8 字节|
 |`identity_contracts.py`、`identity_requests.py`|当前身份、项目/角色投影、项目管理与受控维护请求；公共投影排除凭据及摘要|
-|`task_requests.py`|Task 创建声明和启动/完成/取消/核对请求；目标、准确来源、预算与资源范围显式固定|
+|`task_requests.py`|Task 创建声明和启动/完成/取消/核对、接受工作项请求；目标、准确来源、预算与资源范围显式固定|
 |`task_results.py`|Task、阻断对象及命令响应；创建失败不会返回虚构 Task 身份|
 |`task_facts.py`|受控来源登记及 Task 消费事实的内部元数据，不能作为公共 HTTP 授权/完成输入|
-|`task_internal.py`|域内推进与首次工程 InputSet 绑定请求；初次绑定只消费登记引用，不产生候选或验收结论|
+|`task_internal.py`|域内推进、首次工程 InputSet 绑定请求及工作项接受事件；初次绑定只消费登记引用|
 |`workspace_git.py`、`workspace_records.py`|精确 Git 身份、独立文件清单、来源/工作区记录与物理候选；Git OID、文件清单和元数据摘要分别管理|
 |`runner_contracts.py`|固定维护探针操作及逐能力事实；拒绝业务目标、任意命令、挂载或自报授权|
 |`build_artifacts.py`|单一 linux/amd64 OCI 归档的内容回执、存储边界与工程引用；不代表 BuildRun 或运行验收成功|
@@ -44,6 +44,8 @@ P2.3 的项目队列契约位于 [`../p2/merge_queue.py`](../p2/merge_queue.py)�
 `202 accepted` 表示可靠接收，不能表示 DBOS 工作流、Task 或物理操作已完成。查询接口读取当前业务投影；原命令回执保留原时点的结果，不回写成最新状态。事件 `event_id` 代表业务事实，Outbox 的存在不代表已经外发；Desktop 使用同步模块独立分配的持久游标，不使用业务或 Outbox 序号。
 
 完整完成报告只由当前持久事实构造，包含固定输入、集成来源、必需检查和证据。缺少真实来源、候选、验收或存在未核对的相关写意图时继续阻断。取消仅核对取消所需的当前权限、封闭/历史和物理事实，不以缺少开发验收材料阻止其受限收尾。人测结论保持真实值；Agent 不替人填通过或跳过。
+
+`p2-work-item-accept-r1` 只接收工作项及当前修订、已选报告和准确的最终 InputSet 引用。服务从已有正式报告与合入记录核对并派生接受证据，不能上传验收结果。成功事件 `task.work_item_accepted` 绑定工作项新修订及原报告依据。完整操作见[正式验收说明](../../../docs/development/p2-verification.md#查询与选择)。
 
 完成命令的回执携带稳定 `completion_report_id`；完整报告通过同一 Task 的 `/completion-report` 入口按当前权限读取。同键重投和已完成的新键返回均指向同一份报告，不重新生成内容。
 

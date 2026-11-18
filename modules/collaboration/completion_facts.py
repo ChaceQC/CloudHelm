@@ -13,6 +13,7 @@ from packages.contracts.p1.task_facts import (
     CandidateMetadata, EvidenceMetadata, InputSetMetadata, RegisteredReference, SourceMetadata,
 )
 from packages.contracts.p1.task_requests import TaskDeclaration
+from packages.contracts.p2.merge_queue import MergeQueueEntry
 from packages.contracts.p2.verification import VerificationView
 
 
@@ -34,6 +35,7 @@ class CompletionInputs:
     policy: RegisteredReference | None
     current: bool
     verification: VerificationView | None = None
+    merge: MergeQueueEntry | None = None
 
 
 @dataclass(frozen=True)
@@ -63,11 +65,10 @@ def read_completion_inputs(
         from modules.integration.merge_validity import require_merged_report
         from modules.collaboration.errors import TaskBoundaryError
 
-        merged = True
+        merge = None
         try:
-            require_merged_report(reader.connection, task, selected)
+            merge = require_merged_report(reader.connection, task, selected)
         except TaskBoundaryError:
-            merged = False
             reader.block("project_integration_required")
         report = selected.report
         inputs = VerificationReference(report.evidence.input_set_ref, InputSetMetadata(input_set=report.input_set))
@@ -75,14 +76,15 @@ def read_completion_inputs(
         candidate = VerificationReference(report.evidence.subject_ref,
             CandidateMetadata(source_ref=source.reference, input_set_ref=inputs.reference))
         refs = report.input_set.references
-        current = bool(merged and selected.usable and row is not None and all(
+        current = bool(merge and selected.usable and row is not None and all(
             item is not None and item.reference in refs for item in (requirement, acceptance, policy, resources)))
         if not current:
             reader.block("input_not_current")
         projected = dict(row or {}, input_set_key=reference_key(reader.project_id, inputs.reference),
                          source_key=reference_key(reader.project_id, source.reference),
                          candidate_key=reference_key(reader.project_id, candidate.reference))
-        return CompletionInputs(projected, inputs, source, candidate, requirement, acceptance, policy, current, selected)
+        return CompletionInputs(projected, inputs, source, candidate, requirement, acceptance, policy, current,
+                                selected, merge)
     input_set = reader.read(row["input_set_key"] if row else None, "input_set", missing_code="final_input_missing")
     source = reader.read(row["source_key"] if row else None, "source", missing_code="final_source_missing")
     candidate = reader.read(row["candidate_key"] if row else None, "candidate", missing_code="final_candidate_missing")
@@ -162,6 +164,7 @@ def read_acceptance_facts(
                  and proof is not None and proof.metadata.role == "work_item_acceptance"
                  and proof.metadata.work_item_id == item["work_item_id"]
                  and proof.metadata.work_item_revision == item["revision"]
+                 and inputs.verification is not None and proof.metadata.fact_digest == inputs.verification.evidence_ref.digest
                  and proof.metadata.evidence.result == "passed" and checks.issubset(proof.metadata.check_ids))
         if not valid:
             items_accepted = False

@@ -59,6 +59,14 @@ class TaskChangedEvent(Contract):
     reason: Identifier | None = None
 
 
+class WorkItemAcceptedEvent(Contract):
+    result: TaskCommandResult
+    work_item_id: Identifier
+    work_item_revision: Revision
+    input_set_ref: EngineeringRef
+    report_evidence_ref: EngineeringRef
+
+
 class TaskWorkflowRecord(Contract):
     invocation: TaskAdvanceRequest
     result: TaskCommandResult

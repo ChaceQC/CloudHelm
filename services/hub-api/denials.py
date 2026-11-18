@@ -18,7 +18,7 @@ _ACTIONS = {
     "projects.roles": "project.manage", "projects.rename": "project.manage",
     "projects.grant_role": "project.manage", "projects.revoke_role": "project.manage",
     "tasks.create": "task.command", "tasks.start": "task.command",
-    "tasks.complete": "task.command", "tasks.cancel": "task.cancel",
+    "tasks.complete": "task.command", "tasks.accept_work_item": "task.command", "tasks.cancel": "task.cancel",
     "tasks.reconcile": "operation.reconcile", "tasks.query": "resource.read",
     "tasks.report": "resource.read",
 }

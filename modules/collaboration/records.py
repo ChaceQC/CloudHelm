@@ -20,9 +20,11 @@ from packages.contracts.p0.decision_common import Contract
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.identity_contracts import AuthorizationEnvelope, parse_request
 from packages.contracts.p1.task_facts import (
-    EnvironmentMetadata, EvidenceMetadata, HumanConclusionMetadata, MethodMetadata, RegisteredReference, TaskFactSource,
+    EnvironmentMetadata, EvidenceMetadata, HumanConclusionMetadata, InputSetMetadata, MethodMetadata,
+    RegisteredReference, TaskFactSource,
 )
 from packages.contracts.p1.task_requests import TaskDeclaration
+from packages.contracts.p2.verification import VerificationView
 
 
 def contract_digest(value: Contract) -> str:
@@ -129,11 +131,10 @@ def register_reference(
     if authorization.caller != source.principal:
         raise TaskBoundaryError("fact_source_principal_mismatch", status_code=403)
     _check_producer(source, record)
-    return _store_reference(connection, record, source_bytes, authorization)
+    return _store_reference(connection, record, validate_source_payload(record, source_bytes), authorization)
 
 
-def _store_reference(connection, record, source_bytes, authorization):
-    source_digest = validate_source_payload(record, source_bytes)
+def _store_reference(connection, record, source_digest, authorization):
     key, digest = reference_key(record.project_id, record.reference), contract_digest(record)
     reference = record.reference
     connection.execute(insert(task_reference_records).values(
@@ -190,7 +191,47 @@ def register_human_test_reference(connection, record, *, source_bytes, authoriza
     if not valid:
         raise TaskBoundaryError("human_test_fact_binding_mismatch")
     _check_producer(source, record)
-    return _store_reference(connection, record, source_bytes, authorization)
+    return _store_reference(connection, record, validate_source_payload(record, source_bytes), authorization)
+
+
+def register_work_item_acceptance(
+    connection: Connection, view: VerificationView, proof: RegisteredReference, *,
+    authorization: AuthorizationEnvelope, acceptance_id: str, work_item_id: str, work_item_revision: int,
+) -> tuple[str, str]:
+    """Materialize the verified InputSet and its WorkItem binding for the existing FKs."""
+    report = view.report
+    _authorization(authorization, report.project_id, "task.command")
+    if (authorization.target.resource_kind != "task" or authorization.target.resource_id != report.task_id
+            or not view.usable or proof.reference != view.evidence_ref or proof.project_id != report.project_id):
+        raise TaskBoundaryError("work_item_acceptance_fact_binding_mismatch")
+    inputs_ref = report.evidence.input_set_ref
+    # Formal reports already hash the InputSet itself, before the registry metadata wrapper.
+    inputs_digest = contract_digest(report.input_set)
+    if inputs_ref.digest != inputs_digest:
+        raise TaskBoundaryError("work_item_acceptance_input_digest_mismatch")
+    input_key = reference_key(report.project_id, inputs_ref)
+    input_metadata = InputSetMetadata(input_set=report.input_set)
+    if connection.scalar(select(task_reference_records.c.reference_key).where(
+        task_reference_records.c.reference_key == input_key,
+    )) is None:
+        input_id = "verified-input-" + input_key[7:]
+        record = RegisteredReference(project_id=report.project_id, registration_id=input_id,
+            source_id=proof.source_id, source_record_id=input_id, reference=inputs_ref,
+            metadata=input_metadata, observed_at_utc=report.evidence.observed_at)
+        _store_reference(connection, record, inputs_digest, authorization)
+    elif read_registered_reference(connection, report.project_id, inputs_ref).metadata != input_metadata:
+        raise TaskBoundaryError("reference_identity_conflict")
+    metadata = EvidenceMetadata(evidence=report.evidence.model_copy(update={"evidence_id": acceptance_id}),
+        role="work_item_acceptance", check_ids=report.passed_check_ids,
+        acceptance_assets_ref=report.acceptance_assets_ref, work_item_id=work_item_id,
+        work_item_revision=work_item_revision, fact_digest=view.evidence_ref.digest)
+    evidence_digest = contract_digest(metadata)
+    evidence_ref = EngineeringRef(kind="evidence", object_id=acceptance_id, revision="p2-work-item-accept-r1",
+        authority="integration", digest=evidence_digest, digest_algorithm="sha256")
+    record = RegisteredReference(project_id=report.project_id, registration_id=acceptance_id,
+        source_id=proof.source_id, source_record_id=acceptance_id, reference=evidence_ref,
+        metadata=metadata, observed_at_utc=report.evidence.observed_at)
+    return input_key, _store_reference(connection, record, evidence_digest, authorization)
 
 
 def read_registered_reference(
