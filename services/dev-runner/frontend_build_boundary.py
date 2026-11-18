@@ -8,6 +8,7 @@ from .buildkit_container import (
     CPU_PERIOD, CPU_QUOTA, INSTALL_CACHE_BYTES, INSTALL_TEMP_BYTES, MEMORY_BYTES, OUTPUT_BYTES,
     PIDS_LIMIT, ProductBuildBoundary, SHM_BYTES, SOCKET, STATE_BYTES, TEMP_BYTES,
 )
+from .frontend_images import frontend_layout_path
 
 METHOD = "p1-frontend-offline-build-r2"
 SCOPE = "p1-frontend-offline-build"
@@ -20,4 +21,4 @@ class FrontendBuildBoundary(ProductBuildBoundary):
 
     def _sources(self) -> dict[str, Path]:
         return {"/probe/context": self.directory / "context", "/probe/npm-seed": self.seed,
-                "/probe/node": self.directory / "node-layout", "/probe/nginx": self.directory / "nginx-layout"}
+                "/probe/node": frontend_layout_path("node"), "/probe/nginx": frontend_layout_path("nginx")}

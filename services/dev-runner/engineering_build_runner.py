@@ -20,7 +20,9 @@ from .engineering_seeds import prepare_build_seeds
 from .frontend_build_runtime import build_frontend
 from .toolchain import DockerClient, ProbeFailure, private_directory
 
-METHOD_DESCRIPTION = b"p1-fixed-reference-build-r1: admitted immutable candidate, fixed offline recipes, three OCI roles, exporter/load identities and actual builder stop reconciliation"
+METHOD_DESCRIPTION = (b"p1-fixed-reference-build-r3: admitted immutable candidate, fixed offline recipes, "
+    b"three OCI roles, exporter/load identities, actual builder stop reconciliation, verified local frontend "
+    b"OCI layouts bound to their pinned raw indexes and linux/amd64 manifests before group start")
 STOP_RECONCILIATION_METHOD = EngineeringRef(kind="method", object_id="controlled-reference-build-stop",
     revision="p1-build-stop-reconciliation-r1", authority="runner", digest_algorithm="sha256",
     digest=content_digest(b"p1-build-stop-reconciliation-r1: bound Runner group stop and tmpfs reclamation"))
@@ -174,7 +176,7 @@ class ControlledBuildRunner:
         operations = set(self._operation_ids())
         return [item for item in values if (item.get("Labels") or {}).get("cloudhelm.operation_id") in operations]
 
-    def execute(self, prepared: PreparedBuild):
+    def execute(self, prepared: PreparedBuild, frontend_bases: dict):
         if self.exists():
             return
         self.gate()
@@ -205,7 +207,7 @@ class ControlledBuildRunner:
                     report = build_frontend(self.client, operation, directory, seeds["npm_root"],
                         seeds["npm_manifest"], source_inputs=prepared.frontend, recipe=prepared.frontend_recipe,
                         expected_source_manifest_digest=prepared.frontend.receipt["manifest_digest"],
-                        content_store=content, seed_spec=seeds["npm_spec"])
+                        content_store=content, seed_spec=seeds["npm_spec"], bases=frontend_bases)
                 reports[role] = report
                 self._write(role + ".json", report)
                 if not report.get("all_required_verified"):
@@ -389,7 +391,7 @@ class ControlledBuildRunner:
             executor_generation=1,
             closure=closure, exit_code=exit_code, artifacts=tuple(artifacts),
             method_ref=EngineeringRef(kind="method", object_id="controlled-reference-build",
-                revision="p1-fixed-reference-build-r1", authority="runner",
+                revision="p1-fixed-reference-build-r3", authority="runner",
                 digest=content_digest(METHOD_DESCRIPTION), digest_algorithm="sha256"), observed_at=observed,
         )
         self._write(name, value.model_dump(mode="json"))

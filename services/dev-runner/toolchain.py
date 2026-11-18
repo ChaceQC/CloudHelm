@@ -8,6 +8,9 @@ import os
 import re
 import stat
 import subprocess
+import sys
+import time
+import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 from modules.execution.docker_endpoint import socket_path
@@ -17,6 +20,25 @@ TOOLCHAIN_DIGEST = "sha256:f9fad9251904053271e79f96b918e67f0750f34cd621f439b0c34
 PLATFORM = "linux/amd64"
 RUNTIME_ROOT = Path("/home/cloudhelm/.local/state/cloudhelm/runner-probe")
 DOCKER = "/usr/bin/docker"
+
+_REGISTRY_READ = """
+import json
+import sys
+import urllib.request
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, file, code, message, headers, new_url):
+        return None
+
+try:
+    arguments = json.load(sys.stdin.buffer)
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    request = urllib.request.Request(arguments["url"], headers=arguments["headers"])
+    with opener.open(request, timeout=arguments["timeout"]) as response:
+        sys.stdout.buffer.write(response.read(arguments["limit"] + 1))
+except Exception:
+    sys.exit(1)
+"""
 
 
 class ProbeFailure(RuntimeError):
@@ -79,6 +101,49 @@ class DockerClient:
             raise ProbeFailure("probe_docker_" + arguments[0] + "_failed", diagnostic,
                                safe_diagnostic(result.stdout + result.stderr))
         return result
+
+    def fetch_frontend_base_index(self, reference: str) -> bytes:
+        """Fetch the pinned frontend index bytes for trusted local maintenance."""
+        match = re.fullmatch(r"(node|nginx):[A-Za-z0-9_.-]+@sha256:([0-9a-f]{64})", reference)
+        if match is None:
+            raise ProbeFailure("frontend_base_registry_reference_invalid")
+        repository, digest = match.groups()
+        deadline = time.monotonic() + 90
+
+        def read(url, headers, limit):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ProbeFailure("frontend_base_registry_timeout")
+            arguments = {"url": url, "headers": headers, "limit": limit, "timeout": remaining}
+            try:
+                result = subprocess.run([sys.executable, "-I", "-c", _REGISTRY_READ],
+                    input=json.dumps(arguments).encode("utf-8"), stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL, timeout=remaining, check=False,
+                    env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"})
+            except subprocess.TimeoutExpired:
+                raise ProbeFailure("frontend_base_registry_timeout") from None
+            except OSError:
+                raise ProbeFailure("frontend_base_registry_request_failed") from None
+            if result.returncode:
+                raise ProbeFailure("frontend_base_registry_request_failed")
+            if len(result.stdout) > limit:
+                raise ProbeFailure("frontend_base_registry_response_too_large")
+            return result.stdout
+
+        query = urllib.parse.urlencode({"service": "registry.docker.io",
+                                        "scope": "repository:library/" + repository + ":pull"})
+        raw_token = read("https://auth.docker.io/token?" + query, {}, 65536)
+        try:
+            token_response = json.loads(raw_token)
+            token = token_response.get("token") or token_response.get("access_token")
+        except (ValueError, AttributeError):
+            raise ProbeFailure("frontend_base_registry_token_invalid") from None
+        if not isinstance(token, str) or not token:
+            raise ProbeFailure("frontend_base_registry_token_invalid")
+        return read("https://registry-1.docker.io/v2/library/" + repository + "/manifests/sha256:" + digest,
+            {"Authorization": "Bearer " + token,
+             "Accept": "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"},
+            1024 * 1024)
 
 
 def classify_diagnostic(value: str) -> str:

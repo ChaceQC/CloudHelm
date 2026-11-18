@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R01d 提前准备固定前端基础镜像
+
+- 已实现：[可信种子维护入口](docs/development/p1-engineering.md#43-固定前端基础镜像)从 Docker Hub 获取固定 Node/Nginx 原始索引，结合维护 daemon 已预置的镜像，核对并发布只读 OCI 布局。按固定摘要直达，校验唯一 `linux/amd64` 清单、实际配置平台及逐层摘要。[Worker](services/hub-worker/engineering_build.py)在资源组启动前只读复核；前端使用同一回执和固定挂载按 amd64 清单摘要构建。原构建按原意图核对，基础镜像引用、配方和业务契约未变；新观察方法为 `p1-fixed-reference-build-r3`。
+- WSL 定向验证：Ubuntu-24.04、内核 `6.18.33.2-microsoft-standard-WSL2`、Python `3.12.13`、Docker `29.1.3`（overlayfs）。`.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance prepare-frontend-images` 用两份现有本地镜像取得并保存真实 OCI 内容。Node 索引 5,218 字节、清单 `sha256:43aeff40f4afc22e83f7589a2f37e111cff5ca84529571f1c8415bcc5fcc21b2`、5 层；Nginx 索引 10,333 字节、清单 `sha256:3bcf852aed06467cf075c6105892e4d5a6ebbbafa0ce22d35062db9e90ddef4c`、8 层。两份布局在本机可信种子根保留，逻辑字节共 105,921,452，`du -B1 -s` 实测占用 106,016,768 字节；未启动构建或操作原取证存储。
+- UTC `2026-11-18T05:58:56.873615+00:00`，在独立 `unshare --net` 命名空间以 UID 1000 执行 `.venv/bin/python -B .thesis-work/r01d/verify.py`，出站路由报 `ENETUNREACH`，探针同时禁止调用 Docker 和 Registry。真实 `verify-frontend-images` 核对两份布局；损坏的原始索引、同大小的坏清单及没有 amd64 描述符的输入均拒绝。用探针授权、候选和资源绑定核对坏索引未进入新资源组，有原意图时仍进入只读核对；前端挂载检查打开了真实只读布局。方法 SHA-256 `7c652c4d27442ad74fb41b080af8b2590889902ed30a5993fea015dc0e283039`，脱敏结果见本机 `.thesis-work/r01d/result.json`。7 份修改源码 UTF-8 编译与 `git diff --check` 通过。
+- 进行中：无。阻塞与风险：R01d 无新增阻塞；取证安装仍须核对两端占账、可查询的队列及固定输入。完整 Docker 构建、正式验收、部署未执行，完整构建在 E07d 一次执行。[镜像模块](services/dev-runner/frontend_images.py)略超 300 行，现保留两个前端 OCI 边界在同文件，未迁移原输出核对；原 Runner 文件仍超 300 行，本次只换接缝。下一项为 [R02a](PROJECT_PLAN.md#两轮审计后的执行顺序)。
+
 ## 2026-11-18：R01c 将固定候选和配方预检移到资源组启动前
 
 - 已实现：[Worker](services/hub-worker/engineering_build.py) 在同一次存储准入内，通过余量、授权及旧操作检查后，先读取固定候选并与原构建定义比对，再进入资源组。[Runner](services/dev-runner/engineering_build_runner.py) 将[预检取得的源码和两份 Dockerfile](services/dev-runner/engineering_definition.py)直接交给前后端。已有意图仍按原身份核对。验证中复现 Linux 正常读取更新访问时间被误判为文件变化，已复用现有文件身份、大小及纳秒修改/状态变更时间比较；原文件种类、链接及长度门槛保留。使用方法见[固定候选说明](docs/development/p2-candidates.md#使用顺序)。

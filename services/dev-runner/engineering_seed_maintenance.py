@@ -1,4 +1,4 @@
-"""Trusted local maintenance of the two registered fixed-reference seeds."""
+"""Trusted local maintenance of fixed-reference seeds and frontend images."""
 
 from __future__ import annotations
 
@@ -88,6 +88,8 @@ def main(argv=None):
     commands.add_parser("verify", help="Verify both registered seeds offline")
     legacy = commands.add_parser("import-legacy", help="Copy one verified legacy npm seed offline")
     legacy.add_argument("--npm-probe-id", required=True)
+    commands.add_parser("prepare-frontend-images", help="Acquire or reuse the fixed frontend image layouts")
+    commands.add_parser("verify-frontend-images", help="Verify both fixed frontend image layouts offline")
     arguments = parser.parse_args(argv)
     try:
         if sys.platform != "linux" or os.getuid() != 1000:
@@ -96,6 +98,14 @@ def main(argv=None):
             result = prepare()
         elif arguments.action == "verify":
             result = verify()
+        elif arguments.action == "prepare-frontend-images":
+            from .frontend_images import prepare_frontend_layouts
+
+            result = {"frontend_images": prepare_frontend_layouts()}
+        elif arguments.action == "verify-frontend-images":
+            from .frontend_images import verify_frontend_layouts
+
+            result = {"frontend_images": verify_frontend_layouts()}
         else:
             result = import_legacy(arguments.npm_probe_id)
         print(json.dumps({"action": arguments.action, **result}, sort_keys=True))

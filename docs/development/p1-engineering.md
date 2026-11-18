@@ -104,6 +104,19 @@ cd /mnt/e/Project/CloudHelm
 
 原始 `uv.lock` 保持原字节。现有受限 Linux 派生项目与 wheelhouse 离线锁配方继续保留，由 uv 处理语义并核对实际安装集合；本次不更改安装参数或配方身份。清单逐项等价时，既有种子内容键、种子 manifest 字节及 Workspace 原锁/固定注释变体的快照键均保持兼容；旧缓存与持久引用按原规则保留。
 
+### 4.3 固定前端基础镜像
+
+维护者在 WSL 以 `cloudhelm`（UID 1000）执行。先在有容量预算的维护用 Docker 中预置 [固定 Node 和 Nginx 引用](../../services/dev-runner/frontend_images.py)的 `linux/amd64` 镜像。维护用 daemon 使用本机 `/var/run/docker.sock`，镜像存储须支持按平台导出并保留原 OCI 清单和 blob 字节。新种子在宿主上的字节计入容量证据。
+
+```bash
+.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance prepare-frontend-images
+.venv/bin/python -B -m services.dev-runner.engineering_seed_maintenance verify-frontend-images
+```
+
+首次准备向 Docker Hub 读取两个固定引用的原始索引，从已预置镜像导出对应清单、配置和镜像层。准备端按固定 SHA-256 核对索引，要求唯一 `linux/amd64` 清单，验证其摘要、配置平台和镜像层后，按索引摘要发布到 `/home/cloudhelm/.local/state/cloudhelm/engineering-seeds/frontend-images/` 下的只读布局。原始索引保留在 `blobs/sha256/<索引摘要>`，布局的 `index.json` 只指向构建实际使用的 amd64 清单。
+
+已发布的内容可离线验证和复用；损坏内容会被拒绝，维护入口不覆盖。Worker 在新构建资源组启动前复核布局，缺失返回 `frontend_base_seed_unavailable`，索引摘要不符返回 `frontend_base_index_digest_mismatch`。前端 BuildKit 只读挂载已核对的布局并按对应清单摘要读取。Node/Nginx 不再从构建路径查询 Registry 或拉取；BuildKit 工具镜像、后端及 PostgreSQL 的准备要求仍沿用各自入口。
+
 ## 5. 定向开发验证
 
 ### 5.1 验证入口

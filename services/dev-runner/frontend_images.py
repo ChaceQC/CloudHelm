@@ -1,7 +1,6 @@
-"""Export only the two compose-pinned public frontend bases to read-only OCI."""
+"""Prepare two pinned frontend bases as local OCI layouts and verify the build output."""
 
 from __future__ import annotations
-from modules.execution.docker_endpoint import socket_path
 
 import gzip
 import hashlib
@@ -10,18 +9,27 @@ import os
 import resource
 import subprocess
 import tarfile
+from contextlib import closing
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
+from modules.artifacts.content_files import ArtifactRoot, directory_at, publish_directory, regular_at
+from modules.artifacts.errors import ArtifactContentError
+from modules.workspaces.safe_paths import exists_at
 from packages.contracts.p1.npm_cache import NODE_IMAGE
+from packages.contracts.p1.workspace_git import content_digest
 
 from .offline_images import (
     MAX_JSON_BYTES, OCI_CONFIG, OCI_INDEX, OCI_LAYERS, OCI_MANIFEST,
     _blob, _descriptor, _write_new,
 )
-from .toolchain import DOCKER, DockerClient, ProbeFailure, safe_diagnostic
+from .toolchain import DOCKER, DockerClient, ProbeFailure, private_directory, safe_diagnostic
 
 NGINX_IMAGE = "nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de"
 BASES = {"node": NODE_IMAGE, "nginx": NGINX_IMAGE}
+FRONTEND_IMAGE_ROOT = Path("/home/cloudhelm/.local/state/cloudhelm/engineering-seeds/frontend-images")
+AMD64 = {"os": "linux", "architecture": "amd64"}
+LAYOUT_VERSION = b'{"imageLayoutVersion":"1.0.0"}\n'
 MAX_EXPORT_BYTES = 384 * 1024**2
 MAX_LAYER_BYTES = 256 * 1024**2
 HTML_ROOT = "usr/share/nginx/html"
@@ -32,12 +40,11 @@ PROTECTED_DIRECTORIES = {"usr", "usr/share", "usr/share/nginx", HTML_ROOT,
 
 def _export(client: DockerClient, reference: str, target: Path) -> None:
     digest = reference.rsplit("@", 1)[1]
-    present = client.run("image", "inspect", reference, "--format", "{{.Id}}", required=False)
-    if present.returncode:
-        client.run("pull", "--platform=linux/amd64", reference, timeout=240)
-    metadata = json.loads(client.run("image", "inspect", reference, "--format",
-                                     "{{json .Descriptor}}").stdout)
-    if metadata.get("digest") != digest:
+    inspected = client.run("image", "inspect", reference, "--format", "{{json .Descriptor}}", required=False)
+    if inspected.returncode:
+        raise ProbeFailure("frontend_base_local_image_unavailable")
+    metadata = json.loads(inspected.stdout)
+    if not isinstance(metadata, dict) or metadata.get("digest") != digest:
         raise ProbeFailure("frontend_base_local_reference_mismatch")
     environment = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
                    "DOCKER_CONFIG": str(client.config_directory)}
@@ -48,7 +55,7 @@ def _export(client: DockerClient, reference: str, target: Path) -> None:
     descriptor = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
     try:
         with os.fdopen(descriptor, "wb") as stream:
-            result = subprocess.run([DOCKER, "--host", "unix://" + socket_path(),
+            result = subprocess.run([DOCKER, "--host", "unix://" + client.endpoint,
                 "image", "save", "--platform=linux/amd64", reference], env=environment,
                 stdin=subprocess.DEVNULL, stdout=stream, stderr=subprocess.PIPE,
                 preexec_fn=limit_file, timeout=90, check=False)
@@ -61,58 +68,144 @@ def _export(client: DockerClient, reference: str, target: Path) -> None:
             result.stderr.decode("utf-8", errors="replace")))
 
 
-def _layout(client: DockerClient, directory: Path, name: str) -> dict:
-    reference = BASES[name]
-    root = json.loads(client.run("manifest", "inspect", reference, timeout=90).stdout)
-    if root.get("mediaType") != OCI_INDEX:
+def frontend_layout_path(name: str) -> Path:
+    return FRONTEND_IMAGE_ROOT / BASES[name].rsplit("@sha256:", 1)[1]
+
+
+def _amd64_manifest(raw: bytes, digest: str) -> dict:
+    if content_digest(raw) != digest:
+        raise ProbeFailure("frontend_base_index_digest_mismatch")
+    root = json.loads(raw)
+    if (not isinstance(root, dict) or root.get("schemaVersion") != 2
+            or root.get("mediaType") != OCI_INDEX or not isinstance(root.get("manifests"), list)):
         raise ProbeFailure("frontend_base_index_unsupported")
-    matches = [item for item in root.get("manifests", []) if item.get("platform") == {
-        "architecture": "amd64", "os": "linux"}]
+    matches = [item for item in root["manifests"] if isinstance(item, dict) and item.get("platform") == AMD64]
     if len(matches) != 1:
         raise ProbeFailure("frontend_base_amd64_manifest_not_unique")
     manifest = _descriptor(matches[0], {OCI_MANIFEST})
     if manifest["size"] > MAX_JSON_BYTES:
         raise ProbeFailure("frontend_base_manifest_too_large")
-    source, layout = directory / (name + "-export.tar"), directory / (name + "-layout")
-    (layout / "blobs/sha256").mkdir(mode=0o700, parents=True)
+    return manifest
+
+
+def _layout_index(manifest: dict) -> bytes:
+    index = {"schemaVersion": 2, "mediaType": OCI_INDEX, "manifests": [manifest | {"platform": AMD64}]}
+    return json.dumps(index, separators=(",", ":")).encode("utf-8")
+
+
+def _verify_graph(reference, raw, manifest, read_blob) -> dict:
+    value = json.loads(read_blob(manifest))
+    if value.get("mediaType") != OCI_MANIFEST or value.get("schemaVersion") != 2:
+        raise ProbeFailure("frontend_base_manifest_unsupported")
+    config = _descriptor(value.get("config"), {OCI_CONFIG})
+    if config["size"] > MAX_JSON_BYTES:
+        raise ProbeFailure("frontend_base_config_too_large")
+    configuration = json.loads(read_blob(config))
+    if {key: configuration.get(key) for key in AMD64} != AMD64:
+        raise ProbeFailure("frontend_base_config_platform_mismatch")
+    layers = tuple(_descriptor(item, OCI_LAYERS) for item in value.get("layers", []))
+    layer_bytes = sum(item["size"] for item in layers)
+    if not layers or len(layers) > 32 or layer_bytes > MAX_EXPORT_BYTES:
+        raise ProbeFailure("frontend_base_layer_bounds_exceeded")
+    for layer in layers:
+        read_blob(layer)
+    return {"reference": reference, "index_digest": reference.rsplit("@", 1)[1], "index_bytes": len(raw),
+            "manifest": manifest, "config": config, "layers": layers, "platform": "linux/amd64",
+            "layout_bytes": len(raw) + len(LAYOUT_VERSION) + len(_layout_index(manifest))
+            + manifest["size"] + config["size"] + layer_bytes}
+
+
+def _prepare_layout(work: Path, layout: Path, name: str) -> dict:
+    reference = BASES[name]
+    digest = reference.rsplit("@", 1)[1]
+    client = DockerClient.create(work)
+    raw = client.fetch_frontend_base_index(reference)
+    manifest = _amd64_manifest(raw, digest)
+    source = work / "export.tar"
+    blobs = layout / "blobs" / "sha256"
+    blobs.mkdir(mode=0o700, parents=True)
+    _export(client, reference, source)
     try:
-        _export(client, reference, source)
         with tarfile.open(source, "r:") as archive:
             members = archive.getmembers()
-            if len(members) > 1024 or len({item.name for item in members}) != len(members):
-                raise ProbeFailure("frontend_base_export_members_invalid")
             entries = {item.name: item for item in members}
-            value = json.loads(_blob(archive, entries, manifest, layout))
-            if value.get("mediaType") != OCI_MANIFEST or value.get("schemaVersion") != 2:
-                raise ProbeFailure("frontend_base_manifest_unsupported")
-            config = _descriptor(value.get("config"), {OCI_CONFIG})
-            if config["size"] > MAX_JSON_BYTES:
-                raise ProbeFailure("frontend_base_config_too_large")
-            configuration = json.loads(_blob(archive, entries, config, layout))
-            if configuration.get("os") != "linux" or configuration.get("architecture") != "amd64":
-                raise ProbeFailure("frontend_base_config_platform_mismatch")
-            layers = tuple(_descriptor(item, OCI_LAYERS) for item in value.get("layers", []))
-            if not layers or len(layers) > 32 or sum(item["size"] for item in layers) > MAX_EXPORT_BYTES:
-                raise ProbeFailure("frontend_base_layer_bounds_exceeded")
-            for layer in layers:
-                _blob(archive, entries, layer, layout)
-        _write_new(layout / "oci-layout", b'{"imageLayoutVersion":"1.0.0"}\n')
-        index = {"schemaVersion": 2, "mediaType": OCI_INDEX, "manifests": [
-            manifest | {"platform": {"os": "linux", "architecture": "amd64"}}]}
-        _write_new(layout / "index.json", json.dumps(index, separators=(",", ":")).encode("utf-8"))
-        for path in sorted(layout.rglob("*"), reverse=True):
-            if path.is_dir():
-                path.chmod(0o500)
-        layout.chmod(0o500)
-        return {"reference": reference, "manifest": manifest, "config": config, "layers": layers,
-            "layout_bytes": sum(item.stat().st_size for item in layout.rglob("*") if item.is_file()),
-            "source_export_bytes": source.stat().st_size, "platform": "linux/amd64"}
-    finally:
-        source.unlink(missing_ok=True)
+            if len(members) > 1024 or len(members) != len(entries):
+                raise ProbeFailure("frontend_base_export_members_invalid")
+            receipt = _verify_graph(reference, raw, manifest, lambda item: _blob(archive, entries, item, layout))
+    except tarfile.TarError:
+        raise ProbeFailure("frontend_base_export_invalid") from None
+    _write_new(blobs / digest[7:], raw)
+    _write_new(layout / "oci-layout", LAYOUT_VERSION)
+    _write_new(layout / "index.json", _layout_index(manifest))
+    for directory in (blobs, blobs.parent, layout):
+        directory.chmod(0o500)
+        descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+    return receipt
 
 
-def prepare_frontend_layouts(client: DockerClient, directory: Path) -> dict:
-    return {name: _layout(client, directory, name) for name in BASES}
+def _verify_layout(root: int, name: str) -> dict:
+    reference = BASES[name]
+    digest = reference.rsplit("@", 1)[1]
+    with (directory_at(root, frontend_layout_path(name).name, readonly=True) as layout,
+          directory_at(layout, "blobs", readonly=True) as blobs,
+          directory_at(blobs, "sha256", readonly=True) as sha256):
+        with regular_at(sha256, digest[7:], MAX_JSON_BYTES, readonly=True) as stream:
+            raw = stream.read(MAX_JSON_BYTES + 1)
+        manifest = _amd64_manifest(raw, digest)
+        for filename, expected in (("oci-layout", LAYOUT_VERSION), ("index.json", _layout_index(manifest))):
+            with regular_at(layout, filename, MAX_JSON_BYTES, readonly=True) as stream:
+                if stream.read(len(expected) + 1) != expected:
+                    raise ProbeFailure("frontend_base_layout_index_mismatch")
+
+        def read_blob(item):
+            with regular_at(sha256, item["digest"][7:], item["size"], readonly=True) as stream:
+                if os.fstat(stream.fileno()).st_size != item["size"]:
+                    raise ProbeFailure("frontend_base_blob_size_mismatch")
+                if item["mediaType"] in {OCI_MANIFEST, OCI_CONFIG}:
+                    data = stream.read(item["size"] + 1)
+                    observed = content_digest(data)
+                else:
+                    data = None
+                    observed = "sha256:" + hashlib.file_digest(stream, "sha256").hexdigest()
+                if observed != item["digest"]:
+                    raise ProbeFailure("frontend_base_blob_digest_mismatch")
+            return data
+
+        return _verify_graph(reference, raw, manifest, read_blob)
+
+
+def prepare_frontend_layouts() -> dict:
+    """Trusted maintenance only: use preloaded images and fetch each missing raw index."""
+    private_directory(FRONTEND_IMAGE_ROOT.parent)
+    private_directory(FRONTEND_IMAGE_ROOT)
+    result = {}
+    with closing(ArtifactRoot(FRONTEND_IMAGE_ROOT)) as seeds, seeds.exclusive() as root:
+        for name in BASES:
+            key = frontend_layout_path(name).name
+            if exists_at(root, key):
+                result[name] = _verify_layout(root, name)
+                continue
+            with (TemporaryDirectory(dir=FRONTEND_IMAGE_ROOT, prefix="stage-") as staging,
+                  TemporaryDirectory(dir=FRONTEND_IMAGE_ROOT, prefix="export-") as scratch):
+                layout = Path(staging)
+                result[name] = _prepare_layout(Path(scratch), layout, name)
+                publish_directory(root, layout.name, key)
+    return result
+
+
+def verify_frontend_layouts() -> dict:
+    """Read and verify both immutable local layouts without Docker or Registry access."""
+    try:
+        with closing(ArtifactRoot(FRONTEND_IMAGE_ROOT)) as seeds:
+            return {name: _verify_layout(seeds.fd, name) for name in BASES}
+    except FileNotFoundError:
+        raise ProbeFailure("frontend_base_seed_unavailable") from None
+    except (ArtifactContentError, OSError, ValueError):
+        raise ProbeFailure("frontend_base_seed_invalid") from None
 
 
 class _LayerReader:

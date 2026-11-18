@@ -13,7 +13,7 @@ from packages.contracts.p1.npm_cache import NPM_VERSION, NpmDownloadSpec
 
 from .frontend_build_boundary import FrontendBuildBoundary, OUTPUT_BYTES
 from .frontend_build_inputs import VerifiedFrontendSource, prepare_context
-from .frontend_images import prepare_frontend_layouts, verify_frontend_image
+from .frontend_images import verify_frontend_image
 from .npm_downloads import NpmDownloadError, NpmDownloadStore
 from .buildkit_container import SOCKET
 from .build_logs import retain_build_output
@@ -106,10 +106,10 @@ def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
                    expected_seed_manifest_digest: str, *, recipe: bytes,
                    source_inputs: dict[str, bytes] | VerifiedFrontendSource,
                    expected_source_manifest_digest: str, content_store,
-                   seed_spec: NpmDownloadSpec) -> dict:
+                   seed_spec: NpmDownloadSpec, bases: dict) -> dict:
     """Run a registered fixed-reference build; the caller holds authorization and admission.
 
-    The caller supplies the fixed candidate and preflighted recipe bytes.
+    The caller supplies the fixed candidate, preflighted recipe and verified local bases.
     Returned facts include failures and physical stop evidence; they are not a BuildRun state.
     """
     result = {"all_required_verified": False, "failures": []}
@@ -131,7 +131,7 @@ def build_frontend(client, operation_id: str, directory: Path, seed_root: Path,
             seed = seeds.verify(seed_spec, expected_manifest_digest=expected_seed_manifest_digest)
         result["seed"] = seed.model_dump(mode="json")
         result["toolchain"] = ensure_toolchain(client)
-        result["bases"] = prepare_frontend_layouts(client, directory)
+        result["bases"] = bases
         probe = FrontendBuildRuntime(client, operation_id, directory,
             result["toolchain"]["reference"], time.monotonic(), seed_root / seed.manifest.cache_id)
         probe.create()

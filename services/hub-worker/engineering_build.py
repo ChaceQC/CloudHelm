@@ -127,7 +127,7 @@ def execute_build(runtime, operation_id):
             if _record(runtime, operation_id, reconciliation=False) != record:
                 raise WorkspaceFileError("build_operation_binding_changed")
 
-        prepared = None
+        prepared, frontend_bases = None, None
         if start:
             gate()
 
@@ -146,16 +146,19 @@ def execute_build(runtime, operation_id):
                                                  definition.acceptance_assets_ref)
             if prepared.definition != definition:
                 raise runner_module.ProbeFailure("engineering_build_definition_mismatch")
+            images = importlib.import_module("services.dev-runner.frontend_images")
+            frontend_bases = images.verify_frontend_layouts()
         with runtime.resources.build(record, storage, gate, start=prepared is not None) as group:
-            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, prepared=prepared)
+            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group,
+                                     prepared=prepared, frontend_bases=frontend_bases)
 
 
-def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, *, prepared):
+def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, *, prepared, frontend_bases):
     runner = runner_module.ControlledBuildRunner(storage, record, gate)
     try:
         if prepared is not None:
             gate()
-            runner.execute(prepared)
+            runner.execute(prepared, frontend_bases)
         with UnitOfWork(runtime.control_engine) as uow:
             previous = read_build_execution(uow.connection, record)
             runner.previous_observation = None if previous is None else previous.observation
