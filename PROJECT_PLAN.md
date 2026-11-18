@@ -1,6 +1,6 @@
 # CloudHelm 项目执行计划
 
-> 计划修订：84
+> 计划修订：85
 > 建立日期：2026-10-13（Asia/Shanghai）
 > 修订日期：2026-11-18（Asia/Shanghai）
 > 设计依据：总体设计 v4.7；专题版本见[详细设计索引](docs/design/README.md#2-版本规则)。

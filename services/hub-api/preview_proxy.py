@@ -107,9 +107,9 @@ class PreviewProxy:
             self.closures, self.reported = {}, set()
             for record in pending:
                 await self._seal(record.binding.authorization_id)
-                if self.identity in record.revocation.required_proxies:
-                    await self._report_closed(access, record)
             self.monitor = asyncio.create_task(self._monitor(access))
+            if pending:
+                self.reporter = asyncio.create_task(self._report_pending(access, pending))
 
     async def _seal(self, authorization_id):
         async with self.lock:
@@ -161,6 +161,11 @@ class PreviewProxy:
             # An unreported or unobservable closure remains pending in the authority.
             pass
 
+    async def _report_pending(self, access, pending):
+        # Visit the whole snapshot before retrying a failed receipt.
+        for record in pending:
+            await self._report_closed(access, record)
+
     async def _monitor(self, access):
         while True:
             await asyncio.sleep(1)
@@ -174,11 +179,8 @@ class PreviewProxy:
             self.control_at = time.clock_gettime(time.CLOCK_BOOTTIME)
             for record in pending:
                 await self._seal(record.binding.authorization_id)
-                authorization_id = record.binding.authorization_id
-                if (self.identity in record.revocation.required_proxies and authorization_id not in self.reported
-                        and not self.connections.get(authorization_id)
-                        and (self.reporter is None or self.reporter.done())):
-                    self.reporter = asyncio.create_task(self._report_closed(access, record))
+            if pending and (self.reporter is None or self.reporter.done()):
+                self.reporter = asyncio.create_task(self._report_pending(access, pending))
 
     async def _shutdown(self):
         self.control_at = None
