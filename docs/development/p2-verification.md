@@ -14,8 +14,8 @@
 |---|---|
 |`candidate.list_directory` / `candidate.read_file`|仅相对路径、页/行范围；从原构建的准确冻结目录读取，沿用摘要、路径、秘密过滤及字节上限，不读取活动工作区|
 |`verification.run_phase`|仅 `phase`；只执行当前受控准备的阶段，地址、证据和来源由服务端绑定，调用原 `run_phase`，保留检查 ID、失败、输出摘要和未知结果|
-|`verification.finalize`|空参数；汇总同候选/轮次的原阶段与未完成意图，调用原 `finalize`，缺项、失败、unknown、not_run 均原样保留|
-|`verification.result`|仅 `report_id`；按当前权限查询，核对准确候选/轮次并返回当前适用性及证据|
+|`verification.finalize`|空参数；汇总同候选/轮次的阶段及未完成意图，生成正式报告和中文可读版；返回中文结论、可读版路径、原状态和证据|
+|`verification.result`|仅 `report_id`；按当前权限查询并核对准确候选和轮次，返回中文结论、可读版路径及当前适用性和证据|
 
 验证上下文加载原需求、固定候选/InputSet、受控资产、实际方法和环境；模型输出 `VerificationHandoff`。`report_ready` 只表示报告交接，服务端重新读取原报告并核对候选、轮次和适用性后，才把结构化结果与证据引用写入 Run。模型自述不生成 passed、审查批准或 Task 完成；失败或缺项报告也可按真实状态交接。现有 Task 查询可以读取该持久交接，不新增界面或公开启动参数。
 
@@ -28,7 +28,7 @@
 1. 按[固定候选说明](p2-candidates.md)取得不可变候选。正式资产必须是平台受控 checkout 中已登记的固定参照修订，不能指定候选仓库中的入口或测试配置。
 2. 由受控执行方准备隔离的本机实例，将准确候选、InputSet、验证环境和准备事实绑定为已登记证据。`seed` 后的实际进程重启、`not-ready` 的真实故障准备由执行方证明；HTTP 检查本身不能证明这些准备确已发生。
 3. 受信生产者调用 `VerificationApplication.run_phase(actor, task_id, request, base_url=..., idempotency_key=...)`。`VerificationPhaseRequest` 携带当前三类修订、候选、`round_id`、生产者 `source_id`、阶段及 `setup_evidence_ref`；调用者必须匹配已启用的 integration/product 生产者，并具有当前 `fact.archive`、`resource.read` 及原构建的 `operation.query` 权限。
-4. 按 `baseline → seed → 实际重启 → verify-persisted → 实际故障准备 → not-ready` 的顺序收集四份事实。`VerificationApplication.finalize(...)` 使用同一候选/轮次的 `phase_ids` 生成不可变报告；缺项也能归档，不能被选择为通过。
+4. 按 `baseline → seed → 实际重启 → verify-persisted → 实际故障准备 → not-ready` 的顺序收集四份事实。`VerificationApplication.generate_report(...)` 使用同一候选和轮次的 `phase_ids`，归档不可变报告，再返回 `view`、中文 `summary` 和完整 `markdown`。只需归档的现有生产者仍可使用 `finalize(...)`。缺项也能归档，不能被选择为通过。
 
 生产者入口是内部 Python API，不接受公开 HTTP 上传的报告、命令、执行入口或实例地址。验证角色沿上述受控 Gateway 调用该入口；实例准备仍由受控调用方负责，没有新增调度器或持久工作流。
 
@@ -47,6 +47,7 @@
 ## 查询与选择
 
 - `GET /api/tasks/{task_id}/verifications/{report_id}` 返回原报告、证据引用、当前 `applicability` 和 `usable`。
+- `GET /api/tasks/{task_id}/verifications/{report_id}/markdown` 使用相同的当前会话和读取权限，返回 `text/markdown; charset=utf-8`。可读版先说明当前结论与能否使用，再分阶段显示每项检查的中文场景、判定和通过标准。失败、缺少结果和证据完整性问题分别显示；输入失效时保留历史结论并提示需复核。已存在的报告也可直接读取，不需要重新执行。原 JSON 路径、报告身份及合入门禁保持原契约。
 - `POST /api/tasks/{task_id}/verification-selection` 携带 `Idempotency-Key`、`expected_version`、`expected_control_revision`、`expected_input_validity_revision` 和 `report_id`，要求当前 `task.command` 权限。只有当前适用的 passed 报告可以选择；选择、Task 版本、命令及事件同事务保存。
 
 报告完整输入保留原固定候选的源码/构建/制品/环境引用，再加入准确最终源码 commit、固定候选和阶段准备证据；同 commit 的不同构建或环境不会混为同一输入。原始源 InputSet 仍独立保留，不覆盖旧记录。`EvidenceMetadata.check_ids` 声明该报告检查范围，实际执行结果以报告的通过、失败、缺失集合为准，未知或未执行不会因此变为通过。

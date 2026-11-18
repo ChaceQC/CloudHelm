@@ -16,6 +16,7 @@ from modules.delivery.release_recipe import delivery_digest
 from modules.integration.candidates import _current_input, _operation_access, _read, _ref
 from modules.integration.reference_acceptance import CollectedPhase, collect_reference_phase
 from modules.integration.tables import verification_dependencies
+from modules.integration.verification_readable import VerificationPublication, publish_verification
 from modules.projects.reference_assets import ReferenceAssetError, load_reference_assets
 from modules.sync.events import append_event
 from modules.sync.tables import event_log
@@ -219,6 +220,12 @@ class VerificationApplication:
                 task_id=task_id, applicability=applicability) for key in sorted(keys)])
             save_result(uow.connection, command, report, status_code=201, authorization=authorization.envelope)
             return report
+
+    def generate_report(self, actor, task_id, request: FinalizeVerificationRequest,
+                        *, idempotency_key) -> VerificationPublication:
+        """Archive the facts, then build the human report with current applicability."""
+        report = self.finalize(actor, task_id, request, idempotency_key=idempotency_key)
+        return publish_verification(self.query(actor, task_id, report.report_id))
 
     def accept(self, actor, task_id, request, *, idempotency_key):
         """Select current formal evidence; WorkItem review remains a separate decision."""

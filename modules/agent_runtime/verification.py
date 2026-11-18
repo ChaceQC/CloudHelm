@@ -15,6 +15,7 @@ from modules.identity.actors import actor_for_command
 from modules.identity.errors import IdentityError
 from modules.integration.candidates import _current_input, _operation_access, _read, _ref
 from modules.integration.verification import VerificationApplication, _assets, _event
+from modules.integration.verification_readable import verification_headline, verification_report_path
 from modules.integration.validity import verification_view
 from modules.projects.reference_assets import ReferenceAssetError
 from modules.sync.tables import event_log
@@ -65,9 +66,11 @@ def load_verification_context_in_uow(uow, actor, task, request, reader, reposito
     }
 
 
-def verification_summary(view):
+def verification_summary(view, *, human_summary=None):
     report = view.report
     return {
+        "human_summary": human_summary if human_summary is not None else verification_headline(view),
+        "readable_report_path": verification_report_path(view) + "/markdown",
         "report_id": report.report_id, "candidate_id": report.candidate_id,
         "candidate_commit": report.source_ref.revision, "round_id": report.round_id,
         "input_set_ref": _ref("input_set", report.input_set.input_set_id,
@@ -192,8 +195,8 @@ class VerificationGateway:
                 phase = self.application.run_phase(actor, task["task_id"], phase_request,
                     base_url=setup.base_url, idempotency_key=key, timeout_seconds=timeout_seconds)
                 return phase.model_dump(mode="json")
-            report = self.application.finalize(actor, task["task_id"], final_request, idempotency_key=key)
-            return verification_summary(self.application.query(actor, task["task_id"], report.report_id))
+            publication = self.application.generate_report(actor, task["task_id"], final_request, idempotency_key=key)
+            return verification_summary(publication.view, human_summary=publication.summary)
         except (TaskBoundaryError, IdentityError, WorkspaceFileError) as error:
             return {"status": "unknown" if error.code == "verification_phase_outcome_unknown" else "rejected",
                     "code": error.code}

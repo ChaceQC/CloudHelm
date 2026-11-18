@@ -3,9 +3,10 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from modules.identity.actors import AuthenticatedActor
+from modules.integration.verification_readable import publish_verification
 from modules.workspaces.queries import WorkspaceOperationView
 from packages.contracts.p0.decision_common import Identifier
 from packages.contracts.p1.build_records import BuildView
@@ -158,6 +159,13 @@ def fixed_candidate_status(request: Request, task_id: Identifier, candidate_id: 
 @router.get("/tasks/{task_id}/verifications/{report_id}", response_model=VerificationView)
 def verification_status(request: Request, task_id: Identifier, report_id: Identifier, actor: ControlActor):
     return get_runtime(request).verifications.query(actor, task_id, report_id)
+
+
+@router.get("/tasks/{task_id}/verifications/{report_id}/markdown", response_class=Response,
+            responses={200: {"content": {"text/markdown": {"schema": {"type": "string"}}}}})
+def verification_markdown(request: Request, task_id: Identifier, report_id: Identifier, actor: ControlActor):
+    view = get_runtime(request).verifications.query(actor, task_id, report_id)
+    return Response(publish_verification(view).markdown, media_type="text/markdown", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/tasks/{task_id}/verification-selection", response_model=VerificationSelection)
