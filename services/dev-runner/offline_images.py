@@ -10,13 +10,19 @@ import re
 import resource
 import subprocess
 import tarfile
+from contextlib import closing
 from pathlib import Path
+
+from modules.artifacts.content_files import ArtifactRoot, regular_at
+from modules.artifacts.errors import ArtifactContentError
+from modules.workspaces.safe_paths import exists_at
 
 from .toolchain import DockerClient, DOCKER, ProbeFailure, safe_diagnostic
 
 SOURCE_TAG = "python:3.12.13-slim-bookworm"
 SOURCE_DIGEST = "sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2"
 SOURCE_REFERENCE = SOURCE_TAG + "@" + SOURCE_DIGEST
+PYTHON_INDEX_ROOT = Path("/home/cloudhelm/.local/state/cloudhelm/engineering-seeds/python-base-index")
 MAX_SOURCE_BYTES = 256 * 1024 * 1024
 MAX_JSON_BYTES = 1024 * 1024
 OCI_INDEX = "application/vnd.oci.image.index.v1+json"
@@ -93,18 +99,46 @@ def _blob(archive: tarfile.TarFile, entries: dict, descriptor: dict, destination
     return bytes(collected) if entry.size <= MAX_JSON_BYTES else None
 
 
-def prepare_python_layout(client: DockerClient, directory: Path) -> dict:
-    """Export trusted Docker content, then retain only the pinned amd64 image graph."""
-    root = json.loads(client.run("manifest", "inspect", SOURCE_REFERENCE, timeout=90).stdout)
-    if root.get("mediaType") != OCI_INDEX:
+def _read_index_seed() -> bytes | None:
+    try:
+        seeds = ArtifactRoot(PYTHON_INDEX_ROOT)
+    except FileNotFoundError:
+        return None
+    with closing(seeds):
+        name = SOURCE_DIGEST.removeprefix("sha256:") + ".json"
+        if not exists_at(seeds.fd, name):
+            return None
+        with regular_at(seeds.fd, name, MAX_JSON_BYTES, readonly=True) as stream:
+            return stream.read(MAX_JSON_BYTES + 1)
+
+
+def _source_manifest(client: DockerClient) -> dict:
+    try:
+        raw = _read_index_seed()
+    except (ArtifactContentError, OSError):
+        raise ProbeFailure("offline_source_index_seed_invalid") from None
+    if raw is None:
+        root = json.loads(client.run("manifest", "inspect", SOURCE_REFERENCE, timeout=90).stdout)
+    else:
+        if "sha256:" + hashlib.sha256(raw).hexdigest() != SOURCE_DIGEST:
+            raise ProbeFailure("offline_source_index_digest_mismatch")
+        root = json.loads(raw)
+    if (not isinstance(root, dict) or root.get("mediaType") != OCI_INDEX
+            or root.get("schemaVersion") != 2 or not isinstance(root.get("manifests"), list)):
         raise ProbeFailure("offline_source_index_unsupported")
-    matches = [item for item in root.get("manifests", []) if item.get("platform") == {
-        "architecture": "amd64", "os": "linux"}]
+    matches = [item for item in root["manifests"] if isinstance(item, dict)
+               and item.get("platform") == {"architecture": "amd64", "os": "linux"}]
     if len(matches) != 1:
         raise ProbeFailure("offline_source_amd64_manifest_not_unique")
     manifest = _descriptor(matches[0], {OCI_MANIFEST})
     if manifest["size"] > MAX_JSON_BYTES:
         raise ProbeFailure("offline_source_manifest_too_large")
+    return manifest
+
+
+def prepare_python_layout(client: DockerClient, directory: Path) -> dict:
+    """Export trusted Docker content, then retain only the pinned amd64 image graph."""
+    manifest = _source_manifest(client)
     source = directory / "source-export.tar"
     _export_fixed_source(client, source)
     layout = directory / "base-layout"

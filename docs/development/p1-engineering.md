@@ -117,6 +117,8 @@ cd /mnt/e/Project/CloudHelm
 
 已发布的内容可离线验证和复用；损坏内容会被拒绝，维护入口不覆盖。Worker 在新构建资源组启动前复核布局，缺失返回 `frontend_base_seed_unavailable`，索引摘要不符返回 `frontend_base_index_digest_mismatch`。前端 BuildKit 只读挂载已核对的布局并按对应清单摘要读取。Node/Nginx 不再从构建路径查询 Registry 或拉取；BuildKit 工具镜像、后端及 PostgreSQL 的准备要求仍沿用各自入口。
 
+冷启动安装可在已准入的维护资源组内，从可信本机镜像库导入固定 BuildKit、Python 和 PostgreSQL 内容。按各自固定摘要核对原清单或原索引及实际 `linux/amd64` 内容，再让受管引擎核对加载身份。维护者可将原始 Python OCI 索引的完整字节写入 UID 1000 的私有目录 `/home/cloudhelm/.local/state/cloudhelm/engineering-seeds/python-base-index/`，文件名为 `offline_images.SOURCE_DIGEST` 去掉 `sha256:` 后加 `.json`，文件只读。构建优先核对本地原始索引摘要并选择唯一 `linux/amd64` 清单；仅索引缺失时使用原 Registry 查询，索引存在但不安全或摘要不符时拒绝。镜像、配方和制品校验规则不变。
+
 ## 5. 定向开发验证
 
 ### 5.1 验证入口

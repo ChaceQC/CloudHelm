@@ -2,6 +2,14 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：E07d 固定最终集成提交并完成正式验收
+
+- 按用户授权移除 E07c 旧受管存储及其中的失败构建数据。原构建保持 `failed`，原 `seq=4 / stopped` 回执保留；UTC `2026-11-18T14:35:25.259421+00:00` 确认实际回收 16 GiB，旧存储预留 `seq=5 / stopped`，剩余占账为零。旧 Hub 库未恢复，未迁入旧业务事实；新取证库和新存储通过正常入口建档，仍使用同一实际宿主池。
+- 已实现：[后端基础镜像读取](services/dev-runner/offline_images.py)支持固定 Python OCI 原索引离线核对，缺失沿用原查询，存在但不安全或摘要不符时拒绝。冷启动首次构建在工具链拉取阶段超时，已沿原操作确认停机及 `failed`；准备本机固定 BuildKit、Python 和 PostgreSQL 后，实际构建最终集成提交 `59e331eb19417ccf02f47d093e9ed99b36370f32` 成功，前后端和 PostgreSQL 的制品内容及加载身份核验通过。固定候选 `fixed-candidate-957ae7aceeea4a5cab4b2b31d8fd8912` 的来源、执行和内容证据都仍适用。
+- 已验证：第一轮独立验收因 WSL UTC 回拨，顺序门禁拒绝登记后续阶段，保留 46 项通过的缺项报告和原清理回执。新轮次在真实时间顺序满足后，用同一制品和原独立资产完成四阶段 50 项，含实际重启后端与停止候选 PostgreSQL；后端 `/devmarker` 实测 HTTP 200 和 `{"marker":"p2-a11-r1"}`。UTC `2026-11-18T15:11:12.404687Z` 归档 `verification-c715717fc94048cea6771ed96695de9e`，当前 `valid / usable=true`。验收实例已清理，两端仅剩新受管存储的 16 GiB 保留占账。
+- 进行中：E07d 等待有权人类对原队首、最终提交和同一报告提交审查；隔离 Hub、Worker 和制品仍可查询。阻塞与风险：批准尚未取得，受管 Git 合入未执行；E06c 的宿主可信证明仍缺。下一项是取得批准后重查队首、当前输入和目标 SHA，再按原身份合入并核对目标。E07e、正式预览、原生与部署未执行。
+- 主要文件、方法和证据：[计划修订 88](PROJECT_PLAN.md#两轮审计后的执行顺序)、[镜像准备说明](docs/development/p1-engineering.md#43-固定前端基础镜像)、[E07d 记录](docs/acceptance/p2/p2-4-02-e07d.md)。验证使用 WSL Ubuntu-24.04 的新隔离 PostgreSQL、受管 Git/容器和固定独立 HTTP 资产；另以禁用 Registry 的定向检查确认本地 Python 索引和原 amd64 摘要。Windows 检查六份交付文件的 UTF-8、改动 Python 的 AST、新记录的本地链接、暂存范围和 `git diff --cached --check`，均通过；私有方法和运行数据未入库。投入与剩余工作量待估。
+
 ## 2026-11-18：E06c 预览可信计时接线
 
 - 已实现：[BOOTTIME 证明与上界](modules/workspaces/preview_timing.py)核对 Linux 启动、时钟源、休眠计数及可信根的实时连续性。Hub 的手动撤销和 API 环境停止使用同一计时纪元，按原提交前锚点和确认接收读数核对 10 秒；[代理](services/hub-api/preview_proxy.py)独立按剩余控制间隔限时轮询，先封入口再关两端流，回执保留首次失败及关闭上界。失信后拒绝新签发和转发，旧撤销保留原截止。HTTP 契约、迁移和工作流版本未变；[安装说明](docs/development/p2-previews.md#可信计时)已同步。
