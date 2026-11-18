@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { ConnectionPanel } from "./ConnectionPanel";
 import { ObjectPanel, kindNames } from "./ObjectPanel";
@@ -7,6 +8,8 @@ import { CreateTask, TaskPanel } from "./TaskPanel";
 import { useHub } from "./useHub";
 import { Empty, JsonView, Status } from "./ui";
 import "./styles.css";
+
+interface PreviewCleanup { label: string; removed: boolean }
 
 const navigation = [
   ["tasks", "任务", "01"], ["plans", "部署批准", "02"], ["delivery", "交付对象", "03"],
@@ -22,6 +25,7 @@ export default function App() {
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [projectInput, setProjectInput] = useState("");
+  const [previewCleanup, setPreviewCleanup] = useState(() => new Map<string, boolean>());
   const snapshot = hub.snapshot;
   const tasks = snapshot?.tasks ?? [];
   const plans = snapshot?.objects.filter(item => item.kind === "plan") ?? [];
@@ -31,6 +35,12 @@ export default function App() {
   const selectedObject = objects.find(item => item.object_id === objectId) ?? objects[0];
   useEffect(() => { setTask(""); setPlan(""); setObject(""); setCreating(false); }, [snapshot?.project.project_id]);
   useEffect(() => { if (!hub.writable) setCreating(false); }, [hub.writable]);
+  useEffect(() => {
+    const unlisten = listen<PreviewCleanup>("preview-cleanup", ({ payload: { label, removed } }) => {
+      setPreviewCleanup(previous => new Map(previous).set(label, removed));
+    }, { target: "main" }).catch(() => undefined);
+    return () => { void unlisten.then(stop => stop?.()); };
+  }, []);
   const receiptBody = hub.receipt?.body;
   const commandResult = receiptBody && typeof receiptBody.task === "object" ? receiptBody.task as Record<string, unknown> : receiptBody;
 
@@ -57,6 +67,17 @@ export default function App() {
     <div className="content"><div className="page-heading"><div><span className="eyebrow">{snapshot?.project.name ?? "CLOUDHELM"}</span>
       <h1>{navigation.find(item => item[0] === page)?.[1]}</h1></div>
       {page === "tasks" && <button className="primary" disabled={!hub.can("task.command")} onClick={() => setCreating(true)}>＋ 提交任务</button>}</div>
+      {[...previewCleanup].map(([label, removed]) => <div className={`${removed ? "notice" : "error"} pending-command`} key={label}>
+        <div role={removed ? "status" : "alert"}>
+          <strong>{removed ? "预览专用分区已删除。" : "预览专用分区清理失败，分区可能仍留在本机。"}</strong>
+          <code>{label}</code>
+        </div>
+        <button aria-label={`关闭提示：${label}`} onClick={() => setPreviewCleanup(previous => {
+          const next = new Map(previous);
+          next.delete(label);
+          return next;
+        })}>关闭提示</button>
+      </div>)}
       {hub.error && <div className="error" role="alert">{hub.error}</div>}
       {hub.connection === "offline" && <div className="notice">当前显示上次快照；重新连接并取得当前权限前暂停写入。</div>}
       {hub.connection === "revoked" && <div className="notice">授权范围已清理，请重新连接。</div>}

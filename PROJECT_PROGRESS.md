@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R03b 显示分区清理结果
+
+- 已实现：[Desktop 主窗口](apps/desktop/src/App.tsx)监听原生 `preview-cleanup`，按窗口标识分别显示分区已删除或清理失败，可逐条关闭提示。提示独立于项目和 Hub 连接，其他窗口的成功不覆盖失败。原生回执、HTTP 契约、数据库及版本元数据未改动；已同步[客户端说明](apps/desktop/README.md)和[预览说明](docs/development/p2-previews.md#api-与安装边界)。
+- 定向开发验证：Windows 11 `10.0.26200.9168`、rustc `1.97.1`、Tauri `2.12.5`、Wry `0.57.1`、WebView2 `154.0.4258.62`，沿用工作树现有 Desktop 清单 `0.30.0`。以隔离应用标识 `com.cloudhelm.desktop.r03b` 执行 `cargo build --locked --offline`，Node `24.13.0` 下执行 `npm.cmd run build -- --outDir ../../.thesis-work/r03b/dist`；两项均通过。原生调试程序 SHA-256 `4b2f1f2608f0bdb1622adc1a0242a6cbc2462daa4611621185f949225f9c8b5f`，前端包 SHA-256 `e2ce1d84c57cf06cc732294d109a26259485c80aa8dc7353f76c7b71376b510a`。
+- 结果：UTC `2026-11-18T11:41:55+00:00`，`python -X utf8 .thesis-work/r03b/verify.py` 通过，方法 SHA-256 `e2c4a9ac6bf7e8011bb3598e6a4535ddc2602e592cbe990a52c246afc8a4e281`。回环夹具只提供身份和预览公开元数据，窗口、专用分区、删除及事件均由真实 Tauri/WebView2 产生。先以 Windows 独占文件占用第一个分区：窗口已消失，目录仍在，原生回执 `removed: false`，主窗口显示失败；释放占用并清理夹具。第二个窗口关闭后目录实际消失，原生回执 `removed: true`，主窗口显示已删除。开启时两条均未提前显示结果；后一次成功未覆盖失败，关闭失败提示后成功提示仍在。
+- 进行中：无。阻塞与风险：本轮未使用真实 Hub 撤销、TLS 预览或固定候选，未执行六组正式验收。E07d 的取证安装前置核对仍待办。计划修订 83，下一项为 [R03c](PROJECT_PLAN.md#两轮审计后的执行顺序)；E06c 可独立准备。
+
 ## 2026-11-18：R03a 修复 Desktop 撤销送达
 
 - 已实现：[项目同步](apps/desktop/src/useHub.ts)将快照游标与本机已消费的事件游标分开，普通刷新保留同范围订阅，续订从已消费位置继续。切换项目、流或权限修订变化、订阅需重建或不兼容、授权被拒时请求原生收窗；[人测入口](apps/desktop/src/HumanTestPanel.tsx)在旧打开请求晚到时按窗口标识补发关闭。同步 Hook 310 个物理行，订阅、快照和预览关闭共享连接范围，留在同一模块。HTTP、原生 IPC 和版本元数据未改动；[预览说明](docs/development/p2-previews.md#api-与安装边界)已同步。
