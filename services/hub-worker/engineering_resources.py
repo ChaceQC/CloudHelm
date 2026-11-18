@@ -153,16 +153,14 @@ class EngineeringResources:
             preview=preview)
 
     @contextmanager
-    def build(self, record, storage, gate):
-        journal = storage.archive_root / "build-operations" / record.command_id / "intent.json"
-        new = not journal.exists()
-        if not new and self.registry.registration.resource_runner_id is None:
+    def build(self, record, storage, gate, *, start):
+        if not start and self.registry.registration.resource_runner_id is None:
             yield None
             return
-        if new:
+        if start:
             gate()
         binding = self.binding(key=record.operation_id, task_id=record.task_id, command_id=record.command_id,
-            deadline=record.accepted_at + timedelta(hours=2), storage=storage, start=new)
+            deadline=record.accepted_at + timedelta(hours=2), storage=storage, start=start)
         if binding is None:
             yield None
         else:

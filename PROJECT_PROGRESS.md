@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R01a 分开原构建核对和新启动的存储门槛
+
+- 已完成：[构建 Worker](services/hub-worker/engineering_build.py) 在一次持锁的受管存储准入中按原命令的意图日志区分核对与启动；[资源绑定](services/hub-worker/engineering_resources.py) 和 Runner 共用这个决定。旧操作继续校验原授权、存储和回执，新构建不足 2 GiB 时在创建资源组和操作目录前拒绝。已更新[使用说明](docs/development/p2-candidates.md#使用顺序)与[计划入口](PROJECT_PLAN.md#两轮审计后的执行顺序)。
+- 定向开发验证：UTC `2026-11-18T04:59:34.100340+00:00`，在 WSL Ubuntu-24.04（内核 `6.18.33.2-microsoft-standard-WSL2`，Python `3.12.13`）的独立挂载命名空间，用 `PYTHONPATH=. .venv/bin/python -B .thesis-work/r01a/verify.py --index` 核对暂存源码。32 MiB 临时 ext4 池实际可分配 `25477120` 字节，输入是同一固定候选的一份 `unknown` 日志和一个无日志的新操作。用 SQLite 隔离事件与 Outbox，原命令授权及 Runner 物理读取使用探针输入。
+- 结果：`0bc4da2` 的 Worker 对旧操作返回 `storage_capacity_unavailable`；改后可读日志，重投仍仅登记一条原观察并维持 `unknown`。新操作仍返回同一容量错误，未创建新操作目录、资源绑定或进程。临时池已卸载和移除，`git diff --cached --check` 通过。未运行真实容器、Hub PostgreSQL 或正式验收。
+- 下一项及阻塞：R01b 用独立输入验证缺 `result` 或 `observation` 时按原回执核对停机；E07d 仍缺可查询的原安装基线与两端占账。正式客户端入口继续关闭，剩余投入待估。
+
 ## 2026-11-18：R00 核对 P2.4-02 执行基线
 
 - 已完成：对照 `dev / 00ba220` 与审计基线 `4649c2f`，分类现有未提交改动和 R01 剩余路径。只读核对确认最终集成提交 `5cbf446` 仍在、项目目标仍是 `7ec1ab8`，原资源池、存储 owner 和原构建的 `seq=4 / stopped` 回执仍可在本地账本核验。原构建沿用 `failed`、制品未验证的历史结论。

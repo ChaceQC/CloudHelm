@@ -114,22 +114,27 @@ def read_build_result(runtime, record, *, log_role, log_offset, max_bytes):
 
 def execute_build(runtime, operation_id):
     runner_module = importlib.import_module("services.dev-runner.engineering_build_runner")
-    with runtime.registry.admit(2 * 1024**3) as storage:
+    with runtime.registry.admit(0) as storage:
         record = _record(runtime, operation_id, reconciliation=True)
+        journal = storage.archive_root / "build-operations" / record.command_id / "intent.json"
+        start = not journal.exists()
+        if start and storage.admission.snapshot.allocatable_bytes < 2 * 1024**3:
+            development_storage = importlib.import_module("services.dev-runner.development_storage")
+            raise development_storage.DevelopmentStorageError("storage_capacity_unavailable")
 
         def gate():
             storage.observe()
             if _record(runtime, operation_id, reconciliation=False) != record:
                 raise WorkspaceFileError("build_operation_binding_changed")
 
-        with runtime.resources.build(record, storage, gate) as group:
-            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group)
+        with runtime.resources.build(record, storage, gate, start=start) as group:
+            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, start=start)
 
 
-def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group):
+def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, *, start):
     runner = runner_module.ControlledBuildRunner(storage, record, gate)
     try:
-        if not runner.exists():
+        if start:
             gate()
             runner.execute(_candidate_bytes(runtime, storage, record))
         with UnitOfWork(runtime.control_engine) as uow:
