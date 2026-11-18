@@ -1,6 +1,6 @@
 # 预览与可选人测
 
-11 月 1 日，本机 WSL 和 Windows 组合已登记一个预览槽并启动受控代理。**正式客户端入口仍关闭**，尚缺同一正式候选的端到端验证和可信计时证据。详见[本机记录](../acceptance/p2/p2-4-02-closeout.md)和[支持矩阵](../acceptance/support-matrix.md)。
+11 月 1 日，本机 WSL 和 Windows 组合已登记一个预览槽并启动受控代理。**本机组合仅用于开发验证，正式客户端入口关闭。** 详见[本机记录](../acceptance/p2/p2-4-02-closeout.md)和[支持矩阵](../acceptance/support-matrix.md)。
 
 新库目标见 [Hub 初始化说明](p1-hub.md#2-受控数据库初始化)。规则依据 D03 §2.1、§2.3～2.3.1、D05 §4 和 [P0 预览决定 r2](../decisions/p0/preview-access.md)。早期验证见 [P2.4-01](../acceptance/p2/p2-4-01.md)、[P2.4-02 首轮](../acceptance/p2/p2-4-02.md)和[隔离与原生验证](../acceptance/p2/p2-4-02-followup.md)。
 
