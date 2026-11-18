@@ -1,7 +1,6 @@
 """Controlled, fail-closed HTTP/SSE entrance on the existing Hub ASGI app."""
 
 import asyncio
-import time
 from datetime import datetime
 from urllib.parse import parse_qsl, quote
 
@@ -10,8 +9,10 @@ from pydantic import SecretStr
 
 from modules.identity.errors import IdentityError
 from modules.workspaces.operations import WorkspaceError
+from modules.workspaces.preview_timing import PreviewClock
+from packages.contracts.p0.preview_contracts import CONNECTION_CLEANUP_MS, CONTROL_MAX_GAP_MS
 from .preview_headers import COOKIE, cookie_and_headers, origin, platform_headers, request_allowed, response_headers, values
-from .preview_transport import EXTENSION, PreviewConnection, PreviewTransport, observed_at
+from .preview_transport import EXTENSION, PreviewConnection, PreviewTransport, clock_mark, observed_at
 
 
 _BODY_LIMIT = 1024 * 1024
@@ -70,9 +71,9 @@ async def _body(scope, receive, limit):
 class PreviewProxy:
     """Middleware: project hosts are never passed through to management routes."""
 
-    def __init__(self, app):
+    def __init__(self, app, clock: PreviewClock | None = None):
         self.app = app
-        self.lock = asyncio.Lock()
+        self.clock = clock if clock is not None else PreviewClock()
         self.start_lock = asyncio.Lock()
         self.access = None
         self.identity = None
@@ -80,79 +81,119 @@ class PreviewProxy:
         self.connections = {}
         self.transports = {}
         self.transport_owner = None
-        self.denials = {}
         self.closing = {}
         self.receipts = {}
-        self.closures = {}
         self.reported = set()
         self.monitor = None
         self.reporter = None
         self.control_at = None
+        self.control_failure = None
 
-    def _control_current(self):
-        if self.control_at is None or not hasattr(time, "CLOCK_BOOTTIME"):
-            return False
-        return 0 <= time.clock_gettime(time.CLOCK_BOOTTIME) - self.control_at < 3
+    def _upper_ms(self, start, end):
+        if (start is None or end is None or start["epoch"] != end["epoch"]
+                or end["epoch"] != self.clock.epoch or start["evidence_digest"] != end["evidence_digest"]):
+            return None
+        return self.clock.upper_ms(start["boottime_ns"], end["boottime_ns"])
+
+    def _control_remaining_ms(self, now=None):
+        """Return the remaining open budget, sealing existing flows on expiry or loss."""
+        if self.control_at is None or self.control_failure is not None:
+            return None
+        now = clock_mark(self.clock) if now is None else now
+        age = self._upper_ms(self.control_at, now)
+        if age is None or age >= CONTROL_MAX_GAP_MS:
+            self._fail_control("clock_untrusted" if age is None else "control_gap", now)
+            return None
+        return CONTROL_MAX_GAP_MS - age
 
     async def _start(self, access):
         async with self.start_lock:
             if self.access is access:
                 return
-            if access.proxy_identity is None or self.connections or not hasattr(time, "CLOCK_BOOTTIME"):
+            if access.proxy_identity is None or self.connections:
                 raise _Rejected(503)
             pending = await _call(access.pending_revocations, access.proxy_identity)
             self.access, self.identity = access, access.proxy_identity
-            self.control_at = time.clock_gettime(time.CLOCK_BOOTTIME)
-            self.sealed, self.denials, self.closing, self.receipts = {}, {}, {}, {}
-            self.closures, self.reported = {}, set()
-            for record in pending:
-                await self._seal(record.binding.authorization_id)
+            self.sealed, self.closing, self.receipts, self.reported = {}, {}, {}, set()
+            self.control_at = self.control_failure = None
+            self._apply_control(pending)
             self.monitor = asyncio.create_task(self._monitor(access))
             if pending:
                 self.reporter = asyncio.create_task(self._report_pending(access, pending))
 
-    async def _seal(self, authorization_id):
-        async with self.lock:
-            if authorization_id in self.sealed:
-                return
-            denied = observed_at()
-            self.sealed[authorization_id] = datetime.fromisoformat(denied["utc"])
-            self.denials[authorization_id] = denied
-            connections = tuple(self.transports[task] for task in self.connections.get(authorization_id, ()))
-            self.closing[authorization_id] = connections
-            for connection in connections:
-                connection.abort()
+    def _apply_control(self, pending):
+        # Only a fully applied snapshot may renew the gate. A late reply cannot save old flows.
+        observed = clock_mark(self.clock)
+        self._control_remaining_ms(observed)
+        for record in pending:
+            self._seal(record.binding.authorization_id, ("authorization_closed", observed))
+        now = clock_mark(self.clock)
+        if self.control_at is not None and self.control_failure is None and not self._control_remaining_ms(now):
+            now = clock_mark(self.clock)
+        if now is None:
+            self._fail_control("clock_untrusted", None)
+        else:
+            self.control_at, self.control_failure = now, None
 
-    async def _seal_all(self):
-        for authorization_id in tuple(self.connections):
-            await self._seal(authorization_id)
+    def _fail_control(self, reason, first_failure):
+        if self.control_failure is not None:
+            return
+        self.control_failure = (reason, first_failure)
+        if self.connections:
+            denied = observed_at(self.clock)
+            for authorization_id in self.connections:
+                self._seal(authorization_id, self.control_failure, denied)
+
+    def _seal(self, authorization_id, failure, denied=None):
+        # Gate transitions and connection registration do not yield on the listener loop.
+        if authorization_id in self.sealed:
+            return
+        reason, first_failure = failure
+        denied = denied if denied is not None else observed_at(self.clock)
+        self.sealed[authorization_id] = denied
+        connections = tuple(self.transports[task] for task in self.connections.get(authorization_id, ()))
+        self.closing[authorization_id] = (connections, {
+            "trigger": reason, "last_verified": self.control_at, "first_failure": first_failure,
+            "control_age_at_denial_upper_ms": self._upper_ms(self.control_at, denied["clock"]),
+        })
+        for connection in connections:
+            connection.abort()
+        if not connections:
+            self._finish_close(authorization_id)
+
+    def _finish_close(self, authorization_id):
+        connections, timing = self.closing.pop(authorization_id)
+        denied = self.sealed[authorization_id]
+        connections = [connection.receipt() for connection in connections]
+        stamps = [denied]
+        for connection in connections:
+            stamps.append(connection["downstream"]["connection_lost"])
+            if connection["upstream"] is not None:
+                stamps.append(connection["upstream"]["descriptor_closed"])
+        closed = max(stamps, key=lambda stamp: stamp["boottime_ns"])
+        denial_age = timing["control_age_at_denial_upper_ms"]
+        control_age = self._upper_ms(timing["last_verified"], closed["clock"])
+        failure_age = self._upper_ms(timing["first_failure"], closed["clock"])
+        self.receipts[authorization_id] = {
+            "denied": denied, "closed": closed, "connections": connections,
+            "client_connections": 0, "upstream_connections": 0,
+            "proxy_timing": {
+                **timing, "control_age_at_closure_upper_ms": control_age, "failure_age_at_closure_upper_ms": failure_age,
+                "denial_within_gap": None if denial_age is None else denial_age <= CONTROL_MAX_GAP_MS,
+                "closure_within_cleanup": None if failure_age is None else failure_age <= CONNECTION_CLEANUP_MS,
+                "closure_within_hard_cap": None if control_age is None else control_age <= CONTROL_MAX_GAP_MS + CONNECTION_CLEANUP_MS,
+            },
+        }
 
     async def _report_closed(self, access, record):
         authorization_id = record.binding.authorization_id
-        async with self.lock:
-            denied_at = self.sealed.get(authorization_id)
-            if (denied_at is None or self.connections.get(authorization_id) or authorization_id in self.reported
-                    or self.identity not in record.revocation.required_proxies):
-                return
-            owner = self.transport_owner
-            if owner is None or owner.started is None:
-                return
-            if authorization_id not in self.receipts:
-                connections = [connection.receipt() for connection in self.closing[authorization_id]]
-                stamps = [self.denials[authorization_id]]
-                for connection in connections:
-                    stamps.append(connection["downstream"]["connection_lost"])
-                    if connection["upstream"] is not None:
-                        stamps.append(connection["upstream"]["descriptor_closed"])
-                closed = max(stamps, key=lambda stamp: stamp["boottime"])
-                self.receipts[authorization_id] = {
-                    "transport_owner": owner.receipt(), "denied": self.denials[authorization_id],
-                    "closed": closed, "connections": connections,
-                    "client_connections": 0, "upstream_connections": 0,
-                }
-                del self.closing[authorization_id]
-            receipt = self.receipts[authorization_id]
-            fact = self.closures.setdefault(authorization_id, (denied_at, datetime.fromisoformat(receipt["closed"]["utc"])))
+        receipt = self.receipts.get(authorization_id)
+        owner = self.transport_owner
+        if (receipt is None or authorization_id in self.reported or owner is None or owner.started is None
+                or self.identity not in record.revocation.required_proxies):
+            return
+        receipt = {"transport_owner": owner.receipt(), **receipt}
+        fact = (datetime.fromisoformat(receipt["denied"]["utc"]), datetime.fromisoformat(receipt["closed"]["utc"]))
         try:
             await _call(access.record_local_proxy_closure, authorization_id, self.identity, *fact, 0, 0)
             await _call(access.record_proxy_transport_closure, authorization_id, self.identity, receipt)
@@ -169,21 +210,19 @@ class PreviewProxy:
     async def _monitor(self, access):
         while True:
             await asyncio.sleep(1)
+            remaining_ms = self._control_remaining_ms()
+            timeout = 1.5 if remaining_ms is None else min(1.5, remaining_ms / 1000)
             try:
-                # Leave time after the one-second polling interval to close before the three-second limit.
-                pending = await _call(access.pending_revocations, self.identity, timeout=1.5)
+                pending = await _call(access.pending_revocations, self.identity, timeout=timeout)
             except Exception:
-                self.control_at = None
-                await self._seal_all()
+                self._fail_control("control_unavailable", clock_mark(self.clock))
                 continue
-            self.control_at = time.clock_gettime(time.CLOCK_BOOTTIME)
-            for record in pending:
-                await self._seal(record.binding.authorization_id)
+            self._apply_control(pending)
             if pending and (self.reporter is None or self.reporter.done()):
                 self.reporter = asyncio.create_task(self._report_pending(access, pending))
 
     async def _shutdown(self):
-        self.control_at = None
+        self._fail_control("shutdown", clock_mark(self.clock))
         if self.monitor is not None:
             self.monitor.cancel()
             await asyncio.gather(self.monitor, return_exceptions=True)
@@ -193,7 +232,6 @@ class PreviewProxy:
             await asyncio.gather(self.reporter, return_exceptions=True)
             self.reporter = None
         tasks = {task for group in self.connections.values() for task in group}
-        await self._seal_all()
         if tasks:
             try:
                 await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2)
@@ -214,8 +252,7 @@ class PreviewProxy:
                 if done:
                     task.cancel()
                     return
-                if not self._control_current():
-                    await self._seal_all()
+                if not self._control_remaining_ms():
                     return
                 try:
                     current = await _call(access.authenticate, cookie, authenticated.environment.environment_id)
@@ -223,10 +260,14 @@ class PreviewProxy:
                             or current.environment != authenticated.environment):
                         raise _Rejected()
                 except (WorkspaceError, IdentityError, _Rejected):
-                    await self._seal(authorization_id)
+                    observed = clock_mark(self.clock)
+                    if self._control_remaining_ms(observed):
+                        self._seal(authorization_id, ("authorization_closed", observed))
                     return
                 except Exception:
-                    await self._seal_all()
+                    self._fail_control("control_unavailable", clock_mark(self.clock))
+                    return
+                if not self._control_remaining_ms():
                     return
         finally:
             disconnect.cancel()
@@ -251,13 +292,17 @@ class PreviewProxy:
             raise _Rejected(400) from None
         if len(form) != 1 or form[0][0] != "ticket" or not form[0][1]:
             raise _Rejected(400)
+        if not self._control_remaining_ms():
+            raise _Rejected()
         try:
             result = await _call(access.redeem, environment.management_origin, target, SecretStr(form[0][1]))
         except (WorkspaceError, IdentityError):
             raise _Rejected() from None
-        async with self.lock:
-            if not self._control_current() or result.authorization.binding.authorization_id in self.sealed:
-                raise _Rejected()
+        except Exception:
+            self._fail_control("control_unavailable", clock_mark(self.clock))
+            raise _Rejected(503) from None
+        if not self._control_remaining_ms() or result.authorization.binding.authorization_id in self.sealed:
+            raise _Rejected()
         cookie = result.cookie.get_secret_value().encode("ascii")
         if not cookie or any(char not in b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-" for char in cookie):
             raise _Rejected(503)
@@ -276,6 +321,9 @@ class PreviewProxy:
             authenticated = await _call(access.authenticate, cookie, environment.environment_id)
         except (WorkspaceError, IdentityError):
             raise _Rejected() from None
+        except Exception:
+            self._fail_control("control_unavailable", clock_mark(self.clock))
+            raise _Rejected(503) from None
         if (authenticated.environment != environment or self.identity not in environment.required_proxies):
             raise _Rejected()
         authorization_id = authenticated.authorization.binding.authorization_id
@@ -284,17 +332,18 @@ class PreviewProxy:
                 or self.transport_owner.started is None):
             raise _Rejected(503)
         task = asyncio.current_task()
-        connection = PreviewConnection(task, downstream)
-        async with self.lock:
-            if not self._control_current() or authorization_id in self.sealed:
-                raise _Rejected()
-            self.connections.setdefault(authorization_id, set()).add(task)
-            self.transports[task] = connection
+        if not self._control_remaining_ms() or authorization_id in self.sealed:
+            raise _Rejected()
+        connection = PreviewConnection(task, downstream, self.clock)
+        self.connections.setdefault(authorization_id, set()).add(task)
+        self.transports[task] = connection
         watcher = None
         started, complete = False, False
 
         async def tracked_send(message):
             nonlocal started, complete
+            if not self._control_remaining_ms() or authorization_id in self.sealed:
+                raise _Rejected()
             await send(message)
             if message["type"] == "http.response.start":
                 started = True
@@ -306,6 +355,8 @@ class PreviewProxy:
             watcher = asyncio.create_task(self._watch(access, cookie, authenticated, receive, task, body_read))
             body = await _body(scope, receive, _BODY_LIMIT)
             body_read.set()
+            if not self._control_remaining_ms() or authorization_id in self.sealed:
+                raise _Rejected()
             available = {item.service: item for item in environment.upstreams}
             upstream = available.get("frontend") or available.get("backend")
             if upstream is None:
@@ -331,23 +382,25 @@ class PreviewProxy:
         except OSError:
             downstream.abort()
         except _Rejected as error:
-            if not started:
-                await _answer(scope, tracked_send, error.status, headers=[(b"connection", b"close")])
+            if not started and authorization_id not in self.sealed:
+                await _answer(scope, send, error.status, headers=[(b"connection", b"close")])
         except Exception:
-            if not started:
-                await _answer(scope, tracked_send, 502, headers=[(b"connection", b"close")])
+            if not started and authorization_id not in self.sealed:
+                await _answer(scope, send, 502, headers=[(b"connection", b"close")])
         finally:
+            connection.finishing = True
             if watcher is not None:
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
             if started and not complete:
                 downstream.abort()
             await connection.wait_closed()
-            async with self.lock:
-                del self.transports[task]
-                self.connections[authorization_id].discard(task)
-                if not self.connections[authorization_id]:
-                    del self.connections[authorization_id]
+            del self.transports[task]
+            self.connections[authorization_id].discard(task)
+            if not self.connections[authorization_id]:
+                del self.connections[authorization_id]
+                if authorization_id in self.sealed:
+                    self._finish_close(authorization_id)
 
     async def __call__(self, scope, receive, send):
         if self.transport_owner is None and "app" in scope:
@@ -398,7 +451,7 @@ class PreviewProxy:
             await _answer(scope, send, 400)
             return
         except Exception:
-            await self._seal_all()
+            self._fail_control("control_unavailable", clock_mark(self.clock))
             await _answer(scope, send, 503)
             return
         if environment is None:
@@ -407,7 +460,7 @@ class PreviewProxy:
         try:
             await self._start(access)
             if (scope["type"] != "http" or scope.get("scheme") != "https"
-                    or not self._control_current()
+                    or not self._control_remaining_ms()
                     or values(scope, b"host")[0].lower() not in {
                         target[8:].encode("ascii"), (target[8:] + ":443").encode("ascii")}
                     or self.identity not in environment.required_proxies):
@@ -426,5 +479,5 @@ class PreviewProxy:
         except (ValueError, UnicodeError):
             await _answer(scope, send, 400)
         except Exception:
-            await self._seal_all()
+            self._fail_control("control_unavailable", clock_mark(self.clock))
             await _answer(scope, send, 503)

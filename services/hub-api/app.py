@@ -7,6 +7,7 @@ from starlette.concurrency import run_in_threadpool
 
 from database.settings import DatabaseSettings
 from modules.workflow.version import APPLICATION_VERSION
+from modules.workspaces.preview_timing import PreviewClock, PreviewClockSupport
 from .contracts import API_SCHEMA_REVISION, ApiErrorResponse, Liveness
 from .errors import install_error_handlers
 from .middleware import SafeHttpBoundary
@@ -26,10 +27,11 @@ from .preview_page import ManagementHostBoundary, router as preview_page_router
 from .runtime import start_runtime
 
 
-def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
+def create_app(settings: DatabaseSettings | None = None, *,
+               preview_clock_support: PreviewClockSupport | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        runtime = await run_in_threadpool(start_runtime, settings)
+        runtime = await run_in_threadpool(start_runtime, settings, preview_clock=PreviewClock(preview_clock_support))
         app.state.runtime = runtime
         try:
             yield
@@ -47,7 +49,7 @@ def create_app(settings: DatabaseSettings | None = None) -> FastAPI:
     app.state.runtime = None
     app.add_middleware(SafeHttpBoundary)
     app.add_middleware(ManagementHostBoundary)
-    app.add_middleware(PreviewProxy)
+    app.add_middleware(PreviewProxy, clock=PreviewClock(preview_clock_support))
     install_error_handlers(app)
     app.include_router(identity_router)
     app.include_router(projects_router)

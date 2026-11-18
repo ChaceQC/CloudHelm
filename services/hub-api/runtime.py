@@ -21,6 +21,7 @@ from modules.integration.merge_queue import MergeQueueApplication
 from modules.integration.human_test_wiring import human_test_application
 from modules.workspaces.preview_access import PreviewAccessApplication
 from modules.workspaces.preview_environments import PreviewEnvironmentApplication
+from modules.workspaces.preview_timing import PreviewClock
 from packages.contracts.p0.preview_contracts import PreviewProxyIdentity
 from modules.delivery.deployment_application import DeliveryApplication
 from modules.workflow.version import APPLICATION_NAME, DBOS_SCHEMA
@@ -79,7 +80,7 @@ def _cleanup(pools, client) -> None:
             pools.dispose()
 
 
-def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
+def start_runtime(settings: DatabaseSettings | None = None, *, preview_clock: PreviewClock | None = None) -> ApiRuntime:
     """Called by lifespan only; imports and OpenAPI export do not invoke this."""
     pools, client = None, None
     try:
@@ -114,9 +115,10 @@ def start_runtime(settings: DatabaseSettings | None = None) -> ApiRuntime:
         from modules.workflow.engineering_enqueuers import preview_environment_enqueuer
 
         proxy_identity = PreviewProxyIdentity(proxy_id="hub-preview", boot_id=uuid4().hex)
-        previews = PreviewAccessApplication(pools.normal, pools.control, proxy_identity=proxy_identity)
+        clock = preview_clock if preview_clock is not None else PreviewClock()
+        previews = PreviewAccessApplication(pools.normal, pools.control, proxy_identity=proxy_identity, clock=clock)
         preview_environments = PreviewEnvironmentApplication(pools.normal, pools.control,
-            enqueue=preview_environment_enqueuer(client), proxy_identity=proxy_identity)
+            enqueue=preview_environment_enqueuer(client), proxy_identity=proxy_identity, clock=clock)
         return ApiRuntime(
             pools=pools, client=client, projects=ProjectApplication(pools.normal),
             tasks=TaskApplication(pools.normal, pools.control, client),

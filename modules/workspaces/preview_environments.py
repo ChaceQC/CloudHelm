@@ -24,6 +24,7 @@ from modules.workspaces.preview_access import _environment, revoke_environment_i
 from modules.workspaces.preview_access_tables import preview_authorizations, preview_environments
 from modules.workspaces.preview_environment_tables import preview_environment_intents as intents
 from modules.workspaces.preview_profiles import fixed_preview_inputs
+from modules.workspaces.preview_timing import PreviewClock, preview_clock
 from packages.contracts.p0.decision_common import Contract
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
@@ -74,9 +75,11 @@ def _active_reservation_deadline(connection, reservation_id: str | None) -> date
 
 
 class PreviewEnvironmentApplication:
-    def __init__(self, engine, control_engine, *, enqueue=None, proxy_identity=None, load_installation=True):
+    def __init__(self, engine, control_engine, *, enqueue=None, proxy_identity=None, load_installation=True,
+                 clock: PreviewClock = preview_clock):
         self.engine, self.control_engine = engine, control_engine
         self.enqueue, self.proxy_identity = enqueue, proxy_identity
+        self.clock = clock
         self.installation = installation_descriptor() if load_installation else None
 
     def _enqueue(self, uow, record, command_id, action, payload, *, operation_id=None):
@@ -275,7 +278,7 @@ class PreviewEnvironmentApplication:
         if changed != record:
             if record.state == "ready" and (changed.environment_ref != record.environment_ref
                     or changed.required_proxies != record.required_proxies or changed.upstreams != record.upstreams):
-                revoke_environment_in_uow(uow, environment_id)
+                revoke_environment_in_uow(uow, environment_id, clock=self.clock)
                 changed = changed.model_copy(update={"revision": record.revision + 1})
             save_environment(uow.connection, changed)
         return changed
@@ -343,7 +346,7 @@ class PreviewEnvironmentApplication:
     def stop_in_uow(self, uow, record, command_id):
         if record.state in {"stopping", "stopped"}:
             return
-        revoke_environment_in_uow(uow, record.environment_id)
+        revoke_environment_in_uow(uow, record.environment_id, clock=self.clock)
         record = record.model_copy(update={"state": "stopping", "revision": record.revision + 1})
         save_environment(uow.connection, record)
         self._enqueue(uow, record, command_id, "stop", {},

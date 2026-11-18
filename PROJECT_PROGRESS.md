@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：E06c 预览可信计时接线
+
+- 已实现：[BOOTTIME 证明与上界](modules/workspaces/preview_timing.py)核对 Linux 启动、时钟源、休眠计数及可信根的实时连续性。Hub 的手动撤销和 API 环境停止使用同一计时纪元，按原提交前锚点和确认接收读数核对 10 秒；[代理](services/hub-api/preview_proxy.py)独立按剩余控制间隔限时轮询，先封入口再关两端流，回执保留首次失败及关闭上界。失信后拒绝新签发和转发，旧撤销保留原截止。HTTP 契约、迁移和工作流版本未变；[安装说明](docs/development/p2-previews.md#可信计时)已同步。
+- 定向开发验证：UTC `2026-11-18T14:01:03.451387+00:00`～`14:01:41.482975+00:00`，在 WSL Ubuntu-24.04 运行 `PYTHONPATH=. PYTHONUTF8=1 .venv/bin/python -B .thesis-work/e06c/verify.py`。隔离 PostgreSQL、真实 TLS 和三条 SSE，时钟证明及候选准入为夹具。控制查询超时后，封入口和首次失败至关流的夹具上界为 2504/2 ms；Hub 按 958 ms 确认为 `effective`，故意迟收的一组按 11758 ms 确认为 `effective_late`。证据失效的一组两端关闭且有物理确认，保留 `pending_time_unknown` 和原截止。Hub 80 条及 Remote 8 条路径的 OpenAPI 快照一致。环境、输入摘要和限制见 [E06c 记录](docs/acceptance/p2/p2-4-02-e06c.md)。
+- 范围评估：代理 483 行，控制计时、封入口和登记连接共享单个监听事件循环，本轮保持在原模块；物理观测仍归传输模块。授权与环境模块分别为 417、368 行，仅调整计时及失信门禁。
+- 进行中：无在运行的验证。阻塞与风险：本机 Windows 会话无权读取 HCS 生命周期及 Hyper-V Compute 事件，且未取得当前 BOOTTIME 误差、速率及暂停连续性依据；本轮未执行宿主暂停、正式候选、原生客户端或六组验收。计划修订 87；下一项由时钟与基础设施负责人为实际取证安装取得并审查宿主证明，E07d 可独立准备队首、候选和资源前置。
+
 ## 2026-11-18：R03e 人测续期使用同一就绪基准
 
 - 已实现：[人测命令](modules/integration/human_tests.py)和[预览环境](modules/workspaces/preview_environments.py)在服务与访问授权均就绪、指定测试者确认时使用同一个数据库 UTC 时间。会话初始期限为确认后 4 小时；环境上限取确认后 6 小时与原有效租约截止中较早者。剩余租约不足 4 小时不能开始，能覆盖完整 6 小时才可续期一次。拒绝续期不改变原会话期限，原租约及已签发授权不刷新。已同步[预览与人测说明](docs/development/p2-previews.md#使用入口)。两模块分别为 331、365 个物理行，本次调整集中于就绪和续期，不拆分其他职责。

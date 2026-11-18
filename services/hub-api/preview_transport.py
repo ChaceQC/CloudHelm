@@ -10,13 +10,27 @@ import time
 import uvicorn
 from uvicorn.protocols.http.h11_impl import H11Protocol
 
+from modules.workspaces.preview_timing import PreviewClock
+
 
 EXTENSION = "cloudhelm.preview.transport"
 
 
-def observed_at():
-    return {"boottime": time.clock_gettime(time.CLOCK_BOOTTIME),
-            "utc": datetime.now(timezone.utc).isoformat()}
+def clock_mark(clock: PreviewClock):
+    ns, digest = clock.sample()
+    if ns is not None and digest is not None:
+        return {"epoch": clock.epoch, "evidence_digest": digest, "boottime_ns": ns}
+    return None
+
+
+def observed_at(clock: PreviewClock | None = None):
+    # This listener-local ordering stamp does not assert that the clock has a proven rate.
+    ns = (time.clock_gettime_ns(time.CLOCK_BOOTTIME) if hasattr(time, "CLOCK_BOOTTIME")
+          else time.monotonic_ns())
+    stamp = {"boottime": ns / 1_000_000_000, "boottime_ns": ns, "utc": datetime.now(timezone.utc).isoformat()}
+    if clock is not None:
+        stamp["clock"] = clock_mark(clock)
+    return stamp
 
 
 class PreviewTransport:
@@ -25,6 +39,7 @@ class PreviewTransport:
         self.transport = transport
         self.opened = observed_at()
         self.external_tls = transport.get_extra_info("ssl_object") is not None
+        self.clock = None
         self.abort_requested = None
         self.connection_lost = None
         self.closed = loop.create_future()
@@ -41,8 +56,8 @@ class PreviewTransport:
             self.transport.abort()
 
     def lost(self):
-        self.connection_lost = observed_at()
         if not self.closed.done():
+            self.connection_lost = observed_at(self.clock)
             self.closed.set_result(None)
 
     async def wait_closed(self):
@@ -54,8 +69,9 @@ class PreviewTransport:
 
 
 class PreviewConnection:
-    def __init__(self, task, downstream):
+    def __init__(self, task, downstream, clock: PreviewClock):
         self.task, self.downstream = task, downstream
+        self.downstream.clock = clock
         self.stream = self.socket = None
         self.connected = self.descriptor_closed = None
         self.finishing = False
@@ -69,17 +85,16 @@ class PreviewConnection:
 
     def abort(self):
         self.downstream.abort()
-        if not self.finishing:
+        if not self.finishing and self.task is not asyncio.current_task():
             self.task.cancel()
 
     async def wait_closed(self):
-        self.finishing = True
         if self.stream is not None:
             await self.stream.aclose()
             # httpx/AnyIO aclose initiates transport close; fd release is the observation.
             while self.socket.fileno() != -1:
                 await asyncio.sleep(0.01)
-            self.descriptor_closed = observed_at()
+            self.descriptor_closed = observed_at(self.downstream.clock)
         await self.downstream.wait_closed()
 
     def receipt(self):

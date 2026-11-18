@@ -23,7 +23,7 @@ from modules.integration.human_test_tables import human_test_sessions
 from modules.sync.events import append_event
 from modules.workspaces.operations import WorkspaceError, read_workspace_row
 from modules.workspaces.preview_access_tables import preview_authorizations, preview_environments
-from modules.workspaces.preview_timing import preview_clock
+from modules.workspaces.preview_timing import PreviewClock, preview_clock
 from packages.contracts.p0.decision_common import Contract, Identifier
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p0.preview_contracts import (
@@ -80,7 +80,7 @@ def _save(connection, record, **columns):
     ).values(state=record.state, record_json=record.model_dump(mode="json"), **columns))
 
 
-def _request_revocation(record, at, clock=preview_clock):
+def _request_revocation(record, at, clock: PreviewClock):
     # Called before commit, so this earlier anchor includes the commit overhead.
     started, evidence = clock.sample()
     revocation = PreviewRevocation(binding=record.binding,
@@ -92,7 +92,7 @@ def _request_revocation(record, at, clock=preview_clock):
         "revocation_started_boottime_ns": started, "revocation_clock_evidence_digest": evidence})
 
 
-def revoke_environment_in_uow(uow, environment_id, now=None):
+def revoke_environment_in_uow(uow, environment_id, now=None, *, clock: PreviewClock = preview_clock):
     """The lifecycle owns Task/environment locks and its own stop audit event."""
     _environment(uow.connection, environment_id, lock=True)
     rows = uow.connection.execute(select(preview_authorizations).where(
@@ -104,7 +104,7 @@ def revoke_environment_in_uow(uow, environment_id, now=None):
     for row in rows:
         record = PreviewAuthorizationRecord.model_validate(row["record_json"])
         if record.state == "active":
-            record = _request_revocation(record, at)
+            record = _request_revocation(record, at, clock)
             _save(uow.connection, record)
         records.append(record)
     return tuple(records)
@@ -187,7 +187,7 @@ def _current(uow, actor, task, environment, *, record=None):
 
 
 class PreviewAccessApplication:
-    def __init__(self, engine, control_engine, *, proxy_identity=None, clock=preview_clock):
+    def __init__(self, engine, control_engine, *, proxy_identity=None, clock: PreviewClock = preview_clock):
         self.engine, self.control_engine, self.proxy_identity = engine, control_engine, proxy_identity
         self.clock = clock
 
@@ -232,6 +232,8 @@ class PreviewAccessApplication:
                 preview_authorizations.c.state.in_(("active", "revoking"))).limit(1))
             if existing_open is not None:
                 raise WorkspaceError("preview_previous_authorization_open")
+            if self.clock.sample()[1] is None:
+                raise WorkspaceError("preview_clock_unavailable", status_code=503)
             ticket = SecretStr(secrets.token_urlsafe(32))
             record = PreviewAuthorizationRecord(command_id=command.command_id, environment_id=environment_id,
                 environment_revision=environment.revision,
@@ -316,13 +318,15 @@ class PreviewAccessApplication:
                 request_digest=request_digest(intent, _Revoke(authorization_id=authorization_id)))
             existing = lock_and_get(uow.connection, command)
             if existing is not None:
-                return record
+                return self.clock.observe(record)
             if record.state == "active":
                 record = _request_revocation(record, _now(uow.connection), self.clock)
                 _save(uow.connection, record)
                 append_event(uow.connection, command_id=command.command_id, project_id=task["project_id"],
                     aggregate_kind="preview_authorization", aggregate_id=authorization_id, aggregate_version=2,
                     event_type="preview.revocation_requested", schema_version="p2-preview-access-r1", payload=record)
+            else:
+                record = self.clock.observe(record)
             save_result(uow.connection, command, record, status_code=200, authorization=authorization.envelope)
             return record
 
