@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R01b 补齐构建日志缺失时的停机核对
+
+- 已实现：[Runner](services/dev-runner/engineering_build_runner.py) 先核对原意图，再用同一预留、请求摘要和进程组的停机、组移除及临时磁盘回收回执收尾。[Worker](services/hub-worker/engineering_build.py) 将该回执交给[资源登记](modules/execution/dispatch.py) 核销原预留，按当前 Hub 观察链登记一次 `safely_stopped`。退出码和制品仍未知，不能用于固定候选。后续构建在启动资源组前核对未完整收尾的旧日志及其 Hub 观察。保留原日志、持久存储占账、外部契约和迁移版本；[使用说明](docs/development/p2-candidates.md#使用顺序)已同步。
+- 定向开发验证：UTC `2026-11-18T05:17:12.283983+00:00`，在 WSL Ubuntu-24.04（内核 `6.18.33.2-microsoft-standard-WSL2`，Python `3.12.13`）的私有挂载命名空间执行 `PYTHONPATH=. .venv/bin/python -B .thesis-work/r01b/verify.py --index`，读取暂存的 Runner、Worker 和资源登记源码。原 [E07c1](docs/acceptance/p2/p2-4-02-closeout.md#构建超时与停止核对) 停机回执来自只读 Runner 账本（`seq=4`），原日志由只读挂载取得并核对摘要，随后卸载。缺页输入只在副本制造；SQLite 隔离 Hub 事件、Outbox 和预留投影，原授权及 Runner 通道使用探针输入。方法 SHA-256 为 `6beb04211073890890e87db67f892c008330e7bb8395d5668ca62aff5b918fd1`，脱敏结果在本机 `.thesis-work/r01b/result.json`。
+- 结果：分别缺 `result`、缺 `observation`、两者都缺时均收尾为 `failed`、`content_verified=false`；含原前驱的观察总数分别为 2、1、2，重投未追加记录，保留文件字节不变。模拟本地写入后归档中断时，Hub 登记前仍拒绝新的资源组入口；补登记后才通过预检。缺回执保持未知；请求摘要、进程组或同序号回执冲突均不登记闭合，重复核对也不能放行。历史完整日志的原闭合观察可回读。探针未启动构建或发送停止命令。
+- 实施规模与下一项：Runner 超过普通源码评估线，已把回执核对和恢复分成独立函数，均围绕同一构建日志，暂不拆模块。R01b 已完成，无新增阻塞；下一项为 [R01c](PROJECT_PLAN.md#两轮审计后的执行顺序)。本轮未执行完整构建、正式验收或部署；E07d 仍需可查询的安装基线及两端占账，预览人测入口继续关闭，投入与剩余工作量待估。
+
 ## 2026-11-18：R01a 分开原构建核对和新启动的存储门槛
 
 - 已完成：[构建 Worker](services/hub-worker/engineering_build.py) 在一次持锁的受管存储准入中按原命令的意图日志区分核对与启动；[资源绑定](services/hub-worker/engineering_resources.py) 和 Runner 共用这个决定。旧操作继续校验原授权、存储和回执，新构建不足 2 GiB 时在创建资源组和操作目录前拒绝。已更新[使用说明](docs/development/p2-candidates.md#使用顺序)与[计划入口](PROJECT_PLAN.md#两轮审计后的执行顺序)。

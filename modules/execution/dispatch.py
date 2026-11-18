@@ -41,16 +41,17 @@ class ResourceDispatcher:
         self.runner.stop(reservation_id)
         return self.reconcile(reservation_id)
 
-    def reconcile(self, reservation_id):
+    def reconcile(self, reservation_id, *, receipt: ExecutorReceipt | None = None):
         request = self._request(reservation_id)
-        # Query is outside the Hub transaction. Transport failure retains all charge.
-        try:
-            receipt = self.runner.query(reservation_id)
-        except (OSError, TimeoutError):
-            return self._hold(reservation_id, "orphaned")
         if receipt is None:
-            return self._hold(reservation_id, "orphaned")
-        receipt = ExecutorReceipt.model_validate(receipt.model_dump(mode="python"))
+            # Query outside the Hub transaction unless the trusted Runner already supplied the receipt.
+            try:
+                receipt = self.runner.query(reservation_id)
+            except (OSError, TimeoutError):
+                return self._hold(reservation_id, "orphaned")
+            if receipt is None:
+                return self._hold(reservation_id, "orphaned")
+            receipt = ExecutorReceipt.model_validate(receipt.model_dump(mode="python"))
         if receipt.identity != request.resources.identity or receipt.request_digest != request.resources.request_digest:
             raise ValueError("resource_receipt_identity_mismatch")
         with UnitOfWork(self.application.control_engine) as uow:

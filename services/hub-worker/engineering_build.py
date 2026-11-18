@@ -127,6 +127,18 @@ def execute_build(runtime, operation_id):
             if _record(runtime, operation_id, reconciliation=False) != record:
                 raise WorkspaceFileError("build_operation_binding_changed")
 
+        if start:
+            gate()
+
+            def registered(previous, observation):
+                with UnitOfWork(runtime.control_engine) as uow:
+                    _, original = read_build_intent(uow.connection, previous.operation_id)
+                    if original != previous:
+                        return False
+                    head = read_build_execution(uow.connection, previous)
+                    return head is not None and head.observation == observation
+
+            runner_module.check_previous_builds(storage, record, registered)
         with runtime.resources.build(record, storage, gate, start=start) as group:
             return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, start=start)
 
@@ -139,7 +151,7 @@ def _execute_admitted(runtime, operation_id, record, storage, gate, runner_modul
             runner.execute(_candidate_bytes(runtime, storage, record))
         with UnitOfWork(runtime.control_engine) as uow:
             previous = read_build_execution(uow.connection, record)
-            runner.previous_observation_id = None if previous is None else previous.observation.observation_id
+            runner.previous_observation = None if previous is None else previous.observation
         physical = verify_build_observation(operation_id, runner)
         observation = physical.observation
         content = None
@@ -147,7 +159,11 @@ def _execute_admitted(runtime, operation_id, record, storage, gate, runner_modul
             content = verify_build_content(record, runner.store, tuple(
                 BuildArtifactLocator(role=item.role, storage_id=item.storage_id) for item in observation.artifacts
             ))
-        if group is not None and not group.stopped and observation.closure != "unknown":
+        if (receipt := runner.recovered_stop_receipt) is not None:
+            allocation = group.dispatcher.reconcile(receipt.identity.reservation_id, receipt=receipt)
+            if allocation.state != "released":
+                raise WorkspaceFileError("engineering_resource_stop_unconfirmed")
+        elif group is not None and not group.stopped and observation.closure != "unknown":
             group.stop()  # Whole daemon/descendants close before the business receipt.
         with UnitOfWork(runtime.engine) as uow:
             if content is not None:
