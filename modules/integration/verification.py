@@ -206,10 +206,17 @@ class VerificationApplication:
                 metadata=metadata, observed_at_utc=evidence.observed_at)
             register_reference(uow.connection, registered, source_bytes=rfc8785.dumps(metadata.model_dump(mode="json")),
                                authorization=authorization.envelope)
+            project_id = task["project_id"]
             refs = (*inputs.references, candidate.source_input_set_ref)
-            keys = {reference_key(task["project_id"], ref) for ref in refs}
+            # _prepare holds the same project policy lock as invalidation.
+            invalidated = uow.connection.scalar(select(event_log.c.event_id).where(
+                event_log.c.project_id == project_id, event_log.c.event_type == "verification.invalidated",
+                event_log.c.payload["producer_ref"].in_([ref.model_dump(mode="json") for ref in refs]),
+            ).limit(1))
+            applicability = "needs_review" if invalidated is not None else "valid"
+            keys = {reference_key(project_id, ref) for ref in refs}
             uow.connection.execute(insert(verification_dependencies), [dict(report_id=report_id, producer_key=key,
-                task_id=task_id, applicability="valid") for key in sorted(keys)])
+                task_id=task_id, applicability=applicability) for key in sorted(keys)])
             save_result(uow.connection, command, report, status_code=201, authorization=authorization.envelope)
             return report
 

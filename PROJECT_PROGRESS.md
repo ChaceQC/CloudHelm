@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-18：R02a 修正晚到报告的适用性
+
+- 已实现：[报告归档](modules/integration/verification.py)在原项目锁和事务内，用报告依赖及原始 `InputSet` 的完整引用核对同项目已登记的失效事件。命中旧引用时，依赖初始为 `needs_review`，报告及原始结果照常保存。先归档后失效继续走[既有传播](modules/integration/validity.py)，接口和迁移不变。[使用说明](docs/development/p2-verification.md#变化与消费)已同步。
+- 定向开发验证：在 WSL Ubuntu-24.04（内核 `6.18.33.2-microsoft-standard-WSL2`、Python `3.12.13`）使用现有夹具创建 PostgreSQL `16.13` 隔离库，业务迁移 `0020_p2_previews`。执行 `PYTHONPATH=. PYTHONUTF8=1 .venv/bin/python -B .thesis-work/r02a/verify.py`，`--baseline` 加载 `9e245ac` 的归档模块。使用真实权限、事务、报告归档和选择入口，固定候选上游构建、准备及 HTTP 采集使用合成输入。方法 SHA-256 `382b5812191dd3f79bcc91d95e99df554910b2d22c7aa1791e80f984c719a527`，复用 [P2.2-02 夹具](docs/acceptance/p2/p2-2-02.md#方法与实际结果)。两次隔离库均已清理。
+- 结果：基线在 UTC `2026-11-18T06:13:24.917816+00:00` 复现先失效后归档仍可用；改后在 UTC `2026-11-18T06:14:23.872997+00:00` 核对两种顺序均为 `needs_review`，原 `passed` 报告不变。准确新引用仍可选择，同修订不同内容摘要的影响不误伤；晚到归档不推进 Task 输入修订，既有失效传播按原规则推进一次，重投返回原回执。四份交付文件的 UTF-8、Python 语法及差异格式核对通过。
+- 进行中：无。阻塞与风险：未回填修复前可能已漏标的报告，未核对既有安装是否存在此类记录。未执行真实构建、正式验收及部署；E07d 的取证安装前置仍待核对。计划修订 80，下一项为 [R02b](PROJECT_PLAN.md#两轮审计后的执行顺序)：核对并封闭失效证据拦下的队首原启动路径。
+
 ## 2026-11-18：R01d 提前准备固定前端基础镜像
 
 - 已实现：[可信种子维护入口](docs/development/p1-engineering.md#43-固定前端基础镜像)从 Docker Hub 获取固定 Node/Nginx 原始索引，结合维护 daemon 已预置的镜像，核对并发布只读 OCI 布局。按固定摘要直达，校验唯一 `linux/amd64` 清单、实际配置平台及逐层摘要。[Worker](services/hub-worker/engineering_build.py)在资源组启动前只读复核；前端使用同一回执和固定挂载按 amd64 清单摘要构建。原构建按原意图核对，基础镜像引用、配方和业务契约未变；新观察方法为 `p1-fixed-reference-build-r3`。
