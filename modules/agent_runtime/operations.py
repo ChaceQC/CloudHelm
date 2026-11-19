@@ -252,16 +252,14 @@ def notify_operation_in_uow(uow, client, operation_id, *, engineering_registrati
                                   preview_installation=preview_installation)
 
 
-def load_deferred_results_in_uow(uow, run_id):
+def load_deferred_results_in_uow(uow, run, request):
     require_transaction(uow.connection)
-    run = uow.connection.execute(select(agent_runs).where(agent_runs.c.run_id == run_id)).mappings().one()
-    request = RuntimeStartRequest.model_validate(run["start_json"])
     reference = request.runtime_input.deferred_results
     if reference is None:
         return None
     wait = uow.connection.execute(select(agent_operation_waits).where(
         agent_operation_waits.c.wait_condition_id == reference.object_id,
-        agent_operation_waits.c.continuation_run_id == run_id)).mappings().one_or_none()
+        agent_operation_waits.c.continuation_run_id == run["run_id"])).mappings().one_or_none()
     if wait is None or wait["session_id"] != request.runtime_input.session_id:
         raise TaskBoundaryError("agent_deferred_results_not_found")
     result = _result_in_uow(uow, run["source_command_id"], request, wait["operation_id"])

@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 from pydantic_ai.messages import ModelMessagesTypeAdapter
@@ -28,11 +29,11 @@ from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS, WORKSPACE_BUILD_WRITES
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
-from packages.contracts.p2.verification_agent import CandidateListDirectory, VERIFICATION_TOOL_SCHEMAS
+from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
 from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
-from .admission import RuntimeAdmission
+from .admission import RuntimeAdmission, current_run
 from .billing import RuntimeBilling
-from .context import load_context_in_uow, render_context
+from .context import assemble_context, read_context_spec_in_uow
 from .development import DevelopmentLoop, resolve_candidate_handoff_in_uow
 from .source_context import safe_context_text
 from .operations import (
@@ -48,7 +49,7 @@ from .workspace_environment import WorkspaceEnvironmentGateway
 from .workspace_builds import WorkspaceBuildGateway
 from .workspace_checks import WorkspaceCheckGateway
 from .verification import (
-    VerificationGateway, read_bound_candidate_page, resolve_verification_handoff_in_uow, verification_handoff,
+    VerificationGateway, resolve_verification_handoff_in_uow, verification_handoff,
 )
 from .review import ReviewGateway, resolve_review_handoff_in_uow, review_handoff
 
@@ -103,27 +104,24 @@ class AgentRuntimeApplication:
             return self._finish(run_id, None, "agent_provider_not_configured")
         self.provider.check(request.policy)
         with UnitOfWork(self.engine) as uow:
-            history_ref = request.runtime_input.committed_history
-            if history_ref.digest == EMPTY_HISTORY:
-                history = []
-            else:
-                value = uow.connection.scalar(select(agent_histories.c.value_json).where(
+            task, _, run, request, _ = current_run(uow, run_id)
+            spec = read_context_spec_in_uow(uow, task, run, request)
+            deferred_results = load_deferred_results_in_uow(uow, run, request)
+        history_ref = request.runtime_input.committed_history
+        history = []
+        if history_ref.digest != EMPTY_HISTORY:
+            with self.engine.connect() as connection:
+                history_value = connection.scalar(select(agent_histories.c.value_json).where(
                     agent_histories.c.history_key == history_ref.digest,
                     agent_histories.c.session_id == request.runtime_input.session_id))
-                if value is None:
-                    raise TaskBoundaryError("agent_history_not_found")
-                raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-                if "sha256:" + hashlib.sha256(raw).hexdigest() != history_ref.digest:
-                    raise TaskBoundaryError("agent_history_digest_mismatch")
-                history = ModelMessagesTypeAdapter.validate_json(raw)
-            deferred_results = load_deferred_results_in_uow(uow, run_id)
-            request, context, instructions, candidate_binding = load_context_in_uow(
-                uow, run_id, self.source_loader, self.handoff_loader)
-        if candidate_binding is not None:
-            context["source"] = read_bound_candidate_page(
-                self.engine, run_id, request.policy.role, self.candidate_reader, "candidate.list_directory",
-                CandidateListDirectory(), binding=candidate_binding)
-        context, prompt = render_context(context)
+            if history_value is None:
+                raise TaskBoundaryError("agent_history_not_found")
+            raw = json.dumps(history_value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            if "sha256:" + hashlib.sha256(raw).hexdigest() != history_ref.digest:
+                raise TaskBoundaryError("agent_history_digest_mismatch")
+            history = ModelMessagesTypeAdapter.validate_json(raw)
+        context, prompt, instructions = assemble_context(
+            spec, self.source_loader, self.handoff_loader, self.candidate_reader)
 
         async def task_read(arguments, tool_call_id):
             if arguments:
@@ -218,7 +216,8 @@ class AgentRuntimeApplication:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
                 api_key=self.provider.api_key(), prompt=prompt, message_history=history,
                 max_requests=request.policy.max_requests, max_seconds=max(0, (deadline - datetime.now(UTC)).total_seconds()),
-                max_output_tokens=request.policy.max_output_tokens, admit_request=admission.model_request,
+                max_output_tokens=request.policy.max_output_tokens,
+                admit_request=partial(admission.model_request, read_spec=spec),
                 record_response=RuntimeBilling(self.engine).record, gateway=gateway,
                 instructions=instructions,
                 developer=developer, verifier=verifier, reviewer=reviewer,

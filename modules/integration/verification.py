@@ -57,13 +57,22 @@ def _append(uow, command_id, task, event_id, event_type, payload):
                  event_id=event_id, event_type=event_type, schema_version=VERIFICATION_SCHEMA, payload=payload)
 
 
-def _assets(connection, project_id, candidate, repository):
-    assets = load_reference_assets(repository)
+def read_verification_asset_records(connection, project_id, candidate):
     acceptance_ref = next(ref for ref in candidate.input_set.references if ref.kind == "acceptance_assets")
     acceptance = read_registered_reference(connection, project_id, acceptance_ref)
     method = read_registered_reference(connection, project_id, acceptance.metadata.method_ref)
+    return acceptance, method
+
+
+def check_verification_asset_records(assets, acceptance, method):
     if acceptance.metadata != assets.acceptance(method.reference) or method.metadata != assets.method:
         raise TaskBoundaryError("verification_asset_revision_unsupported")
+
+
+def _assets(connection, project_id, candidate, repository):
+    assets = load_reference_assets(repository)
+    acceptance, method = read_verification_asset_records(connection, project_id, candidate)
+    check_verification_asset_records(assets, acceptance, method)
     return assets, acceptance, method
 
 

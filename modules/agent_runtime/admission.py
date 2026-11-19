@@ -11,7 +11,7 @@ from database.uow import UnitOfWork
 from modules.collaboration.command_support import lock_task_access
 from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.facts import read_declaration
-from modules.collaboration.guards import require_ordinary_progress
+from modules.collaboration.guards import check_ordinary_progress
 from modules.identity.actors import actor_for_command
 from packages.contracts.p2.runtime import RuntimeStartRequest
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
@@ -22,23 +22,22 @@ from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
 from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
 from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
 from .billing import model_request_bound_exceeded, model_request_cost
+from .context import ContextReadSpec, check_context_binding_in_uow
 from .tables import agent_model_requests, agent_runs, agent_sessions
 
 
 def current_run(uow, run_id):
     """Identity/policy -> Task -> Session/Run, in the existing lock order."""
     assert_runtime_ready(uow.connection, role="worker")
-    source = uow.connection.execute(select(agent_runs.c.source_command_id).where(
-        agent_runs.c.run_id == run_id)).scalar_one()
+    source, start = uow.connection.execute(select(agent_runs.c.source_command_id, agent_runs.c.start_json).where(
+        agent_runs.c.run_id == run_id)).one()
     actor = actor_for_command(uow, source)
-    stored = uow.connection.execute(select(agent_runs.c.start_json).where(
-        agent_runs.c.run_id == run_id)).scalar_one()
-    request = RuntimeStartRequest.model_validate(stored)
+    request = RuntimeStartRequest.model_validate(start)
     incoming = request.runtime_input
     task, authorization = lock_task_access(uow, actor, incoming.task_id, "task.command")
     if request.context.permission_revision != authorization.envelope.permission_revision:
         raise TaskBoundaryError("agent_context_permission_changed")
-    require_ordinary_progress(uow.connection, incoming.task_id, expected_version=task["version"],
+    check_ordinary_progress(task, expected_version=task["version"],
         expected_control_revision=incoming.expected_task_control_revision,
         expected_input_validity_revision=incoming.expected_input_validity_revision)
     from modules.workspaces.handoff_gates import require_agent_workspace
@@ -55,6 +54,7 @@ def current_run(uow, run_id):
     run = uow.connection.execute(select(agent_runs).where(
         agent_runs.c.run_id == run_id).with_for_update()).mappings().one()
     if (session["version"] != incoming.expected_session_version
+            or session["history_key"] != incoming.committed_history.digest
             or session["task_id"] != incoming.task_id or run["state"] not in {"queued", "running"}):
         raise TaskBoundaryError("agent_run_not_current")
     now = uow.connection.scalar(select(func.clock_timestamp()))
@@ -85,9 +85,10 @@ class RuntimeAdmission:
     def __init__(self, engine, run_id):
         self.engine, self.run_id = engine, run_id
 
-    async def model_request(self, body_digest: str, body_bytes: int) -> str:
+    async def model_request(self, body_digest: str, body_bytes: int, *, read_spec: ContextReadSpec) -> str:
         with UnitOfWork(self.engine) as uow:
             task, _, run, request, _ = current_run(uow, self.run_id)
+            check_context_binding_in_uow(uow, task, run, read_spec)
             policy, context = request.policy, request.context
             declaration = read_declaration(uow.connection, task)
             if run["request_count"] >= policy.max_requests:

@@ -1,6 +1,11 @@
 """Source-bound, bounded model context; durable execution keeps references only."""
 
+from __future__ import annotations
+
 import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
@@ -9,18 +14,27 @@ from modules.collaboration.facts import read_declaration
 from modules.collaboration.records import read_registered_reference
 from modules.collaboration.tables import work_items
 from modules.identity.actors import actor_for_command
-from modules.integration.candidate_read import read_current_candidate_spec
-from modules.workspaces.handoff_gates import returned_handoff_context
+from modules.integration.candidate_read import CandidateReadSpec, read_current_candidate_spec
+from modules.projects.source_tables import project_git_sources
+from modules.workspaces.handoff_gates import read_returned_handoff_spec
 from modules.workspaces.tables import workspaces
+from packages.contracts.p1.build_records import BuildFixedInputs
+from packages.contracts.p1.task_facts import RegisteredReference
+from packages.contracts.p1.workspace_git import RegisteredGitSource, WorkspaceBinding
+from packages.contracts.p1.workspace_records import workspace_metadata_digest
+from packages.contracts.p2.runtime import RuntimeStartRequest
+from packages.contracts.p2.verification_agent import CandidateListDirectory, VERIFICATION_TOOL_SCHEMAS
+from packages.contracts.p2.work_item_run import WorkItemRunHandoff
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
-from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
 from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
-from .admission import current_run
 from .source_context import safe_context_text
+
+if TYPE_CHECKING:
+    from .verification import VerificationContextSpec
 
 COMMON_INSTRUCTIONS = (
     "CloudHelm agent-common/r1. Work only on the current authorized work item. "
@@ -96,61 +110,137 @@ def safe_context_value(value):
     return value
 
 
-def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
-    task, _, run, request, _ = current_run(uow, run_id)
-    actor = actor_for_command(uow, run["source_command_id"])
-    from modules.collaboration.command_support import lock_task_access
+@dataclass(frozen=True, slots=True)
+class ContextReadSpec:
+    request: RuntimeStartRequest
+    task_goal: str
+    work_item_goal: str
+    work_item_state: str
+    requirement: RegisteredReference
+    acceptance: RegisteredReference
+    method: RegisteredReference
+    documents: tuple[tuple[str, RegisteredReference], ...]
+    workspace: WorkspaceBinding | None
+    handoff: WorkItemRunHandoff | None
+    source: RegisteredGitSource | None
+    candidate: CandidateReadSpec | None
+    build_inputs: BuildFixedInputs | None
+    verification: VerificationContextSpec | None
+    review: dict | None
+    rework: list[dict] | None
 
-    lock_task_access(uow, actor, task["task_id"], "resource.read")
+
+def _workspace_binding(connection, task_id, work_item_id):
+    raw = connection.scalar(select(workspaces.c.binding_json).where(
+        workspaces.c.task_id == task_id, workspaces.c.work_item_id == work_item_id))
+    return WorkspaceBinding.model_validate(raw) if raw is not None else None
+
+
+def read_context_spec_in_uow(uow, task, run, request):
+    """Capture the Run's content inputs under the caller's current Run locks."""
+    connection = uow.connection
     context = request.context
-    verifier = context.verification is not None
-    reviewer = context.review is not None
-    records = {}
-    for name, ref in (("input_set", context.input_set_ref), ("requirement", context.requirement_ref),
-                      ("acceptance", context.acceptance_assets_ref), ("source", context.source_ref)):
-        records[name] = read_registered_reference(uow.connection, task["project_id"], ref)
-    inputs = records["input_set"].metadata.input_set.references
+    project_id, task_id = task["project_id"], task["task_id"]
+    inputs = read_registered_reference(connection, project_id, context.input_set_ref).metadata.input_set.references
     if any(ref not in inputs for ref in (context.requirement_ref, context.acceptance_assets_ref, context.source_ref)):
         raise TaskBoundaryError("agent_context_input_mismatch")
-    method = read_registered_reference(uow.connection, task["project_id"], records["acceptance"].metadata.method_ref)
-    documents = []
-    for name, refs in (("contract", context.contract_refs), ("decision", context.decision_refs),
-                       ("unresolved", context.unresolved_refs)):
-        for ref in refs:
-            if ref.authority != "source-files":
-                record = read_registered_reference(uow.connection, task["project_id"], ref)
-                documents.append({"purpose": name, "reference": ref.model_dump(mode="json"),
-                                  "content": record.metadata.model_dump(mode="json")})
-    workspace = None if verifier or reviewer else uow.connection.execute(select(workspaces).where(
-        workspaces.c.task_id == task["task_id"],
-        workspaces.c.work_item_id == context.work_item_id)).mappings().one_or_none()
-    item = uow.connection.execute(select(work_items).where(
-        work_items.c.task_id == task["task_id"],
+    requirement = read_registered_reference(connection, project_id, context.requirement_ref)
+    acceptance = read_registered_reference(connection, project_id, context.acceptance_assets_ref)
+    method = read_registered_reference(connection, project_id, acceptance.metadata.method_ref)
+    read_registered_reference(connection, project_id, context.source_ref)
+    documents = tuple((name, read_registered_reference(connection, project_id, ref))
+        for name, refs in (("contract", context.contract_refs), ("decision", context.decision_refs),
+                           ("unresolved", context.unresolved_refs))
+        for ref in refs if ref.authority != "source-files")
+    item = connection.execute(select(work_items.c.revision, work_items.c.goal, work_items.c.state).where(
+        work_items.c.task_id == task_id,
         work_items.c.work_item_id == context.work_item_id)).mappings().one()
     if item["revision"] != context.work_item_revision:
         raise TaskBoundaryError("agent_work_item_not_current")
-    declaration = read_declaration(uow.connection, task)
+    work_item = context.work_item_spec
+    workspace = handoff = source = candidate = build_inputs = verification = review = rework = None
+    if context.verification is not None or context.review is not None:
+        actor = actor_for_command(uow, run["source_command_id"])
+        if context.verification is not None:
+            from .verification import load_verification_context_in_uow
+
+            _, build, verification = load_verification_context_in_uow(uow, actor, task, request)
+        else:
+            from .review import read_review_evidence_in_uow
+
+            _, build, review = read_review_evidence_in_uow(uow, actor, task, request)
+        build_inputs = build.fixed_inputs
+        candidate = read_current_candidate_spec(connection, task, build_inputs)
+    else:
+        workspace = _workspace_binding(connection, task_id, context.work_item_id)
+        handoff = read_returned_handoff_spec(connection, workspace) if workspace is not None else None
+        if work_item is not None and (work_item.workspace, work_item.handoff) != (workspace, handoff):
+            raise TaskBoundaryError("agent_work_item_spec_not_current")
+        row = connection.execute(select(project_git_sources.c.source_json, project_git_sources.c.source_digest).where(
+            project_git_sources.c.project_id == project_id,
+            project_git_sources.c.source_id == context.source_ref.object_id)).one_or_none()
+        if row is None:
+            raise TaskBoundaryError("agent_context_source_not_registered")
+        source = RegisteredGitSource.model_validate(row.source_json)
+        if workspace_metadata_digest(source) != row.source_digest:
+            raise TaskBoundaryError("git_source_record_invalid")
+    if request.policy.role == "developer":
+        from modules.collaboration.rework_records import unresolved_rework
+
+        rework = [{key: issue[key] for key in (
+            "issue_id", "source_kind", "source_id", "candidate_id", "candidate_commit", "evidence_refs",
+            "title", "reason", "severity", "path", "line", "check_ids", "previous_issue_ids", "state")}
+            for issue in unresolved_rework(connection, task, work_item_id=context.work_item_id)]
+    return ContextReadSpec(request, read_declaration(connection, task).goal,
+        work_item.goal if work_item is not None else item["goal"], item["state"], requirement, acceptance,
+        method, documents, workspace, handoff, source, candidate, build_inputs, verification, review, rework)
+
+
+def check_context_binding_in_uow(uow, task, run, spec: ContextReadSpec):
+    if spec.build_inputs is not None:
+        current = read_current_candidate_spec(uow.connection, task, spec.build_inputs)
+        if current != spec.candidate:
+            raise TaskBoundaryError("candidate_read_binding_mismatch")
+    # A Run's own engineering commands can advance the workspace and WorkItem after dispatch.
+    if run["request_count"] == 0:
+        context = spec.request.context
+        revision = uow.connection.scalar(select(work_items.c.revision).where(
+            work_items.c.task_id == task["task_id"], work_items.c.work_item_id == context.work_item_id))
+        if revision != context.work_item_revision:
+            raise TaskBoundaryError("agent_work_item_not_current")
+        if spec.source is not None and _workspace_binding(
+                uow.connection, task["task_id"], context.work_item_id) != spec.workspace:
+            raise TaskBoundaryError("agent_work_item_spec_not_current")
+
+
+def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candidate_reader):
+    """Read pinned content and assemble the prompt outside business transactions."""
+    request = spec.request
+    context, incoming = request.context, request.runtime_input
+    verifier, reviewer = spec.verification is not None, spec.review is not None
+    schemas = (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
+               | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS | REVIEW_TOOL_SCHEMAS)
     payload = {
         "context": {"id": context.context_id, "revision": context.context_revision,
                     "input_set": context.input_set_ref.model_dump(mode="json"),
-                    "control_revision": task["control_revision"],
-                    "input_validity_revision": task["input_validity_revision"],
+                    "control_revision": incoming.expected_task_control_revision,
+                    "input_validity_revision": incoming.expected_input_validity_revision,
                     "permission_revision": context.permission_revision},
         "references": {"source": context.source_ref.model_dump(mode="json"),
                        "contracts": [ref.model_dump(mode="json") for ref in context.contract_refs],
                        "decisions": [ref.model_dump(mode="json") for ref in context.decision_refs],
                        "unresolved": [ref.model_dump(mode="json") for ref in context.unresolved_refs]},
-        "task_id": task["task_id"], "task_goal": declaration.goal, "work_item_goal": item["goal"],
-        "work_item": {"id": item["work_item_id"], "revision": item["revision"], "state": item["state"]},
+        "task_id": incoming.task_id, "task_goal": spec.task_goal, "work_item_goal": spec.work_item_goal,
+        "work_item": {"id": context.work_item_id, "revision": context.work_item_revision, "state": spec.work_item_state},
         "requirement": {"reference": context.requirement_ref.model_dump(mode="json"),
-                        "content": records["requirement"].metadata.model_dump(mode="json")},
+                        "content": spec.requirement.metadata.model_dump(mode="json")},
         "acceptance": {"reference": context.acceptance_assets_ref.model_dump(mode="json"),
-                       "content": records["acceptance"].metadata.model_dump(mode="json"),
-                       "method": method.metadata.model_dump(mode="json")},
-        "documents": documents,
-        "workspace": dict(workspace["binding_json"]) if workspace else None,
-        "human_changes": None if verifier or reviewer else returned_handoff_context(
-            uow.connection, task["task_id"], context.work_item_id),
+                       "content": spec.acceptance.metadata.model_dump(mode="json"),
+                       "method": spec.method.metadata.model_dump(mode="json")},
+        "documents": [{"purpose": name, "reference": record.reference.model_dump(mode="json"),
+                       "content": record.metadata.model_dump(mode="json")} for name, record in spec.documents],
+        "workspace": spec.workspace.model_dump(mode="json") if spec.workspace is not None else None,
+        "human_changes": None,
         "policy": {"role": request.policy.role, "instruction_revision": request.policy.instruction_revision,
                    "model_config_id": request.policy.model_config_id,
                    "model_config_revision": request.policy.model_config_revision,
@@ -160,55 +250,39 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
                    "max_no_progress_calls": request.policy.max_no_progress_calls,
                    "budget_limit": str(context.budget_limit), "budget_currency": context.budget_currency},
         "tools": [{"name": name, "arguments": (
-            (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
-             | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS
-             | REVIEW_TOOL_SCHEMAS)[name].model_json_schema()
-            if name in (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
-                        | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS
-                        | REVIEW_TOOL_SCHEMAS)
+            schemas[name].model_json_schema() if name in schemas
             else {} if name == "task.read" else {"workspace_id": "workspace ID"} if name == "submit_operation"
             else {"operation_id": "accepted operation ID"})} for name in context.tool_names],
         "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll.",
     }
-    candidate_binding = None
     if verifier:
-        from pathlib import Path
-        from .verification import load_verification_context_in_uow
+        from .verification import render_verification_context
 
-        candidate, build, payload["verification"] = load_verification_context_in_uow(
-            uow, actor, task, request, Path(__file__).resolve().parents[2])
+        payload["verification"] = render_verification_context(spec.verification, Path(__file__).resolve().parents[2])
     elif reviewer:
-        from .review import read_review_evidence_in_uow
-
-        candidate, build, payload["review"] = read_review_evidence_in_uow(uow, actor, task, request)
-    elif source_loader is None:
-        raise TaskBoundaryError("agent_context_source_loader_unavailable")
+        payload["review"] = spec.review
+    if spec.candidate is not None:
+        if candidate_reader is None:
+            raise TaskBoundaryError("agent_verification_candidate_reader_unavailable" if verifier
+                                    else "agent_review_candidate_reader_unavailable")
+        payload["source"] = candidate_reader(spec.candidate, "candidate.list_directory", CandidateListDirectory())
     else:
-        payload["source"] = source_loader(task["project_id"], context.source_ref, context.source_reads)
-    if verifier or reviewer:
-        candidate_binding = (candidate, build, read_current_candidate_spec(uow.connection, task, build.fixed_inputs))
-    if payload["human_changes"] is not None:
+        if source_loader is None:
+            raise TaskBoundaryError("agent_context_source_loader_unavailable")
+        payload["source"] = source_loader(spec.source, context.baseline_commit, context.source_reads)
+    if spec.handoff is not None:
         if handoff_loader is None:
             raise TaskBoundaryError("agent_context_handoff_loader_unavailable")
-        payload["human_changes"] = handoff_loader(payload["human_changes"])
-    if request.policy.role == "developer":
-        from modules.collaboration.rework_records import unresolved_rework
-
-        payload["rework"] = [{key: issue[key] for key in (
-            "issue_id", "source_kind", "source_id", "candidate_id", "candidate_commit", "evidence_refs",
-            "title", "reason", "severity", "path", "line", "check_ids", "previous_issue_ids", "state")}
-            for issue in unresolved_rework(uow.connection, task, work_item_id=context.work_item_id)]
+        payload["human_changes"] = handoff_loader(spec.handoff, spec.source)
+    if spec.rework is not None:
+        payload["rework"] = spec.rework
     developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
     instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
                     + ". " + (VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
                                DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
-    return request, payload, instructions, candidate_binding
-
-
-def render_context(payload):
     # Filter free text before it can enter model messages or persisted SDK history.
     payload = safe_context_value(payload)
     prompt = json.dumps(payload, ensure_ascii=False)
     if len(prompt.encode("utf-8")) > 65536:
         raise TaskBoundaryError("agent_context_limit_exceeded")
-    return payload, prompt
+    return payload, prompt, instructions

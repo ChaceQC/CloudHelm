@@ -161,7 +161,7 @@ def read_candidate_code(runtime, spec: CandidateReadSpec, name: str, query) -> d
     snapshot = spec.snapshot
     base = {"candidate_id": snapshot.candidate_id, "candidate_commit": snapshot.candidate_commit,
             "baseline_commit": snapshot.parent_commit, "manifest_digest": snapshot.manifest_digest}
-    with (runtime.registry.admit(0) as storage, runtime._git(storage, snapshot.binding.project_id) as git,
+    with (runtime.registry.admit(0) as storage, runtime._git_for_source(storage, spec.git_source) as git,
           open_candidate_view(git, spec.git_source, snapshot, include_baseline=name == "candidate.diff") as view):
         if name == "candidate.list_directory":
             return _candidate_list_directory(view, spec, name, query, base)

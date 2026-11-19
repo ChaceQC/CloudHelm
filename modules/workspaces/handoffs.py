@@ -24,9 +24,10 @@ from modules.workspaces.tables import workspaces
 from packages.contracts.p0.decision_common import Contract, Identifier
 from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandIntent, request_digest
 from packages.contracts.p1.workspace_candidates import CandidateFreezeSpec, candidate_freeze_digest, workspace_runtime_scope_id
-from packages.contracts.p1.workspace_git import WorkspaceBinding
+from packages.contracts.p1.workspace_git import RegisteredGitSource, WorkspaceBinding
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
 from packages.contracts.p2.handoffs import WorkspaceHandoffRecord, WorkspaceHandoffRequest, WorkspaceHandoffResult
+from packages.contracts.p2.work_item_run import WorkItemRunHandoff
 
 
 class _ScopedHandoff(Contract):
@@ -49,7 +50,7 @@ def _read(connection, handoff_id):
     return WorkspaceHandoffRecord.model_validate(raw)
 
 
-def _operation(connection, operation_id):
+def _operation(connection, operation_id, *, record=None):
     match = re.fullmatch(r"workspace-handoff-(takeover|return)-([0-9a-f]{32})", operation_id)
     if match is None:
         raise WorkspaceError("workspace_handoff_operation_not_found", status_code=404)
@@ -57,7 +58,10 @@ def _operation(connection, operation_id):
     if command is None:
         raise WorkspaceError("workspace_handoff_operation_not_found", status_code=404)
     result = WorkspaceHandoffResult.model_validate(command.result)
-    record = _read(connection, result.handoff.handoff_id)
+    if record is None:
+        record = _read(connection, result.handoff.handoff_id)
+    elif record.handoff_id != result.handoff.handoff_id:
+        raise WorkspaceError("workspace_handoff_operation_mismatch")
     spec = record.takeover_spec if match[1] == "takeover" else record.return_spec
     if spec is None or spec.candidate_id != "handoff-snapshot-" + match[2]:
         raise WorkspaceError("workspace_handoff_operation_mismatch")
@@ -170,6 +174,27 @@ class WorkspaceHandoffApplication:
     def record_for_operation(self, operation_id):
         with UnitOfWork(self.control_engine) as uow:
             command, _, record, _ = _operation(uow.connection, operation_id)
+            lock_task_access(uow, actor_for_command(uow, command.envelope.command_id), record.task_id, "workspace.write")
+            return record
+
+    def read_returned_record(self, handoff: WorkItemRunHandoff, source: RegisteredGitSource) -> WorkspaceHandoffRecord:
+        """Authorize the exact returned snapshots before the Worker opens their content."""
+        with UnitOfWork(self.control_engine) as uow:
+            record = _read(uow.connection, handoff.handoff_id)
+            baseline, returned = record.baseline, record.returned
+            if (record.state != "agent_owned" or baseline is None or returned is None
+                    or (baseline.snapshot.candidate_commit, returned.snapshot.candidate_commit,
+                        baseline.snapshot.manifest_digest, returned.snapshot.manifest_digest) != (
+                        handoff.baseline_commit, handoff.returned_commit,
+                        handoff.baseline_manifest_digest, handoff.returned_manifest_digest)):
+                raise WorkspaceError("agent_context_handoff_mismatch")
+            command, _, _, spec = _operation(uow.connection, returned.operation_id, record=record)
+            if spec != record.return_spec or any(
+                (binding.project_id, binding.source_id, binding.source_revision, binding.workspace_id, binding.task_id)
+                != (source.project_id, source.source_id, source.source_revision, record.workspace_id, record.task_id)
+                for binding in (record.takeover_spec.binding, spec.binding)
+            ):
+                raise WorkspaceError("agent_context_handoff_mismatch")
             lock_task_access(uow, actor_for_command(uow, command.envelope.command_id), record.task_id, "workspace.write")
             return record
 

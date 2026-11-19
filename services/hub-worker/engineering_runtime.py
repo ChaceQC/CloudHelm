@@ -26,6 +26,8 @@ from modules.workspaces.workfiles import WorkfileStore, _storage_id
 from packages.contracts.p1.workspace_candidates import WorkspaceWriterScope, workspace_runtime_scope_id
 from packages.contracts.p1.workspace_git import RegisteredGitSource
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
+from packages.contracts.p2.runtime import ContextSourceRead
+from packages.contracts.p2.work_item_run import WorkItemRunHandoff
 
 from .engineering_development import EngineeringDevelopmentRuntime
 
@@ -79,23 +81,16 @@ class EngineeringRuntime:
     def development_controller_for(self, operation_id):
         return self._development.controller_for(operation_id)
 
-    def load_source_context(self, project_id, source_ref, reads):
+    def load_source_context(self, source: RegisteredGitSource, commit: str, reads: tuple[ContextSourceRead, ...]) -> dict:
         from modules.agent_runtime.source_context import read_source_context
 
-        with UnitOfWork(self.control_engine) as uow:
-            revision = uow.connection.scalar(select(project_git_sources.c.source_revision).where(
-                project_git_sources.c.project_id == project_id,
-                project_git_sources.c.source_id == source_ref.object_id))
-        if revision is None:
-            raise WorkspaceFileError("agent_context_source_not_registered")
-        with self.registry.admit(0) as storage, self._git(storage, project_id) as git:
-            source = git.resolve_source(project_id, source_ref.object_id, revision)
-            return read_source_context(git, source, source_ref.revision, reads)
+        with self.registry.admit(0) as storage, self._git_for_source(storage, source) as git:
+            return read_source_context(git, source, commit, reads)
 
-    def load_handoff_context(self, summary):
+    def load_handoff_context(self, handoff: WorkItemRunHandoff, source: RegisteredGitSource) -> dict:
         from .engineering_context import read_handoff_context
 
-        return read_handoff_context(self, summary)
+        return read_handoff_context(self, handoff, source)
 
     def read_workspace_code(self, spec, name, query):
         from modules.agent_runtime.code_reading import read_workspace_code
@@ -162,6 +157,11 @@ class EngineeringRuntime:
             source = RegisteredGitSource.model_validate(row["source_json"])
             if workspace_metadata_digest(source) != row["source_digest"]:
                 raise WorkspaceFileError("git_source_record_invalid")
+        with self._git_for_source(storage, source) as git:
+            yield git
+
+    @contextmanager
+    def _git_for_source(self, storage, source: RegisteredGitSource):
         git = GitObjectStore(storage.git_root)
         try:
             git.register_source(source)

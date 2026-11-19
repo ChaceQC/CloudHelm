@@ -1,13 +1,18 @@
 """Current workspace ownership at command and actual execution boundaries."""
 
+from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.engine import Connection
 
+from modules.collaboration.errors import TaskBoundaryError
 from modules.workspaces.handoff_tables import workspace_handoffs
 from modules.workspaces.operations import WorkspaceError
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.task_control_contracts import OperationClosureFact
 from packages.contracts.p1.workspace_candidates import candidate_freeze_digest
+from packages.contracts.p1.workspace_git import WorkspaceBinding
 from packages.contracts.p2.handoffs import WorkspaceHandoffRecord
+from packages.contracts.p2.work_item_run import WorkItemRunHandoff
 
 
 def active_handoff(connection, workspace_id):
@@ -59,18 +64,23 @@ def pending_handoffs(connection, task_id):
     return tuple(result)
 
 
-def returned_handoff_context(connection, task_id, work_item_id):
-    from modules.workspaces.tables import workspaces
-
-    raw = connection.scalar(select(workspace_handoffs.c.record_json).join(
-        workspaces, workspace_handoffs.c.workspace_id == workspaces.c.workspace_id).where(
-        workspace_handoffs.c.task_id == task_id, workspaces.c.work_item_id == work_item_id,
-        workspace_handoffs.c.state == "agent_owned").order_by(workspace_handoffs.c.created_at.desc()).limit(1))
-    if raw is None:
+def read_returned_handoff_spec(connection: Connection, workspace: WorkspaceBinding) -> WorkItemRunHandoff | None:
+    """Identify the last acknowledged return without reading its changes or receipts."""
+    record = workspace_handoffs.c.record_json
+    row = connection.execute(select(
+        workspace_handoffs.c.handoff_id,
+        record[("baseline", "snapshot", "candidate_commit")].astext.label("baseline_commit"),
+        record[("returned", "snapshot", "candidate_commit")].astext.label("returned_commit"),
+        record[("baseline", "snapshot", "manifest_digest")].astext.label("baseline_manifest_digest"),
+        record[("returned", "snapshot", "manifest_digest")].astext.label("returned_manifest_digest"),
+    ).where(
+        workspace_handoffs.c.workspace_id == workspace.workspace_id,
+        workspace_handoffs.c.task_id == workspace.task_id,
+        workspace_handoffs.c.state == "agent_owned",
+    ).order_by(workspace_handoffs.c.created_at.desc(), workspace_handoffs.c.handoff_id.desc()).limit(1)).mappings().one_or_none()
+    if row is None:
         return None
-    record = WorkspaceHandoffRecord.model_validate(raw)
-    return {"handoff_id": record.handoff_id, "baseline": record.baseline.snapshot.model_dump(mode="json"),
-            "returned": record.returned.snapshot.model_dump(mode="json"), "change_count": len(record.changes),
-            "reason": record.reason, "changes": [item.model_dump(mode="json") for item in record.changes[:32]],
-            "changes_truncated": len(record.changes) > 32,
-            "diff_ref": "/api/workspaces/" + record.workspace_id + "/handoffs/" + record.handoff_id}
+    try:
+        return WorkItemRunHandoff.model_validate(row)
+    except ValidationError:
+        raise TaskBoundaryError("agent_work_item_handoff_invalid") from None

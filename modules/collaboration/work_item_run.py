@@ -12,13 +12,13 @@ from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.facts import read_declaration
 from modules.collaboration.records import read_registered_reference, reference_key
 from modules.collaboration.tables import task_inputs
-from modules.workspaces.handoff_tables import workspace_handoffs
+from modules.workspaces.handoff_gates import read_returned_handoff_spec
 from modules.workspaces.preview_environments import work_item_environment_ready
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p1.task_facts import AcceptanceMetadata, EvidenceMetadata, InputSetMetadata
 from packages.contracts.p1.task_requests import TaskDeclaration
 from packages.contracts.p1.workspace_git import WorkspaceBinding
-from packages.contracts.p2.work_item_run import WorkItemRequirements, WorkItemRunHandoff, WorkItemRunSpec
+from packages.contracts.p2.work_item_run import WorkItemRequirements, WorkItemRunSpec
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,28 +80,9 @@ def build_work_item_run_spec(
     connection: Connection, item: Mapping[str, Any], inputs: WorkItemRunInputs, workspace: WorkspaceBinding | None,
 ) -> WorkItemRunSpec:
     """Use only registered facts; the caller holds the Task and gates workspace ownership."""
-    handoff = None
-    if workspace is not None:
-        record = workspace_handoffs.c.record_json
-        # Only the fixed snapshot identifiers belong here; diff entries may be large.
-        row = connection.execute(select(
-            workspace_handoffs.c.handoff_id,
-            record[("baseline", "snapshot", "candidate_commit")].astext.label("baseline_commit"),
-            record[("returned", "snapshot", "candidate_commit")].astext.label("returned_commit"),
-            record[("baseline", "snapshot", "manifest_digest")].astext.label("baseline_manifest_digest"),
-            record[("returned", "snapshot", "manifest_digest")].astext.label("returned_manifest_digest"),
-        ).where(
-            workspace_handoffs.c.workspace_id == workspace.workspace_id,
-            workspace_handoffs.c.task_id == item["task_id"],
-            workspace_handoffs.c.state == "agent_owned",
-        ).order_by(workspace_handoffs.c.created_at.desc(), workspace_handoffs.c.handoff_id.desc()).limit(1)).mappings().one_or_none()
-        if row is not None:
-            try:
-                handoff = WorkItemRunHandoff.model_validate(row)
-            except ValidationError:
-                raise TaskBoundaryError("agent_work_item_handoff_invalid") from None
     return WorkItemRunSpec(
         goal=item["goal"], acceptance_method_ref=inputs.acceptance.method_ref,
         required_check_ids=inputs.acceptance.required_check_ids, prerequisites=inputs.requirements.prerequisites,
-        workspace=workspace, writable_paths=(".",) if workspace is not None else (), handoff=handoff,
+        workspace=workspace, writable_paths=(".",) if workspace is not None else (),
+        handoff=read_returned_handoff_spec(connection, workspace) if workspace is not None else None,
     )

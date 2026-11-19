@@ -1,5 +1,6 @@
 """Verifier routes over immutable candidates and the existing controlled method."""
 
+from dataclasses import dataclass
 from hashlib import sha256
 
 from pydantic import ValidationError
@@ -15,20 +16,36 @@ from modules.identity.actors import actor_for_command
 from modules.identity.errors import IdentityError
 from modules.integration.candidate_read import read_current_candidate_spec
 from modules.integration.candidates import _current_input, _operation_access, _read, _ref
-from modules.integration.verification import VerificationApplication, _assets, _event
+from modules.integration.verification import (
+    VerificationApplication, _assets, _event, check_verification_asset_records, read_verification_asset_records,
+)
 from modules.integration.verification_readable import verification_headline, verification_report_path
 from modules.integration.validity import verification_view
-from modules.projects.reference_assets import ReferenceAssetError
+from modules.projects.reference_assets import ReferenceAssetError, load_reference_assets
 from modules.sync.tables import event_log
 from modules.workspaces.safe_paths import WorkspaceFileError
+from packages.contracts.p0.engineering_contracts import EngineeringRef
+from packages.contracts.p1.task_facts import RegisteredReference
+from packages.contracts.p2.candidates import FixedCandidateRecord
 from packages.contracts.p2.verification import (
-    FinalizeVerificationRequest, VerificationPhase, VerificationPhaseRequest,
+    FinalizeVerificationRequest, Phase, VerificationPhase, VerificationPhaseRequest,
 )
 from packages.contracts.p2.verification_agent import (
     VERIFICATION_TOOL_SCHEMAS,
 )
 from .admission import current_run
 from .source_context import safe_context_text
+
+
+@dataclass(frozen=True, slots=True)
+class VerificationContextSpec:
+    candidate: FixedCandidateRecord
+    candidate_commit: str
+    round_id: str
+    acceptance: RegisteredReference
+    method: RegisteredReference
+    prepared_phase: Phase | None
+    setup_evidence_ref: EngineeringRef | None
 
 
 def read_verification_candidate_in_uow(uow, actor, task, request):
@@ -52,7 +69,7 @@ def read_verification_candidate_in_uow(uow, actor, task, request):
     return candidate, build
 
 
-def read_bound_candidate_page(engine, run_id, role, reader, name, query, *, binding=None):
+def read_bound_candidate_page(engine, run_id, role, reader, name, query):
     """Read outside the transaction after resolving the Run's binding, then recheck it."""
     def resolve():
         with UnitOfWork(engine) as uow:
@@ -65,8 +82,7 @@ def read_bound_candidate_page(engine, run_id, role, reader, name, query, *, bind
             spec = read_current_candidate_spec(uow.connection, task, build.fixed_inputs)
             return candidate, build, spec
 
-    if binding is None:
-        binding = resolve()
+    binding = resolve()
     if reader is None:
         raise TaskBoundaryError("agent_verification_candidate_reader_unavailable" if role == "verifier"
                                 else "agent_review_candidate_reader_unavailable")
@@ -79,20 +95,35 @@ def read_bound_candidate_page(engine, run_id, role, reader, name, query, *, bind
     return page
 
 
-def load_verification_context_in_uow(uow, actor, task, request, repository):
+def load_verification_context_in_uow(uow, actor, task, request):
+    """Resolve the candidate and its registered method without reading repository assets."""
     candidate, build = read_verification_candidate_in_uow(uow, actor, task, request)
-    assets, acceptance, method = _assets(uow.connection, task["project_id"], candidate, repository)
+    acceptance, method = read_verification_asset_records(uow.connection, task["project_id"], candidate)
     binding = request.context.verification
-    return candidate, build, {
-        "candidate": candidate.model_dump(mode="json"),
-        "candidate_commit": build.fixed_inputs.candidate.candidate_commit,
-        "round_id": binding.round_id,
+    setup = binding.setup
+    spec = VerificationContextSpec(
+        candidate, build.fixed_inputs.candidate.candidate_commit, binding.round_id, acceptance, method,
+        setup.phase if setup else None, setup.setup_evidence_ref if setup else None,
+    )
+    return candidate, build, spec
+
+
+def render_verification_context(verification_spec: VerificationContextSpec, repository):
+    """Check the fixed files against the registered records and render the original context."""
+    assets = load_reference_assets(repository)
+    acceptance, method = verification_spec.acceptance, verification_spec.method
+    check_verification_asset_records(assets, acceptance, method)
+    setup_evidence_ref = verification_spec.setup_evidence_ref
+    return {
+        "candidate": verification_spec.candidate.model_dump(mode="json"),
+        "candidate_commit": verification_spec.candidate_commit,
+        "round_id": verification_spec.round_id,
         "acceptance": acceptance.metadata.model_dump(mode="json"),
         "method": {"reference": method.reference.model_dump(mode="json"),
                    "content": method.metadata.model_dump(mode="json")},
         "expected_check_ids": assets.required_check_ids,
-        "prepared_phase": binding.setup.phase if binding.setup else None,
-        "setup_evidence_ref": binding.setup.setup_evidence_ref.model_dump(mode="json") if binding.setup else None,
+        "prepared_phase": verification_spec.prepared_phase,
+        "setup_evidence_ref": setup_evidence_ref.model_dump(mode="json") if setup_evidence_ref else None,
     }
 
 
