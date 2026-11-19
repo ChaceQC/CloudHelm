@@ -44,3 +44,5 @@ env -i HOME="$HOME" PATH=/usr/bin:/bin LC_ALL=C.UTF-8 PYTHONUTF8=1 \
 结束联调时先停止 API 与 worker 并等待退出，再用 `a00a_compose stop postgres` 保留数据。另建隔离安装时，分配自己的 Compose 项目和 loopback 端口，并按 [Hub 初始设置](p1-hub.md#2-受控数据库初始化)准备新库、角色和凭据；[持久卷覆盖](../../infra/p1/compose.isolated.yaml)只随新安装使用，现有 P1 临时数据库检查仍用原 tmpfs 配置。
 
 需要访问 A00b 的固定源码时，先核对 WSL 存储 `dev-storage-b07c29f62efe41baa76ec305b21f988b`（实例修订 `f6f3cdd6e2b445b5a4e5747a2f39a9a8`）的原 backing 和挂载。WSL 退出后，如原挂载已解除，使用受控 `development_storage_maintenance remount` 原实例。API 和 worker 加载同一份 `CLOUDHELM_ENGINEERING_REGISTRY_FILE=/home/cloudhelm/.local/state/cloudhelm/a00a/a00b/engineering-registration.json`。该登记只用于本地 Git/工作区读取样例，没有物理构建和 Runner 的组占账登记。
+
+[A00c](../acceptance/a00c/README.md) 的项目使用另一存储 `dev-storage-b8b9a26fd4464f6fa27ad361be3cb911`（实例修订 `c6b92771b61247c0a7d938340174d7e0`）。核对原挂载后使用 WSL `$a00a_root/a00c/engineering-registration.json` 的对应登记；不要交叉加载 A00b 和 A00c 的存储。该登记供核对草稿及固定 Git 来源；G01 的实际预算、构建资源和目标准入按集成版本重新登记。

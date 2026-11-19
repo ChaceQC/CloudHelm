@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：A00c 固定单 Agent 任务与操作账本样例
+
+- **已完成。** 在 A00a 的 WSL Ubuntu-24.04 / PostgreSQL 16.13 隔离安装 `69e168a64fe64110a66c4c0d78e7a143` 建立项目 `a00c-notes` 和零预算草稿 `f573e978047e415ea084e25c3de0d720`，绑定原便签基准和参照 InputSet。独立验收方先写定成功与失败预期。[固定输入表](docs/acceptance/a00c/README.md)记录交权改动、返工对照、源码和版本、三种操作观察及目标；[独立断言](docs/acceptance/a00c/independent-assertions.md)交接给 D01/D02 和 G01。只读核对 E07d 原构建成功以及 E07c 同一操作的未知和确认停止两个时点；原历史未重放或写入新草稿。
+- **定向核对。** WSL 在 A00a 锁定 Python `3.12.13` 上运行 `python -B /mnt/e/Project/CloudHelm/.thesis-work/a00c/freeze_task.py <原存储标识> reconcile`，最终方法 SHA-256 `b0c446728f345588c97dc913635c43611663be4fcbd195728d4687b3fbc490b5`。首次存储只登记工作区用途，原 DBOS 工作流在物理导入前以 `engineering_storage_scope_unsupported` 终止；换为完整用途的专属存储后，受控执行器沿原导入 ID 完成并登记真实 Git 来源，保留原工作流错误。采集探针首次误读未安装为分发包的 Hub 版本，后按原 Task、原来源与原 Git bundle 回读，未新建导入或 Task。UTC `2026-11-19T05:09:49.193215+00:00` 核对草稿 `draft`、修订 `2/0/1`、输入 `valid`、无 WorkItem，确认 Git 目标 SHA、B0 标题、bundle 完整性及断言摘要。单 worker 和隔离数据库已停，持久卷保留。仅清理本次不合格的空存储 `dev-storage-2bf7d4a0f5eb4359850326ce24d08ad1`，实测宿主空闲增加 `536883200` 字节。5 份交付文档的 UTF-8、17 条本地链接、7 份固定资产摘要和 Git 差异格式核对通过。
+- **交付目标。** `py -3 -B .thesis-work/a00c/probe_target.py`（SHA-256 `fa3a7ab1bbda27108b428b41ab2f38a15846a289d6ec22a0f4484083cc47b752`）通过原严格 SSH 入口只读核对独立目标的 OS、架构、工具链及原安装身份。UTC `2026-11-19T05:11:28.058536+00:00` 补核原专用 daemon 已停用、旧 mount unit 未启用但当前仍挂载，8 GiB backing 内原 SQLite 主文件与 WAL 仍在。A00c 只选定物理目标；原备份、挂载、数据和运行配置未改动。G01f 须由交付负责人核对旧安装的引用、登记新边界并取得计划批准后再运行。
+- **进行中：** 无。**阻塞与风险：** A00 输入已齐；实际模型额度、原生 Desktop、构建资源以及独立交付新绑定和在线许可尚未验证，只阻塞对应验证。未运行模型、人工交权/返工、构建、原生验证或部署。**下一步：** 集成负责人从 A01a 开始，使用 A00b 的固定候选列出两种读取来源的权威字段；D01/D02 与 G01 使用 A00c 的对应输入，增量投入待估。
+
 ## 2026-11-19：A00b 固定候选读取样例
 
 - **已完成。** 在 A00a 的 WSL Ubuntu-24.04 安装 `69e168a64fe64110a66c4c0d78e7a143`，使用独立项目 `a00b-notes`、新建 512 MiB 本地 Git 存储和单 DBOS worker，从固定便签参照导入 B0。受控修改并冻结 D1；目标先前移到 T1，实际队列准备 M1。UTC `2026-11-19T04:51:36.665134+00:00` 只追加目标提交 T2，原开发候选和 Task 输入保持不变；同一条目 `retry` 后准备 M2。[输入与预期表](docs/acceptance/a00b/README.md)记录六个提交、实际清单、候选/尝试、构建输入及两阶段检查点；独立验收负责人先冻结[六条断言](docs/acceptance/a00b/candidate-read-assertions.md)，包括同项目错 Task 的拒绝条件。
