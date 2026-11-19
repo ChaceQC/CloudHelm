@@ -199,6 +199,8 @@ A09 复用同一个 PydanticAI `Agent.run` 和现有 Gateway 路由推进开发�
 
 `RunPolicy.max_no_progress_calls` 默认 2，范围 2～16，随 Run 固定。相同工具、参数和已见反馈连续重复两次（包括首次共三次）时停止；`workspace.check` 的判定排除本次起止时间及其派生 evidence_digest，保留源码、方法、退出码和具体失败等变化。原结果完整摘要仍保留。该阈值按单 Run 计算，与请求、时间和费用上限以先触发者为准；阈值大于本轮可用请求次数时可能先按请求上限交接，不跨 Run 增加另一套状态。
 
+B04 对 `query_operation` 按原 Operation、业务状态、执行状态和已登记结果判重。仅查询时生成的 `observed_at` 不算新增反馈；新的确认状态或登记证据仍可推动本轮。原时间戳继续保存在工具回执和 SDK 历史中，交接仍引用完整回执摘要。后续工作依赖结果时，使用 `await_operation` 按需等待。
+
 开发输出 `DevelopmentHandoff` 包含 `reason`、`summary`、`next_action`，以及仅 `candidate_ready` 必填的 `candidate_operation_id`：
 
 |原因|保存及后续行为|

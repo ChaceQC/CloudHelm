@@ -18,9 +18,12 @@ class DevelopmentLoop:
 
     def observe(self, name, arguments, tool_call_id, result):
         digest = _digest(result)
-        feedback = ({key: value for key, value in result.items()
-                     if key not in {"started_at", "finished_at", "evidence_digest"}}
-                    if name == "workspace.check" else result)
+        feedback = result
+        if name == "workspace.check":
+            feedback = {key: value for key, value in result.items()
+                        if key not in {"started_at", "finished_at", "evidence_digest"}}
+        elif name == "query_operation":
+            feedback = {key: result[key] for key in ("operation_id", "state", "execution_state", "result")}
         fingerprint = _digest([name, arguments, feedback])
         self.repeated = self.repeated + 1 if fingerprint in self.seen else 0
         self.seen.add(fingerprint)

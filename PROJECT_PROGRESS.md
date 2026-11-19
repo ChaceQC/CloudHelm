@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：B04 关闭无进展循环
+
+- **重构范围。** 从 `dev / 22808d3` 承接 B03，保留已有本地改动。开发循环此前把每次重新生成的查询时刻计入反馈判重；本轮只修正 `query_operation` 的比较，沿用原 Operation、回执内容、停止规则和预算准入。
+- **已实现 B04a。** [Runtime](modules/agent_runtime/development.py)按 Operation 身份、业务状态、执行状态和登记结果比较，排除外层 `observed_at`；完整回执和反馈摘要保留。使用方式见[有界开发循环](docs/development/p2-runtime.md#有界开发循环)。
+- **B04b 定向验证通过。** [记录](docs/acceptance/b04.md)绑定 WSL 隔离 PostgreSQL、固定 SDK 响应和实际物化登记。原操作由未知变为已登记时可继续；同结果重复两次后 `agent_no_progress`。费用不足时 `model_budget_exhausted`，没有额外出站、预留或 Run，未知操作仍可按原身份核对。
+- **进行中：** 无。**阻塞与风险：** 无新增；未执行真实供应商模型、DBOS worker 循环、公开 HTTP 或原生 Desktop。**下一项：** C02a 定义 Hub 摘要和单轮详情；增量投入待估。
+
 ## 2026-11-19：B03 接记名写入和延期
 
 - **已实现 B03a～B03c。** 从 `dev / 93ef5c6` 承接 B02。受控入口按工作项登记 `named-r2`，由[工具声明](packages/contracts/p2/tool_protocol.py)提供 SDK 参数、批次和展示动作；[Runtime](modules/agent_runtime/application.py)复用原文件权限与写入代次、Operation/DBOS 原身份和等待事务。B02 只读与普通 HTTP 启动范围保持原样。Runtime 装配和上下文共分别为 367、312 行（含空行）；新增接线仍归现有职责，未拆分模块。
