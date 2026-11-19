@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：A00b 固定候选读取样例
+
+- **已完成。** 在 A00a 的 WSL Ubuntu-24.04 安装 `69e168a64fe64110a66c4c0d78e7a143`，使用独立项目 `a00b-notes`、新建 512 MiB 本地 Git 存储和单 DBOS worker，从固定便签参照导入 B0。受控修改并冻结 D1；目标先前移到 T1，实际队列准备 M1。UTC `2026-11-19T04:51:36.665134+00:00` 只追加目标提交 T2，原开发候选和 Task 输入保持不变；同一条目 `retry` 后准备 M2。[输入与预期表](docs/acceptance/a00b/README.md)记录六个提交、实际清单、候选/尝试、构建输入及两阶段检查点；独立验收负责人先冻结[六条断言](docs/acceptance/a00b/candidate-read-assertions.md)，包括同项目错 Task 的拒绝条件。
+- **定向核对。** 在 A00a 锁定 Python `3.12.13` 的独立源码检出运行 `python -B /mnt/e/Project/CloudHelm/.thesis-work/a00b/prepare.py <存储标识>`，然后按 T2 的准确 SHA 用 `seal-second` 收集原尝试。方法最终 SHA-256 `6595596051f2c2eb9e5aac4aaf60bab96db99657ccebc408899f91df840c4c09`，仅本机保留。用 `git ls-tree`、`git cat-file`、`git rev-list` 和 `git diff --name-status` 核对实际字节、清单与父提交：D1 无目标文件，M1 有 T1 独有文件；相对 T1、T2 的最终差异均只有同一处排序修改。只读装配两轮构建 InputSet；M2 当前时，旧 M1 构建输入返回 `integration_attempt_not_current`，原尝试及清单保持原值。两轮 Git bundle 和数据库快照已保存，已核对摘要及 bundle 目标引用；数据库恢复未执行。M2 回执于 UTC `2026-11-19T04:53:29.865354+00:00` 归档。
+- **过程与边界。** 首次启动时 WSL 时间回拨至原会话签发前，鉴权拒绝；待 PostgreSQL 时钟到达签发时间后复用原会话。第一次 M2 取证未等到队列与尝试均满足预期，后续按原尝试查询终态并续收检查点，没有再提交队列命令或修改产品门禁。单 worker 和隔离 PostgreSQL 容器均已正常退出，保留持久卷。交付核对五份 Markdown 的 UTF-8、差异格式、样例本地链接及记录与回执的一致性。候选 Gateway、报告采纳、错 Task 运行、物理构建、模型请求或原生/人工验收均未执行。
+- **进行中：** 无。**阻塞与风险：** A00b 无阻塞；真实构建 Runner、原生联调及独立交付目标仍待对应工作包。**下一步：** 执行 A00c，固定单 Agent 任务、人工交权及返工、成功/停止/结果未知操作和实际可交付目标；A01a 等待 A00c 完成，增量投入待估。
+
 ## 2026-11-19：A00a 记录基线、建立隔离安装
 
 - **基线。** 开发分支 `dev`；起点、原 `origin/dev` 均为 `b226022483fcc3c4c98f22c3a8faba1fb0b4c696`。执行依据为本机架构细化方案 §10.1，文件 SHA-256 `7078d0c9c8548e2ebd8f76adf74d678df352280635022fe0746107287b283370`。开始时已有计划表格排版、Hub/Windows Desktop 与锁文件的 `0.30.0` 调整、`0020` 冷启动导入、Runner 预览登记及配套说明，以及未跟踪的两份架构稿和 Playwright 本地目录。原改动保留；独立检出使用 `0.29.0` 和原 `uv.lock`，只复用两行已存在的冷启动导入（`0020_p2_previews.py` 的 Git blob `866cc2065ac991fdee55f75bdaf282a61f47f76b`）。
