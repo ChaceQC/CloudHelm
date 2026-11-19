@@ -1,10 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { HubRequest, Json, Reply } from "./types";
+import type { HttpReply, HubRequest, Json, Reply } from "./types";
 
 export class HubError extends Error {
   constructor(public code: string, public status = 0) { super(code); }
 }
 
+export function request(generation: string, input: HubRequest & { method: "GET" }): Promise<HttpReply>;
+export function request(generation: string, input: HubRequest): Promise<Reply>;
 export async function request(generation: string, input: HubRequest): Promise<Reply> {
   try { return await invoke<Reply>("hub_request", { generation, request: input }); }
   catch (error) { throw new HubError(typeof error === "string" ? error : "hub_unavailable"); }

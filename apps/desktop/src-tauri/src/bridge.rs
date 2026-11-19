@@ -25,7 +25,22 @@ pub struct HubState {
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Reply { pub status: u16, pub body: Value }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Serialize)]
+pub struct CommandReceipt {
+    command_id: String,
+    idempotency_key: String,
+    status: u16,
+    result: Value,
+}
+
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum HubReply {
+    Confirmed { receipt: CommandReceipt },
+    Unconfirmed { status: u16, body: Value, receipt: () },
+}
+
+#[derive(Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct HubRequest {
     pub method: String,
@@ -138,18 +153,15 @@ fn validate(request: &HubRequest) -> Result<Option<(&str, &Value)>, String> {
     Ok(Some((key, body)))
 }
 
-pub fn command_id(reply: &Reply) -> Option<&str> {
+pub fn registered_command_id(reply: &Reply) -> Option<&str> {
+    if !(200..500).contains(&reply.status) { return None; }
     reply.body.get("command_id").and_then(Value::as_str)
         .or_else(|| reply.body.pointer("/task/command_id").and_then(Value::as_str))
         .filter(|id| !id.is_empty())
 }
 
-fn confirmed(reply: &Reply) -> bool {
-    (200..500).contains(&reply.status) && command_id(reply).is_some()
-}
-
 async fn send(app: &AppHandle, state: &HubState, session: &Session, request: &HubRequest,
-              post: Option<(&str, &Value)>) -> Result<Reply, String> {
+              post: Option<(&str, &Value)>) -> Result<HubReply, String> {
     let method = reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|_| "method_invalid")?;
     let mut builder = session.client.request(method, format!("{}{}", session.base, request.route))
         .bearer_auth(&session.token).header("X-CloudHelm-Api-Schema", API_SCHEMA).timeout(Duration::from_secs(15));
@@ -158,17 +170,25 @@ async fn send(app: &AppHandle, state: &HubState, session: &Session, request: &Hu
     }
     selected_session(state, &session.generation)?;
     let response = builder.send().await.map_err(|_| "request_unconfirmed")?;
-    let mut reply = bounded_reply(response).await?;
-    if let Some((key, _)) = post.filter(|_| confirmed(&reply)) {
-        reply = crate::journal::record(app, &session.account, key, &reply)?;
-    }
+    let reply = bounded_reply(response).await?;
+    let result = if let Some((key, command_id)) = post.and_then(|(key, _)| {
+        registered_command_id(&reply).map(|id| (key, id))
+    }) {
+        let stored = crate::journal::record(app, &session.account, key, command_id, &reply)?;
+        HubReply::Confirmed { receipt: CommandReceipt {
+            command_id: command_id.to_owned(), idempotency_key: key.to_owned(),
+            status: stored.status, result: stored.body,
+        } }
+    } else {
+        HubReply::Unconfirmed { status: reply.status, body: reply.body, receipt: () }
+    };
     selected_session(state, &session.generation)?;
-    Ok(reply)
+    Ok(result)
 }
 
 #[tauri::command]
 pub async fn hub_request(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
-                         generation: String, request: HubRequest) -> Result<Reply, String> {
+                         generation: String, request: HubRequest) -> Result<HubReply, String> {
     security::trusted(&window)?;
     let current = selected_session(&state, &generation)?;
     let post = validate(&request)?;
@@ -178,7 +198,7 @@ pub async fn hub_request(window: WebviewWindow, app: AppHandle, state: State<'_,
 
 #[tauri::command]
 pub async fn hub_retry(window: WebviewWindow, app: AppHandle, state: State<'_, HubState>,
-                       generation: String, key: String) -> Result<Reply, String> {
+                       generation: String, key: String) -> Result<HubReply, String> {
     security::trusted(&window)?;
     let current = selected_session(&state, &generation)?;
     let request = crate::journal::get(&app, &current.account, &key)?;

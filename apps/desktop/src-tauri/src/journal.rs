@@ -36,13 +36,17 @@ pub fn prepare(app: &AppHandle, account: &str, request: &HubRequest, key: &str) 
     let mut db = database(app)?;
     let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|_| "command_journal_unavailable")?;
-    let value = serde_json::to_string(request).map_err(|_| "command_invalid")?;
     let previous: Option<String> = tx.query_row("SELECT request FROM pending_commands WHERE account=?1 AND key=?2", params![account,key],
         |row| row.get(0)).optional().map_err(|_| "command_journal_unavailable")?;
-    if previous.is_some() { return Err("original_command_unresolved".into()); }
+    if let Some(previous) = previous {
+        let previous: HubRequest = serde_json::from_str(&previous).map_err(|_| "command_journal_invalid")?;
+        return Err(if &previous == request { "original_command_unresolved" }
+                   else { "idempotency_digest_conflict" }.into());
+    }
     let count: i64 = tx.query_row("SELECT count(*) FROM pending_commands WHERE account=?1", [account], |row| row.get(0))
         .map_err(|_| "command_journal_unavailable")?;
     if count >= 100 { return Err("command_journal_full".into()); }
+    let value = serde_json::to_string(request).map_err(|_| "command_invalid")?;
     tx.execute("INSERT OR IGNORE INTO pending_commands(account,key,request) VALUES (?1,?2,?3)", params![account, key, value])
         .map_err(|_| "command_journal_unavailable")?;
     tx.commit().map_err(|_| "command_journal_unavailable".into())
@@ -58,7 +62,7 @@ pub fn get(app: &AppHandle, account: &str, key: &str) -> Result<HubRequest, Stri
     Ok(request)
 }
 
-pub fn record(app: &AppHandle, account: &str, key: &str, reply: &Reply) -> Result<Reply, String> {
+pub fn record(app: &AppHandle, account: &str, key: &str, command_id: &str, reply: &Reply) -> Result<Reply, String> {
     let mut db = database(app)?;
     let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .map_err(|_| "command_journal_unavailable")?;
@@ -71,7 +75,7 @@ pub fn record(app: &AppHandle, account: &str, key: &str, reply: &Reply) -> Resul
     if count == 0 && stored.is_none() { return Err("original_command_unavailable".into()); }
     let stored: Reply = serde_json::from_str(&stored.ok_or("command_journal_invalid")?)
         .map_err(|_| "command_journal_invalid")?;
-    if crate::bridge::command_id(&stored) != crate::bridge::command_id(reply) {
+    if crate::bridge::registered_command_id(&stored) != Some(command_id) {
         return Err("original_receipt_conflict".into());
     }
     tx.commit().map_err(|_| "command_journal_unavailable")?;

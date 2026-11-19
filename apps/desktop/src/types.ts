@@ -60,7 +60,9 @@ export interface Deployment {
 export interface HubRequest { method: "GET" | "POST"; route: string; body?: Json; idempotency_key?: string }
 export interface PendingCommand extends HubRequest { generation: string }
 export interface Connected { identity: Identity; generation: string }
-export interface Reply { status: number; body: Json }
+export interface CommandReceipt { command_id: string; idempotency_key: string; status: number; result: Json }
+export interface HttpReply { status: number; body: Json; receipt: null }
+export type Reply = HttpReply | { receipt: CommandReceipt };
 export interface SyncEvent {
   cursor: number; event_id: string; project_id: string; aggregate_kind: string;
   aggregate_id: string; aggregate_version: number; event_type: string; schema_version: string;

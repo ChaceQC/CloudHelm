@@ -2,19 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { codeOf, HubError, objectPath, read, request, sessionChanged } from "./api";
-import type { Connected, Connection, HubRequest, Identity, PendingCommand, Project, Reply, Snapshot, SyncEvent, SyncNotice } from "./types";
+import type { CommandReceipt, Connected, Connection, HubRequest, Identity, PendingCommand, Project, Reply, Snapshot, SyncEvent, SyncNotice } from "./types";
 
-interface DisplayedReceipt { reply: Reply; key: string; generation: string; epoch: number }
+interface DisplayedReceipt { receipt: CommandReceipt; generation: string; epoch: number }
 interface SyncScope {
   projectId: string; streamId: string; permissionRevision: number;
   consumedCursor: number; subscriptionId: string; live: boolean;
-}
-
-function hasCommandReceipt(reply: Reply) {
-  const task = reply.body.task;
-  const id = reply.body.command_id ?? (task && typeof task === "object" && !Array.isArray(task)
-    ? (task as Record<string, unknown>).command_id : undefined);
-  return reply.status >= 200 && reply.status < 500 && typeof id === "string" && id.length > 0;
 }
 
 export function useHub() {
@@ -175,10 +168,11 @@ export function useHub() {
   // Keep confirmed replies durable until the current session has actually rendered them.
   useEffect(() => {
     const shown = displayedReceipt;
-    if (!shown || !hasCommandReceipt(shown.reply) || !matches(shown.generation, shown.epoch)) return;
-    void invoke("hub_ack", { generation: shown.generation, key: shown.key }).then(() => {
+    if (!shown || !matches(shown.generation, shown.epoch)) return;
+    const key = shown.receipt.idempotency_key;
+    void invoke("hub_ack", { generation: shown.generation, key }).then(() => {
       if (matches(shown.generation, shown.epoch)) {
-        setPending(previous => previous.filter(item => item.idempotency_key !== shown.key));
+        setPending(previous => previous.filter(item => item.idempotency_key !== key));
       }
     }).catch(reason => {
       if (matches(shown.generation, shown.epoch)) setError(codeOf(reason) + " · 回执保留在本机");
@@ -274,12 +268,12 @@ export function useHub() {
         setError(codeOf(reason) + " · 无法读取原命令日志");
       }
       if (!matches(generation, expected)) return;
-      setDisplayedReceipt({ reply: result, key, generation, epoch: expected });
-      if ((result.status === 401 || result.status === 403) && !hasCommandReceipt(result)) {
-        denied(new HubError(String(result.body.code), result.status)); return;
+      if (!result.receipt) {
+        const code = String(result.body.code ?? "command_unconfirmed");
+        if (!denied(new HubError(code, result.status))) setError(`${code} · 原命令结果待核对`);
+        return;
       }
-      if (result.status >= 400) setError(String(result.body.code ?? "command_rejected")
-        + (hasCommandReceipt(result) ? "" : " · 原命令可能仍待核对"));
+      setDisplayedReceipt({ receipt: result.receipt, generation, epoch: expected });
       void refresh(project.current, generation);
     } catch (reason) {
       if (!matches(generation, expected)) return;
@@ -302,7 +296,7 @@ export function useHub() {
     if (pending.some(p => p.route === route)) { setError("请先核对同一操作入口的原命令"); return; }
     void execute({ method: "POST", route, body, idempotency_key: crypto.randomUUID() });
   };
-  return { identity, projects, snapshot, connection, error, events, receipt: displayedReceipt?.reply ?? null, pending, busy,
+  return { identity, projects, snapshot, connection, error, events, receipt: displayedReceipt?.receipt ?? null, pending, busy,
     connect, disconnect, selectProject, refresh, query, command, openPreview, generation: renderedGeneration,
     retry: (original: PendingCommand) => {
       if (!busy && connection === "live") void execute(original, true, original.generation);

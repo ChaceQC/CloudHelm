@@ -11,7 +11,7 @@ npm.cmd run desktop:dev
 
 生成不带安装器的调试程序：`npm.cmd run desktop:build -- --debug`。输出为 `src-tauri/target/debug/cloudhelm-desktop.exe`。浏览器只能展示未连接界面，无法调用原生凭据和连接桥；Linux、安装升级及人工验收分别处理。
 
-C03 客户端连接 `p1-hub-api-r2` 的 Hub。任务的 Agent 面板先加载摘要，展开 Run 时查询该轮明细；工作区差异仍按工作项单独查询。
+客户端连接 `p1-hub-api-r2` 的 Hub。任务的 Agent 面板先加载摘要，展开 Run 时查询该轮明细；工作区差异仍按工作项单独查询。命令回执由原生层持久保存后展示；断线后可[使用原身份核对](../../docs/development/p1-desktop.md#未确认命令)。
 
 `0.29.0` 增加独立Windows预览容器。Task的人测轮次查询到ready且安装方已登记并验证 `tauri_windows_webview2` 时，可选择“打开隔离预览”；容器内自行认证，经管理页POST交付票据。主窗口只查询公开固定目标，不转交管理凭据或票据。收到预览撤销或停止事件、切换项目或旧订阅范围失效时，Desktop 请求关闭旧预览窗口。
 

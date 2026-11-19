@@ -5,8 +5,9 @@ import { ObjectPanel, kindNames } from "./ObjectPanel";
 import { OperationPanel } from "./OperationPanel";
 import { PlanPanel } from "./PlanPanel";
 import { CreateTask, TaskPanel } from "./TaskPanel";
+import type { Json } from "./types";
 import { useHub } from "./useHub";
-import { Empty, JsonView, Status } from "./ui";
+import { Empty, Facts, JsonView, Status } from "./ui";
 import "./styles.css";
 
 interface PreviewCleanup { label: string; removed: boolean }
@@ -41,8 +42,12 @@ export default function App() {
     }, { target: "main" }).catch(() => undefined);
     return () => { void unlisten.then(stop => stop?.()); };
   }, []);
-  const receiptBody = hub.receipt?.body;
-  const commandResult = receiptBody && typeof receiptBody.task === "object" ? receiptBody.task as Record<string, unknown> : receiptBody;
+  const receipt = hub.receipt;
+  const result = receipt?.result;
+  const commandResult = (result?.task as Json | undefined) ?? result;
+  const rejected = !!receipt && receipt.status >= 400;
+  const runId = commandResult?.run_id;
+  const operationId = commandResult?.operation_id;
 
   return <div className="workspace">
     <aside className="sidebar"><div className="brand"><span className="brand-mark">云</span><div>CloudHelm<small>工程工作台</small></div></div>
@@ -84,10 +89,19 @@ export default function App() {
       {hub.pending.map(original => <div className="notice pending-command" key={original.idempotency_key}><div><strong>原命令结果待确认</strong>
         <code>{original.idempotency_key}</code><small>{original.route}</small></div>
         <button disabled={hub.connection !== "live" || hub.busy} onClick={() => hub.retry(original)}>使用原身份核对 / 重投</button></div>)}
-      {hub.receipt && <section className="receipt"><div className="section-title"><span>HTTP {hub.receipt.status} · {String(commandResult?.code ?? "回执")}</span>
-        <Status value={String(commandResult?.outcome ?? "received")}/></div>
-        {hub.receipt.status === 202 && <p>已可靠接收，当前业务状态请查看任务与原操作。</p>}
-        <JsonView value={hub.receipt.body} title="命令回执"/></section>}
+      {receipt && <section className="receipt"><div className="section-title">
+        <strong>{rejected ? "命令已拒绝" : "命令回执"} · HTTP {receipt.status}</strong>
+        {receipt.status === 202 && <Status value="accepted"/>}</div>
+        <Facts values={{ "命令 ID": receipt.command_id, "幂等键": receipt.idempotency_key,
+          ...(commandResult?.code != null && { [rejected ? "拒绝原因" : "回执代码"]: commandResult.code }),
+          ...(commandResult?.task_id != null && { "Task ID": commandResult.task_id }),
+          ...(commandResult?.object_id != null && { "对象 ID": commandResult.object_id }),
+          ...(runId != null && { "原 Run ID": runId }), ...(operationId != null && { "原 Operation ID": operationId }),
+        }}/>
+        {runId != null && <p>在对应任务的“Agent 推进”中查看原 Run 的当前状态。</p>}
+        {operationId != null && <p>在“原操作查询”中核对当前业务与执行状态。</p>}
+        {receipt.status === 202 && runId == null && operationId == null && <p>请到对应任务或交付对象查看当前业务状态。</p>}
+        <JsonView value={receipt.result} title="Hub 原始结果"/></section>}
       {page === "connection" ? <ConnectionPanel hub={hub}/>
         : !snapshot ? <Empty><p>{hub.identity ? "等待项目快照" : "连接 Hub 后打开项目"}</p><button className="primary" onClick={() => setPage("connection")}>连接设置</button></Empty>
         : page === "tasks" ? <>
