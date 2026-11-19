@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：A02 接通固定候选工具
+
+- **已实现 A02a～A02c。** 从 `dev / 4ed1131` 接续 A01。冻结工作区或准备最终集成候选时留存规范清单；[候选 Git 视图](modules/workspaces/candidate_view.py)按登记来源、准确提交、第一父提交和摘要打开，供 [Worker](services/hub-worker/engineering_verification.py)按清单列目录、限长读文本，以及只展开当前差异页。目录和差异页位置与候选和查询绑定。原构建读取保持独立。
+- **已实现 A02d。** [验证](modules/agent_runtime/verification.py)与[审查](modules/agent_runtime/review.py)短事务固定 Run 的候选读规格，事务外读取，响应前再核对当前绑定；初始候选目录使用同一读链。未改变公开 HTTP、数据库迁移、工作流版本及报告采纳门禁。Git 对象模块 308 行，新增树遍历与原裸对象读同属一个职责；留存与页视图独立在 116 行的模块。Runtime 应用 337 行，本轮只改候选上下文接线。
+- **A02e 已定向验证。** [隔离证据](docs/acceptance/a02e.md)记录 A00b 两份冻结恢复、真实 Gateway 与 Git、四层 InputSet、错误范围，以及目标移动和读中换轮的拒绝。WSL Python 导入和 Git/安全路径 22 项通过，定向分页、内容上限与安全展示检查通过。副本已清理；夹具报告仅用于证明适用性，不登记为产品验收。
+- **进行中：** 无。**阻塞与风险：** A02 无剩余阻塞；本轮未执行物理构建、真实应用验收、模型调用、Desktop、部署或旧安装退役。**下一步：** 按[计划](PROJECT_PLAN.md#agent-与跨端架构重构a02-接通候选工具)执行 B00a。增量投入待估。
+
 ## 2026-11-19：A01 固定候选读规格
 
 - **已完成。** 从 `dev / 7ef26ff` 承接验证与审查只读工作区候选的接缝。A01a [列清两种来源的权威字段与各层 InputSet](docs/implementation/a01-candidate-read-spec.md)；A01b 在[候选解析](modules/integration/candidate_read.py)按原冻结回执或准确集成尝试返回固定规格。[集成构建](modules/integration/merge_builds.py)复用绑定和登记检查，保留独立的推进准入和原整树读取。改动限于候选来源、尝试和输入绑定。

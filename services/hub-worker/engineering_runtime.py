@@ -114,10 +114,10 @@ class EngineeringRuntime:
             finally:
                 service.close()
 
-    def read_candidate_code(self, record, name, query):
+    def read_candidate_code(self, spec, name, query):
         from .engineering_verification import read_candidate_code
 
-        return read_candidate_code(self, record, name, query)
+        return read_candidate_code(self, spec, name, query)
 
     def development_environment(self, operation_id):
         return self._development.execute(operation_id)

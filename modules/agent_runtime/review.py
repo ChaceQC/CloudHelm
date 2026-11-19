@@ -12,11 +12,10 @@ from modules.integration.candidates import _ref
 from modules.integration.validity import verification_view
 from modules.workspaces.safe_paths import WorkspaceFileError
 from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
-from packages.contracts.p2.verification_agent import CandidateListDirectory
 from .admission import current_run
 from .context import safe_context_value
 from .source_context import secret_context_path
-from .verification import read_verification_candidate_in_uow, verification_summary
+from .verification import read_bound_candidate_page, read_verification_candidate_in_uow, verification_summary
 
 
 def read_review_evidence_in_uow(uow, actor, task, request):
@@ -34,7 +33,7 @@ def read_review_evidence_in_uow(uow, actor, task, request):
             raise TaskBoundaryError("agent_review_report_binding_mismatch")
         verification = verification_summary(report)
         evidence_refs.append(report.evidence_ref.model_dump(mode="json"))
-    return build, {
+    return candidate, build, {
         "candidate_id": candidate.candidate_id,
         "candidate_commit": snapshot.candidate_commit, "baseline_commit": snapshot.parent_commit,
         "input_set_ref": _ref("input_set", candidate.input_set.input_set_id,
@@ -48,14 +47,6 @@ def read_review_evidence_in_uow(uow, actor, task, request):
                   "content": view.content.model_dump(mode="json") if view.content else None},
         "verification": verification,
     }
-
-
-def load_review_context_in_uow(uow, actor, task, request, reader):
-    build, facts = read_review_evidence_in_uow(uow, actor, task, request)
-    if reader is None:
-        raise TaskBoundaryError("agent_review_candidate_reader_unavailable")
-    source = reader(build, "candidate.list_directory", CandidateListDirectory())
-    return source, facts
 
 
 def review_handoff(output, stop_reason):
@@ -74,7 +65,7 @@ def resolve_review_handoff_in_uow(uow, run, request, handoff):
         return
     actor = actor_for_command(uow, run["source_command_id"])
     task, _ = lock_task_access(uow, actor, request.runtime_input.task_id, "resource.read")
-    _, facts = read_review_evidence_in_uow(uow, actor, task, request)
+    _, _, facts = read_review_evidence_in_uow(uow, actor, task, request)
     for finding in handoff["findings"]:
         if secret_context_path(finding["path"]):
             raise TaskBoundaryError("agent_review_sensitive_path")
@@ -100,21 +91,14 @@ class ReviewGateway:
         except ValidationError:
             return {"status": "rejected", "code": "agent_review_arguments_invalid"}
         try:
+            if name.startswith("candidate."):
+                return read_bound_candidate_page(self.engine, run_id, "reviewer", self.reader, name, query)
             with UnitOfWork(self.engine) as uow:
                 task, _, run, request, _ = current_run(uow, run_id)
                 if request.context.review is None or request.policy.role != "reviewer":
                     raise TaskBoundaryError("agent_role_tool_not_allowed")
                 actor = actor_for_command(uow, run["source_command_id"])
-                build, facts = read_review_evidence_in_uow(uow, actor, task, request)
-                if name == "review.evidence":
-                    return safe_context_value(facts)
-                if self.reader is None:
-                    raise TaskBoundaryError("agent_review_candidate_reader_unavailable")
-            try:
-                result = self.reader(build, name, query)
-            finally:
-                with UnitOfWork(self.engine) as uow:
-                    current_run(uow, run_id)
-            return result
+                _, _, facts = read_review_evidence_in_uow(uow, actor, task, request)
+                return safe_context_value(facts)
         except (TaskBoundaryError, IdentityError, WorkspaceFileError) as error:
             return {"status": "rejected", "code": error.code}

@@ -9,6 +9,7 @@ from modules.collaboration.facts import read_declaration
 from modules.collaboration.records import read_registered_reference
 from modules.collaboration.tables import work_items
 from modules.identity.actors import actor_for_command
+from modules.integration.candidate_read import read_current_candidate_spec
 from modules.workspaces.handoff_gates import returned_handoff_context
 from modules.workspaces.tables import workspaces
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
@@ -95,7 +96,7 @@ def safe_context_value(value):
     return value
 
 
-def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None, candidate_reader=None):
+def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None):
     task, _, run, request, _ = current_run(uow, run_id)
     actor = actor_for_command(uow, run["source_command_id"])
     from modules.collaboration.command_support import lock_task_access
@@ -169,21 +170,23 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None, candida
             else {"operation_id": "accepted operation ID"})} for name in context.tool_names],
         "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll.",
     }
+    candidate_binding = None
     if verifier:
         from pathlib import Path
         from .verification import load_verification_context_in_uow
 
-        payload["source"], payload["verification"] = load_verification_context_in_uow(
-            uow, actor, task, request, candidate_reader, Path(__file__).resolve().parents[2])
+        candidate, build, payload["verification"] = load_verification_context_in_uow(
+            uow, actor, task, request, Path(__file__).resolve().parents[2])
     elif reviewer:
-        from .review import load_review_context_in_uow
+        from .review import read_review_evidence_in_uow
 
-        payload["source"], payload["review"] = load_review_context_in_uow(
-            uow, actor, task, request, candidate_reader)
+        candidate, build, payload["review"] = read_review_evidence_in_uow(uow, actor, task, request)
     elif source_loader is None:
         raise TaskBoundaryError("agent_context_source_loader_unavailable")
     else:
         payload["source"] = source_loader(task["project_id"], context.source_ref, context.source_reads)
+    if verifier or reviewer:
+        candidate_binding = (candidate, build, read_current_candidate_spec(uow.connection, task, build.fixed_inputs))
     if payload["human_changes"] is not None:
         if handoff_loader is None:
             raise TaskBoundaryError("agent_context_handoff_loader_unavailable")
@@ -195,13 +198,17 @@ def load_context_in_uow(uow, run_id, source_loader, handoff_loader=None, candida
             "issue_id", "source_kind", "source_id", "candidate_id", "candidate_commit", "evidence_refs",
             "title", "reason", "severity", "path", "line", "check_ids", "previous_issue_ids", "state")}
             for issue in unresolved_rework(uow.connection, task, work_item_id=context.work_item_id)]
+    developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
+    instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
+                    + ". " + (VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
+                               DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
+    return request, payload, instructions, candidate_binding
+
+
+def render_context(payload):
     # Filter free text before it can enter model messages or persisted SDK history.
     payload = safe_context_value(payload)
     prompt = json.dumps(payload, ensure_ascii=False)
     if len(prompt.encode("utf-8")) > 65536:
         raise TaskBoundaryError("agent_context_limit_exceeded")
-    developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
-    instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
-                    + ". " + (VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
-                               DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
-    return request, payload, prompt, instructions
+    return payload, prompt

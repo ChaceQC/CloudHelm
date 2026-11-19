@@ -78,11 +78,8 @@ def _list_directory(files: int, request, observed, base: dict) -> dict:
     return result
 
 
-def _read_file(files: int, request, observed, base: dict) -> dict:
-    entry = next((entry for entry in observed.manifest.files if entry.path == request.path), None)
-    if entry is None:
-        raise WorkspaceFileError("workspace_code_file_not_found")
-    lines = _safe_text(files, entry).splitlines(keepends=True)
+def _text_range(text: str, request, *, limit_utf8_bytes: bool = False) -> dict:
+    lines = text.splitlines(keepends=True)
     if request.start_line > max(1, len(lines)):
         raise WorkspaceFileError("workspace_code_line_out_of_range")
     index, column = request.start_line - 1, request.start_column - 1
@@ -91,22 +88,34 @@ def _read_file(files: int, request, observed, base: dict) -> dict:
     pieces, touched, remaining = [], 0, _TEXT_LIMIT
     while index < len(lines) and touched < request.max_lines and remaining:
         part = lines[index][column:]
-        take = min(len(part), remaining)
-        pieces.append(part[:take])
+        if limit_utf8_bytes:
+            encoded = part.encode("utf-8")
+            piece = encoded[:remaining].decode("utf-8", errors="ignore")
+            remaining -= min(len(encoded), remaining)
+        else:
+            piece = part[:remaining]
+            remaining -= len(piece)
+        pieces.append(piece)
         touched += 1
-        remaining -= take
-        if take < len(part):
-            column += take
+        if len(piece) < len(part):
+            column += len(piece)
             break
         index += 1
         column = 0
     truncated = index < len(lines)
-    return {**base, "path": entry.path, "digest": entry.content_digest, "size_bytes": entry.size_bytes,
-            "start_line": request.start_line, "start_column": request.start_column,
+    return {"start_line": request.start_line, "start_column": request.start_column,
             "end_line": index + 1 if column else index, "total_lines": len(lines),
             "content": "".join(pieces), "truncated": truncated,
             "next_start_line": index + 1 if truncated else None,
             "next_start_column": column + 1 if truncated else None}
+
+
+def _read_file(files: int, request, observed, base: dict) -> dict:
+    entry = next((entry for entry in observed.manifest.files if entry.path == request.path), None)
+    if entry is None:
+        raise WorkspaceFileError("workspace_code_file_not_found")
+    return {**base, "path": entry.path, "digest": entry.content_digest, "size_bytes": entry.size_bytes,
+            **_text_range(_safe_text(files, entry), request)}
 
 
 def _search(files: int, request, observed, base: dict) -> dict:

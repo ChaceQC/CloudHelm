@@ -1,99 +1,170 @@
-"""Bounded code observations from the exact fixed workspace candidate."""
+"""Bounded code observations from a fixed candidate's Git objects."""
 
-from types import SimpleNamespace
+import json
 
-from modules.agent_runtime.code_reading import _append_page, read_workspace_code
+import rfc8785
+
+from modules.agent_runtime.code_reading import _FILE_LIMIT, _PAGE_LIMIT, _TEXT_LIMIT, _append_page, _text_range
 from modules.agent_runtime.source_context import safe_context_text, secret_context_path
-from modules.workspaces.safe_paths import WorkspaceFileError, read_regular
-from modules.workspaces.workspace_views import diff_result, observe
+from modules.integration.candidate_read import CandidateReadSpec
+from modules.workspaces.candidate_view import open_candidate_view
+from modules.workspaces.safe_paths import WorkspaceFileError
+from modules.workspaces.workspace_views import diff_result
 from packages.contracts.p1.workspace_git import content_digest
+from packages.contracts.p1.workspace_records import workspace_metadata_digest
 
 
-def _candidate_diff(git, files, candidate, query):
+def _page_cursor(spec: CandidateReadSpec, name: str, query, offset: int) -> str:
+    return content_digest(rfc8785.dumps({
+        "snapshot_digest": workspace_metadata_digest(spec.snapshot),
+        "build_input_set_id": spec.build_input_set_id, "build_input_set_digest": spec.build_input_set_digest,
+        "tool": name, "path": query.path, "max_entries": query.max_entries, "offset": str(offset),
+    }))
+
+
+def _validate_page_cursor(spec: CandidateReadSpec, name: str, query) -> None:
+    if (query.offset and (query.cursor is None or query.cursor != _page_cursor(spec, name, query, query.offset))
+            or not query.offset and query.cursor is not None):
+        raise WorkspaceFileError("candidate_read_cursor_mismatch")
+
+
+def _finish_page(spec: CandidateReadSpec, name: str, query, result: dict) -> dict:
+    offset = result["next_offset"]
+    result["next_cursor"] = _page_cursor(spec, name, query, offset) if offset is not None else None
+    return result
+
+
+def _candidate_list_directory(view, spec: CandidateReadSpec, name: str, query, base: dict) -> dict:
+    prefix = query.path + "/" if query.path else ""
+    exists = not query.path
+    children = {}
+    for path, entry in view.files.items():
+        if not path.startswith(prefix):
+            continue
+        exists = True
+        segment, separator, _ = path[len(prefix):].partition("/")
+        child = prefix + segment
+        if child in children or secret_context_path(child):
+            continue
+        if separator:
+            children[child] = {"path": child, "kind": "directory"}
+        else:
+            children[child] = {"path": child, "kind": "file", "digest": entry.content_digest,
+                               "size_bytes": entry.size_bytes}
+    if not exists:
+        raise WorkspaceFileError("workspace_directory_unavailable")
+
+    result = {**base, "path": query.path, "offset": query.offset, "total_entries": len(children),
+              "entries": [], "truncated": True, "next_offset": query.offset}
+    for path in sorted(children, key=lambda value: value.encode("utf-8"))[query.offset:]:
+        if not _append_page(result, "entries", children[path], query.max_entries):
+            break
+    else:
+        result.update(truncated=False, next_offset=None)
+    return _finish_page(spec, name, query, result)
+
+
+def _candidate_read_file(view, query, base: dict) -> dict:
+    entry = view.files.get(query.path)
+    if entry is None:
+        raise WorkspaceFileError("workspace_code_file_not_found")
+    result = {**base, "path": entry.path, "digest": entry.content_digest, "size_bytes": entry.size_bytes}
+    if entry.size_bytes > _FILE_LIMIT:
+        reason = "input_limit"
+    else:
+        data = view.read_file(entry.path, _FILE_LIMIT)
+        try:
+            source = data.decode("utf-8")
+        except UnicodeDecodeError:
+            source = None
+        if source is None or "\x00" in source:
+            reason = "binary"
+        elif safe_context_text(source) != source:
+            reason = "secret_content"
+        else:
+            return {**result, **_text_range(source, query, limit_utf8_bytes=True), "reason_code": None}
+    return {**result, "start_line": query.start_line, "start_column": query.start_column,
+            "end_line": None, "total_lines": None, "content": "", "truncated": True,
+            "next_start_line": None, "next_start_column": None, "reason_code": reason}
+
+
+def _expand_diff(view, binding, item: dict, remaining: int) -> int:
+    path = item["path"]
+    after = view.files.get(path)
+    old = b"" if item["before"] is None else view.read_baseline(path, _FILE_LIMIT)
+    if item["before"] is not None and old is not None:
+        item["before"]["digest"] = content_digest(old)
+    new = b"" if after is None else view.read_file(path, _FILE_LIMIT) if after.size_bytes <= _FILE_LIMIT else None
+
+    # Reuse the unified patch renderer; the Git view supplies the entry metadata.
+    diff = diff_result(binding, path, None, None, old, new)
+    patch, reason = diff.patch, diff.reason_code
+    if patch and (safe_context_text(patch) != patch
+                  or any(safe_context_text(source) != source for source in (old.decode("utf-8"), new.decode("utf-8")))):
+        patch, reason = "[REDACTED]", "secret_content"
+    raw = patch.encode("utf-8")
+    if len(raw) > _TEXT_LIMIT:
+        patch, reason = raw[:_TEXT_LIMIT].decode("utf-8", errors="ignore"), "output_limit"
+    size = len(json.dumps(patch, ensure_ascii=True)) - 2
+    if size > remaining:
+        patch, reason, size = "", reason or "output_limit", 0
+    item.update(patch=patch, binary=diff.binary, truncated=reason is not None, reason_code=reason)
+    return remaining - size
+
+
+def _candidate_diff(view, spec: CandidateReadSpec, name: str, query, base: dict) -> dict:
+    prefix = query.path + "/"
+    paths = []
+    for path in view.baseline.keys() | view.files.keys():
+        if secret_context_path(path) or (query.path and path != query.path and not path.startswith(prefix)):
+            continue
+        before, after = view.baseline.get(path), view.files.get(path)
+        if before is None or after is None or (before.mode, before.blob_id) != (after.mode, after.blob_id):
+            paths.append(path)
+    paths.sort(key=lambda path: path.encode("utf-8"))
+
+    result = {**base, "path": query.path, "offset": query.offset, "total_entries": len(paths), "files": [],
+              "truncated": False, "next_offset": None}
+    encode = json.JSONEncoder(ensure_ascii=True, separators=(",", ":")).encode
+    remaining = _PAGE_LIMIT - len(encode(result))
+    # Reserve space for an optional baseline digest and the longest omission reason.
+    entry_reserve = len(encode({"digest": spec.snapshot.manifest_digest, "reason_code": "secret_content"}))
+    for path in paths[query.offset:query.offset + query.max_entries]:
+        before, after = view.baseline.get(path), view.files.get(path)
+        item = {
+            "path": path, "kind": "added" if before is None else "deleted" if after is None else "modified",
+            "before": {"blob_id": before.blob_id, "mode": before.mode} if before else None,
+            "after": {"blob_id": after.blob_id, "mode": after.mode, "digest": after.content_digest} if after else None,
+            "patch": "", "binary": False, "truncated": False, "reason_code": None,
+        }
+        size = len(encode(item)) + entry_reserve + 1
+        if size > remaining:
+            break
+        result["files"].append(item)
+        remaining -= size
+    offset = query.offset + len(result["files"])
+    if offset < len(paths):
+        result["next_offset"] = offset
+    for item in result["files"]:
+        remaining = _expand_diff(view, spec.snapshot.binding, item, remaining)
+    result["truncated"] = result["next_offset"] is not None or any(item["truncated"] for item in result["files"])
+    return _finish_page(spec, name, query, result)
+
+
+def read_candidate_code(runtime, spec: CandidateReadSpec, name: str, query) -> dict:
+    if name not in {"candidate.list_directory", "candidate.read_file", "candidate.diff"}:
+        raise WorkspaceFileError("agent_verification_candidate_tool_unknown")
     if query.path and secret_context_path(query.path):
         raise WorkspaceFileError("workspace_code_secret_path")
-    observation = observe(files)
-    if observation.digest != candidate.manifest_digest:
-        raise WorkspaceFileError("workspace_manifest_mismatch")
-    binding = candidate.binding
-    source = git.resolve_source(binding.project_id, binding.source_id, binding.source_revision)
-    with git.open_commit(source, candidate.parent_commit) as (baseline, read_file):
-        old_entries = {entry.path: entry for entry in baseline.files}
-        new_entries = {entry.path: entry for entry in observation.manifest.files}
-        paths = []
-        for path in sorted(old_entries.keys() | new_entries.keys(), key=lambda value: value.encode("utf-8")):
-            if secret_context_path(path) or (query.path and path != query.path
-                                             and not path.startswith(query.path + "/")):
-                continue
-            before, after = old_entries.get(path), new_entries.get(path)
-            if before is None or after is None or before.model_dump(exclude={"blob_id"}) != after.model_dump():
-                paths.append(path)
-        result = {"candidate_id": candidate.candidate_id, "candidate_commit": candidate.candidate_commit,
-                  "baseline_commit": candidate.parent_commit, "manifest_digest": candidate.manifest_digest,
-                  "path": query.path, "offset": query.offset, "total_entries": len(paths), "files": [],
-                  "truncated": True, "next_offset": query.offset}
-        for path in paths[query.offset:]:
-            if len(result["files"]) == query.max_entries:
-                break
-            before, after = old_entries.get(path), new_entries.get(path)
-            old = b"" if before is None else read_file(before) if before.size_bytes <= 65536 else None
-            new = b"" if after is None else read_regular(files, path, 65536) if after.size_bytes <= 65536 else None
-            if after is not None and new is not None and content_digest(new) != after.content_digest:
-                raise WorkspaceFileError("workspace_file_changed")
-            diff = diff_result(binding, path, before, after, old, new)
-            patch, redacted = diff.patch, False
-            if patch:
-                old_text, new_text = old.decode("utf-8"), new.decode("utf-8")
-                redacted = (safe_context_text(patch) != patch or safe_context_text(old_text) != old_text
-                            or safe_context_text(new_text) != new_text)
-                if redacted:
-                    patch = "[REDACTED]"
-            encoded = patch.encode("utf-8")
-            item = {
-                "path": path, "kind": "added" if before is None else "deleted" if after is None else "modified",
-                "before": {"digest": before.content_digest, "mode": before.mode} if before else None,
-                "after": {"digest": after.content_digest, "mode": after.mode} if after else None,
-                "patch": encoded[:8192].decode("utf-8", errors="ignore"), "binary": diff.binary,
-                "truncated": diff.truncated or diff.binary or redacted or len(encoded) > 8192,
-                "reason_code": "secret_content" if redacted else "output_limit" if len(encoded) > 8192 else diff.reason_code,
-            }
-            if _append_page(result, "files", item, query.max_entries):
-                continue
-            if result["files"]:
-                break
-            item.update(patch="", truncated=True, reason_code="output_limit")
-            _append_page(result, "files", item, query.max_entries)
-        else:
-            result["next_offset"] = None
-        result["truncated"] = result["next_offset"] is not None or any(item["truncated"] for item in result["files"])
-        return result
-
-
-def read_candidate_code(runtime, build_record, name, query):
-    names = {
-        "candidate.list_directory": "workspace.list_directory",
-        "candidate.read_file": "workspace.read_file",
-    }
-    if name not in names and name != "candidate.diff":
-        raise WorkspaceFileError("agent_verification_candidate_tool_unknown")
-    candidate = build_record.fixed_inputs.candidate
-    if candidate.candidate_id.startswith("integration-candidate-"):
-        raise WorkspaceFileError("agent_verification_candidate_source_unsupported")
-
-    with runtime.registry.admit(0) as storage:
-        intent = runtime._intent(candidate.freeze_operation_id)
-        with runtime._git(storage, candidate.binding.project_id) as git:
-            store = runtime._candidate_store(storage, git, intent, reconciliation=True)
-            try:
-                with store.open_candidate(candidate.freeze_operation_id) as (receipt, files):
-                    if receipt.snapshot != candidate:
-                        raise WorkspaceFileError("agent_verification_candidate_receipt_mismatch")
-                    if name == "candidate.diff":
-                        return _candidate_diff(git, files, candidate, query)
-                    request = SimpleNamespace(**query.model_dump(), expected_manifest_digest=candidate.manifest_digest)
-                    result = read_workspace_code(files, candidate.binding, names[name], request)
-                    result.pop("binding")
-                    return {**result, "candidate_id": candidate.candidate_id,
-                            "candidate_commit": candidate.candidate_commit}
-            finally:
-                store.close()
+    if name != "candidate.read_file":
+        _validate_page_cursor(spec, name, query)
+    snapshot = spec.snapshot
+    base = {"candidate_id": snapshot.candidate_id, "candidate_commit": snapshot.candidate_commit,
+            "baseline_commit": snapshot.parent_commit, "manifest_digest": snapshot.manifest_digest}
+    with (runtime.registry.admit(0) as storage, runtime._git(storage, snapshot.binding.project_id) as git,
+          open_candidate_view(git, spec.git_source, snapshot, include_baseline=name == "candidate.diff") as view):
+        if name == "candidate.list_directory":
+            return _candidate_list_directory(view, spec, name, query, base)
+        if name == "candidate.read_file":
+            return _candidate_read_file(view, query, base)
+        return _candidate_diff(view, spec, name, query, base)

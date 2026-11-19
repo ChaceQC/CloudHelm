@@ -15,17 +15,10 @@ class ReviewContext(Contract):
     verification_report_id: Identifier | None = None
 
 
-class CandidateDiff(Contract):
-    """Read a bounded diff for a fixed candidate."""
+class CandidateDiff(CandidateListDirectory):
+    """Diff a fixed candidate against its parent. Continue with next_offset and next_cursor."""
 
-    path: str = ""
-    offset: int = Field(default=0, strict=True, ge=0)
     max_entries: int = Field(default=16, strict=True, ge=1, le=16)
-
-    @field_validator("path")
-    @classmethod
-    def check_path(cls, value: str) -> str:
-        return workspace_path(value, allow_root=True)
 
 
 class ReviewEvidence(Contract):

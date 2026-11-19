@@ -13,6 +13,7 @@ from modules.collaboration.records import read_registered_reference, reference_k
 from modules.delivery.queries import read_build_intent
 from modules.identity.actors import actor_for_command
 from modules.identity.errors import IdentityError
+from modules.integration.candidate_read import read_current_candidate_spec
 from modules.integration.candidates import _current_input, _operation_access, _read, _ref
 from modules.integration.verification import VerificationApplication, _assets, _event
 from modules.integration.verification_readable import verification_headline, verification_report_path
@@ -24,7 +25,7 @@ from packages.contracts.p2.verification import (
     FinalizeVerificationRequest, VerificationPhase, VerificationPhaseRequest,
 )
 from packages.contracts.p2.verification_agent import (
-    CandidateListDirectory, VERIFICATION_TOOL_SCHEMAS,
+    VERIFICATION_TOOL_SCHEMAS,
 )
 from .admission import current_run
 from .source_context import safe_context_text
@@ -43,17 +44,46 @@ def read_verification_candidate_in_uow(uow, actor, task, request):
                 request.context.requirement_ref, request.context.acceptance_assets_ref, request.context.source_ref))):
         raise TaskBoundaryError("agent_verification_candidate_not_current")
     _, build = read_build_intent(uow.connection, candidate.build_operation_id)
+    if (build.project_id != candidate.project_id or build.task_id != candidate.task_id
+            or build.control_revision != candidate.control_revision
+            or build.input_validity_revision != candidate.input_validity_revision
+            or build.fixed_inputs.source_input_set_ref != candidate.source_input_set_ref):
+        raise TaskBoundaryError("agent_verification_candidate_not_current")
     return candidate, build
 
 
-def load_verification_context_in_uow(uow, actor, task, request, reader, repository):
+def read_bound_candidate_page(engine, run_id, role, reader, name, query, *, binding=None):
+    """Read outside the transaction after resolving the Run's binding, then recheck it."""
+    def resolve():
+        with UnitOfWork(engine) as uow:
+            task, _, run, request, _ = current_run(uow, run_id)
+            context = request.context.verification if role == "verifier" else request.context.review
+            if request.policy.role != role or context is None:
+                raise TaskBoundaryError("agent_role_tool_not_allowed")
+            actor = actor_for_command(uow, run["source_command_id"])
+            candidate, build = read_verification_candidate_in_uow(uow, actor, task, request)
+            spec = read_current_candidate_spec(uow.connection, task, build.fixed_inputs)
+            return candidate, build, spec
+
+    if binding is None:
+        binding = resolve()
+    if reader is None:
+        raise TaskBoundaryError("agent_verification_candidate_reader_unavailable" if role == "verifier"
+                                else "agent_review_candidate_reader_unavailable")
+    _, _, spec = binding
+    try:
+        page = reader(spec, name, query)
+    finally:
+        if resolve() != binding:
+            raise TaskBoundaryError("candidate_read_binding_mismatch")
+    return page
+
+
+def load_verification_context_in_uow(uow, actor, task, request, repository):
     candidate, build = read_verification_candidate_in_uow(uow, actor, task, request)
     assets, acceptance, method = _assets(uow.connection, task["project_id"], candidate, repository)
-    if reader is None:
-        raise TaskBoundaryError("agent_verification_candidate_reader_unavailable")
-    source = reader(build, "candidate.list_directory", CandidateListDirectory())
     binding = request.context.verification
-    return source, {
+    return candidate, build, {
         "candidate": candidate.model_dump(mode="json"),
         "candidate_commit": build.fixed_inputs.candidate.candidate_commit,
         "round_id": binding.round_id,
@@ -126,17 +156,15 @@ class VerificationGateway:
         except ValidationError:
             return {"status": "rejected", "code": "agent_verification_arguments_invalid"}
         try:
+            if name.startswith("candidate."):
+                return read_bound_candidate_page(self.engine, run_id, "verifier", self.reader, name, query)
             with UnitOfWork(self.engine) as uow:
                 task, _, run, request, now = current_run(uow, run_id)
                 if request.context.verification is None or request.policy.role != "verifier":
                     raise TaskBoundaryError("agent_role_tool_not_allowed")
                 actor = actor_for_command(uow, run["source_command_id"])
-                candidate, build = read_verification_candidate_in_uow(uow, actor, task, request)
+                candidate, _ = read_verification_candidate_in_uow(uow, actor, task, request)
                 binding = request.context.verification
-                if name.startswith("candidate."):
-                    if self.reader is None:
-                        raise TaskBoundaryError("agent_verification_candidate_reader_unavailable")
-                    return self.reader(build, name, query)
                 if name == "verification.result":
                     view = verification_view(uow.connection, task, query.report_id)
                     if view.report.candidate_id != candidate.candidate_id or view.report.round_id != binding.round_id:

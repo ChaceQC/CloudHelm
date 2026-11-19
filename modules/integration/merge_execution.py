@@ -12,8 +12,9 @@ from modules.integration.git_merge import MergeGitStore
 from modules.integration.merge_queue import check_entry_task, record_event
 from modules.integration.merge_records import entry_for_attempt, queue_head, read_attempt, read_entry, read_review, save_entry
 from modules.integration.merge_validity import verified_final
+from modules.workspaces.candidate_view import retain_candidate_manifest
 from modules.workspaces.git_objects import read_commit_files
-from packages.contracts.p1.workspace_git import CandidateSnapshot, content_digest, manifest_bytes
+from packages.contracts.p1.workspace_git import CandidateSnapshot, content_digest
 from packages.contracts.p2.merge_queue import IntegrationAttempt
 
 
@@ -86,11 +87,12 @@ def execute_merge(runtime, operation_id):
                 if fixed.state == "prepared":
                     with git.integration_repository(source) as directory:
                         _, files = read_commit_files(directory, fixed.integrated_commit, "", time.monotonic() + 60)
+                        manifest_digest = retain_candidate_manifest(directory, files)
                     suffix = content_digest(attempt_id.encode("utf-8"))[7:]
                     snapshot = CandidateSnapshot(binding=entry.candidate.binding,
                         candidate_id="integration-candidate-" + suffix, candidate_commit=fixed.integrated_commit,
                         parent_commit=fixed.base_commit, freeze_operation_id=attempt_id,
-                        storage_id="candidate-" + suffix, manifest_digest=content_digest(manifest_bytes(files)))
+                        storage_id="candidate-" + suffix, manifest_digest=manifest_digest)
                 attempt = IntegrationAttempt(attempt_id=attempt_id, entry_id=entry.entry_id,
                     project_id=entry.project_id, task_id=entry.task_id, base_commit=fixed.base_commit,
                     candidate_commit=fixed.candidate_commit, state=fixed.state, snapshot=snapshot,

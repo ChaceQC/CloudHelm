@@ -3,7 +3,9 @@
 import hashlib
 import re
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 import rfc8785
 
@@ -17,6 +19,13 @@ from packages.contracts.p1.workspace_git import (
 _TREE_LIMIT = 2 * 1024 * 1024
 _OPERATION_SECONDS = 60
 _SAFE_ATTRIBUTES = {"text", "-text", "!text", "text=auto", "eol=lf", "-diff", "-merge"}
+
+
+@dataclass(frozen=True, slots=True)
+class GitTreeEntry:
+    path: str
+    mode: str
+    blob_id: str
 
 
 def managed_repository_slot(source: RegisteredGitSource) -> str:
@@ -87,15 +96,16 @@ def _check_content(path: str, data: bytes) -> None:
 
 
 def _selected_tree(directory: int, root: str, prefix: str, deadline: float,
-                   *, object_directory: int | None = None) -> str:
+                   *, object_directory: int | None = None, read_attributes: bool = True) -> str:
     for part in prefix.split("/") if prefix else ():
         entries = _tree_entries(directory, root, deadline, object_directory=object_directory)
         for mode, name, oid in entries:
             if name == ".gitattributes":
                 if mode == "40000":
                     raise WorkspaceFileError("git_attributes_unsupported")
-                _check_content(name, _read_object(directory, "blob", oid, MAX_FILE_BYTES, deadline,
-                                                 object_directory=object_directory))
+                if read_attributes:
+                    _check_content(name, _read_object(directory, "blob", oid, MAX_FILE_BYTES, deadline,
+                                                     object_directory=object_directory))
         matches = [(mode, oid) for mode, name, oid in entries if name == part]
         if len(matches) != 1 or matches[0][0] != "40000":
             raise WorkspaceFileError("git_source_prefix_unavailable")
@@ -103,9 +113,9 @@ def _selected_tree(directory: int, root: str, prefix: str, deadline: float,
     return root
 
 
-def _collect_files(directory: int, tree: str, deadline: float,
-                   *, object_directory: int | None = None) -> tuple[GitFile, ...]:
-    pending, files, total, visited = [(tree, "")], [], 0, 0
+def _walk_tree_files(directory: int, tree: str, deadline: float,
+                     *, object_directory: int | None = None) -> Iterator[GitTreeEntry]:
+    pending, files, visited = [(tree, "")], 0, 0
     while pending:
         oid, prefix = pending.pop()
         entries = _tree_entries(directory, oid, deadline, object_directory=object_directory)
@@ -121,29 +131,55 @@ def _collect_files(directory: int, tree: str, deadline: float,
             if mode == "40000":
                 pending.append((child, path))
                 continue
-            data = _read_object(directory, "blob", child, MAX_FILE_BYTES, deadline,
-                                object_directory=object_directory)
-            _check_content(path, data)
-            total += len(data)
-            if total > MAX_SOURCE_BYTES or len(files) >= MAX_FILES:
+            files += 1
+            if files > MAX_FILES:
                 raise WorkspaceFileError("git_source_limit_exceeded")
-            files.append(GitFile(path=path, mode=mode, blob_id=child, size_bytes=len(data),
-                                 content_digest=content_digest(data)))
+            yield GitTreeEntry(path, mode, child)
+
+
+def _collect_files(directory: int, tree: str, deadline: float,
+                   *, object_directory: int | None = None) -> tuple[GitFile, ...]:
+    files, total = [], 0
+    for entry in _walk_tree_files(directory, tree, deadline, object_directory=object_directory):
+        data = _read_object(directory, "blob", entry.blob_id, MAX_FILE_BYTES, deadline,
+                            object_directory=object_directory)
+        _check_content(entry.path, data)
+        total += len(data)
+        if total > MAX_SOURCE_BYTES:
+            raise WorkspaceFileError("git_source_limit_exceeded")
+        files.append(GitFile(path=entry.path, mode=entry.mode, blob_id=entry.blob_id, size_bytes=len(data),
+                             content_digest=content_digest(data)))
     return tuple(sorted(files, key=lambda item: item.path.encode("utf-8")))
+
+
+def _commit_tree(directory: int, oid: str, deadline: float, *,
+                 expected_parent: str | None = None, object_directory: int | None = None) -> str:
+    commit = _read_object(directory, "commit", oid, 1024 * 1024, deadline,
+                          object_directory=object_directory)
+    first_line, _, remainder = commit.partition(b"\n")
+    try:
+        if not first_line.startswith(b"tree "):
+            raise WorkspaceFileError("git_commit_invalid")
+        root = _object_id(first_line[5:].decode("ascii"), "sha1" if len(oid) == 40 else "sha256")
+    except UnicodeError:
+        raise WorkspaceFileError("git_commit_invalid") from None
+    if expected_parent is not None and remainder.split(b"\n", 1)[0] != b"parent " + expected_parent.encode("ascii"):
+        raise WorkspaceFileError("candidate_git_parent_mismatch")
+    return root
+
+
+def read_commit_entries(directory: int, commit: str, prefix: str, deadline: float,
+                        *, expected_parent: str | None = None) -> dict[str, GitTreeEntry]:
+    """Read authenticated commit and tree metadata without opening blobs."""
+    root = _commit_tree(directory, commit, deadline, expected_parent=expected_parent)
+    tree = _selected_tree(directory, root, prefix, deadline, read_attributes=False)
+    return {entry.path: entry for entry in _walk_tree_files(directory, tree, deadline)}
 
 
 def read_commit_files(directory: int, base_commit: str, prefix: str, deadline: float,
                       *, object_directory: int | None = None) -> tuple[str, tuple[GitFile, ...]]:
     """Read only verified raw objects, optionally from a trusted seed object fd."""
-    commit = _read_object(directory, "commit", base_commit, 1024 * 1024, deadline,
-                          object_directory=object_directory)
-    first_line = commit.split(b"\n", 1)[0]
-    try:
-        if not first_line.startswith(b"tree "):
-            raise WorkspaceFileError("git_commit_invalid")
-        root = _object_id(first_line[5:].decode("ascii"), "sha1" if len(base_commit) == 40 else "sha256")
-    except UnicodeError:
-        raise WorkspaceFileError("git_commit_invalid") from None
+    root = _commit_tree(directory, base_commit, deadline, object_directory=object_directory)
     tree = _selected_tree(directory, root, prefix, deadline, object_directory=object_directory)
     return tree, _collect_files(directory, tree, deadline, object_directory=object_directory)
 

@@ -4,6 +4,7 @@ import time
 
 import rfc8785
 
+from modules.workspaces.candidate_view import retain_candidate_manifest
 from modules.workspaces.git_objects import _check_content, _read_object, read_commit_files
 from modules.workspaces.reference_seed import _write_object, _write_tree
 from modules.workspaces.safe_paths import WorkspaceFileError, directory_at, exists_at, read_regular, write_new_file
@@ -38,6 +39,7 @@ def prepare(directory, source, files, manifest, spec, operation_id):
         entries.append(GitFile(**entry.model_dump(), blob_id=oid))
     tree_id = _write_tree(directory, entries, source.object_format)
     commit = _write_object(directory, "commit", commit_bytes(tree_id, spec, operation_id), source.object_format)
+    retain_candidate_manifest(directory, entries)
     return commit
 
 

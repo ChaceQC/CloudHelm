@@ -17,6 +17,7 @@ from modules.collaboration.guards import read_task
 from modules.identity.actors import actor_for_command
 from modules.identity.errors import IdentityError
 from modules.tool_gateway.gateway import ToolGateway
+from modules.workspaces.safe_paths import WorkspaceFileError
 from modules.workspaces.tables import workspaces
 from pydantic_ai.tools import DeferredToolResults
 from packages.contracts.p0.core_contracts import TurnResult
@@ -27,11 +28,11 @@ from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
 from packages.contracts.p2.workspace_builds import WORKSPACE_BUILD_SCHEMAS, WORKSPACE_BUILD_WRITES
 from packages.contracts.p2.workspace_checks import WORKSPACE_CHECK_SCHEMAS
-from packages.contracts.p2.verification_agent import VERIFICATION_TOOL_SCHEMAS
+from packages.contracts.p2.verification_agent import CandidateListDirectory, VERIFICATION_TOOL_SCHEMAS
 from packages.contracts.p2.review_agent import REVIEW_TOOL_SCHEMAS
 from .admission import RuntimeAdmission
 from .billing import RuntimeBilling
-from .context import load_context_in_uow
+from .context import load_context_in_uow, render_context
 from .development import DevelopmentLoop, resolve_candidate_handoff_in_uow
 from .source_context import safe_context_text
 from .operations import (
@@ -46,7 +47,9 @@ from .workspace_edits import WorkspaceEditGateway
 from .workspace_environment import WorkspaceEnvironmentGateway
 from .workspace_builds import WorkspaceBuildGateway
 from .workspace_checks import WorkspaceCheckGateway
-from .verification import VerificationGateway, resolve_verification_handoff_in_uow, verification_handoff
+from .verification import (
+    VerificationGateway, read_bound_candidate_page, resolve_verification_handoff_in_uow, verification_handoff,
+)
 from .review import ReviewGateway, resolve_review_handoff_in_uow, review_handoff
 
 EMPTY_HISTORY = "sha256:" + hashlib.sha256(b"[]").hexdigest()
@@ -79,7 +82,7 @@ class AgentRuntimeApplication:
         code = "agent_turn_failed"
         try:
             return asyncio.run(self._advance(run_id))
-        except TaskBoundaryError as error:
+        except (TaskBoundaryError, WorkspaceFileError) as error:
             code = error.code
         except Exception:
             pass
@@ -111,8 +114,13 @@ class AgentRuntimeApplication:
                     raise TaskBoundaryError("agent_history_digest_mismatch")
                 history = ModelMessagesTypeAdapter.validate_json(raw)
             deferred_results = load_deferred_results_in_uow(uow, run_id)
-            request, context, prompt, instructions = load_context_in_uow(
-                uow, run_id, self.source_loader, self.handoff_loader, self.candidate_reader)
+            request, context, instructions, candidate_binding = load_context_in_uow(
+                uow, run_id, self.source_loader, self.handoff_loader)
+        if candidate_binding is not None:
+            context["source"] = read_bound_candidate_page(
+                self.engine, run_id, request.policy.role, self.candidate_reader, "candidate.list_directory",
+                CandidateListDirectory(), binding=candidate_binding)
+        context, prompt = render_context(context)
 
         async def task_read(arguments, tool_call_id):
             if arguments:

@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
-from packages.contracts.p0.decision_common import Contract, Identifier
+from packages.contracts.p0.decision_common import Contract, Digest, Identifier
 from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_kind
 from packages.contracts.p1.workspace_git import workspace_path
 from packages.contracts.p2.verification import Phase
@@ -38,11 +38,12 @@ class VerificationContext(Contract):
 
 
 class CandidateListDirectory(Contract):
-    """List direct children of a fixed candidate directory."""
+    """List direct children of a fixed candidate directory. Continue with next_offset and next_cursor."""
 
     path: str = ""
     offset: int = Field(default=0, strict=True, ge=0)
     max_entries: int = Field(default=64, strict=True, ge=1, le=64)
+    cursor: Digest | None = None
 
     @field_validator("path")
     @classmethod
