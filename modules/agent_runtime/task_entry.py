@@ -27,6 +27,9 @@ from packages.contracts.p0.identity_contracts import CommandEnvelope, CommandInt
 from packages.contracts.p1.workspace_requests import CreateWorkspaceRequest
 from packages.contracts.p2.runtime import ContextPackage, RunPolicy, RuntimeStartRequest
 from packages.contracts.p2.task_agent import TaskAgentCommandResult
+from packages.contracts.p2.tool_protocol import (
+    DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_PROTOCOLS, NAMED_WRITE_TOOL_PROTOCOL_REVISION,
+)
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
@@ -47,13 +50,15 @@ class TaskAgentApplication:
         self.diff_reader = diff_reader
         self.engineering_registration, self.preview_installation = engineering_registration, preview_installation
 
-    def start(self, actor, task_id, request, *, idempotency_key):
+    def start(self, actor, task_id, request, *, idempotency_key, named_trial=False):
+        """The named write trial is selected only by trusted in-process callers."""
         validate_actor(actor)
         with UnitOfWork(self.engine) as uow:
             assert_runtime_ready(uow.connection, role="api")
             task, authorization = lock_task_access(uow, actor, task_id, "task.command")
             resource = task_resource(task)
-            intent = CommandIntent(request_schema_revision="p2-task-agent-start-r1", caller=actor.principal,
+            schema = "p2-task-agent-named-start-r1" if named_trial else "p2-task-agent-start-r1"
+            intent = CommandIntent(request_schema_revision=schema, caller=actor.principal,
                 scope=resource.scope, target=resource.target_scope, action="task.command",
                 expected_resource_revision=request.expected_version)
             envelope = CommandEnvelope(**intent.model_dump(), command_id=uuid4().hex,
@@ -64,7 +69,7 @@ class TaskAgentApplication:
             context = TaskCommandContext(uow, actor, task, authorization, envelope)
             try:
                 with uow.connection.begin_nested():
-                    runtime_request = _prepare_runtime(context, request,
+                    runtime_request = _prepare_runtime(context, request, named_trial=named_trial,
                         engineering_registration=self.engineering_registration,
                         preview_installation=self.preview_installation)
                     incoming = runtime_request.runtime_input
@@ -129,7 +134,7 @@ class TaskAgentApplication:
         return result
 
 
-def _prepare_runtime(context, request, *, engineering_registration, preview_installation):
+def _prepare_runtime(context, request, *, named_trial, engineering_registration, preview_installation):
     uow, task = context.uow, context.task
     check_ordinary_progress(task, expected_version=request.expected_version,
         expected_control_revision=request.expected_control_revision,
@@ -147,7 +152,11 @@ def _prepare_runtime(context, request, *, engineering_registration, preview_inst
     if item["revision"] == MAX_REVISION:
         raise TaskBoundaryError("revision_exhausted")
     write_access = authorize_current(uow, context.actor, task_resource(task), "workspace.write")
-    session_id, version, history_key, policy, tools = _session_for_run(context, request, item)
+    session_id, version, history_key, policy, tools = _session_for_run(context, request, item, named_trial)
+    permission_scopes = ("task.command", "workspace.write")
+    if named_trial:
+        authorize_current(uow, context.actor, task_resource(task), "operation.query")
+        permission_scopes += ("resource.read", "operation.query")
     inputs = read_work_item_run_inputs(uow.connection, task, item)
     input_ref, declaration = inputs.input_set_ref, inputs.declaration
     check_new_run_budget(uow.connection, task, declaration.budget, policy)
@@ -176,7 +185,7 @@ def _prepare_runtime(context, request, *, engineering_registration, preview_inst
         requirement_ref=declaration.requirement_ref, acceptance_assets_ref=declaration.acceptance_assets_ref,
         source_ref=declaration.source_ref, baseline_commit=declaration.source_ref.revision,
         starting_history_ref=history, tool_names=tools, permission_revision=context.authorization.envelope.permission_revision,
-        permission_scopes=("task.command", "workspace.write"), budget_limit=declaration.budget.amount,
+        permission_scopes=permission_scopes, budget_limit=declaration.budget.amount,
         budget_currency=declaration.budget.currency,
         work_item_spec=build_work_item_run_spec(uow.connection, item, inputs, workspace))
     incoming = RuntimeInput(task_id=task["task_id"], session_id=session_id, run_id=run_id, expected_session_version=version,
@@ -186,7 +195,7 @@ def _prepare_runtime(context, request, *, engineering_registration, preview_inst
     return RuntimeStartRequest(runtime_input=incoming, context=package, policy=policy)
 
 
-def _session_for_run(context, request, item):
+def _session_for_run(context, request, item, named_trial):
     uow, task = context.uow, context.task
     if request.session_id is not None:
         session = uow.connection.execute(select(agent_sessions).where(
@@ -201,16 +210,19 @@ def _session_for_run(context, request, item):
         old = RuntimeStartRequest.model_validate(previous)
         if old.context.work_item_id != request.work_item_id or old.policy.role != "developer":
             raise TaskBoundaryError("agent_session_work_item_mismatch")
+        if named_trial != (old.policy.tool_protocol_revision == NAMED_WRITE_TOOL_PROTOCOL_REVISION):
+            raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
         if {"max_requests", "max_duration_seconds", "max_output_tokens", "per_request_cost_upper_bound"} & request.model_fields_set:
             raise TaskBoundaryError("agent_session_policy_change_requires_new_session")
         return session["session_id"], session["version"], session["history_key"], old.policy, old.context.tool_names
     if request.expected_session_version != 0 or request.per_request_cost_upper_bound is None:
         raise TaskBoundaryError("agent_initial_policy_required", status_code=422)
+    protocol = NAMED_WRITE_TOOL_PROTOCOL_REVISION if named_trial else DISPATCH_TOOL_PROTOCOL_REVISION
     policy = RunPolicy(model_config_id="default-responses", model_config_revision="1", model_name="gpt-6-luna",
-        epoch_id="agent-development-r2", max_requests=request.max_requests,
+        epoch_id="agent-development-r2", tool_protocol_revision=protocol, max_requests=request.max_requests,
         max_duration_seconds=request.max_duration_seconds, max_output_tokens=request.max_output_tokens,
         per_request_cost_upper_bound=request.per_request_cost_upper_bound)
-    tools = (
+    tools = tuple(tool.action for tool in NAMED_TOOL_PROTOCOLS[protocol]) if named_trial else (
         "task.read", "submit_operation", "query_operation", "await_operation", *WORKSPACE_TOOL_SCHEMAS,
         *WORKSPACE_EDIT_SCHEMAS, *WORKSPACE_ENVIRONMENT_SCHEMAS, *WORKSPACE_BUILD_SCHEMAS, *WORKSPACE_CHECK_SCHEMAS)
     return "agent-session-" + context.envelope.command_id, 0, "sha256:" + sha256(b"[]").hexdigest(), policy, tools

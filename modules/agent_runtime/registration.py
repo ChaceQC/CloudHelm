@@ -25,7 +25,7 @@ from modules.workspaces.tables import workspaces
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p1.workspace_git import WorkspaceBinding
 from packages.contracts.p2.runtime import RuntimeStartRequest
-from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION
+from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION, NAMED_WRITE_TOOL_PROTOCOL_REVISION
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
@@ -119,6 +119,12 @@ def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartReques
         if workspace is None:
             raise TaskBoundaryError("agent_workspace_not_found", status_code=404)
         workspace_read_spec_in_uow(uow, actor, workspace.workspace_id)
+    elif policy.tool_protocol_revision == NAMED_WRITE_TOOL_PROTOCOL_REVISION:
+        if workspace is None:
+            raise TaskBoundaryError("agent_workspace_not_found", status_code=404)
+        if item["owner_session_id"] != incoming.session_id:
+            raise TaskBoundaryError("agent_session_work_item_mismatch")
+        authorize_current(uow, actor, task_resource(task), "operation.query")
     if (request.context.work_item_spec is not None
             and request.context.work_item_spec != build_work_item_run_spec(uow.connection, item, inputs, workspace)):
         raise TaskBoundaryError("agent_work_item_spec_not_current")

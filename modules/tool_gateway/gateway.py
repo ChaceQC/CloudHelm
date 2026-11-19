@@ -8,7 +8,7 @@ from pydantic_ai.exceptions import CallDeferred, ModelRetry
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 
 from packages.contracts.p2.tool_protocol import (
-    DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_PROTOCOL_REVISION, NAMED_WORKSPACE_READ_FILE,
+    DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_PROTOCOLS, NamedToolDeclaration,
 )
 
 
@@ -40,19 +40,27 @@ class ToolGateway:
             raise GatewayFailure("tool_execution_failed") from None
 
     def tools(self) -> list[Tool[Any]]:
-        if self._protocol_revision == NAMED_TOOL_PROTOCOL_REVISION:
-            declaration = NAMED_WORKSPACE_READ_FILE
-            if declaration.action not in self._routes:
-                return []
+        declarations = NAMED_TOOL_PROTOCOLS.get(self._protocol_revision)
+        if declarations is not None:
+            available = [tool for tool in declarations if tool.action in self._routes]
+            read_only_names = {tool.model_name for tool in available if tool.read_only}
 
-            # PydanticAI flattens the model's fields and passes its validated instance.
-            async def workspace_read_file(ctx: RunContext[Any], arguments: NAMED_WORKSPACE_READ_FILE.parameters) -> Any:
-                response = next(message for message in reversed(ctx.messages) if isinstance(message, ModelResponse))
-                if len(response.tool_calls) > 8:
-                    raise ModelRetry("Read-only batches allow at most 8 calls.")
-                return await self._invoke(declaration.action, arguments, ctx.tool_call_id)
+            def register(declaration: NamedToolDeclaration) -> Tool[Any]:
+                # The SDK validates the flat parameter model. Inspect the original batch so even an
+                # unknown tool or a call whose arguments failed validation can block its peers.
+                async def invoke_named(ctx: RunContext[Any], arguments: declaration.parameters) -> Any:
+                    response = next(message for message in reversed(ctx.messages) if isinstance(message, ModelResponse))
+                    calls = response.tool_calls
+                    if len(calls) > 8:
+                        raise ModelRetry("Read-only batches allow at most 8 calls.")
+                    if len(calls) > 1 and any(call.tool_name not in read_only_names for call in calls):
+                        raise ModelRetry("Write, submit, or await in a separate tool batch; only known read-only tools may be batched.")
+                    return await self._invoke(declaration.action, arguments, ctx.tool_call_id)
 
-            return [Tool(workspace_read_file, name=declaration.model_name, sequential=True)]
+                return Tool(invoke_named, name=declaration.model_name, description=declaration.description,
+                            sequential=True)
+
+            return [register(declaration) for declaration in available]
 
         if self._protocol_revision != DISPATCH_TOOL_PROTOCOL_REVISION or not self._routes:
             return []

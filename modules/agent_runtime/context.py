@@ -23,7 +23,9 @@ from packages.contracts.p1.task_facts import RegisteredReference
 from packages.contracts.p1.workspace_git import RegisteredGitSource, WorkspaceBinding
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
 from packages.contracts.p2.runtime import RuntimeStartRequest
-from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION, NAMED_WORKSPACE_READ_FILE
+from packages.contracts.p2.tool_protocol import (
+    NAMED_TOOL_PROTOCOLS, NAMED_TOOL_PROTOCOL_REVISION, NAMED_WRITE_TOOL_PROTOCOL_REVISION,
+)
 from packages.contracts.p2.verification_agent import CandidateListDirectory, VERIFICATION_TOOL_SCHEMAS
 from packages.contracts.p2.work_item_run import WorkItemRunHandoff
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
@@ -80,6 +82,14 @@ DEVELOPMENT_INSTRUCTIONS = (
 NAMED_READ_INSTRUCTIONS = (
     "In this read-only trial, inspect the current work item's files with the available named tool. "
     "Return DevelopmentHandoff with findings and the next concrete action; do not report candidate_ready."
+)
+NAMED_WRITE_INSTRUCTIONS = (
+    "Use the named tools on the current work item's workspace. If it has not been materialized, "
+    "submit_operation starts materialization. To create a file, use the current binding and manifest "
+    "digest returned by workspace_read_file. Submit, write or await in a separate tool batch. "
+    "An accepted receipt carries the original operation ID. Continue independent work and use "
+    "await_operation only when its result is needed. If the outcome is unknown, keep the original operation. "
+    "Return DevelopmentHandoff with the next concrete action; this trial has no candidate submission."
 )
 VERIFICATION_INSTRUCTIONS = (
     "Read the exact fixed candidate, requirements and controlled acceptance method. Read candidate AGENTS.md "
@@ -223,7 +233,8 @@ def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candi
     request = spec.request
     context, incoming = request.context, request.runtime_input
     verifier, reviewer = spec.verification is not None, spec.review is not None
-    named = request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION
+    protocol = request.policy.tool_protocol_revision
+    named_tools = NAMED_TOOL_PROTOCOLS.get(protocol)
     payload = {
         "context": {"id": context.context_id, "revision": context.context_revision,
                     "input_set": context.input_set_ref.model_dump(mode="json"),
@@ -254,9 +265,9 @@ def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candi
                    "max_no_progress_calls": request.policy.max_no_progress_calls,
                    "budget_limit": str(context.budget_limit), "budget_currency": context.budget_currency},
     }
-    if named:
-        tool = NAMED_WORKSPACE_READ_FILE
-        payload["tools"] = [{"name": tool.model_name, "arguments": tool.parameters.model_json_schema()}]
+    if named_tools is not None:
+        payload["tools"] = [{"name": tool.model_name, "arguments": tool.parameters.model_json_schema()}
+                            for tool in named_tools]
     else:
         schemas = (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
                    | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS | REVIEW_TOOL_SCHEMAS)
@@ -287,9 +298,12 @@ def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candi
     if spec.rework is not None:
         payload["rework"] = spec.rework
     developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
-    instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
-                    + ". " + (NAMED_READ_INSTRUCTIONS if named else VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
-                               DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
+    role_instructions = (NAMED_READ_INSTRUCTIONS if protocol == NAMED_TOOL_PROTOCOL_REVISION else
+                         NAMED_WRITE_INSTRUCTIONS if protocol == NAMED_WRITE_TOOL_PROTOCOL_REVISION else
+                         VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
+                         DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role])
+    instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" +
+                    request.policy.instruction_revision.removeprefix("agent-") + ". " + role_instructions)
     # Filter free text before it can enter model messages or persisted SDK history.
     payload = safe_context_value(payload)
     prompt = json.dumps(payload, ensure_ascii=False)

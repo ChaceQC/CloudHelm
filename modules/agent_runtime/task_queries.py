@@ -10,7 +10,7 @@ from sqlalchemy import and_, func, select, tuple_
 
 from modules.collaboration.tables import task_wait_conditions
 from packages.contracts.p2.tool_protocol import (
-    DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_ACTIONS, NAMED_TOOL_PROTOCOL_REVISION,
+    DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_ACTIONS, NAMED_TOOL_PROTOCOLS,
 )
 from .billing_tables import agent_model_request_results
 from .context import safe_context_value
@@ -55,7 +55,7 @@ def _tool_results(run, histories, continuation_wait=None):
     if result is None:
         return [], False
     revision = _tool_protocol_revision(run)
-    if revision not in (DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_PROTOCOL_REVISION):
+    if revision != DISPATCH_TOOL_PROTOCOL_REVISION and revision not in NAMED_TOOL_PROTOCOLS:
         return [], False
     start = run["start_json"]["runtime_input"]["committed_history"]["digest"]
     end = result["turn"]["history_delta"]["digest"]
@@ -69,7 +69,7 @@ def _tool_results(run, histories, continuation_wait=None):
 
     messages = ModelMessagesTypeAdapter.validate_python(history)
     permitted = set(run["start_json"]["context"]["tool_names"])
-    if revision == NAMED_TOOL_PROTOCOL_REVISION:
+    if revision in NAMED_TOOL_PROTOCOLS:
         results = _named_tool_results(run["run_id"], messages, len(previous), permitted, continuation_wait)
     else:
         results = _dispatch_tool_results(messages, len(previous), permitted)
@@ -138,6 +138,8 @@ def _named_tool_results(run_id, messages, previous_count, permitted, continuatio
                     entry.update(kind="return", result=part.content)
                     if origin != run_id:
                         entry["operation_id"] = continuation_wait["operation_id"]
+                    elif isinstance(part.content, dict) and isinstance(part.content.get("operation_id"), str):
+                        entry["operation_id"] = part.content["operation_id"]
                 results.append(entry)
     return results
 
@@ -211,7 +213,7 @@ def query_agent_in_uow(uow, task):
 
         continuation_keys = {
             (row["session_id"], row["run_id"], reference["object_id"]) for row in runs
-            if _tool_protocol_revision(row) == NAMED_TOOL_PROTOCOL_REVISION
+            if _tool_protocol_revision(row) in NAMED_TOOL_PROTOCOLS
             and (reference := row["start_json"]["runtime_input"].get("deferred_results")) is not None
         }
         wait_scope = agent_operation_waits.c.from_run_id.in_(run_ids)

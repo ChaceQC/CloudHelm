@@ -115,7 +115,9 @@ class OperationGateway:
         self.engine, self.client = engine, client
 
     def submit_operation(self, run_id, tool_call_id, arguments):
-        workspace_id = _argument(arguments, "workspace_id")
+        return self.submit_operation_validated(run_id, tool_call_id, _argument(arguments, "workspace_id"))
+
+    def submit_operation_validated(self, run_id, tool_call_id, workspace_id: str):
         key = "agent-tool-" + _identity(run_id, tool_call_id)
         with UnitOfWork(self.engine) as uow:
             task, _, run, request, _ = current_run(uow, run_id)
@@ -152,7 +154,9 @@ class OperationGateway:
             return _receipt(result.body)
 
     def query_operation(self, run_id, arguments):
-        operation_id = _argument(arguments, "operation_id")
+        return self.query_operation_validated(run_id, _argument(arguments, "operation_id"))
+
+    def query_operation_validated(self, run_id, operation_id: str):
         with UnitOfWork(self.engine) as uow:
             _, _, run, request, now = current_run(uow, run_id)
             result = _result_in_uow(uow, run["source_command_id"], request, operation_id)
@@ -161,8 +165,10 @@ class OperationGateway:
                     "observed_at": now.astimezone(UTC).isoformat(), "result": result}
 
     def await_operation(self, run_id, tool_call_id, arguments):
+        return self.await_operation_validated(run_id, tool_call_id, _argument(arguments, "operation_id"))
+
+    def await_operation_validated(self, run_id, tool_call_id, operation_id: str):
         _identity(run_id, tool_call_id)
-        operation_id = _argument(arguments, "operation_id")
         with UnitOfWork(self.engine) as uow:
             _, _, run, request, _ = current_run(uow, run_id)
             result = _result_in_uow(uow, run["source_command_id"], request, operation_id)

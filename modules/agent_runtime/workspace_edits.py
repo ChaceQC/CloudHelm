@@ -14,7 +14,7 @@ from modules.workspaces.operations import read_workspace_operation, read_workspa
 from modules.workspaces.queries import workspace_read_spec_in_uow
 from modules.workspaces.safe_paths import WorkspaceFileError
 from packages.contracts.p1.workspace_requests import MutateWorkspaceFileRequest, WorkspaceCommandResult
-from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
+from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS, WorkspaceApplyPatch, WorkspaceCreateFile
 from .admission import current_run
 from .operations import _digest, _identity, _receipt
 
@@ -29,6 +29,9 @@ class WorkspaceEditGateway:
             query = WORKSPACE_EDIT_SCHEMAS[name].model_validate(arguments)
         except ValidationError:
             return {"status": "rejected", "code": "agent_workspace_arguments_invalid"}
+        return self.submit_validated(run_id, tool_call_id, name, query)
+
+    def submit_validated(self, run_id, tool_call_id, name, query: WorkspaceCreateFile | WorkspaceApplyPatch):
         try:
             prefix = "agent-tool-" + _identity(run_id, tool_call_id)
             key = prefix + "-" + _digest([name, query.model_dump(mode="json")])[7:]

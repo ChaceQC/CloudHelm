@@ -24,7 +24,7 @@ from pydantic_ai.tools import DeferredToolResults
 from packages.contracts.p0.core_contracts import TurnResult
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
-from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION
+from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOLS, NAMED_WRITE_TOOL_PROTOCOL_REVISION
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
@@ -77,12 +77,19 @@ class AgentRuntimeApplication:
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
             raise TaskBoundaryError("agent_provider_not_configured")
-        if request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION and self.workspace_reader is None:
-            raise TaskBoundaryError("agent_workspace_reader_unavailable")
+        self._require_named_tools(request.policy.tool_protocol_revision)
         self.provider.check(request.policy)
         return start_run(self.engine, self.client, source_command_id, request,
                          engineering_registration=self.engineering_registration,
                          preview_installation=self.preview_installation)
+
+    def _require_named_tools(self, protocol):
+        if protocol in NAMED_TOOL_PROTOCOLS and self.workspace_reader is None:
+            raise TaskBoundaryError("agent_workspace_reader_unavailable")
+        if protocol == NAMED_WRITE_TOOL_PROTOCOL_REVISION and (
+            self.workspace_editor is None or self.stage_workspace_content is None
+        ):
+            raise TaskBoundaryError("agent_workspace_editor_unavailable")
 
     def advance_session(self, run_id):
         """Called only by the registered DBOS step. Never return raw SDK errors."""
@@ -105,9 +112,8 @@ class AgentRuntimeApplication:
         request, goal, deadline = admission.begin()
         if self.provider is None:
             return self._finish(run_id, None, "agent_provider_not_configured")
-        named = request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION
-        if named and self.workspace_reader is None:
-            return self._finish(run_id, None, "agent_workspace_reader_unavailable")
+        named = request.policy.tool_protocol_revision in NAMED_TOOL_PROTOCOLS
+        self._require_named_tools(request.policy.tool_protocol_revision)
         self.provider.check(request.policy)
         with UnitOfWork(self.engine) as uow:
             task, _, run, request, _ = current_run(uow, run_id)
@@ -144,12 +150,18 @@ class AgentRuntimeApplication:
         operations = OperationGateway(self.engine, self.client)
 
         async def submit_operation(arguments, tool_call_id):
+            if named:
+                return operations.submit_operation_validated(run_id, tool_call_id, arguments.workspace_id)
             return operations.submit_operation(run_id, tool_call_id, arguments)
 
         async def query_operation(arguments, tool_call_id):
+            if named:
+                return operations.query_operation_validated(run_id, arguments.operation_id)
             return operations.query_operation(run_id, arguments)
 
         async def await_operation(arguments, tool_call_id):
+            if named:
+                return operations.await_operation_validated(run_id, tool_call_id, arguments.operation_id)
             return operations.await_operation(run_id, tool_call_id, arguments)
 
         routes = {"task.read": task_read, "submit_operation": submit_operation,
@@ -163,9 +175,10 @@ class AgentRuntimeApplication:
             routes[name] = read_code
         workspace_edits = WorkspaceEditGateway(self.engine, self.client,
             self.workspace_editor, self.stage_workspace_content)
+        workspace_edit = workspace_edits.submit_validated if named else workspace_edits.submit
         for name in WORKSPACE_EDIT_SCHEMAS:
             async def edit_code(arguments, tool_call_id, route=name):
-                return workspace_edits.submit(run_id, tool_call_id, route, arguments)
+                return workspace_edit(run_id, tool_call_id, route, arguments)
 
             routes[name] = edit_code
         environments = WorkspaceEnvironmentGateway(self.engine, self.development_application,
@@ -286,7 +299,7 @@ class AgentRuntimeApplication:
             if current and handoff is not None:
                 try:
                     with uow.connection.begin_nested():
-                        if (request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION
+                        if (request.policy.tool_protocol_revision in NAMED_TOOL_PROTOCOLS
                                 and handoff["reason"] == "agent_candidate_ready"):
                             raise TaskBoundaryError("agent_tool_not_allowed")
                         resolve_candidate_handoff_in_uow(uow, run, request, handoff)

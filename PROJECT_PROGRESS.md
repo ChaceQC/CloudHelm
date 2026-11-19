@@ -2,6 +2,12 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：B03 接记名写入和延期
+
+- **已实现 B03a～B03c。** 从 `dev / 93ef5c6` 承接 B02。受控入口按工作项登记 `named-r2`，由[工具声明](packages/contracts/p2/tool_protocol.py)提供 SDK 参数、批次和展示动作；[Runtime](modules/agent_runtime/application.py)复用原文件权限与写入代次、Operation/DBOS 原身份和等待事务。B02 只读与普通 HTTP 启动范围保持原样。Runtime 装配和上下文共分别为 367、312 行（含空行）；新增接线仍归现有职责，未拆分模块。
+- **定向验证通过。** [B03 记录](docs/acceptance/b03.md)绑定隔离 PostgreSQL、受管文件、固定 SDK 输入与实际回执。旧代次和非法混批无写入；同提交只登记一次，受理后可继续独立读取。未知不续接，确定结果只续接一次并保留原调用；取消后的回执只归档。B01 固定历史及 Hub/Remote OpenAPI 快照一致。
+- **进行中：** 无。**阻塞与风险：** 无新增；真实供应商模型、worker 循环、公开 HTTP、原生 Desktop 未执行。**下一项：** B04a 按原 Operation 的业务状态与证据比较进展，待安排；增量投入待估。
+
 ## 2026-11-19：B02 接记名只读工具
 
 - **重构范围。** `dev / d160e03` 只为受控试用 Session 接入已有的 `workspace.read_file`。原分发入口、工作区文件权限和结果语义沿用；不得通过试用入口写入、提交长操作或等待。

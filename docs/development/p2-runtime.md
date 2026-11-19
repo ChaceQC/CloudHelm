@@ -44,6 +44,17 @@ B02 的只读试用从既有内部启动入口登记新 Session：`RunPolicy` �
 
 试用 Session 只向模型登记 `workspace_read_file`。传入工作区 ID 和相对文件路径，可沿用下面的行范围和 manifest 摘要参数。SDK 校验后，现有读取入口核对当前 Run、权限及工作区归属，再读取受限文本。每批最多 8 项；超出时整批不读取。现有 Task 查询按业务动作 `workspace.read_file` 展示原调用和结果。试用无写入、提交和等待工具，方法见 [B02 定向核对](../acceptance/b02.md)。
 
+B03 由受控 Python 入口 `TaskAgentApplication.start(..., named_trial=True)` 登记 `named-r2` Session，沿用 Task 版本、工作项绑定和费用准入，另外要求当前读取及查询 Operation 权限。worker 必须具有受管工作区的读、编辑准备和内容暂存能力。普通 HTTP 请求不接受试用开关；同一 Session 的协议和工具集合固定。
+
+|记名工具|用途|
+|---|---|
+|`workspace_read_file`|读取当前工作区文件，同时取得工作区修订、写入代次和 manifest 摘要。|
+|`workspace_create_file`|在已有目录内创建一个 UTF-8 文件。提交时核对当前写入代次、修订和 manifest；旧代次拒绝。|
+|`submit_operation`|为当前尚未物化的工作区提交原物化命令。同一 Run 和调用 ID 重投相同输入，返回原回执。|
+|`query_operation`、`await_operation`|按原 `operation_id` 分别查询和等待。查询可报告未知；等待只消费已确认的原结果。|
+
+读取和查询可同批，最多 8 项；创建文件、提交物化和等待均单独调用。写入或物化返回 `accepted` 后仍可处理独立事项。只在下一步依赖该结果时调用等待；未决时提交原调用历史与等待并结束当前 Run，结果确认后按当前资格续接一次。续接工具返回仍指向原 Run、调用 ID 和 Operation。定向方法与试用边界见 [B03 核对](../acceptance/b03.md)。
+
 API 进程读取当前差异时需与 worker 使用同一受保护的 `CLOUDHELM_ENGINEERING_REGISTRY_FILE` 和受管存储；只通过原 `EngineeringRegistry.admit(0)` 与文件服务读取，未配置/未物化/不可用时显示真实原因，不读取任意宿主路径或启动执行器。自 `0017_p2_agent_entry` 起 API 可插入 Session/Run 及更新 Session state，模型请求、历史与结果仍由 worker 写入。旧安装不由 initialize 自动升级；维护副本仍固定 0011，不能为使用新入口绕过恢复门禁。
 
 ## 能力与每次准入
