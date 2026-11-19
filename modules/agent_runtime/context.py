@@ -23,6 +23,7 @@ from packages.contracts.p1.task_facts import RegisteredReference
 from packages.contracts.p1.workspace_git import RegisteredGitSource, WorkspaceBinding
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
 from packages.contracts.p2.runtime import RuntimeStartRequest
+from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION, NAMED_WORKSPACE_READ_FILE
 from packages.contracts.p2.verification_agent import CandidateListDirectory, VERIFICATION_TOOL_SCHEMAS
 from packages.contracts.p2.work_item_run import WorkItemRunHandoff
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
@@ -75,6 +76,10 @@ DEVELOPMENT_INSTRUCTIONS = (
     "submit a new candidate and hand off its checks for independent re-verification/review; do not close "
     "issues from your own checks. Never claim formal acceptance, human approval or Task completion "
     "from developer checks."
+)
+NAMED_READ_INSTRUCTIONS = (
+    "In this read-only trial, inspect the current work item's files with the available named tool. "
+    "Return DevelopmentHandoff with findings and the next concrete action; do not report candidate_ready."
 )
 VERIFICATION_INSTRUCTIONS = (
     "Read the exact fixed candidate, requirements and controlled acceptance method. Read candidate AGENTS.md "
@@ -218,8 +223,7 @@ def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candi
     request = spec.request
     context, incoming = request.context, request.runtime_input
     verifier, reviewer = spec.verification is not None, spec.review is not None
-    schemas = (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
-               | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS | REVIEW_TOOL_SCHEMAS)
+    named = request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION
     payload = {
         "context": {"id": context.context_id, "revision": context.context_revision,
                     "input_set": context.input_set_ref.model_dump(mode="json"),
@@ -249,12 +253,18 @@ def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candi
                    "max_duration_seconds": request.policy.max_duration_seconds,
                    "max_no_progress_calls": request.policy.max_no_progress_calls,
                    "budget_limit": str(context.budget_limit), "budget_currency": context.budget_currency},
-        "tools": [{"name": name, "arguments": (
+    }
+    if named:
+        tool = NAMED_WORKSPACE_READ_FILE
+        payload["tools"] = [{"name": tool.model_name, "arguments": tool.parameters.model_json_schema()}]
+    else:
+        schemas = (WORKSPACE_TOOL_SCHEMAS | WORKSPACE_EDIT_SCHEMAS | WORKSPACE_ENVIRONMENT_SCHEMAS
+                   | WORKSPACE_BUILD_SCHEMAS | WORKSPACE_CHECK_SCHEMAS | VERIFICATION_TOOL_SCHEMAS | REVIEW_TOOL_SCHEMAS)
+        payload["tools"] = [{"name": name, "arguments": (
             schemas[name].model_json_schema() if name in schemas
             else {} if name == "task.read" else {"workspace_id": "workspace ID"} if name == "submit_operation"
-            else {"operation_id": "accepted operation ID"})} for name in context.tool_names],
-        "operation_protocol": "Submit returns accepted only. Await when the result is needed; do not poll.",
-    }
+            else {"operation_id": "accepted operation ID"})} for name in context.tool_names]
+        payload["operation_protocol"] = "Submit returns accepted only. Await when the result is needed; do not poll."
     if verifier:
         from .verification import render_verification_context
 
@@ -278,7 +288,7 @@ def assemble_context(spec: ContextReadSpec, source_loader, handoff_loader, candi
         payload["rework"] = spec.rework
     developer = request.policy.role == "developer" and request.policy.instruction_revision == "agent-r2"
     instructions = (COMMON_INSTRUCTIONS + "\n" + request.policy.role + "/" + request.policy.instruction_revision.removeprefix("agent-")
-                    + ". " + (VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
+                    + ". " + (NAMED_READ_INSTRUCTIONS if named else VERIFICATION_INSTRUCTIONS if verifier else REVIEW_INSTRUCTIONS if reviewer else
                                DEVELOPMENT_INSTRUCTIONS if developer else ROLE_INSTRUCTIONS[request.policy.role]))
     # Filter free text before it can enter model messages or persisted SDK history.
     payload = safe_context_value(payload)

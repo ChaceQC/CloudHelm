@@ -8,7 +8,7 @@ from modules.identity.actors import actor_for_command
 from modules.workspaces.operations import read_workspace_row
 from modules.workspaces.queries import workspace_read_spec_in_uow
 from modules.workspaces.safe_paths import WorkspaceFileError
-from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
+from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS, WorkspaceToolRequest
 from .admission import current_run
 
 
@@ -21,6 +21,9 @@ class WorkspaceCodeGateway:
             query = WORKSPACE_TOOL_SCHEMAS[name].model_validate(arguments)
         except ValidationError:
             return {"status": "rejected", "code": "agent_workspace_arguments_invalid"}
+        return self.query_validated(run_id, name, query)
+
+    def query_validated(self, run_id, name, query: WorkspaceToolRequest):
         try:
             with UnitOfWork(self.engine) as uow:
                 task, _, run, request, _ = current_run(uow, run_id)

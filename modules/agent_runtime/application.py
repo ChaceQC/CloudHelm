@@ -24,6 +24,7 @@ from pydantic_ai.tools import DeferredToolResults
 from packages.contracts.p0.core_contracts import TurnResult
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p2.runtime import RuntimeStartRequest
+from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS, WORKSPACE_ENVIRONMENT_WRITES
@@ -76,6 +77,8 @@ class AgentRuntimeApplication:
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
             raise TaskBoundaryError("agent_provider_not_configured")
+        if request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION and self.workspace_reader is None:
+            raise TaskBoundaryError("agent_workspace_reader_unavailable")
         self.provider.check(request.policy)
         return start_run(self.engine, self.client, source_command_id, request,
                          engineering_registration=self.engineering_registration,
@@ -102,6 +105,9 @@ class AgentRuntimeApplication:
         request, goal, deadline = admission.begin()
         if self.provider is None:
             return self._finish(run_id, None, "agent_provider_not_configured")
+        named = request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION
+        if named and self.workspace_reader is None:
+            return self._finish(run_id, None, "agent_workspace_reader_unavailable")
         self.provider.check(request.policy)
         with UnitOfWork(self.engine) as uow:
             task, _, run, request, _ = current_run(uow, run_id)
@@ -149,9 +155,10 @@ class AgentRuntimeApplication:
         routes = {"task.read": task_read, "submit_operation": submit_operation,
                   "query_operation": query_operation, "await_operation": await_operation}
         workspace_tools = WorkspaceCodeGateway(self.engine, self.workspace_reader)
+        workspace_query = workspace_tools.query_validated if named else workspace_tools.query
         for name in WORKSPACE_TOOL_SCHEMAS:
             async def read_code(arguments, tool_call_id, route=name):
-                return workspace_tools.query(run_id, route, arguments)
+                return workspace_query(run_id, route, arguments)
 
             routes[name] = read_code
         workspace_edits = WorkspaceEditGateway(self.engine, self.client,
@@ -206,11 +213,12 @@ class AgentRuntimeApplication:
             for name, route in tuple(routes.items()):
                 async def observed_tool(arguments, tool_call_id, route=route, name=name):
                     result = await route(arguments, tool_call_id)
-                    loop.observe(name, arguments, tool_call_id, result)
+                    loop.observe(name, arguments.model_dump(mode="json") if named else arguments, tool_call_id, result)
                     return result
 
                 routes[name] = observed_tool
-        gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool)
+        gateway = ToolGateway({name: routes[name] for name in request.context.tool_names}, admission.tool,
+                              protocol_revision=request.policy.tool_protocol_revision)
         failure = None
         try:
             output = await run_turn(model_name=request.policy.model_name, base_url=self.provider.base_url,
@@ -278,6 +286,9 @@ class AgentRuntimeApplication:
             if current and handoff is not None:
                 try:
                     with uow.connection.begin_nested():
+                        if (request.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION
+                                and handoff["reason"] == "agent_candidate_ready"):
+                            raise TaskBoundaryError("agent_tool_not_allowed")
                         resolve_candidate_handoff_in_uow(uow, run, request, handoff)
                         resolve_verification_handoff_in_uow(uow, run, request, handoff)
                         resolve_review_handoff_in_uow(uow, run, request, handoff)

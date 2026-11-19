@@ -10,6 +10,7 @@ from packages.contracts.p0.decision_common import Contract, Digest, Identifier, 
 from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_kind
 from packages.contracts.p1.workspace_git import workspace_path
 from .review_agent import REVIEW_TOOL_SCHEMAS, ReviewContext
+from .tool_protocol import DISPATCH_TOOL_PROTOCOL_REVISION, NAMED_TOOL_PROTOCOL_REVISION, NAMED_WORKSPACE_READ_FILE
 from .verification_agent import VERIFICATION_TOOL_SCHEMAS, VerificationContext
 from .work_item_run import WorkItemRunSpec
 from .workspace_tools import WORKSPACE_TOOL_SCHEMAS
@@ -105,6 +106,8 @@ class RunPolicy(Contract):
     epoch_id: Identifier
     role: Literal["coordinator", "developer", "verifier", "reviewer", "operator"] = "developer"
     instruction_revision: Literal["agent-r1", "agent-r2"] = "agent-r2"
+    tool_protocol_revision: Literal["dispatch-r1", "named-r1"] = Field(default=DISPATCH_TOOL_PROTOCOL_REVISION,
+        exclude_if=lambda revision: revision == DISPATCH_TOOL_PROTOCOL_REVISION)
     secret_version_ref: EngineeringRef | None = None
     max_requests: int = Field(default=3, strict=True, ge=1, le=12)
     max_duration_seconds: int = Field(default=60, strict=True, ge=1, le=86400)
@@ -150,6 +153,10 @@ class RuntimeStartRequest(Contract):
                 or runtime_input.input_set != context.input_set_ref
                 or runtime_input.committed_history != context.starting_history_ref):
             raise ValueError("runtime_context_binding_mismatch")
+        if self.policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION:
+            if (self.policy.role != NAMED_WORKSPACE_READ_FILE.role or self.policy.instruction_revision != "agent-r2"
+                    or context.tool_names != (NAMED_WORKSPACE_READ_FILE.action,)):
+                raise ValueError("named_read_tool_binding_invalid")
         if context.verification is not None:
             if self.policy.role != "verifier" or self.policy.instruction_revision != "agent-r2":
                 raise ValueError("verification_context_binding_invalid")

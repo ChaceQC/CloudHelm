@@ -20,10 +20,12 @@ from modules.identity.authorization import authorize_current
 from modules.workflow.tables import workflow_bindings
 from modules.workflow.version import APPLICATION_NAME, APPLICATION_VERSION
 from modules.workspaces.handoff_gates import active_handoff
+from modules.workspaces.queries import workspace_read_spec_in_uow
 from modules.workspaces.tables import workspaces
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p1.workspace_git import WorkspaceBinding
 from packages.contracts.p2.runtime import RuntimeStartRequest
+from packages.contracts.p2.tool_protocol import NAMED_TOOL_PROTOCOL_REVISION
 from packages.contracts.p2.workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from packages.contracts.p2.workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from packages.contracts.p2.workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
@@ -113,6 +115,10 @@ def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartReques
         workspace = read_agent_workspace(uow.connection, incoming.task_id, item["work_item_id"])
     else:
         workspace = None
+    if policy.tool_protocol_revision == NAMED_TOOL_PROTOCOL_REVISION:
+        if workspace is None:
+            raise TaskBoundaryError("agent_workspace_not_found", status_code=404)
+        workspace_read_spec_in_uow(uow, actor, workspace.workspace_id)
     if (request.context.work_item_spec is not None
             and request.context.work_item_spec != build_work_item_run_spec(uow.connection, item, inputs, workspace)):
         raise TaskBoundaryError("agent_work_item_spec_not_current")
@@ -137,9 +143,11 @@ def start_run_in_uow(uow, client, source_command_id, request: RuntimeStartReques
         if previous is not None:
             old = RuntimeStartRequest.model_validate(previous)
             if (old.policy.epoch_id, old.policy.model_config_id, old.policy.model_config_revision,
-                old.policy.model_name, old.policy.role, old.policy.instruction_revision, old.context.tool_names) != (
+                old.policy.model_name, old.policy.role, old.policy.instruction_revision,
+                old.policy.tool_protocol_revision, old.context.tool_names) != (
                 policy.epoch_id, policy.model_config_id, policy.model_config_revision,
-                policy.model_name, policy.role, policy.instruction_revision, request.context.tool_names):
+                policy.model_name, policy.role, policy.instruction_revision,
+                policy.tool_protocol_revision, request.context.tool_names):
                 raise TaskBoundaryError("agent_epoch_policy_change_requires_new_session")
             old_verification, new_verification = old.context.verification, request.context.verification
             if ((old_verification.candidate_id, old_verification.round_id) if old_verification else None) != (
