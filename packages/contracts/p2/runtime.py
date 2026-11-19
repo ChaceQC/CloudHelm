@@ -11,6 +11,7 @@ from packages.contracts.p0.engineering_contracts import EngineeringRef, expect_k
 from packages.contracts.p1.workspace_git import workspace_path
 from .review_agent import REVIEW_TOOL_SCHEMAS, ReviewContext
 from .verification_agent import VERIFICATION_TOOL_SCHEMAS, VerificationContext
+from .work_item_run import WorkItemRunSpec
 from .workspace_tools import WORKSPACE_TOOL_SCHEMAS
 from .workspace_edits import WORKSPACE_EDIT_SCHEMAS
 from .workspace_environment import WORKSPACE_ENVIRONMENT_SCHEMAS
@@ -62,6 +63,7 @@ class ContextPackage(Contract):
     budget_currency: Literal["USD", "CNY"]
     verification: VerificationContext | None = None
     review: ReviewContext | None = None
+    work_item_spec: WorkItemRunSpec | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def check_references(self):

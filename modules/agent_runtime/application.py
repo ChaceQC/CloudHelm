@@ -60,7 +60,7 @@ class AgentRuntimeApplication:
                  workspace_reader=None, workspace_editor=None, stage_workspace_content=None,
                  development_application=None, environment_log_reader=None,
                  build_definition_loader=None, build_result_reader=None, workspace_check_runner=None,
-                 candidate_reader=None):
+                 candidate_reader=None, engineering_registration=None, preview_installation=None):
         self.engine, self.client, self.provider = engine, client, provider
         self.source_loader = source_loader
         self.handoff_loader = handoff_loader
@@ -70,12 +70,15 @@ class AgentRuntimeApplication:
         self.build_definition_loader, self.build_result_reader = build_definition_loader, build_result_reader
         self.workspace_check_runner = workspace_check_runner
         self.candidate_reader = candidate_reader
+        self.engineering_registration, self.preview_installation = engineering_registration, preview_installation
 
     def start(self, source_command_id, request: RuntimeStartRequest):
         if self.provider is None:
             raise TaskBoundaryError("agent_provider_not_configured")
         self.provider.check(request.policy)
-        return start_run(self.engine, self.client, source_command_id, request)
+        return start_run(self.engine, self.client, source_command_id, request,
+                         engineering_registration=self.engineering_registration,
+                         preview_installation=self.preview_installation)
 
     def advance_session(self, run_id):
         """Called only by the registered DBOS step. Never return raw SDK errors."""
@@ -309,7 +312,9 @@ class AgentRuntimeApplication:
                 try:
                     with uow.connection.begin_nested():
                         waits = tuple(register_wait_in_uow(uow, self.client, run_id, call.tool_call_id,
-                            deferred.metadata[call.tool_call_id]["operation_id"]) for call in deferred.calls)
+                            deferred.metadata[call.tool_call_id]["operation_id"],
+                            engineering_registration=self.engineering_registration,
+                            preview_installation=self.preview_installation) for call in deferred.calls)
                 except (IdentityError, TaskBoundaryError):
                     current, state = False, "interrupted"
                     uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(state=state))
@@ -333,5 +338,7 @@ class AgentRuntimeApplication:
                 result["rework"] = receipt.model_dump(mode="json")
                 uow.connection.execute(update(agent_runs).where(agent_runs.c.run_id == run_id).values(result_json=result))
             if current:
-                resume_ready_waits_in_uow(uow, self.client, session["session_id"])
+                resume_ready_waits_in_uow(uow, self.client, session["session_id"],
+                    engineering_registration=self.engineering_registration,
+                    preview_installation=self.preview_installation)
             return result

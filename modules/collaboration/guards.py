@@ -59,6 +59,18 @@ def require_ordinary_progress(
     condition and owned records commit together through the caller's UnitOfWork.
     """
     task = read_task(connection, task_id, for_update=True)
+    check_ordinary_progress(task, expected_version=expected_version,
+                            expected_control_revision=expected_control_revision,
+                            expected_input_validity_revision=expected_input_validity_revision,
+                            allowed_states=allowed_states)
+    return task
+
+
+def check_ordinary_progress(
+    task: Mapping[str, Any], *, expected_version: int, expected_control_revision: int,
+    expected_input_validity_revision: int, allowed_states: Collection[str] = ("active",),
+) -> None:
+    """Admission for a Task row already locked by the authorized command."""
     if (task["state"] in {"completed", "cancelled"} or task["cancel_requested_at"] is not None
             or task["ordinary_progress_closed"]):
         raise TaskBoundaryError("task_progress_closed")
@@ -73,4 +85,3 @@ def require_ordinary_progress(
         raise TaskBoundaryError("input_not_current")
     if max(task["version"], task["control_revision"], task["input_validity_revision"]) == MAX_REVISION:
         raise TaskBoundaryError("revision_exhausted")
-    return task

@@ -97,6 +97,7 @@ def start_runtime(settings: DatabaseSettings | None = None, *, preview_clock: Pr
         from importlib import import_module
 
         development_registry = import_module("services.dev-runner.workspace_development_registry")
+        engineering_registry = import_module("services.dev-runner.engineering_registry")
 
         selected = settings if settings is not None else load_database_settings("api")
         if selected.role != "api":
@@ -144,7 +145,9 @@ def start_runtime(settings: DatabaseSettings | None = None, *, preview_clock: Pr
             merges=MergeQueueApplication(pools.normal, pools.control,
                 enqueue_operation=engineering_enqueuer(client, "integration")),
             agents=TaskAgentApplication(pools.normal, pools.control, client,
-                diff_reader=lambda spec: read_task_workspace_diff(pools.control, spec)),
+                diff_reader=lambda spec: read_task_workspace_diff(pools.control, spec),
+                engineering_registration=engineering_registry.load_registration(),
+                preview_installation=preview_environments.installation),
             previews=previews, preview_environments=preview_environments,
             human_tests=human_test_application(pools.normal, pools.control, preview_environments),
         )

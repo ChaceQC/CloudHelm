@@ -74,6 +74,25 @@ def _active_reservation_deadline(connection, reservation_id: str | None) -> date
     return ReserveResourcesRequest.model_validate(row.request_json).expires_at_utc
 
 
+def work_item_environment_ready(connection, task, reference: EngineeringRef) -> bool:
+    """A frozen preview reference needs a current ready instance and active lease."""
+    row = connection.execute(select(preview_environments.c.record_json, intents.c.request_json,
+        func.clock_timestamp().label("observed_at")).join(
+        intents, intents.c.environment_id == preview_environments.c.environment_id,
+    ).where(preview_environments.c.environment_id == reference.object_id,
+        preview_environments.c.project_id == task["project_id"], preview_environments.c.task_id == task["task_id"],
+        preview_environments.c.state == "ready", intents.c.action == "prepare",
+    )).one_or_none()
+    if row is None or (row.request_json["control_revision"] != task["control_revision"]
+                       or row.request_json["input_validity_revision"] != task["input_validity_revision"]):
+        return False
+    record = PreviewEnvironmentRecord.model_validate(row.record_json)
+    if record.environment_ref != reference or row.observed_at >= record.expires_at:
+        return False
+    deadline = _active_reservation_deadline(connection, record.resource_reservation_id)
+    return deadline is not None and row.observed_at < deadline
+
+
 class PreviewEnvironmentApplication:
     def __init__(self, engine, control_engine, *, enqueue=None, proxy_identity=None, load_installation=True,
                  clock: PreviewClock = preview_clock):

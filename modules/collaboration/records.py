@@ -95,7 +95,10 @@ def _check_producer(source: TaskFactSource, record: RegisteredReference) -> None
     }
     kind = record.metadata.record_kind
     if kind == "evidence":
-        allowed = {"execution"} if record.metadata.role == "operation_closure" else {"integration"}
+        role = record.metadata.role
+        allowed = {"execution"} if role == "operation_closure" else {"integration"}
+        if role == "work_item_dependency" and source.purpose != "product":
+            raise TaskBoundaryError("work_item_dependency_product_source_required")
     else:
         allowed = domains[kind]
     authority = record.reference.authority or "cloudhelm"

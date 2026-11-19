@@ -37,9 +37,11 @@ def _result(operation_id, state, code, **payload):
 
 
 class EngineeringRuntime:
-    def __init__(self, engine, control_engine, registry, *, development_controller_factory=None, client=None):
+    def __init__(self, engine, control_engine, registry, *, development_controller_factory=None, client=None,
+                 preview_installation=None):
         self.engine, self.control_engine, self.registry = engine, control_engine, registry
         self.client = client
+        self.preview_installation = preview_installation
         from .engineering_resources import EngineeringResources
 
         self.resources = EngineeringResources(engine, control_engine, registry)
@@ -54,7 +56,8 @@ class EngineeringRuntime:
         if client is not None:
             from modules.agent_runtime.operations import notify_operation_in_uow
 
-            notify = lambda uow, operation_id: notify_operation_in_uow(uow, client, operation_id)
+            notify = lambda uow, operation_id: notify_operation_in_uow(uow, client, operation_id,
+                engineering_registration=registry.registration, preview_installation=self.preview_installation)
         else:
             notify = None
         self.workspaces = WorkspaceApplication(
@@ -315,8 +318,11 @@ class EngineeringRuntime:
 
 
 def create_engineering_runtime(pools, registration=None, *, development_controller_factory=None, client=None):
+    from modules.workspaces.preview_environments import installation_descriptor
+
     selected = registry_module.load_registration() if registration is None else registration
     return EngineeringRuntime(
         pools.normal, pools.control, registry_module.EngineeringRegistry(selected),
         development_controller_factory=development_controller_factory, client=client,
+        preview_installation=installation_descriptor(),
     )

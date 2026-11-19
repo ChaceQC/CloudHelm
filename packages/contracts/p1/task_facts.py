@@ -117,7 +117,7 @@ class OperationIntentMetadata(Contract):
 class EvidenceMetadata(Contract):
     record_kind: Literal["evidence"] = "evidence"
     evidence: EvidenceRecord
-    role: Literal["verification", "work_item_acceptance", "operation_closure", "human_test"]
+    role: Literal["verification", "work_item_acceptance", "operation_closure", "human_test", "work_item_dependency"]
     check_ids: tuple[Identifier, ...] = Field(default=(), max_length=64)
     acceptance_assets_ref: EngineeringRef | None = None
     work_item_id: Identifier | None = None
@@ -133,6 +133,10 @@ class EvidenceMetadata(Contract):
                 raise ValueError("acceptance_evidence_scope_required")
             expect_kind(self.acceptance_assets_ref, "acceptance_assets")
             expect_kind(self.evidence.subject_ref, "candidate")
+        elif self.role == "work_item_dependency":
+            expect_kind(self.evidence.subject_ref, "contract", "candidate", "artifact", "input_set", "environment")
+            if self.check_ids or self.acceptance_assets_ref is not None or self.fact_digest is not None:
+                raise ValueError("work_item_dependency_evidence_scope_forbidden")
         work_item_fields = self.work_item_id is not None and self.work_item_revision is not None
         if (self.role == "work_item_acceptance") != work_item_fields:
             raise ValueError("work_item_evidence_binding_required")

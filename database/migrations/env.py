@@ -3,7 +3,10 @@
 from alembic import context
 from sqlalchemy.engine import Connection
 
+# The preview revision creates tables from metadata with these foreign-key targets.
+from database import commands as _commands
 from database.metadata import BUSINESS_SCHEMA
+from modules.collaboration import tables as _task_tables
 
 
 def run_migrations() -> None:

@@ -30,11 +30,15 @@
 
 “按原策略继续”提交原 `session_id` 和 `expected_session_version`，沿已提交历史创建新 Run，不接受同时改写原策略。已有活动 Run、原长工具等待、旧工作项归属、输入/控制版本冲突及 Task 关闭继续由服务端拒绝；长工具沿原等待自动续接，不以手动继续跳过。新 Session 也不能越过同工作项的在途 Run/等待。取消与核对复用原 Task 命令；界面不新增独立暂停或强行重放按钮。
 
+[B00 工作项规格](../implementation/b00-work-item-run.md)随新开发 Run 登记。启动和等待续接都要核对当前工作项与前置证据、适用权限和至少一次请求可用的费用额度；真实出站仍逐次预留费用。缺少已声明的产物、相符证明或仍就绪的必需环境时，不创建 Run。预览只有在工作项要求其支持时才阻塞启动；Task 的人测策略仍按完成门槛处理。
+
+当前新库使用 `0021_p2_work_item_run`。Hub 和 worker 使用一致的受保护工程登记及正式预览描述；内部能力投影只报告已登记的支持范围，现有 Desktop 暂未读取该新投影。
+
 验证/审查 Run 提交真实交接时，同事务保存问题及面向原开发会话的事件；阻塞问题使原工作项回到 ready 并推进修订。开发者按上述入口显式继续，Context 的 `rework` 带入未关闭或关闭依据失效的问题、原候选/证据、受影响检查和复发引用；沿原编辑、候选和构建工具推进，新检查交给独立验证/复查。没有新增自动调度或以开发自测关闭问题的权限。
 
 状态按钮显式读取当前持久事实，现有项目快照变化也刷新 Agent 投影；没有独立轮询器。结果最多最新 8 Session、每 Session 8 Run、每 Run 16 条工具反馈，单字符串最多 4096 字符，Run 投影合计最多 512KiB；截断明确标记。差异最多 16 文件、单文件 8KiB、合计 32KiB，敏感路径不展示，识别到秘密的补丁整体显示 `[REDACTED]`。这些限制沿用规则式筛选，不扩大对未知秘密格式的支持结论。
 
-API 进程读取当前差异时需与 worker 使用同一受保护的 `CLOUDHELM_ENGINEERING_REGISTRY_FILE` 和受管存储；只通过原 `EngineeringRegistry.admit(0)` 与文件服务读取，未配置/未物化/不可用时显示真实原因，不读取任意宿主路径或启动执行器。新隔离库 `0017_p2_agent_entry` 只增加 API 的 Session/Run INSERT 及 Session state UPDATE，模型请求、历史与结果仍由 worker 写入。旧安装不由 initialize 自动升级；维护副本仍固定 0011，不能为使用新入口绕过恢复门禁。
+API 进程读取当前差异时需与 worker 使用同一受保护的 `CLOUDHELM_ENGINEERING_REGISTRY_FILE` 和受管存储；只通过原 `EngineeringRegistry.admit(0)` 与文件服务读取，未配置/未物化/不可用时显示真实原因，不读取任意宿主路径或启动执行器。自 `0017_p2_agent_entry` 起 API 可插入 Session/Run 及更新 Session state，模型请求、历史与结果仍由 worker 写入。旧安装不由 initialize 自动升级；维护副本仍固定 0011，不能为使用新入口绕过恢复门禁。
 
 ## 能力与每次准入
 

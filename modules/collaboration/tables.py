@@ -84,6 +84,7 @@ work_items = Table(
     Column("state", String(16), nullable=False, server_default="pending"),
     Column("required", Boolean, nullable=False, server_default="true"),
     Column("goal", String(4096), nullable=False),
+    Column("run_requirements_json", JSONB, nullable=False, server_default="{}"),
     Column("owner_session_id", String(160)),
     Column("blocked_reason", String(160)),
     Column("accepted_input_set_key", String(71), ForeignKey("cloudhelm.task_reference_records.reference_key")),
@@ -92,6 +93,10 @@ work_items = Table(
     CheckConstraint("state IN ('pending', 'ready', 'running', 'blocked', 'submitted', 'accepted', 'failed', 'cancelled')", name="work_item_state"),
     CheckConstraint("revision BETWEEN 1 AND 9007199254740991", name="work_item_revision"),
     CheckConstraint("state <> 'accepted' OR (accepted_input_set_key IS NOT NULL AND acceptance_evidence_key IS NOT NULL)", name="work_item_acceptance_evidence"),
+    CheckConstraint(
+        "jsonb_typeof(run_requirements_json) = 'object' AND octet_length(run_requirements_json::text) <= 32768",
+        name="run_requirements_bounded",
+    ),
 )
 
 task_inputs = Table(

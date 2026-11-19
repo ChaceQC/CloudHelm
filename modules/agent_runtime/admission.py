@@ -63,6 +63,24 @@ def current_run(uow, run_id):
     return task, session, run, request, now
 
 
+def check_new_run_budget(connection, task, budget, policy, *, context_limit=None):
+    """Check room for one attempt before queueing; actual requests reserve on dispatch."""
+    if budget.currency != "USD":
+        raise TaskBoundaryError("agent_budget_currency_unsupported")
+    bound = policy.per_request_cost_upper_bound
+    if bound <= 0 or (context_limit is not None and bound > context_limit):
+        raise TaskBoundaryError("model_budget_exhausted")
+    spent, exceeded = connection.execute(select(
+        func.coalesce(func.sum(model_request_cost()), 0),
+        func.coalesce(func.bool_or(model_request_bound_exceeded()), False))
+        .select_from(agent_model_requests.join(agent_runs).join(agent_sessions))
+        .where(agent_sessions.c.task_id == task["task_id"])).one()
+    if exceeded:
+        raise TaskBoundaryError("model_reservation_bound_exceeded")
+    if spent + bound > Decimal(budget.amount):
+        raise TaskBoundaryError("model_budget_exhausted")
+
+
 class RuntimeAdmission:
     def __init__(self, engine, run_id):
         self.engine, self.run_id = engine, run_id
@@ -125,4 +143,5 @@ class RuntimeAdmission:
                 uow.connection.execute(update(agent_sessions).where(
                     agent_sessions.c.session_id == session["session_id"]).values(state="running"))
             deadline = run["deadline_at"] or now + timedelta(seconds=request.policy.max_duration_seconds)
-            return request, read_declaration(uow.connection, task).goal, deadline
+            spec = request.context.work_item_spec
+            return request, spec.goal if spec is not None else read_declaration(uow.connection, task).goal, deadline

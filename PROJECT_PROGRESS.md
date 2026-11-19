@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：B00 固定工作项入口
+
+- **已实现 B00a。** 从 `dev / 1a6a901` 承接 A02。固定新开发 Run 的工作项目标、需求/验收与输入、四类依赖、工作区及写入代次和交还引用；[迁移 0021](database/migrations/versions/0021_p2_work_item_run.py)增加 WorkItem 依赖声明。Task 初始输入与候选、构建、报告的原绑定各自保持。
+- **已实现 B00b/B00c。** [启动及续接](modules/agent_runtime/registration.py)使用当前授权、工作项版本、前置证据和剩余费用额度，保留原 Operation 及同事务入队。内部[能力投影](modules/agent_runtime/work_item_capabilities.py)区分可选支持、必需启动条件与人测完成门槛，供 C02 使用。本轮不改公开 HTTP 或 DBOS 应用版本。注册模块 286 行，集中在 Run 准入和登记；Runtime 应用 344 行及预览应用 387 行本轮仅接续接与环境读检查，职责沿用原拆分。
+- **定向验证通过。** [记录](docs/acceptance/b00.md)包含隔离 WSL 的空库初始化与真实 DBOS 入队、回滚、重投、权限和依赖拒绝、可选预览及单次续接。Hub/Remote OpenAPI 快照未变。副本已清理；没有真实模型、构建、预览人测、原生客户端或独立交付证据。
+- **进行中：** 无。**阻塞与风险：** B00 无剩余阻塞；上述未执行能力留对应工作包。**下一项：** 按[计划](PROJECT_PLAN.md#agent-与跨端架构重构b00-固定工作项入口)执行 C01a，提取 Runtime 的上下文读规格。增量投入待估。
+
 ## 2026-11-19：A02 接通固定候选工具
 
 - **已实现 A02a～A02c。** 从 `dev / 4ed1131` 接续 A01。冻结工作区或准备最终集成候选时留存规范清单；[候选 Git 视图](modules/workspaces/candidate_view.py)按登记来源、准确提交、第一父提交和摘要打开，供 [Worker](services/hub-worker/engineering_verification.py)按清单列目录、限长读文本，以及只展开当前差异页。目录和差异页位置与候选和查询绑定。原构建读取保持独立。

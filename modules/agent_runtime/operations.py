@@ -171,7 +171,8 @@ class OperationGateway:
         return result
 
 
-def register_wait_in_uow(uow, client, run_id, tool_call_id, operation_id):
+def register_wait_in_uow(uow, client, run_id, tool_call_id, operation_id, *,
+                         engineering_registration=None, preview_installation=None):
     """Call after saving the old Run history and releasing its active state in this transaction."""
     require_transaction(uow.connection)
     wait_id = "agent-wait-" + _identity(run_id, tool_call_id)
@@ -200,11 +201,14 @@ def register_wait_in_uow(uow, client, run_id, tool_call_id, operation_id):
             input_validity_revision=task["input_validity_revision"]))
     elif previous["operation_id"] != operation_id:
         raise TaskBoundaryError("agent_wait_identity_conflict")
-    resume_ready_waits_in_uow(uow, client, session["session_id"])
+    resume_ready_waits_in_uow(uow, client, session["session_id"],
+                              engineering_registration=engineering_registration,
+                              preview_installation=preview_installation)
     return EngineeringRef(kind="wait_condition", object_id=wait_id, revision="1")
 
 
-def resume_ready_waits_in_uow(uow, client, session_id):
+def resume_ready_waits_in_uow(uow, client, session_id, *,
+                              engineering_registration=None, preview_installation=None):
     """Merge ready notifications when another Run is active; otherwise queue one continuation."""
     require_transaction(uow.connection)
     waits = uow.connection.execute(select(agent_operation_waits).join(task_wait_conditions).where(
@@ -221,7 +225,8 @@ def resume_ready_waits_in_uow(uow, client, session_id):
                 if result is None:
                     continue
                 values = {wait["tool_call_id"]: result}
-                continuation = enqueue_wait_continuation_in_uow(uow, client, wait, _digest(values))
+                continuation = enqueue_wait_continuation_in_uow(uow, client, wait, _digest(values),
+                    engineering_registration=engineering_registration, preview_installation=preview_installation)
                 if continuation is None:
                     return None
                 uow.connection.execute(update(agent_operation_waits).where(
@@ -237,13 +242,14 @@ def resume_ready_waits_in_uow(uow, client, session_id):
     return None
 
 
-def notify_operation_in_uow(uow, client, operation_id):
+def notify_operation_in_uow(uow, client, operation_id, *, engineering_registration=None, preview_installation=None):
     require_transaction(uow.connection)
     sessions = uow.connection.scalars(select(agent_operation_waits.c.session_id).join(task_wait_conditions).where(
         agent_operation_waits.c.operation_id == operation_id,
         agent_operation_waits.c.continuation_run_id.is_(None), task_wait_conditions.c.state == "waiting").distinct())
     for session_id in sessions:
-        resume_ready_waits_in_uow(uow, client, session_id)
+        resume_ready_waits_in_uow(uow, client, session_id, engineering_registration=engineering_registration,
+                                  preview_installation=preview_installation)
 
 
 def load_deferred_results_in_uow(uow, run_id):

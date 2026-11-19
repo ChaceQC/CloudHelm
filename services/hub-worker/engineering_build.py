@@ -182,7 +182,9 @@ def _execute_admitted(runtime, operation_id, record, storage, gate, runner_modul
             if runtime.client is not None:
                 from modules.agent_runtime.operations import notify_operation_in_uow
 
-                notify_operation_in_uow(uow, runtime.client, operation_id)
+                notify_operation_in_uow(uow, runtime.client, operation_id,
+                    engineering_registration=runtime.registry.registration,
+                    preview_installation=runtime.preview_installation)
             return build_view(uow.connection, record).model_dump(mode="json")
     finally:
         runner.close()
