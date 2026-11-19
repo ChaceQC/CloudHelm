@@ -63,6 +63,7 @@ config.local.*
 **/.vite/
 **/.parcel-cache/
 **/.svelte-kit/
+/.playwright-cli/
 **/playwright-report/
 **/test-results/
 

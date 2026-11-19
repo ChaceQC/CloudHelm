@@ -2,6 +2,8 @@
 
 from alembic import op
 
+from database.commands import commands  # Register referenced tables in a cold migration process.
+from modules.collaboration.tables import tasks
 from modules.integration.human_test_tables import human_test_sessions
 from modules.workspaces.preview_access_tables import preview_authorizations, preview_environments
 from modules.workspaces.preview_environment_tables import preview_environment_intents

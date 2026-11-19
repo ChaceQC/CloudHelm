@@ -6,7 +6,18 @@
 
 由基础设施维护者准备 Linux 原生文件系统中的私有 JSON（目录 0700、文件 0600、单链接、无符号链接），严格对应 `modules.execution.cli.LocalRunnerConfiguration`：`pool`、`runner` 和可信固定 `argv`。配置不存秘密、数据库 URL 或业务数据；镜像预先加载并绑定 image ID，argv 不接收用户命令或秘密。
 
-`pool` 沿用 P0 `HostResourcePool` 的宿主、预算、实测总容量、未知占用上界与证据引用，再固定 Hub incarnation/资源代次。`runner` 绑定同一宿主/池、执行器身份、最大向量、CPU period、镜像/配方摘要和能力证据。每个实际独立节点单独核验；同宿主全部 Runner 必须列入同一池。注册值不能靠重复调用改变，当前仍拒绝原地重配。
+`pool` 沿用 P0 `HostResourcePool` 的宿主、预算、实测总容量、未知占用上界与证据引用，再固定 Hub incarnation/资源代次。`runner` 绑定同一宿主/池、执行器身份、最大向量、CPU period、镜像/配方摘要和能力证据。每个实际独立节点单独核验；同宿主全部 Runner 必须列入同一池。普通注册值不能靠重复调用改变，除以下单用途入口外仍拒绝原地重配。
+
+预览槽有一个单用途维护入口：先停止原 ResourceHost，保留原私有登记文件，另准备目标私有登记文件；目标仅将同一池预算与实测容量、唯一 development Runner 最大向量的 `preview_slots` 从 0 改为 1，容量修订递增一次，并更换绑定本次观察的容量及 Runner 能力证据引用。其余身份、资源向量、未知占用、存储和配方均不变；目标还需固定受 root 控制的实际预览代理服务 cgroup。不是通用重配，也不能用修改 JSON 绕过注册冲突。
+
+```bash
+# 使用原 migrator 配置及两份受保护登记；代理服务和原受管存储须先就绪。
+uv run --locked --offline --no-sync python -B -m services.dev-runner.resource_host enable-preview-slot \
+  --registration-file <original-private-host-registration.json> \
+  --preview-registration-file <target-private-host-registration.json>
+```
+
+命令取得原宿主启动锁、共享本地账本锁和 Hub 池行锁，要求两端全部未释放占账按原身份、摘要和向量一致，保留存储占账及未知上界，并检查固定配方、当前资源余量和代理 cgroup；任一前置不满足时拒绝。SQLite 先提交，Hub 再提交；两库不是原子事务。如结果不明，保持服务关闭，使用完全相同的原始和目标文件重试，入口会识别原值或目标值并核对占账后恢复；两端目标一致时返回 `already_registered`。成功后使用目标文件启动原 ResourceHost，旧文件不再用于服务启动。槽登记不代表预览网络、可信时钟、客户端或正式人测验收通过。
 
 ```bash
 # 使用专用 migrator 配置，仅注册证据已核实的池与 Runner。

@@ -160,23 +160,37 @@ def _serve_dispatchers(dispatchers, preview_proxy_cgroup=None):
 
 def main():
     parser = SafeArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("register", "serve"))
+    parser.add_argument("action", choices=("register", "serve", "enable-preview-slot"))
     parser.add_argument("--registration-file", required=True)
+    parser.add_argument("--preview-registration-file")
     arguments = parser.parse_args()
     engine = None
     try:
         if os.geteuid() != 0:
             raise ValueError("resource_host_explicit_root_maintenance_required")
         configuration = read_registration_file(arguments.registration_file, HostConfiguration)
-        role = "migrator" if arguments.action == "register" else "worker"
+        role = "migrator" if arguments.action in {"register", "enable-preview-slot"} else "worker"
         engine = create_engine_from_settings(load_database_settings(role), purpose="maintenance" if role == "migrator" else "control")
         if arguments.action == "register":
+            if arguments.preview_registration_file is not None:
+                raise ValueError("resource_preview_registration_unexpected")
             with UnitOfWork(engine) as uow:
                 for entry in configuration.registrations:
                     register_pool_in_uow(uow, entry.pool)
                     register_runner_in_uow(uow, entry.runner)
             print(json.dumps({"status": "registered", "runner_count": len(configuration.registrations)}))
+        elif arguments.action == "enable-preview-slot":
+            if arguments.preview_registration_file is None:
+                raise ValueError("resource_preview_registration_required")
+            updated = read_registration_file(arguments.preview_registration_file, HostConfiguration)
+            from .resource_preview_registration import enable_preview_slot
+
+            with _host_lock():
+                result = enable_preview_slot(engine, configuration, updated)
+            print(json.dumps({"status": result}))
         else:
+            if arguments.preview_registration_file is not None:
+                raise ValueError("resource_preview_registration_unexpected")
             serve(configuration, ResourceApplication(engine, engine))
         return 0
     except Exception as error:

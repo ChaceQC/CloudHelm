@@ -2,10 +2,17 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：提交 C05 开工前基线
+
+- 汇集工作树已有的架构文档、`0.30.0` 版本元数据、冷迁移引用注册和预览槽维护入口，作为 C05 开工前基线；将 Playwright CLI 的本机产物加入忽略规则。
+- WSL Ubuntu-24.04 的 Python AST 检查覆盖三份改动源码；Windows 核对版本元数据、架构文档 UTF-8 和 Git 差异空白。未执行数据库迁移或预览槽实际维护。下一项：C05a。
+
 ## 2026-11-19：替换 Desktop 界面与样式
 
 - **已完成。** 按用户提供的三份文件更新 [App.tsx](apps/desktop/src/App.tsx)、[TaskPanel.tsx](apps/desktop/src/TaskPanel.tsx) 和 [styles.css](apps/desktop/src/styles.css)：工作台支持深浅色切换，任务详情分为概览与控制、Agent 推进和人工测试。样式表 1,221 物理行，保留附件按主题、布局、组件和响应式规则划分的结构。
 - **定向验证。** Windows PowerShell 上以现有依赖运行 `npm.cmd run build`，TypeScript 与 Vite 构建通过。逐份核对附件内容，目标文件仅补齐末尾换行；源码差异空白检查通过。未执行 Tauri 原生交互或 Hub 联动验证。
+- **原生启动核对。** `2026-11-19T08:22:41Z` 在 Windows 从 `dev / 9a47831` 工作树以 `npm.cmd run desktop:dev` 启动 Desktop（包版本 `0.30.0`），Vite 就绪且 Tauri 调试构建完成，原生窗口显示浅色任务首页。未连接 Hub；未验证任务详情与产品交互。
+- **本机 Hub 联调启动。** 在 WSL Ubuntu 24.04 从同一工作树用 `.thesis-work/desktop-hub/serve.py` 启动 API、单 worker 和独立临时 PostgreSQL `16.13 / 0021_p2_work_item_run`（`cloudhelm-p1-d4a701a62b0c`），在该库创建联调项目和会话。Worker 于 `2026-11-19T08:26:07.378027Z` 报告 `ready`；Windows 于 `2026-11-19T08:26:38.268107Z` 从 `http://127.0.0.1:19080` 取得健康响应 `200 alive` 与 OpenAPI 修订 `p1-hub-api-r2`。旧安装未启动或迁移；未执行桌面登录、任务或模型调用。
 - **进行中：** 无。**阻塞与风险：** 无新增构建阻塞。**下一项：** 按现行计划推进 C05a。
 
 ## 2026-11-19：C04 命令回执
@@ -84,6 +91,12 @@
 - **已完成。** 从 `dev / 7ef26ff` 承接验证与审查只读工作区候选的接缝。A01a [列清两种来源的权威字段与各层 InputSet](docs/implementation/a01-candidate-read-spec.md)；A01b 在[候选解析](modules/integration/candidate_read.py)按原冻结回执或准确集成尝试返回固定规格。[集成构建](modules/integration/merge_builds.py)复用绑定和登记检查，保留独立的推进准入和原整树读取。改动限于候选来源、尝试和输入绑定。
 - **定向开发验证。** 在 WSL Ubuntu-24.04 / Python `3.12.13`，连 [A00b](docs/acceptance/a00b/README.md) 所用的隔离 PostgreSQL `16.13 / 0020_p2_previews`（安装 `69e168a64fe64110a66c4c0d78e7a143`），以只读事务执行 `bash /mnt/e/Project/CloudHelm/.thesis-work/a01/verify.sh`；探针 `verify_candidate_read.py` 的 SHA-256 为 `5be1f250e1d56e4e9b8eaa6fabed29529cff99017f84b220448e51ce1ae8973c`。核对两份 A00b 固定记录摘要；UTC `2026-11-19T05:32:06.290702+00:00` 确认 D1/B0 和 M2/T2 的提交、基线、清单、Git 登记与输入身份准确。旧 M1、错 Task、缺尝试、快照不符均拒绝；用只读查询屏蔽登记结果模拟来源缺失，读侧返回明确错误。原构建输入与冻结记录一致，旧 M1 仍返回 `integration_attempt_not_current`。探针结束关闭本次启动的隔离 PostgreSQL，持久卷保留。
 - **进行中：** 无。**阻塞与风险：** A01 无剩余阻塞；尚未接通目录、文件和差异工具，也未执行物理构建、报告采纳或产品验收。**下一步：** Worker 与 Runtime 按[固定规格交接](docs/implementation/a01-candidate-read-spec.md#交给-a02)执行 A02a，按准确 Git 对象列目录页。增量投入待估。
+
+## 2026-11-19：明确 Agent 架构全新安装与退役范围
+
+- **已完成。** [Agent 架构细化方案](docs/architecture/2026-11-19-agent-architecture-detailed-design.md) §1.1、工具和客户端契约及 G03 已统一为全新安装：移除被替换的旧实现，核对停机后清理旧程序和运行数据，不迁移旧数据，不提供旧版兼容。
+- **定向核对。** Windows PowerShell 严格 UTF-8 解码、旧版过渡条款检查及 Git 差异空白检查无异常。未执行代码改造、停机、数据清理、部署或业务测试。
+- **进行中：** 无。**阻塞与风险：** 无新增。**下一步：** 按现行计划执行 A01a；实际退役由 G03 核对范围后执行。
 
 ## 2026-11-19：A00c 固定单 Agent 任务与操作账本样例
 
