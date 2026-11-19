@@ -36,8 +36,7 @@ function useAgentQuery<T>(scope: QueryScope, query: Hub["query"]) {
 export function AgentPanel({ hub, task }: { hub: Hub; task: Task }) {
   const { snapshot, generation } = hub;
   const taskId = task.task_id;
-  // Each snapshot binds the project, stream, permission revision and capture time together.
-  const scope = useMemo(() => ({ generation, snapshot, taskId }), [generation, snapshot, taskId]);
+  const scope = useMemo(() => ({ generation, snapshot, taskId }), [generation, snapshot, task]);
   const canRead = !!snapshot?.available_actions.includes("operation.query")
     && snapshot.available_actions.includes("resource.read");
   const canQuery = !!generation && canRead;
@@ -47,6 +46,7 @@ export function AgentPanel({ hub, task }: { hub: Hub; task: Task }) {
   const route = taskPath(taskId);
   const summaryRoute = `${route}/agent-summary`;
   const runRoute = `${route}/agent-runs`;
+  const lastSeenEvent = useRef(hub.events[0]?.cursor ?? 0);
   const currentAgent = summary.current?.value;
   const currentDiff = diff.current?.value;
   const currency = task.declaration.budget.currency;
@@ -59,6 +59,13 @@ export function AgentPanel({ hub, task }: { hub: Hub; task: Task }) {
   useEffect(() => {
     if (canQuery) summary.load(summaryRoute);
   }, [scope, canQuery]);
+  useEffect(() => {
+    const after = lastSeenEvent.current;
+    lastSeenEvent.current = hub.events[0]?.cursor ?? 0;
+    const opened = detail.current?.route;
+    if (canQuery && opened && hub.events.some(event => event.cursor > after && event.aggregate_kind === "agent_run"
+        && `${runRoute}/${encodeURIComponent(event.aggregate_id)}` === opened)) detail.load(opened);
+  }, [hub.events]);
 
   return <section><div className="section-title"><h3>Agent 推进</h3>
     <button type="button" disabled={!canQuery || summary.current?.loading} onClick={() => {

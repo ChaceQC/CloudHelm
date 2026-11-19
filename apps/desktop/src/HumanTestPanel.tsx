@@ -18,7 +18,7 @@ const deadlineAfter = (ready: string | null, hours: number) =>
 function HumanTestRound({ hub, task, session, latest, fresh }: {
   hub: Hub; task: Task; session: HumanTestSession; latest: boolean; fresh: boolean;
 }) {
-  const [environment, setEnvironment] = useState<HumanTestEnvironment | null>(null);
+  const [observedEnvironment, setEnvironment] = useState<{ scope: string; value: HumanTestEnvironment } | null>(null);
   const [environmentError, setEnvironmentError] = useState("");
   const [loading, setLoading] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -29,7 +29,8 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
   const [actual, setActual] = useState("");
   const [skipReason, setSkipReason] = useState("");
   const query = useRef(0);
-  const scope = JSON.stringify([hub.identity?.session_id, session.session_id, session.revision, session.environment_id]);
+  const scope = JSON.stringify([hub.identity?.session_id, hub.previewRevision, session.session_id, session.revision, session.environment_id]);
+  const environment = observedEnvironment?.scope === scope ? observedEnvironment.value : null;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
   useEffect(() => {
@@ -43,7 +44,7 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
     setLoading(true);
     void hub.query<HumanTestEnvironment>(`/api/preview-environments/${encodeURIComponent(session.environment_id)}`)
       .then(value => {
-        if (scopeRef.current === scope && query.current === request) { setEnvironment(value); setEnvironmentError(""); }
+        if (scopeRef.current === scope && query.current === request) { setEnvironment({ scope, value }); setEnvironmentError(""); }
       }).catch(reason => {
         if (scopeRef.current === scope && query.current === request && !sessionChanged(reason)) setEnvironmentError(codeOf(reason));
       }).finally(() => {
@@ -164,8 +165,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
   optionScopeRef.current = optionScope;
   const sessionQuery = useRef(0);
   const optionsQuery = useRef(0);
-  const wasBusy = useRef(false);
-  const [sessions, setSessions] = useState<{ scope: string; captured: string; value: HumanTestSession[] } | null>(null);
+  const [sessions, setSessions] = useState<{ scope: string; captured: string; task: Task; value: HumanTestSession[] } | null>(null);
   const [options, setOptions] = useState<{ scope: string; value: HumanTestOptions } | null>(null);
   const [open, setOpen] = useState(false);
   const [candidate, setCandidate] = useState("");
@@ -178,7 +178,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
   const currentOptions = options?.scope === optionScope ? options.value : null;
   const selected = currentOptions?.candidates.find(item => item.candidate_id === candidate);
   const active = current?.some(item => ["preparing", "awaiting_human", "testing"].includes(item.state));
-  const freshSessions = sessions?.scope === scope && sessions.captured === captured && !loading && !error;
+  const freshSessions = sessions?.scope === scope && sessions.captured === captured && sessions.task === task && !loading && !error;
   const canStart = hub.can("task.command") && !!current && freshSessions && !active
     && (task.state === "active" && !task.ordinary_progress_closed || task.state === "completed")
     && task.input_status === "valid" && !task.cancellation;
@@ -186,7 +186,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
     const request = ++sessionQuery.current;
     setLoading(true);
     void hub.query<HumanTestSession[]>(`${route}/human-tests`).then(value => {
-      if (scopeRef.current === scope && sessionQuery.current === request) { setSessions({ scope, captured, value }); setError(""); }
+      if (scopeRef.current === scope && sessionQuery.current === request) { setSessions({ scope, captured, task, value }); setError(""); }
     }).catch(reason => {
       if (scopeRef.current === scope && sessionQuery.current === request && !sessionChanged(reason)) setError(codeOf(reason));
     }).finally(() => {
@@ -212,16 +212,10 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
   useEffect(() => {
     if (identity && project && captured && canRead) loadSessions();
     return () => { ++sessionQuery.current; };
-  }, [scope, captured, canRead]);
+  }, [scope, captured, task, canRead]);
   useEffect(() => {
     ++optionsQuery.current; setOptionsLoading(false); setOptionsError(""); setCandidate("");
   }, [optionScope]);
-  useEffect(() => {
-    const finished = wasBusy.current && !hub.busy;
-    wasBusy.current = hub.busy;
-    if (finished && identity && project && canRead) loadSessions();
-  }, [hub.busy]);
-
   return <section><div className="section-title"><h3>可选人工测试</h3>
     <button type="button" disabled={!identity || !project || !canRead || loading} onClick={loadSessions}>查询人工测试</button></div>
     <p className="notice">查询实际环境后，可打开安装方已验证的 Windows 隔离预览；管理端资源查询地址不授予预览访问能力。</p>

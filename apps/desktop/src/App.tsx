@@ -38,7 +38,9 @@ export default function App() {
   const [projectInput, setProjectInput] = useState("");
   const [previewCleanup, setPreviewCleanup] = useState(() => new Map<string, boolean>());
   const snapshot = hub.snapshot;
-  const tasks = snapshot?.tasks ?? [];
+  const scopeKey = snapshot ? JSON.stringify([hub.generation, snapshot.project.project_id, snapshot.stream_id,
+    snapshot.project.permission_revision]) : "";
+  const tasks = hub.tasks;
   const plans = snapshot?.objects.filter(item => item.kind === "plan") ?? [];
   const objects = snapshot?.objects.filter(item => item.kind !== "plan") ?? [];
   const selected = tasks.find(task => task.task_id === taskId) ?? tasks[0];
@@ -49,7 +51,7 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("cloudhelm-theme", theme); } catch { /* ignore storage errors */ }
   }, [theme]);
-  useEffect(() => { setTask(""); setPlan(""); setObject(""); setCreating(false); }, [snapshot?.project.project_id]);
+  useEffect(() => { setTask(""); setPlan(""); setObject(""); setCreating(false); }, [scopeKey]);
   useEffect(() => { if (!hub.writable) setCreating(false); }, [hub.writable]);
   useEffect(() => {
     const unlisten = listen<PreviewCleanup>("preview-cleanup", ({ payload: { label, removed } }) => {
@@ -209,7 +211,7 @@ export default function App() {
                 ))}
                 {!tasks.length && <Empty>暂无任务</Empty>}
               </section>
-              <TaskPanel key={selected?.task_id} hub={hub} task={selected}/>
+              <TaskPanel key={JSON.stringify([scopeKey, selected?.task_id])} hub={hub} task={selected}/>
             </div>
           </>
           : page === "plans" ? (
@@ -228,7 +230,7 @@ export default function App() {
                 ))}
                 {!plans.length && <Empty>暂无部署计划</Empty>}
               </section>
-              <PlanPanel hub={hub} planId={selectedPlan?.object_id ?? ""}/>
+              <PlanPanel key={scopeKey} hub={hub} planId={selectedPlan?.object_id ?? ""}/>
             </div>
           )
           : page === "delivery" ? (
@@ -244,11 +246,11 @@ export default function App() {
                 ))}
                 {!objects.length && <Empty>暂无交付对象</Empty>}
               </section>
-              <ObjectPanel hub={hub} object={selectedObject}/>
+              <ObjectPanel key={scopeKey} hub={hub} object={selectedObject}/>
             </div>
           )
           : page === "operations" ? (
-            <OperationPanel key={snapshot.project.project_id} hub={hub} taskId={selected?.task_id ?? ""}/>
+            <OperationPanel key={scopeKey} hub={hub} taskId={selected?.task_id ?? ""}/>
           )
           : (
             <section className="card">

@@ -1,19 +1,23 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
-import { codeOf, HubError, objectPath, read, request, sessionChanged } from "./api";
-import type { CommandReceipt, Connected, Connection, HubRequest, Identity, PendingCommand, Project, Reply, Snapshot, SyncEvent, SyncNotice } from "./types";
+import { codeOf, HubError, objectPath, read, request, sessionChanged, taskPath } from "./api";
+import type { CommandReceipt, Connected, Connection, HubRequest, Identity, PendingCommand, Project, Reply, Snapshot, SyncEvent, SyncNotice, Task } from "./types";
 
 interface DisplayedReceipt { receipt: CommandReceipt; generation: string; epoch: number }
+interface TaskChange { cursor: number; version: number }
 interface SyncScope {
   projectId: string; streamId: string; permissionRevision: number;
   consumedCursor: number; subscriptionId: string; live: boolean;
+  taskChanges: Map<string, TaskChange>; runVersions: Map<string, number>;
 }
+const EVENT_LIMIT = 100;
 
 export function useHub() {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [taskViews, setTaskViews] = useState(() => new Map<string, { cursor: number; task: Task }>());
   const [connection, setConnection] = useState<Connection>("disconnected");
   const [error, setError] = useState("");
   const [events, setEvents] = useState<SyncEvent[]>([]);
@@ -21,6 +25,7 @@ export function useHub() {
   const [pending, setPending] = useState<PendingCommand[]>([]);
   const [busy, setBusy] = useState(false);
   const [renderedGeneration, setRenderedGeneration] = useState<string | null>(null);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const project = useRef("");
   const revision = useRef(0);
   const epoch = useRef(0);
@@ -28,6 +33,7 @@ export function useHub() {
   const running = useRef(false);
   const transitions = useRef<Promise<void>>(Promise.resolve());
   const subscriptions = useRef<Promise<void>>(Promise.resolve());
+  const snapshotFlights = useRef(new Map<string, { trailingRevision?: number }>());
   const scope = useRef<SyncScope | null>(null);
   const snapshotReady = useRef(false);
   const previewEpoch = useRef(0);
@@ -38,6 +44,7 @@ export function useHub() {
   const closePreviews = () => {
     ++previewEpoch.current;
     void invoke("preview_close_all").catch(() => {});
+    setPreviewRevision(previewEpoch.current);
   };
 
   const clearScope = () => {
@@ -46,7 +53,7 @@ export function useHub() {
     scope.current = null;
     snapshotReady.current = false;
     closePreviews();
-    setSnapshot(null); setEvents([]); setDisplayedReceipt(null);
+    setSnapshot(null); setTaskViews(new Map()); setEvents([]); setDisplayedReceipt(null);
   };
   const denied = (reason: unknown) => {
     if (reason instanceof HubError && [401, 403].includes(reason.status)) {
@@ -89,14 +96,22 @@ export function useHub() {
 
   const refresh = async (id = project.current, generation = renderedGeneration) => {
     const expected = epoch.current;
-    if (!id || !generation || !matches(generation, expected)) return;
-    const sequence = ++revision.current;
+    if (!id || id !== project.current || !generation || !matches(generation, expected)) return;
+    // The snapshot route learns the stream and permission revision from its reply.
+    const key = JSON.stringify([generation, id]);
+    const inFlight = snapshotFlights.current.get(key);
+    if (inFlight) { inFlight.trailingRevision = revision.current; return; }
+    const flight: { trailingRevision?: number } = {};
+    snapshotFlights.current.set(key, flight);
+    const sequence = revision.current;
+    const selected = () => matches(generation, expected) && id === project.current;
+    const applies = () => selected() && sequence === revision.current;
     clearTimeout(timer.current);
     snapshotReady.current = false;
     setConnection("syncing");
     try {
       const next = await read<Snapshot>(generation, objectPath(id, "snapshot", "").replace(/\/$/, ""));
-      if (!matches(generation, expected) || sequence !== revision.current || id !== project.current) return;
+      if (!applies()) return;
       if (next.schema_revision !== "p1-sync-r1" || next.project.project_id !== id) {
         clearScope(); setConnection("incompatible"); return;
       }
@@ -106,19 +121,43 @@ export function useHub() {
       }
       // Only a new scope takes its starting cursor from a snapshot.
       const value = (scope.current ??= { projectId: id, streamId: next.stream_id,
-        permissionRevision: next.project.permission_revision, consumedCursor: next.cursor, subscriptionId: "", live: false });
+        permissionRevision: next.project.permission_revision, consumedCursor: next.cursor, subscriptionId: "", live: false,
+        taskChanges: new Map(), runVersions: new Map() });
+      value.taskChanges = new Map(next.tasks.map(task => {
+        const newer = value.taskChanges.get(task.task_id);
+        return [task.task_id, newer && newer.cursor > next.cursor ? newer : { cursor: next.cursor, version: task.version }];
+      }));
       clearTimeout(timer.current);
       snapshotReady.current = true;
+      setTaskViews(previous => new Map([...previous].filter(([, item]) => item.cursor > next.cursor)));
       setSnapshot(next); setError("");
       if (value.live) setConnection("live");
       if (!value.subscriptionId) subscribe(value, generation);
     } catch (reason) {
-      if (!matches(generation, expected) || sequence !== revision.current) return;
+      if (!applies()) return;
       const code = codeOf(reason);
       setError(code);
       if (denied(reason)) return;
       if (code === "api_schema_not_supported") { clearScope(); setConnection("incompatible"); return; }
       retrySync(generation);
+    } finally {
+      snapshotFlights.current.delete(key);
+      if (flight.trailingRevision === revision.current && selected()) void refresh(id, generation);
+    }
+  };
+
+  const refreshTask = async (value: SyncScope, generation: string, id: string, change: TaskChange) => {
+    const current = () => scope.current === value && value.taskChanges.get(id) === change;
+    try {
+      const task = await read<Task>(generation, taskPath(id));
+      if (!current()) return;
+      if (task.task_id !== id || task.project_id !== value.projectId || task.version < change.version) {
+        void refresh(value.projectId, generation); return;
+      }
+      change.version = task.version;
+      setTaskViews(previous => new Map(previous).set(id, { cursor: change.cursor, task }));
+    } catch (reason) {
+      if (current() && !denied(reason)) void refresh(value.projectId, generation);
     }
   };
 
@@ -131,7 +170,8 @@ export function useHub() {
       if (!batch || batch.schema_revision !== "p1-sync-r1" || batch.stream_id !== value.streamId
           || !Number.isSafeInteger(batch.cursor) || batch.cursor < value.consumedCursor
           || !Array.isArray(batch.events) || batch.events.length > 32 || batch.events.some((e, i) =>
-            e.project_id !== value.projectId || e.cursor !== value.consumedCursor + i + 1)
+            e.project_id !== value.projectId || e.cursor !== value.consumedCursor + i + 1
+            || !Number.isSafeInteger(e.aggregate_version) || e.aggregate_version < 0)
           || batch.cursor !== (batch.events.at(-1)?.cursor ?? value.consumedCursor)) {
         clearScope(); void refresh(value.projectId, generation); return;
       }
@@ -139,10 +179,37 @@ export function useHub() {
       value.live = true;
       if (batch.events.some(event => event.event_type === "preview.revocation_requested"
           || event.event_type === "preview.stop_requested")) closePreviews();
-      if (batch.events.length) {
-        setEvents(previous => [...batch.events, ...previous].slice(0, 100));
-        void refresh(value.projectId, generation);
-      } else if (snapshotReady.current) setConnection("live");
+      const changedTasks = new Map<string, TaskChange>();
+      let needsSnapshot = false;
+      const recent = batch.events.filter(event => {
+        const id = event.aggregate_id;
+        if (event.aggregate_kind === "agent_run") {
+          if ((value.runVersions.get(id) ?? -1) >= event.aggregate_version) return false;
+          value.runVersions.delete(id);
+          value.runVersions.set(id, event.aggregate_version);
+          if (value.runVersions.size > EVENT_LIMIT) value.runVersions.delete(value.runVersions.keys().next().value!);
+          return true;
+        }
+        const queued = event.event_type === "task.agent_run_queued" && event.schema_version === "p2-task-agent-event-r1";
+        const task = value.taskChanges.get(id);
+        if (event.aggregate_kind === "task" && task && (queued || event.schema_version === "p1-task-event-r1"
+            || event.schema_version === "p2-work-item-accepted-event-r1"
+            || (event.schema_version === "p2-verification-r1" && event.event_type === "verification.accepted"))) {
+          // A new Run changes the Task projection even when the Task revision is unchanged.
+          if (queued || event.aggregate_version > task.version) {
+            const change = { cursor: event.cursor, version: Math.max(task.version, event.aggregate_version) };
+            value.taskChanges.set(id, change);
+            changedTasks.set(id, change);
+          }
+        } else needsSnapshot = true;
+        return true;
+      }).reverse();
+      if (recent.length) setEvents(previous => [...recent, ...previous].slice(0, EVENT_LIMIT));
+      if (needsSnapshot) void refresh(value.projectId, generation);
+      else {
+        for (const [id, change] of changedTasks) void refreshTask(value, generation, id, change);
+        if (snapshotReady.current) setConnection("live");
+      }
     } else if (notice.kind === "access_revoked") {
       denied(new HubError("access_revoked", 403));
     } else if (notice.kind === "incompatible") {
@@ -238,7 +305,7 @@ export function useHub() {
     if (!generation) throw new HubError("session_changed");
     const requestScope = scope.current;
     const matchesQuery = () => matches(generation, expected)
-      && (!isCurrent || (scope.current === requestScope && isCurrent()));
+      && scope.current === requestScope && (!isCurrent || isCurrent());
     if (!matchesQuery()) throw new HubError("session_changed");
     try {
       const value = await read<T>(generation, route);
@@ -296,7 +363,12 @@ export function useHub() {
     if (pending.some(p => p.route === route)) { setError("请先核对同一操作入口的原命令"); return; }
     void execute({ method: "POST", route, body, idempotency_key: crypto.randomUUID() });
   };
-  return { identity, projects, snapshot, connection, error, events, receipt: displayedReceipt?.receipt ?? null, pending, busy,
+  const tasks = snapshot?.tasks.map(task => {
+    const latest = taskViews.get(task.task_id)?.task;
+    return latest && latest.version >= task.version ? latest : task;
+  }) ?? [];
+  return { identity, projects, snapshot, tasks, connection, error, events, previewRevision,
+    receipt: displayedReceipt?.receipt ?? null, pending, busy,
     connect, disconnect, selectProject, refresh, query, command, openPreview, generation: renderedGeneration,
     retry: (original: PendingCommand) => {
       if (!busy && connection === "live") void execute(original, true, original.generation);
