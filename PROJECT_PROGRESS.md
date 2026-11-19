@@ -2,6 +2,12 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：R04 与 R05b 出口核对
+
+- 已实现：[工作区](modules/workspaces/operations.py)、[构建](modules/delivery/queries.py)、[资源](modules/collaboration/resource_facts.py)先用原回执认定收尾，只有未收尾操作计入上限；[远端轮询](modules/delivery/remote_application.py)先筛当前目标、绑定和适用批准，保留原在途操作的核对路径。无新迁移、依赖、HTTP 路由或工作流版本。远端轮询仍在同一函数内管理候选筛选和原预检，避免拆开当前事务的读取逻辑。
+- 定向开发验证：[出口记录](docs/acceptance/p2/p2-r05b.md)保存 WSL Ubuntu-24.04、Python 3.12.13、PostgreSQL 16.13 的固定方法与输入。四项查询用超过 128 条收尾或无关历史和当前操作核对通过，缺失、冲突或过时事实仍按各自门禁处理。真实 Hub ASGI 先返回 `writes_unsettled`；补入同身份停止夹具后，Task 版本 `12 → 13`、控制修订 `0 → 1`，只生成一份完成报告。回执重投与完成后拒绝新构建均通过。未改写 E07d 原 Task，隔离实例已清理。本次 8 个文件的 UTF-8、4 个 Python 模块的 AST、28 个改动涉及的本地链接及差异格式核对通过。
+- 进行中：无。阻塞与风险：正式 P2 出口未通过，P3 保持等待。E07e/E04b 未执行；真实全链、批准部署和两档容量证据仍有缺项。现有分项及用途见[出口核对](docs/acceptance/p2/p2-r05b.md#阶段出口核对)和[支持矩阵](docs/acceptance/support-matrix.md)。未重跑构建、模型、正式预览、真实部署、容量或历史套件。下一项由基础设施与独立验收负责人确认合格预览安装及固定输入，再执行 E07e 和 E04b；其余缺项按出口记录责任推进，投入待估。
+
 ## 2026-11-19：R05a 工作项接受入口
 
 - 已实现：[工作项接受命令](modules/collaboration/work_item_acceptance.py)和 [Hub HTTP 入口](docs/development/p2-verification.md#查询与选择)。在现有授权和 Task 事务内核对 Task、控制、输入及工作项修订，消费准确的已选、已合入正式报告和最终 InputSet；接受证据、工作项、Task 新版本、命令与事件同事务提交。完成检查继续逐项重查证据与剩余门槛。数据库迁移、工作流应用和旧报告引用保持原样。

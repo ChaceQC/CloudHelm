@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 
-from sqlalchemy import func, select, update
+from sqlalchemy import BigInteger, DateTime, and_, func, or_, select, update
 
 from database.uow import UnitOfWork
 from modules.collaboration.errors import TaskBoundaryError
@@ -11,16 +11,19 @@ from modules.delivery.closeout_application import (
 )
 from modules.delivery.deployment_control import approved_preflight
 from modules.delivery.deployment_store import lock_binding
-from modules.delivery.deployment_tables import deployment_approvals, environment_bindings
+from modules.delivery.deployment_tables import (
+    deployment_approvals, deployment_closeouts, deployment_plans, environment_bindings,
+)
 from modules.delivery.permit_clock import PermitClock
 from modules.delivery.release_recipe import delivery_digest
 from modules.delivery.remote_auth import authenticate_remote
 from modules.delivery.remote_permits import issue_permit
 from modules.delivery.remote_store import approved_operation, package_plan, save_projection, step_results
-from modules.delivery.remote_tables import remote_grants, remote_results, remote_samples
+from modules.delivery.remote_tables import remote_closeouts, remote_grants, remote_results, remote_samples
 from modules.delivery.target_facts import (
     collect_target_observation, read_target, register_observation,
 )
+from modules.identity.tables import project_policies
 from modules.sync.events import append_event
 from modules.sync.tables import event_log
 from packages.contracts.p1.remote_delivery import RemoteBindings, RemotePollResult, RemoteTimeSample
@@ -77,19 +80,45 @@ class RemoteApplication:
     def poll(self, token, request):
         with UnitOfWork(self.engine) as uow:
             credential = authenticate_remote(uow, token)
-            rows = uow.connection.execute(select(deployment_approvals.c.value_json["operation_id"].astext).where(
-                deployment_approvals.c.project_id == credential["project_id"],
-            ).order_by(deployment_approvals.c.created_at).limit(129)).scalars().all()
+            target = read_target(uow.connection, credential["project_id"], credential["target_id"], credential["installation_id"])
+            if request.executor_instance != target.executor_instance or request.generation != target.generation:
+                raise TaskBoundaryError("remote_executor_stale")
+            approvals, plans, bindings = deployment_approvals.c, deployment_plans.c, environment_bindings.c
+            approval, plan = approvals.value_json, plans.value_json
+            operation_id = approval["operation_id"].astext
+            candidates = (select(operation_id)
+                .join(deployment_plans, and_(plans.plan_id == approvals.plan_id, plans.project_id == approvals.project_id))
+                .join(environment_bindings, and_(bindings.binding_id == approval["binding_id"].astext,
+                    bindings.project_id == approvals.project_id))
+                .join(project_policies, project_policies.c.project_id == approvals.project_id)
+                .where(approvals.project_id == credential["project_id"],
+                    bindings.value_json == plan["binding"],
+                    bindings.value_json["target_id"].astext == target.target_id,
+                    bindings.value_json["installation_id"].astext == target.installation_id,
+                    plan["executor_instance"].astext == target.executor_instance,
+                    plan["generation"].astext.cast(BigInteger) == target.generation,
+                    ~select(remote_closeouts.c.id).where(remote_closeouts.c.id == operation_id).exists(),
+                    ~select(deployment_closeouts.c.operation_id).where(
+                        deployment_closeouts.c.operation_id == operation_id).exists()))
+            unstarted = and_(bindings.active_operation_id.is_(None),
+                plan["expected_state"]["environment_revision"].astext.cast(BigInteger) == bindings.environment_revision)
+            live = and_(approval["expires_at"].astext.cast(DateTime(timezone=True)) > func.now(),
+                plan["start_before"].astext.cast(DateTime(timezone=True)) > func.now(),
+                approval["authorization_revision"].astext.cast(BigInteger) == project_policies.c.authorization_revision,
+                approval["policy_revision"].astext.cast(BigInteger) == project_policies.c.policy_revision)
+            # Keep the active original visible for reconciliation independently of the start window.
+            rows = uow.connection.execute(candidates.where(or_(bindings.active_operation_id == operation_id,
+                and_(unstarted, live))).order_by(approvals.created_at, approvals.plan_id).limit(129)).scalars().all()
             if len(rows) > 128:
                 raise TaskBoundaryError("remote_plan_scope_exceeded")
+            if not rows:
+                # Retain a deadline or policy diagnostic without counting stale approvals as live work.
+                rows = uow.connection.execute(candidates.where(unstarted, ~live).order_by(
+                    approvals.created_at.desc(), approvals.plan_id.desc()).limit(1)).scalars().all()
             blocked = None
             for operation in rows:
-                if operation_closed(uow.connection, operation):
-                    continue
                 try:
                     context, plan, approval = approved_operation(uow, credential, operation)
-                    if (plan.value.executor_instance != request.executor_instance or plan.value.generation != request.generation):
-                        continue
                     row, _ = lock_binding(uow.connection, context.project_id, plan.value.binding.binding_id)
                     if operation_closed(uow.connection, operation):
                         continue

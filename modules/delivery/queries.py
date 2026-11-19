@@ -185,21 +185,23 @@ def _loaded_content_matches(content, execution):
 def pending_build_operations(connection, task_id: str) -> tuple[OperationClosureFact, ...]:
     """Caller holds the Task row; raw content alone never closes an accepted intent."""
     require_transaction(connection)
-    rows = connection.execute(select(build_runs.c.operation_id).where(
+    operations = select(build_runs.c.operation_id).where(
         build_runs.c.task_id == task_id,
-    ).limit(129)).all()
-    if len(rows) > 128:
-        raise BuildBoundaryError("build_operation_scope_too_large")
+    ).execution_options(yield_per=128)
     pending = []
-    for row in rows:
-        _, record = read_build_intent(connection, row.operation_id)
-        view = build_view(connection, record)
-        if view.state in {"failed", "succeeded"}:
-            continue
-        pending.append(OperationClosureFact(
-            operation_ref=EngineeringRef(kind="operation", object_id=record.operation_id,
-                                         revision="p1-build-operation-r1", authority="delivery"),
-            owner_kind="task", owner_id=task_id, affects_completion=True,
-            closure="running" if view.state == "running" else "unknown", effects_recorded=False,
-        ))
+    # Only a verified terminal view frees an intent from the pending budget.
+    with connection.execute(operations) as rows:
+        for row in rows:
+            _, record = read_build_intent(connection, row.operation_id)
+            view = build_view(connection, record)
+            if view.state in {"failed", "succeeded"}:
+                continue
+            if len(pending) == 128:
+                raise BuildBoundaryError("build_operation_scope_too_large")
+            pending.append(OperationClosureFact(
+                operation_ref=EngineeringRef(kind="operation", object_id=record.operation_id,
+                                             revision="p1-build-operation-r1", authority="delivery"),
+                owner_kind="task", owner_id=task_id, affects_completion=True,
+                closure="running" if view.state == "running" else "unknown", effects_recorded=False,
+            ))
     return tuple(pending)

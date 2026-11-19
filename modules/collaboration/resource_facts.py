@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.fact_reads import bounded_rows
-from modules.collaboration.operation_projection import merge_operation_facts
+from modules.collaboration.operation_projection import MAX_OPERATION_FACTS, merge_operation_facts
 from modules.execution.tables import resource_reservations, resource_runners
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.resource_contracts import ResourceAllocation, ResourceVector
@@ -76,27 +76,32 @@ def _execution_closed(connection, row):
 
 def merge_resource_operation_blockers(connection, task_id, operations):
     """Preserve existing facts and add/strengthen only unsettled Task-owned executions."""
-    rows = bounded_rows(connection, select(
+    statement = select(
         resource_reservations, resource_runners.c.registration_json.label("runner_json"),
     ).outerjoin(resource_runners, resource_runners.c.executor_instance_id == resource_reservations.c.executor_instance_id)
-        .where(resource_reservations.c.task_id == task_id).order_by(resource_reservations.c.operation_id),
-        "resource_operation_scope_too_large")
+    statement = statement.where(resource_reservations.c.task_id == task_id).order_by(resource_reservations.c.operation_id)
     by_id = {fact.operation_ref.object_id: fact for fact in operations}
     added = []
-    for row in rows:
-        if _execution_closed(connection, row):
-            continue
-        identity = row["operation_id"]
-        existing = by_id.get(identity)
-        if existing is not None:
-            by_id[identity] = existing.model_copy(update={
-                "owner_kind": "task", "owner_id": task_id, "affects_completion": True,
-                "closure": "unknown", "closure_evidence_ref": None, "effects_recorded": False,
-            })
-        else:
-            added.append(OperationClosureFact(
-                operation_ref=EngineeringRef(kind="operation", object_id=identity,
-                                             revision="p1-resources-r1", authority="execution"),
-                owner_kind="task", owner_id=task_id, affects_completion=True, closure="unknown",
-            ))
+    unsettled = 0
+    # Validate the full receipt before excluding a historical row from the limit.
+    with connection.execute(statement.execution_options(yield_per=MAX_OPERATION_FACTS)) as result:
+        for row in result.mappings():
+            if _execution_closed(connection, row):
+                continue
+            unsettled += 1
+            if unsettled > MAX_OPERATION_FACTS:
+                raise TaskBoundaryError("resource_operation_scope_too_large")
+            identity = row["operation_id"]
+            existing = by_id.get(identity)
+            if existing is not None:
+                by_id[identity] = existing.model_copy(update={
+                    "owner_kind": "task", "owner_id": task_id, "affects_completion": True,
+                    "closure": "unknown", "closure_evidence_ref": None, "effects_recorded": False,
+                })
+            else:
+                added.append(OperationClosureFact(
+                    operation_ref=EngineeringRef(kind="operation", object_id=identity,
+                                                 revision="p1-resources-r1", authority="execution"),
+                    owner_kind="task", owner_id=task_id, affects_completion=True, closure="unknown",
+                ))
     return merge_operation_facts(tuple(by_id[fact.operation_ref.object_id] for fact in operations), added)

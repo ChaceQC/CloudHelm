@@ -121,9 +121,14 @@ def read_workspace_operation(connection, operation_id):
     )).mappings().one_or_none()
     if event is None:
         raise WorkspaceError("workspace_operation_not_found", status_code=404)
+    return _validate_workspace_operation(connection, event, operation_id), event["created_at"]
+
+
+def _validate_workspace_operation(connection, event, expected_operation_id=None):
     try:
         value = WorkspaceOperationIntent.model_validate(event["payload"])
         result, request = value.result, value.request
+        command_id = operation_command_id(result.operation_id)
         command = get_by_id(connection, command_id)
         if command is None:
             raise ValueError
@@ -134,6 +139,7 @@ def read_workspace_operation(connection, operation_id):
         action = "candidate.submit" if request.kind == "candidate" else "workspace.write"
         if not all((
             event["command_id"] == command_id == result.command_id,
+            event["event_id"] == "workspace-intent-" + command_id,
             event["project_id"] == result.binding.project_id, event["aggregate_kind"] == "workspace",
             event["aggregate_id"] == result.workspace_id, event["aggregate_version"] == result.binding.workspace_revision,
             event["schema_version"] == OPERATION_SCHEMA, event["event_type"] == "workspace.operation_accepted",
@@ -147,13 +153,14 @@ def read_workspace_operation(connection, operation_id):
             result.input_validity_revision == request.expected_input_validity_revision,
             result.binding.workspace_revision == request.expected_workspace_revision,
             result.binding.write_generation == request.expected_write_generation,
-            result.operation_id == operation_id == operation_identity(request.kind, command_id),
+            result.operation_id == operation_identity(request.kind, command_id),
+            expected_operation_id is None or result.operation_id == expected_operation_id,
             result.request_digest == operation_request_digest(value),
         )):
             raise ValueError
     except (ValueError, TypeError, KeyError):
         raise WorkspaceError("workspace_operation_intent_invalid") from None
-    return value, event["created_at"]
+    return value
 
 
 def read_workspace_row(connection, workspace_id, *, for_update=False):
@@ -227,19 +234,22 @@ def resolve_workspace_operation_in_uow(uow, operation_id, *, reconciliation=Fals
 def pending_workspace_operations(connection, task_id):
     """Project only real accepted intents lacking a verified physical terminal fact."""
     require_transaction(connection)
-    rows = connection.execute(select(event_log.c.payload).where(
-        event_log.c.schema_version == OPERATION_SCHEMA,
-        event_log.c.payload["result"]["task_id"].astext == task_id,
-    ).order_by(event_log.c.event_id).limit(129)).all()
-    if len(rows) > 128:
-        raise WorkspaceError("workspace_operation_scope_too_large")
     from modules.workspaces.receipts import read_workspace_registration
 
+    # Stream history, but bound only unresolved operations. An exact receipt
+    # must pass the original checks before it can remove an intent from the gate.
+    statement = select(event_log).where(
+        event_log.c.schema_version == OPERATION_SCHEMA,
+        event_log.c.payload["result"]["task_id"].astext == task_id,
+    ).order_by(event_log.c.event_id).execution_options(yield_per=128)
     pending = []
-    for row in rows:
-        raw = WorkspaceOperationIntent.model_validate(row.payload)
-        intent, _ = read_workspace_operation(connection, raw.result.operation_id)
-        if read_workspace_registration(connection, intent) is None:
+    with connection.execute(statement) as rows:
+        for event in rows.mappings():
+            intent = _validate_workspace_operation(connection, event)
+            if read_workspace_registration(connection, intent) is not None:
+                continue
+            if len(pending) == 128:
+                raise WorkspaceError("workspace_operation_scope_too_large")
             reference = EngineeringRef(
                 kind="operation", object_id=intent.result.operation_id, revision="p1-workspace-operation-r1",
                 authority="workspaces", digest=intent.result.request_digest, digest_algorithm="sha256",
