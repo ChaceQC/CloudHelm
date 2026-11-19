@@ -10167,6 +10167,295 @@
         }
       }
     },
+    "/api/tasks/{task_id}/agent-summary": {
+      "get": {
+        "tags": [
+          "task-agent"
+        ],
+        "summary": "Query Agent Summary",
+        "operationId": "query_agent_summary_api_tasks__task_id__agent_summary_get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAgentSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/agent-runs/{run_id}": {
+      "get": {
+        "tags": [
+          "task-agent"
+        ],
+        "summary": "Query Agent Run",
+        "operationId": "query_agent_run_api_tasks__task_id__agent_runs__run_id__get",
+        "security": [
+          {
+            "CloudHelmSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAgentRunDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/tasks/{task_id}/agent-diff/{work_item_id}": {
       "get": {
         "tags": [
@@ -19716,6 +20005,154 @@
         ],
         "title": "TargetObservation"
       },
+      "TaskAgentWait": {
+        "properties": {
+          "wait_condition_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Wait Condition Id"
+          },
+          "from_run_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "From Run Id"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Tool Call Id"
+          },
+          "operation_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Operation Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "satisfied",
+              "closed"
+            ],
+            "title": "State"
+          },
+          "continuation_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation Run Id"
+          },
+          "required_for_completion": {
+            "type": "boolean",
+            "title": "Required For Completion"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "wait_condition_id",
+          "from_run_id",
+          "tool_call_id",
+          "operation_id",
+          "state",
+          "continuation_run_id",
+          "required_for_completion"
+        ],
+        "title": "TaskAgentWait"
+      },
+      "TaskAgentWorkItemSummary": {
+        "properties": {
+          "work_item_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item Id"
+          },
+          "revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "running",
+              "blocked",
+              "submitted",
+              "accepted",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "owner_session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Session Id"
+          },
+          "blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocked Reason"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/WorkItemCapabilities"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "work_item_id",
+          "revision",
+          "state",
+          "required",
+          "goal",
+          "owner_session_id",
+          "blocked_reason",
+          "capabilities"
+        ],
+        "title": "TaskAgentWorkItemSummary"
+      },
       "TaskBlocker": {
         "properties": {
           "code": {
@@ -20272,6 +20709,171 @@
           "ordinary_progress_closed"
         ],
         "title": "TaskView"
+      },
+      "WorkItemCapabilities": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "work_item_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item Id"
+          },
+          "work_item_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Work Item Revision"
+          },
+          "authorization_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Authorization Revision"
+          },
+          "prerequisites": {
+            "items": {
+              "$ref": "#/components/schemas/WorkItemPrerequisite"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Prerequisites"
+          },
+          "managed_source": {
+            "$ref": "#/components/schemas/WorkItemCapability"
+          },
+          "build": {
+            "$ref": "#/components/schemas/WorkItemCapability"
+          },
+          "formal_preview": {
+            "$ref": "#/components/schemas/WorkItemCapability"
+          },
+          "human_test": {
+            "$ref": "#/components/schemas/WorkItemCapability"
+          },
+          "human_test_skip_allowed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Human Test Skip Allowed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "work_item_id",
+          "work_item_revision",
+          "authorization_revision",
+          "prerequisites",
+          "managed_source",
+          "build",
+          "formal_preview",
+          "human_test"
+        ],
+        "title": "WorkItemCapabilities",
+        "description": "Registered support and policy hints; available entries don't grant authority."
+      },
+      "WorkItemCapability": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "gate_phase": {
+            "type": "string",
+            "enum": [
+              "none",
+              "start",
+              "completion"
+            ],
+            "title": "Gate Phase",
+            "default": "none"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Evidence Refs",
+            "default": []
+          },
+          "runner_evidence_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runner Evidence Ref"
+          },
+          "policy_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineeringRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "reason"
+        ],
+        "title": "WorkItemCapability"
+      },
+      "WorkItemPrerequisite": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contract",
+              "artifact",
+              "integration",
+              "environment"
+            ],
+            "title": "Kind"
+          },
+          "subject_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "evidence_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "subject_ref",
+          "evidence_ref"
+        ],
+        "title": "WorkItemPrerequisite"
       },
       "WorkItemView": {
         "properties": {
@@ -23152,6 +23754,790 @@
           "truncated"
         ],
         "title": "TaskAgentDiff"
+      },
+      "TaskAgentFeeSummary": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "const": "listed_runs",
+            "title": "Scope"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "CNY"
+            ],
+            "title": "Currency"
+          },
+          "known_calculated_cost": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32,
+                "pattern": "^(0|[1-9][0-9]{0,18})(\\.[0-9]{1,12})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known Calculated Cost",
+            "description": "Sum of known calculated amounts; null when none are known."
+          },
+          "unknown_request_count": {
+            "type": "integer",
+            "maximum": 768.0,
+            "minimum": 0.0,
+            "title": "Unknown Request Count"
+          },
+          "unknown_reserved_cost": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^(0|[1-9][0-9]{0,18})(\\.[0-9]{1,12})?$",
+            "title": "Unknown Reserved Cost",
+            "description": "Total reserved cost for requests whose calculated cost is unknown."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "currency",
+          "known_calculated_cost",
+          "unknown_request_count",
+          "unknown_reserved_cost"
+        ],
+        "title": "TaskAgentFeeSummary",
+        "description": "Latest usage calculations for the listed Runs, excluding supplier bills."
+      },
+      "TaskAgentPolicySummary": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "coordinator",
+              "developer",
+              "verifier",
+              "reviewer",
+              "operator"
+            ],
+            "title": "Role"
+          },
+          "max_requests": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Max Requests"
+          },
+          "max_duration_seconds": {
+            "type": "integer",
+            "maximum": 86400.0,
+            "minimum": 1.0,
+            "title": "Max Duration Seconds"
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 1.0,
+            "title": "Max Output Tokens"
+          },
+          "per_request_cost_upper_bound": {
+            "type": "string",
+            "maxLength": 29,
+            "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,12})?$",
+            "title": "Per Request Cost Upper Bound"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "max_requests",
+          "max_duration_seconds",
+          "max_output_tokens",
+          "per_request_cost_upper_bound"
+        ],
+        "title": "TaskAgentPolicySummary",
+        "description": "Public limits from the latest Run policy, without model configuration."
+      },
+      "TaskAgentRequestSummary": {
+        "properties": {
+          "request_record_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Request Record Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "observed",
+              "unknown"
+            ],
+            "title": "State",
+            "description": "Whether a supplier observation exists; calculated cost may still be unknown."
+          },
+          "reserved_cost": {
+            "type": "string",
+            "maxLength": 29,
+            "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,12})?$",
+            "title": "Reserved Cost"
+          },
+          "calculated_cost": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 29,
+                "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,12})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calculated Cost"
+          },
+          "billed_amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 29,
+                "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,12})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billed Amount"
+          },
+          "billed_currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billed Currency"
+          },
+          "observation_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 9007199254740991.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observation Revision"
+          },
+          "reconciliation_evidence_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Evidence Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "request_record_id",
+          "state",
+          "reserved_cost",
+          "calculated_cost",
+          "billed_amount",
+          "billed_currency",
+          "observation_revision",
+          "reconciliation_evidence_ref"
+        ],
+        "title": "TaskAgentRequestSummary"
+      },
+      "TaskAgentRunDetail": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Run Id"
+          },
+          "work_item_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item Id"
+          },
+          "work_item_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Work Item Revision"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "interrupted"
+            ],
+            "title": "State"
+          },
+          "request_count": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 0.0,
+            "title": "Request Count"
+          },
+          "reserved_cost": {
+            "type": "string",
+            "maxLength": 29,
+            "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,12})?$",
+            "title": "Reserved Cost"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "deadline_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
+          },
+          "tool_protocol_revision": {
+            "type": "string",
+            "enum": [
+              "dispatch-r1",
+              "named-r1",
+              "named-r2"
+            ],
+            "title": "Tool Protocol Revision"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "session_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Session Id"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tool_requests",
+                  "waiting_condition",
+                  "submitted",
+                  "continue_required"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "input_set_ref": {
+            "$ref": "#/components/schemas/EngineeringRef"
+          },
+          "tool_timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentToolEvent"
+            },
+            "type": "array",
+            "maxItems": 16,
+            "title": "Tool Timeline"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentRequestSummary"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Requests"
+          },
+          "waits": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentWait"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Waits"
+          },
+          "operation_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 160,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 24,
+            "title": "Operation Ids"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/EngineeringRef"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Evidence Refs",
+            "description": "Registered delivery references from the Run's turn result."
+          },
+          "verification_report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Report Id"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "work_item_id",
+          "work_item_revision",
+          "state",
+          "request_count",
+          "reserved_cost",
+          "created_at",
+          "started_at",
+          "deadline_at",
+          "tool_protocol_revision",
+          "reason_code",
+          "task_id",
+          "session_id",
+          "outcome",
+          "input_set_ref",
+          "tool_timeline",
+          "requests",
+          "waits",
+          "operation_ids",
+          "evidence_refs",
+          "verification_report_id",
+          "truncated"
+        ],
+        "title": "TaskAgentRunDetail",
+        "description": "One Run's registered references and bounded display timeline."
+      },
+      "TaskAgentRunSummary": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Run Id"
+          },
+          "work_item_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Work Item Id"
+          },
+          "work_item_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Work Item Revision"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "interrupted"
+            ],
+            "title": "State"
+          },
+          "request_count": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 0.0,
+            "title": "Request Count"
+          },
+          "reserved_cost": {
+            "type": "string",
+            "maxLength": 29,
+            "pattern": "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,12})?$",
+            "title": "Reserved Cost"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "deadline_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline At"
+          },
+          "tool_protocol_revision": {
+            "type": "string",
+            "enum": [
+              "dispatch-r1",
+              "named-r1",
+              "named-r2"
+            ],
+            "title": "Tool Protocol Revision"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "work_item_id",
+          "work_item_revision",
+          "state",
+          "request_count",
+          "reserved_cost",
+          "created_at",
+          "started_at",
+          "deadline_at",
+          "tool_protocol_revision",
+          "reason_code"
+        ],
+        "title": "TaskAgentRunSummary"
+      },
+      "TaskAgentSessionSummary": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Session Id"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "queued",
+              "running",
+              "paused",
+              "failed",
+              "completed"
+            ],
+            "title": "State"
+          },
+          "work_item_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Item Id"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskAgentPolicySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentRunSummary"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Runs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "version",
+          "state",
+          "work_item_id",
+          "policy",
+          "runs"
+        ],
+        "title": "TaskAgentSessionSummary"
+      },
+      "TaskAgentSummary": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Task Id"
+          },
+          "project_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Project Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "paused",
+              "waiting_input",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "State"
+          },
+          "version": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Version"
+          },
+          "control_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Control Revision"
+          },
+          "input_validity_revision": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Input Validity Revision"
+          },
+          "input_status": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "needs_review",
+              "superseded"
+            ],
+            "title": "Input Status"
+          },
+          "ordinary_progress_closed": {
+            "type": "boolean",
+            "title": "Ordinary Progress Closed"
+          },
+          "work_items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentWorkItemSummary"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Work Items"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentSessionSummary"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Sessions"
+          },
+          "waits": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAgentWait"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Waits"
+          },
+          "fees": {
+            "$ref": "#/components/schemas/TaskAgentFeeSummary"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "project_id",
+          "state",
+          "version",
+          "control_revision",
+          "input_validity_revision",
+          "input_status",
+          "ordinary_progress_closed",
+          "work_items",
+          "sessions",
+          "waits",
+          "fees",
+          "truncated"
+        ],
+        "title": "TaskAgentSummary",
+        "description": "Current Task facts, visible WorkItems, and bounded Agent activity."
+      },
+      "TaskAgentToolEvent": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "call",
+              "return",
+              "retry"
+            ],
+            "title": "Kind"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Tool Call Id"
+          },
+          "tool_name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Tool Name"
+          },
+          "call_run_id": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Call Run Id",
+            "description": "Run containing the original tool call."
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "Redacted display text, without tool arguments or raw tool results."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "tool_call_id",
+          "tool_name",
+          "call_run_id",
+          "operation_id",
+          "summary"
+        ],
+        "title": "TaskAgentToolEvent"
       },
       "TaskAgentView": {
         "properties": {

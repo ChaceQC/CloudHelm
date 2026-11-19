@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：C02 固定 Hub 查询契约
+
+- **重构范围。** 从 `dev / 6162d0a` 承接 B04，保留已有工作树改动。旧 Agent 面板查询在列举 Run 时加载 SDK 历史；本轮拆为不读 SDK 历史的摘要与按归属读取的单轮明细。沿用现有读授权、启动命令、工作区差异、持久历史与费用权威。旧聚合入口保留到 C03 同版切换。
+- **已实现 C02a/C02b。** [Hub](services/hub-api/routes_agent.py)提供 `agent-summary` 与 `agent-runs/{run_id}`，使用[固定响应](packages/contracts/p2/task_agent.py)。[摘要](modules/agent_runtime/task_summary.py)读取有界领域投影及费用账本，批量复用 B00 能力事实；[明细](modules/agent_runtime/task_run_detail.py)复用 B01 调用归属，只返回限长摘要及引用。只新增公开读能力，不变更迁移、DBOS 应用或 Desktop；变更普通源码最大 293 物理行。
+- **C02c 定向验证通过。** [WSL 隔离 PostgreSQL 和 ASGI 核对](docs/acceptance/c02.md)：摘要读取 SDK 历史 0 次；单轮只取两个固定历史键，保留原调用与 Operation。跨 Task 404、仅 Task 读权限 403，均未读取历史；Hub/Remote 快照一致。未执行原生 Desktop、实际模型、构建或部署。
+- **进行中：** 无。**阻塞与风险：** 无新增。**下一项：** C03a 从固定 OpenAPI 生成 Desktop 类型并接入受限原生路由。增量投入待估。
+
 ## 2026-11-19：B04 关闭无进展循环
 
 - **重构范围。** 从 `dev / 22808d3` 承接 B03，保留已有本地改动。开发循环此前把每次重新生成的查询时刻计入反馈判重；本轮只修正 `query_operation` 的比较，沿用原 Operation、回执内容、停止规则和预算准入。

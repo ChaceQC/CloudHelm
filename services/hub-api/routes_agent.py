@@ -5,7 +5,8 @@ from starlette.responses import JSONResponse
 
 from packages.contracts.p0.decision_common import Identifier
 from packages.contracts.p2.task_agent import (
-    StartTaskAgentRequest, TaskAgentCommandResult, TaskAgentDiff, TaskAgentView,
+    StartTaskAgentRequest, TaskAgentCommandResult, TaskAgentDiff, TaskAgentRunDetail,
+    TaskAgentSummary, TaskAgentView,
 )
 from .auth import get_runtime
 from .contracts import ApiErrorResponse
@@ -26,6 +27,16 @@ def start_agent(request: Request, task_id: Identifier, actor: NormalActor, idemp
 @router.get("/{task_id}/agent", response_model=TaskAgentView)
 def query_agent(request: Request, task_id: Identifier, actor: ControlActor):
     return get_runtime(request).agents.query(actor, task_id)
+
+
+@router.get("/{task_id}/agent-summary", response_model=TaskAgentSummary)
+def query_agent_summary(request: Request, task_id: Identifier, actor: ControlActor):
+    return get_runtime(request).agents.summary(actor, task_id)
+
+
+@router.get("/{task_id}/agent-runs/{run_id}", response_model=TaskAgentRunDetail)
+def query_agent_run(request: Request, task_id: Identifier, run_id: Identifier, actor: ControlActor):
+    return get_runtime(request).agents.run_detail(actor, task_id, run_id)
 
 
 @router.get("/{task_id}/agent-diff/{work_item_id}", response_model=TaskAgentDiff)

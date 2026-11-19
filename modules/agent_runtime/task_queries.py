@@ -50,29 +50,36 @@ def _tool_protocol_revision(run):
     return run["start_json"]["policy"].get("tool_protocol_revision", DISPATCH_TOOL_PROTOCOL_REVISION)
 
 
-def _tool_results(run, histories, continuation_wait=None):
+def _tool_history_boundaries(run):
     result = run["result_json"]
-    if result is None:
-        return [], False
-    revision = _tool_protocol_revision(run)
-    if revision != DISPATCH_TOOL_PROTOCOL_REVISION and revision not in NAMED_TOOL_PROTOCOLS:
-        return [], False
+    if result is None or _tool_protocol_revision(run) not in (DISPATCH_TOOL_PROTOCOL_REVISION, *NAMED_TOOL_PROTOCOLS):
+        return ()
     start = run["start_json"]["runtime_input"]["committed_history"]["digest"]
     end = result["turn"]["history_delta"]["digest"]
-    if start == end:
-        return [], False
-    session_id = run["session_id"]
+    return (start, end) if start != end else ()
+
+
+def _tool_history_messages(session_id, boundaries, histories):
+    if not boundaries:
+        return [], 0, False
+    start, end = boundaries
     previous = [] if start == _EMPTY_HISTORY else histories.get((session_id, start))
     history = histories.get((session_id, end))
     if previous is None or history is None or history[:len(previous)] != previous:
-        return [], True
+        return [], 0, True
+    return ModelMessagesTypeAdapter.validate_python(history), len(previous), False
 
-    messages = ModelMessagesTypeAdapter.validate_python(history)
+
+def _tool_results(run, histories, continuation_wait=None):
+    messages, previous_count, incomplete = _tool_history_messages(
+        run["session_id"], _tool_history_boundaries(run), histories)
+    if not messages:
+        return [], incomplete
     permitted = set(run["start_json"]["context"]["tool_names"])
-    if revision in NAMED_TOOL_PROTOCOLS:
-        results = _named_tool_results(run["run_id"], messages, len(previous), permitted, continuation_wait)
+    if _tool_protocol_revision(run) in NAMED_TOOL_PROTOCOLS:
+        results = _tool_call_events(run["run_id"], messages, previous_count, permitted, continuation_wait)
     else:
-        results = _dispatch_tool_results(messages, len(previous), permitted)
+        results = _dispatch_tool_results(messages, previous_count, permitted)
     limited, text_truncated = _bounded_value(list(reversed(results[-16:])))
     return limited, text_truncated or len(results) > 16
 
@@ -104,7 +111,7 @@ def _dispatch_tool_results(messages, previous_count, permitted):
     return results
 
 
-def _named_tool_results(run_id, messages, previous_count, permitted, continuation_wait):
+def _tool_call_events(run_id, messages, previous_count, permitted, continuation_wait, *, dispatch=False):
     pending, results = {}, []
     for index, message in enumerate(messages):
         in_prefix = index < previous_count
@@ -113,10 +120,16 @@ def _named_tool_results(run_id, messages, previous_count, permitted, continuatio
                 # Only the fixed wait may carry a pending call from the committed prefix.
                 if in_prefix and (continuation_wait is None or part.tool_call_id != continuation_wait["tool_call_id"]):
                     continue
-                action = NAMED_TOOL_ACTIONS.get(part.tool_name)
-                if action not in permitted:
-                    pending.pop(part.tool_call_id, None)
-                    continue
+                if dispatch:
+                    if part.tool_name != "dispatch_tool":
+                        continue
+                    requested = part.args_as_dict().get("name")
+                    action = requested if isinstance(requested, str) and requested in permitted else "dispatch_tool"
+                else:
+                    action = NAMED_TOOL_ACTIONS.get(part.tool_name)
+                    if action not in permitted:
+                        pending.pop(part.tool_call_id, None)
+                        continue
                 origin = continuation_wait["from_run_id"] if in_prefix else run_id
                 pending[part.tool_call_id] = (part.tool_name, action, origin)
                 if not in_prefix:

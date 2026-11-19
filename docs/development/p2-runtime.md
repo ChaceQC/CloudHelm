@@ -23,7 +23,9 @@
 |接口|行为|
 |---|---|
 |`POST /api/tasks/{task_id}/agent-runs`|`Idempotency-Key`、Task 三版本、`work_item_id`；新 Session 明确提供 `per_request_cost_upper_bound`，请求/时间/输出默认 3/60 秒/4096。服务端装配真实当前 InputSet、需求/验收/源码、开发角色/工具和预算快照，不接受客户端自报权限、内部 Context 或成功事实|
-|`GET /api/tasks/{task_id}/agent`|独立控制池按当前 `resource.read`、`operation.query` 返回 Session/Run、真实结果和交接、工具返回、模型请求金额及等待。未知金额为 null；不返回 prompt、模型请求体、工具调用参数或完整历史|
+|`GET /api/tasks/{task_id}/agent-summary`|按当前 `resource.read`、`operation.query` 返回 Task 版本、工作项及能力、Session 版本、近期 Run、未收尾的 Agent 等待和费用摘要；不读取 SDK 历史|
+|`GET /api/tasks/{task_id}/agent-runs/{run_id}`|权限相同，先核对 Run 所属 Task。只取该轮所需的历史边界，返回终止原因、工具时间线、请求账本摘要、等待及 Operation/证据引用|
+|`GET /api/tasks/{task_id}/agent`|现有 Desktop 聚合入口，保留到 C03 客户端改用摘要和明细。权限不变|
 |`GET /api/tasks/{task_id}/agent-diff/{work_item_id}`|按明确 Task/工作项读取其工作区相对物化基线的当前差异；读取前后复核授权与 binding。不是固定候选或验收证据|
 
 初次启动复用工作区创建服务，把缺失工作区绑定到所选现有工作项，不新增第二个工作项；`pending` 或仅因 `capability_not_enabled` 阻塞的初始项在当前命令中进入 running。来源仍须是受控真实工程输入；不把协议夹具升级成产品来源。命令回执、工作项/工作区、Session/Run、WorkflowBinding 与 DBOS 入队同事务提交，失败一起回滚。202 仅表示接受；API 不读取模型密钥或启动模型执行器，worker 配置缺失仍是实际失败。
@@ -32,11 +34,13 @@
 
 [B00 工作项规格](../implementation/b00-work-item-run.md)随新开发 Run 登记。启动和等待续接都要核对当前工作项与前置证据、适用权限和至少一次请求可用的费用额度；真实出站仍逐次预留费用。缺少已声明的产物、相符证明或仍就绪的必需环境时，不创建 Run。预览只有在工作项要求其支持时才阻塞启动；Task 的人测策略仍按完成门槛处理。
 
-当前新库使用 `0021_p2_work_item_run`。Hub 和 worker 使用一致的受保护工程登记及正式预览描述；内部能力投影只报告已登记的支持范围，现有 Desktop 暂未读取该新投影。
+当前新库使用 `0021_p2_work_item_run`。Hub 和 worker 使用一致的受保护工程登记及正式预览描述；摘要中的能力只报告当前权限、已登记支持和策略门槛，真正的启动和完成仍由各自命令裁决。现有 Desktop 在 C03 接入摘要和明细。
+
+摘要最多返回 32 个工作项、8 个 Session、每 Session 8 个近期 Run、8 个未续接等待，超出时标记 `truncated`。`fees.scope` 为 `listed_runs`：只统计本次列出的 Run，使用每笔请求的最新观测，分别返回已知计算费用小计、未知请求数及其预留小计；没有已知计算费用时小计为 `null`。单轮明细最多返回 16 条工具事件、12 条请求和 8 条等待。计算费用、预留和供应商账单按十进制字符串传输，未知保留 `null`，账单币种单独传输。工具事件提供限长摘要及原调用归属，不返回原始参数、工具结果正文、prompt 或 SDK 历史。读量与归属证据见 [C02 定向记录](../acceptance/c02.md)。
 
 验证/审查 Run 提交真实交接时，同事务保存问题及面向原开发会话的事件；阻塞问题使原工作项回到 ready 并推进修订。开发者按上述入口显式继续，Context 的 `rework` 带入未关闭或关闭依据失效的问题、原候选/证据、受影响检查和复发引用；沿原编辑、候选和构建工具推进，新检查交给独立验证/复查。没有新增自动调度或以开发自测关闭问题的权限。
 
-状态按钮显式读取当前持久事实，现有项目快照变化也刷新 Agent 投影；没有独立轮询器。结果最多最新 8 Session、每 Session 8 Run、每 Run 16 条工具反馈，单字符串最多 4096 字符，Run 投影合计最多 512KiB；截断明确标记。差异最多 16 文件、单文件 8KiB、合计 32KiB，敏感路径不展示，识别到秘密的补丁整体显示 `[REDACTED]`。这些限制沿用规则式筛选，不扩大对未知秘密格式的支持结论。
+现有 Desktop 的状态按钮显式读取当前持久事实，项目快照变化也刷新 Agent 投影；没有独立轮询器。旧聚合最多返回最新 8 Session、每 Session 8 Run、每 Run 16 条工具反馈，单字符串最多 4096 字符，Run 投影合计最多 512KiB；截断明确标记。差异最多 16 文件、单文件 8KiB、合计 32KiB，敏感路径不展示，识别到秘密的补丁整体显示 `[REDACTED]`。这些限制沿用规则式筛选，不扩大对未知秘密格式的支持结论。
 
 B01 为查询投影保留 Run 的 `tool_protocol_revision`。`dispatch-r1` 使用原工具结果格式；`named-r1` 从已提交 SDK 历史投影调用、返回和重试，以业务动作名及 `tool_call_id`、`call_run_id` 标识原调用。续接返回在当前 Run 下展示，并引用持久等待绑定的原 Operation。调用不展示参数，记名工具重试只展示固定原因码。见 [B01 定向核对](../acceptance/b01.md)。
 

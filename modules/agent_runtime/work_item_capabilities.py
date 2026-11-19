@@ -1,6 +1,6 @@
 """Current work item support, without probing physical execution or deciding readiness."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from importlib import import_module
 from typing import Any, Protocol
 
@@ -157,8 +157,8 @@ def _product_policy(connection, project_id: str, reference: EngineeringRef, meta
     return None
 
 
-def _build_support(uow, actor, task, declaration, source_reason, registration, runner) -> WorkItemCapability:
-    if not _current_permission(uow, actor, task_resource(task), "operation.request"):
+def _build_support(uow, actor, resource, declaration, source_reason, registration, runner) -> WorkItemCapability:
+    if not _current_permission(uow, actor, resource, "operation.request"):
         return WorkItemCapability(available=False, reason="operation_request_not_authorized")
     if source_reason != "managed_source_registered":
         return WorkItemCapability(available=False, reason=source_reason)
@@ -167,7 +167,7 @@ def _build_support(uow, actor, task, declaration, source_reason, registration, r
     # The Projects registration vouches for the fixed reference source; the validated
     # installation registration is restricted to that reference's controlled build seeds.
     policy_ref = declaration.resource_scope_ref
-    policy = _product_policy(uow.connection, task["project_id"], policy_ref, ResourcePolicyMetadata)
+    policy = _product_policy(uow.connection, resource.project_id, policy_ref, ResourcePolicyMetadata)
     if (policy is None or registration.scope not in policy.resource_scope_ids
             or "operation.request" not in policy.allowed_capabilities):
         return WorkItemCapability(available=False, reason="reference_build_resource_scope_unavailable",
@@ -186,28 +186,37 @@ def project_work_item_capabilities_in_uow(
     authorization_revision: int, engineering_registration: _EngineeringRegistration | None,
     preview_installation: PreviewInstallation | None,
 ) -> WorkItemCapabilities:
+    return project_work_items_capabilities_in_uow(uow, actor, task, (item,),
+        authorization_revision=authorization_revision, engineering_registration=engineering_registration,
+        preview_installation=preview_installation)[0]
+
+
+def project_work_items_capabilities_in_uow(
+    uow: UnitOfWork, actor: Actor, task: Mapping[str, Any], items: Sequence[Mapping[str, Any]], *,
+    authorization_revision: int, engineering_registration: _EngineeringRegistration | None,
+    preview_installation: PreviewInstallation | None,
+) -> tuple[WorkItemCapabilities, ...]:
     """Caller holds current Task read access; domain commands still reauthorize every action."""
+    if not items:
+        return ()
     project_id = task["project_id"]
     declaration = read_declaration(uow.connection, task)
-    requirements = WorkItemRequirements.model_validate(item["run_requirements_json"])
+    item_requirements = [(item, WorkItemRequirements.model_validate(item["run_requirements_json"])) for item in items]
     source_reason = _registered_source_reason(uow.connection, project_id, declaration.source_ref)
-    if not _current_permission(uow, actor, task_resource(task), "workspace.write"):
+    resource = task_resource(task)
+    if not _current_permission(uow, actor, resource, "workspace.write"):
         managed_source = WorkItemCapability(available=False, reason="workspace_write_not_authorized")
     elif source_reason != "managed_source_registered":
         managed_source = WorkItemCapability(available=False, reason=source_reason)
     else:
         managed_source = WorkItemCapability(available=True, reason=source_reason, evidence_refs=(declaration.source_ref,))
     runner = _registered_runner(uow, engineering_registration)
-    build = _build_support(uow, actor, task, declaration, source_reason, engineering_registration, runner)
+    build = _build_support(uow, actor, resource, declaration, source_reason, engineering_registration, runner)
     preview = _formal_preview_support(preview_installation, runner)
     human_ref = declaration.human_test_policy_ref
     human_policy = _product_policy(uow.connection, project_id, human_ref, HumanPolicyMetadata)
     human_required = human_policy is not None and human_policy.is_completion_gate
     skip_allowed = human_policy.skip_allowed if human_policy is not None else None
-    preview_phase = ("start" if requirements.formal_preview_required else
-                     "completion" if human_required and not skip_allowed else "none")
-    preview = preview.model_copy(update={"gate_phase": preview_phase,
-                                        "policy_ref": human_ref if preview_phase == "completion" else None})
     human_test = WorkItemCapability(
         available=human_policy is not None and preview.available,
         reason=("human_test_policy_unavailable" if human_policy is None else
@@ -215,7 +224,14 @@ def project_work_item_capabilities_in_uow(
                 "human_test_required" if human_required else "human_test_optional"),
         gate_phase="completion" if human_policy is None or human_required else "none", policy_ref=human_ref,
     )
-    return WorkItemCapabilities(task_id=task["task_id"], work_item_id=item["work_item_id"],
-        work_item_revision=item["revision"], authorization_revision=authorization_revision,
-        prerequisites=requirements.prerequisites, managed_source=managed_source,
-        build=build, formal_preview=preview, human_test=human_test, human_test_skip_allowed=skip_allowed)
+    projections = []
+    for item, requirements in item_requirements:
+        preview_phase = ("start" if requirements.formal_preview_required else
+                         "completion" if human_required and not skip_allowed else "none")
+        item_preview = preview.model_copy(update={"gate_phase": preview_phase,
+                                                 "policy_ref": human_ref if preview_phase == "completion" else None})
+        projections.append(WorkItemCapabilities(task_id=task["task_id"], work_item_id=item["work_item_id"],
+            work_item_revision=item["revision"], authorization_revision=authorization_revision,
+            prerequisites=requirements.prerequisites, managed_source=managed_source,
+            build=build, formal_preview=item_preview, human_test=human_test, human_test_skip_allowed=skip_allowed))
+    return tuple(projections)
