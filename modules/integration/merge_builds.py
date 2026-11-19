@@ -2,6 +2,7 @@
 
 import time
 
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from database.uow import UnitOfWork
@@ -9,11 +10,12 @@ from modules.collaboration.errors import TaskBoundaryError
 from modules.collaboration.guards import read_task
 from modules.collaboration.records import reference_key
 from modules.collaboration.tables import task_inputs
-from modules.integration.merge_records import entry_for_attempt, read_attempt
+from modules.integration.merge_records import read_attempt, read_entry
 from modules.projects.source_tables import project_git_sources
 from modules.sync.tables import event_log
-from packages.contracts.p1.workspace_git import content_digest
+from packages.contracts.p1.workspace_git import CandidateSnapshot, RegisteredGitSource, WorkspaceBinding, content_digest
 from packages.contracts.p1.workspace_records import workspace_metadata_digest
+from packages.contracts.p2.merge_queue import IntegrationAttempt, MergeQueueEntry
 
 
 def integration_candidate(connection, task, candidate_id):
@@ -28,42 +30,82 @@ def integration_candidate(connection, task, candidate_id):
     return attempt.snapshot
 
 
-def verify_integration_snapshot(connection, task, snapshot):
-    attempt = read_attempt(connection, snapshot.freeze_operation_id)
-    if attempt is None or attempt.state != "prepared" or attempt.snapshot != snapshot:
-        raise TaskBoundaryError("integration_candidate_not_current")
-    entry = entry_for_attempt(connection, attempt.attempt_id)
-    source = entry.source
-    current_input = connection.scalar(select(task_inputs.c.input_set_key).where(
+def candidate_source_input_is_current(connection, task, reference):
+    return task["input_status"] == "valid" and connection.scalar(select(task_inputs.c.input_set_key).where(
         task_inputs.c.task_id == task["task_id"],
         task_inputs.c.input_validity_revision == task["input_validity_revision"],
-    ))
-    current_source = connection.execute(select(project_git_sources).where(
-        project_git_sources.c.project_id == task["project_id"],
+    )) == reference_key(task["project_id"], reference)
+
+
+def read_registered_candidate_source(connection, binding: WorkspaceBinding) -> RegisteredGitSource:
+    row = connection.execute(select(project_git_sources.c.source_json, project_git_sources.c.source_digest).where(
+        project_git_sources.c.project_id == binding.project_id,
+        project_git_sources.c.source_id == binding.source_id,
+        project_git_sources.c.source_revision == binding.source_revision,
     )).mappings().one_or_none()
+    if row is not None:
+        try:
+            source = RegisteredGitSource.model_validate(row["source_json"])
+        except ValidationError:
+            raise TaskBoundaryError("candidate_read_git_source_unregistered") from None
+        if (source.kind == "managed_bare" and not source.source_prefix
+                and row["source_json"] == source.model_dump(mode="json")
+                and row["source_digest"] == workspace_metadata_digest(source)):
+            return source
+    raise TaskBoundaryError("candidate_read_git_source_unregistered")
+
+
+def read_current_integration_snapshot(
+    connection, task, snapshot: CandidateSnapshot,
+) -> tuple[IntegrationAttempt, MergeQueueEntry]:
+    """Resolve the current attempt without authorizing a new build."""
+    binding = snapshot.binding
+    if (binding.project_id, binding.task_id) != (task["project_id"], task["task_id"]):
+        raise TaskBoundaryError("candidate_read_binding_mismatch")
+    attempt = read_attempt(connection, snapshot.freeze_operation_id)
+    if attempt is None:
+        raise TaskBoundaryError("candidate_read_integration_attempt_not_found", status_code=404)
+    if (attempt.state != "prepared" or attempt.snapshot != snapshot
+            or attempt.attempt_id != snapshot.freeze_operation_id
+            or (attempt.project_id, attempt.task_id) != (binding.project_id, binding.task_id)):
+        raise TaskBoundaryError("candidate_read_binding_mismatch")
+    entry = read_entry(connection, attempt.entry_id)
+    if (entry.project_id, entry.task_id, entry.entry_id) != (binding.project_id, binding.task_id, attempt.entry_id):
+        raise TaskBoundaryError("candidate_read_binding_mismatch")
+    if entry.attempt_id != attempt.attempt_id:
+        raise TaskBoundaryError("integration_attempt_not_current")
+
+    source = entry.source
     suffix = content_digest(attempt.attempt_id.encode("utf-8"))[7:]
     if (entry.state not in {"awaiting_evidence", "applying", "merged"}
-            or task["state"] != "active" or task["ordinary_progress_closed"]
-            or task["cancel_requested_at"] is not None or task["input_status"] != "valid"
-            or entry.project_id != task["project_id"] or entry.task_id != task["task_id"]
             or entry.control_revision != task["control_revision"]
             or entry.input_validity_revision != task["input_validity_revision"]
-            or current_input != reference_key(task["project_id"], entry.source_input_set_ref)
-            or attempt.project_id != entry.project_id or attempt.task_id != entry.task_id
-            or attempt.entry_id != entry.entry_id or entry.attempt_id != attempt.attempt_id
             or not attempt.attempt_id.startswith("merge-attempt-")
-            or snapshot.freeze_operation_id != attempt.attempt_id
             or snapshot.candidate_id != "integration-candidate-" + suffix
             or snapshot.storage_id != "candidate-" + suffix
             or snapshot.parent_commit != attempt.base_commit
             or attempt.candidate_commit != entry.candidate.candidate_commit
-            or snapshot.binding != entry.candidate.binding
-            or snapshot.binding.project_id != task["project_id"] or snapshot.binding.task_id != task["task_id"]
-            or source.project_id != task["project_id"] or source.kind != "managed_bare" or source.source_prefix
-            or source.source_id != snapshot.binding.source_id
-            or source.source_revision != snapshot.binding.source_revision
-            or current_source is None or current_source["source_json"] != source.model_dump(mode="json")
-            or current_source["source_digest"] != workspace_metadata_digest(source)):
+            or binding != entry.candidate.binding
+            or source.project_id != binding.project_id
+            or source.source_id != binding.source_id or source.source_revision != binding.source_revision
+            or not candidate_source_input_is_current(connection, task, entry.source_input_set_ref)):
+        raise TaskBoundaryError("candidate_read_binding_mismatch")
+    if read_registered_candidate_source(connection, binding) != source:
+        raise TaskBoundaryError("candidate_read_git_source_unregistered")
+    return attempt, entry
+
+
+def verify_integration_snapshot(connection, task, snapshot):
+    """Keep the build gate and its established rejection codes."""
+    try:
+        attempt, entry = read_current_integration_snapshot(connection, task, snapshot)
+    except TaskBoundaryError as error:
+        if error.code == "integration_attempt_not_current":
+            raise
+        if error.code == "merge_entry_not_found":
+            raise TaskBoundaryError("integration_attempt_not_current") from None
+        raise TaskBoundaryError("integration_candidate_not_current") from None
+    if task["state"] != "active" or task["ordinary_progress_closed"] or task["cancel_requested_at"] is not None:
         raise TaskBoundaryError("integration_candidate_not_current")
     return attempt, entry
 

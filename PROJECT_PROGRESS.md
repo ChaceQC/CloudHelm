@@ -2,6 +2,12 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：A01 固定候选读规格
+
+- **已完成。** 从 `dev / 7ef26ff` 承接验证与审查只读工作区候选的接缝。A01a [列清两种来源的权威字段与各层 InputSet](docs/implementation/a01-candidate-read-spec.md)；A01b 在[候选解析](modules/integration/candidate_read.py)按原冻结回执或准确集成尝试返回固定规格。[集成构建](modules/integration/merge_builds.py)复用绑定和登记检查，保留独立的推进准入和原整树读取。改动限于候选来源、尝试和输入绑定。
+- **定向开发验证。** 在 WSL Ubuntu-24.04 / Python `3.12.13`，连 [A00b](docs/acceptance/a00b/README.md) 所用的隔离 PostgreSQL `16.13 / 0020_p2_previews`（安装 `69e168a64fe64110a66c4c0d78e7a143`），以只读事务执行 `bash /mnt/e/Project/CloudHelm/.thesis-work/a01/verify.sh`；探针 `verify_candidate_read.py` 的 SHA-256 为 `5be1f250e1d56e4e9b8eaa6fabed29529cff99017f84b220448e51ce1ae8973c`。核对两份 A00b 固定记录摘要；UTC `2026-11-19T05:32:06.290702+00:00` 确认 D1/B0 和 M2/T2 的提交、基线、清单、Git 登记与输入身份准确。旧 M1、错 Task、缺尝试、快照不符均拒绝；用只读查询屏蔽登记结果模拟来源缺失，读侧返回明确错误。原构建输入与冻结记录一致，旧 M1 仍返回 `integration_attempt_not_current`。探针结束关闭本次启动的隔离 PostgreSQL，持久卷保留。
+- **进行中：** 无。**阻塞与风险：** A01 无剩余阻塞；尚未接通目录、文件和差异工具，也未执行物理构建、报告采纳或产品验收。**下一步：** Worker 与 Runtime 按[固定规格交接](docs/implementation/a01-candidate-read-spec.md#交给-a02)执行 A02a，按准确 Git 对象列目录页。增量投入待估。
+
 ## 2026-11-19：A00c 固定单 Agent 任务与操作账本样例
 
 - **已完成。** 在 A00a 的 WSL Ubuntu-24.04 / PostgreSQL 16.13 隔离安装 `69e168a64fe64110a66c4c0d78e7a143` 建立项目 `a00c-notes` 和零预算草稿 `f573e978047e415ea084e25c3de0d720`，绑定原便签基准和参照 InputSet。独立验收方先写定成功与失败预期。[固定输入表](docs/acceptance/a00c/README.md)记录交权改动、返工对照、源码和版本、三种操作观察及目标；[独立断言](docs/acceptance/a00c/independent-assertions.md)交接给 D01/D02 和 G01。只读核对 E07d 原构建成功以及 E07c 同一操作的未知和确认停止两个时点；原历史未重放或写入新草稿。
