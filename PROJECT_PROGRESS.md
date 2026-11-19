@@ -2,6 +2,12 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：替换 Desktop 界面与样式
+
+- **已完成。** 按用户提供的三份文件更新 [App.tsx](apps/desktop/src/App.tsx)、[TaskPanel.tsx](apps/desktop/src/TaskPanel.tsx) 和 [styles.css](apps/desktop/src/styles.css)：工作台支持深浅色切换，任务详情分为概览与控制、Agent 推进和人工测试。样式表 1,221 物理行，保留附件按主题、布局、组件和响应式规则划分的结构。
+- **定向验证。** Windows PowerShell 上以现有依赖运行 `npm.cmd run build`，TypeScript 与 Vite 构建通过。逐份核对附件内容，目标文件仅补齐末尾换行；源码差异空白检查通过。未执行 Tauri 原生交互或 Hub 联动验证。
+- **进行中：** 无。**阻塞与风险：** 无新增构建阻塞。**下一项：** 按现行计划推进 C05a。
+
 ## 2026-11-19：C04 命令回执
 
 - **重构范围。** 从 `dev / 3ec8f57` 承接 C03。改造前，原生桥和界面各自从 HTTP 正文推断命令是否登记。本轮以原生持久化后的显式 IPC 回执作为展示和清理依据，沿用 Hub 授权、请求摘要、原命令登记及同步边界。

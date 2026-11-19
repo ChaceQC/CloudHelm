@@ -6,6 +6,8 @@ import type { Hub } from "./useHub";
 import type { Task } from "./types";
 import { Empty, Facts, JsonView, Status } from "./ui";
 
+type TaskTab = "overview" | "agent" | "human_test";
+
 export function CreateTask({ hub, close }: { hub: Hub; close: () => void }) {
   const [mode, setMode] = useState("reference");
   const [error, setError] = useState("");
@@ -39,39 +41,89 @@ export function CreateTask({ hub, close }: { hub: Hub; close: () => void }) {
 }
 
 export function TaskPanel({ hub, task }: { hub: Hub; task?: Task }) {
+  const [tab, setTab] = useState<TaskTab>("overview");
   const [reason, setReason] = useState("");
   if (!task) return <Empty>选择任务查看详情</Empty>;
   const version = { expected_version: task.version, expected_control_revision: task.control_revision,
     expected_input_validity_revision: task.input_validity_revision };
   const closed = task.ordinary_progress_closed || !!task.cancellation;
+
   return <article className="detail">
-    <div className="section-title"><h2>{task.declaration.title}</h2><Status value={task.state}/></div>
+    <div className="section-title">
+      <h2>{task.declaration.title}</h2>
+      <Status value={task.state}/>
+    </div>
     <p>{task.declaration.goal}</p>
-    <Facts values={{ "Task": task.task_id, "业务版本": task.version, "控制修订": task.control_revision,
-      "输入": `${task.input_status} · r${task.input_validity_revision}`, "预算上限": `${task.declaration.budget.amount} ${task.declaration.budget.currency}` }}/>
-    <div className="actions"><button className="primary" disabled={!hub.can("task.command") || closed || task.state !== "draft"}
-      onClick={() => hub.command(`${taskPath(task.task_id)}/start`, version)}>启动任务</button>
+    <div className="actions">
+      <button className="primary" disabled={!hub.can("task.command") || closed || task.state !== "draft"}
+        onClick={() => hub.command(`${taskPath(task.task_id)}/start`, version)}>启动任务</button>
       <button onClick={() => { void hub.refresh(); }} disabled={!hub.identity}>查询当前事实</button>
       <button disabled={!hub.can(task.cancellation ? "task.cancel" : "task.command")}
         onClick={() => hub.command(`${taskPath(task.task_id)}/reconcile`, {
           expected_version: task.version, expected_control_revision: task.control_revision,
           purpose: task.cancellation ? "cancellation" : "completion",
-        })}>核对控制事实</button></div>
-    {!!task.blockers.length && <section><h3>阻塞对象</h3>{task.blockers.map((blocker, i) =>
-      <div className="blocker" key={i}><strong>{blocker.code}</strong><code>{blocker.object_kind} · {blocker.object_id ?? task.task_id}</code></div>)}</section>}
-    {task.work_items.length > 0 && <section><h3>工作项</h3>{task.work_items.map(item =>
-      <div className="work-item" key={item.work_item_id}><Status value={item.state}/><span>{item.goal}</span></div>)}</section>}
-    {task.cancellation && <div className="notice">取消已请求；停止与冲突占用以服务端核对事实为准。<JsonView value={task.cancellation} title="取消事实"/></div>}
-    {task.completion_report_id && <Facts values={{ "完成报告": task.completion_report_id }}/>}
-    <AgentPanel hub={hub} task={task}/>
-    <HumanTestPanel hub={hub} task={task}/>
-    {!task.ordinary_progress_closed && <form className="cancel" onSubmit={e => {
-      e.preventDefault(); hub.command(`${taskPath(task.task_id)}/cancel`, {
-        expected_version: task.version, expected_control_revision: task.control_revision, cancel_reason: reason.trim(),
-      });
-    }}><h3>请求取消</h3><div className="form-row"><input aria-label="取消原因" value={reason} maxLength={160}
-      onChange={e => setReason(e.target.value)} placeholder="填写取消原因" required/>
-      <button className="danger" disabled={!hub.can("task.cancel") || !reason.trim() || !!task.cancellation}>请求取消</button></div></form>}
-    <JsonView value={task} title="Task 与输入事实"/>
+        })}>核对控制事实</button>
+    </div>
+
+    <div className="tabs" role="tablist" aria-label="任务详情视图">
+      <button type="button" role="tab" className="tab-btn" aria-selected={tab === "overview"}
+        onClick={() => setTab("overview")}>概览与控制</button>
+      <button type="button" role="tab" className="tab-btn" aria-selected={tab === "agent"}
+        onClick={() => setTab("agent")}>Agent 推进</button>
+      <button type="button" role="tab" className="tab-btn" aria-selected={tab === "human_test"}
+        onClick={() => setTab("human_test")}>人工测试</button>
+    </div>
+
+    <div className="tab-panel" role="tabpanel">
+      {tab === "overview" && <>
+        <Facts values={{
+          "Task": task.task_id,
+          "业务版本": task.version,
+          "控制修订": task.control_revision,
+          "输入": `${task.input_status} · r${task.input_validity_revision}`,
+          "预算上限": `${task.declaration.budget.amount} ${task.declaration.budget.currency}`,
+          ...(task.completion_report_id && { "完成报告": task.completion_report_id }),
+        }}/>
+        {!!task.blockers.length && <section>
+          <h3>阻塞对象</h3>
+          {task.blockers.map((blocker, i) => (
+            <div className="blocker" key={i}>
+              <strong>{blocker.code}</strong>
+              <code>{blocker.object_kind} · {blocker.object_id ?? task.task_id}</code>
+            </div>
+          ))}
+        </section>}
+        {task.work_items.length > 0 && <section>
+          <h3>工作项</h3>
+          {task.work_items.map(item => (
+            <div className="work-item" key={item.work_item_id}>
+              <Status value={item.state}/>
+              <span>{item.goal}</span>
+            </div>
+          ))}
+        </section>}
+        {task.cancellation && (
+          <div className="notice">
+            取消已请求；停止与冲突占用以服务端核对事实为准。
+            <JsonView value={task.cancellation} title="取消事实"/>
+          </div>
+        )}
+        {!task.ordinary_progress_closed && <form className="cancel" onSubmit={e => {
+          e.preventDefault(); hub.command(`${taskPath(task.task_id)}/cancel`, {
+            expected_version: task.version, expected_control_revision: task.control_revision, cancel_reason: reason.trim(),
+          });
+        }}>
+          <h3>请求取消</h3>
+          <div className="form-row">
+            <input aria-label="取消原因" value={reason} maxLength={160}
+              onChange={e => setReason(e.target.value)} placeholder="填写取消原因" required/>
+            <button className="danger" disabled={!hub.can("task.cancel") || !reason.trim() || !!task.cancellation}>请求取消</button>
+          </div>
+        </form>}
+        <JsonView value={task} title="Task 与输入事实"/>
+      </>}
+      {tab === "agent" && <AgentPanel hub={hub} task={task}/>}
+      {tab === "human_test" && <HumanTestPanel hub={hub} task={task}/>}
+    </div>
   </article>;
 }
