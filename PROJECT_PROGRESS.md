@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：B01 接工具时间线
+
+- **范围。** 从 `dev / 3cd93c3` 承接 C01。现有查询只识别 `dispatch_tool`；本轮让查询按 Run 工具协议识别记名动作并保留续接归属。继续使用当前权限、SDK 历史边界和原 Operation，不开启新的执行入口。
+- **已实现 B01a。** [Runtime 查询](modules/agent_runtime/task_queries.py)按 Run 的工具协议和[动作声明](packages/contracts/p2/tool_protocol.py)投影调用、返回和重试。续接返回关联原 Run、工具调用 ID 和持久等待中的 Operation；不显示记名调用参数或原始重试内容。现有 `dispatch-r1` 工具结果、数据库迁移、DBOS 应用版本及公开 OpenAPI 保持原样。
+- **B01b 定向验证通过。** [固定 SDK 历史和隔离 PostgreSQL 记录](docs/acceptance/b01.md)核对了同轮返回、校验重试、续接归属、原 Run 超出显示范围和历史不变。Hub 82 条、Remote 8 条 OpenAPI 路径与快照一致。
+- **进行中：** 无。**阻塞与风险：** 无新增；未执行记名工具注册、真实模型或原生 Desktop。**下一项：** B02a 使用同一声明接记名只读工具，B01 字段交接 C02a。增量投入待估。
+
 ## 2026-11-19：C01 拆上下文事务
 
 - **重构范围。** 从 `dev / a5c0c79` 接手；已有本地文件与未提交差异保留。改造前，Runtime 装配期间持有 Task、身份及 Run 相关锁，源码、交还快照与验证资产读取会延长事务。本次只改变上下文的读取和准入边界；原角色权限、SDK 历史及上下文限额、请求计费和恢复身份继续生效。

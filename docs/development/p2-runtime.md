@@ -38,6 +38,8 @@
 
 状态按钮显式读取当前持久事实，现有项目快照变化也刷新 Agent 投影；没有独立轮询器。结果最多最新 8 Session、每 Session 8 Run、每 Run 16 条工具反馈，单字符串最多 4096 字符，Run 投影合计最多 512KiB；截断明确标记。差异最多 16 文件、单文件 8KiB、合计 32KiB，敏感路径不展示，识别到秘密的补丁整体显示 `[REDACTED]`。这些限制沿用规则式筛选，不扩大对未知秘密格式的支持结论。
 
+B01 为查询投影保留 Run 的 `tool_protocol_revision`。当前运行的 `dispatch-r1` 继续使用原工具结果格式；供后续接线的 `named-r1` 从已提交 SDK 历史投影调用、返回和重试，以业务动作名及 `tool_call_id`、`call_run_id` 标识原调用。续接返回在当前 Run 下展示，并引用持久等待绑定的原 Operation。调用不展示参数，记名工具重试只展示固定原因码。此步只接查询，记名工具执行留给 B02；见 [B01 定向核对](../acceptance/b01.md)。
+
 API 进程读取当前差异时需与 worker 使用同一受保护的 `CLOUDHELM_ENGINEERING_REGISTRY_FILE` 和受管存储；只通过原 `EngineeringRegistry.admit(0)` 与文件服务读取，未配置/未物化/不可用时显示真实原因，不读取任意宿主路径或启动执行器。自 `0017_p2_agent_entry` 起 API 可插入 Session/Run 及更新 Session state，模型请求、历史与结果仍由 worker 写入。旧安装不由 initialize 自动升级；维护副本仍固定 0011，不能为使用新入口绕过恢复门禁。
 
 ## 能力与每次准入
