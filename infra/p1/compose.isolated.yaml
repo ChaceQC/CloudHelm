@@ -1,0 +1,11 @@
+# Extend compose.yaml only for the persistent, isolated development installation.
+services:
+  postgres:
+    tmpfs: !override
+      - /var/run/postgresql:size=16777216
+      - /tmp:size=16777216
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

@@ -2,6 +2,15 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：A00a 记录基线、建立隔离安装
+
+- **基线。** 开发分支 `dev`；起点、原 `origin/dev` 均为 `b226022483fcc3c4c98f22c3a8faba1fb0b4c696`。执行依据为本机架构细化方案 §10.1，文件 SHA-256 `7078d0c9c8548e2ebd8f76adf74d678df352280635022fe0746107287b283370`。开始时已有计划表格排版、Hub/Windows Desktop 与锁文件的 `0.30.0` 调整、`0020` 冷启动导入、Runner 预览登记及配套说明，以及未跟踪的两份架构稿和 Playwright 本地目录。原改动保留；独立检出使用 `0.29.0` 和原 `uv.lock`，只复用两行已存在的冷启动导入（`0020_p2_previews.py` 的 Git blob `866cc2065ac991fdee55f75bdaf282a61f47f76b`）。
+- **新安装。** 源码、Git 和运行状态在 WSL Ubuntu-24.04（Linux `6.18.33.2-microsoft-standard-WSL2`、Git `2.43.0`、Python `3.12.13`、uv `0.11.29`）。通过本机 Docker `29.1.3` 和 Compose `2.40.3` 在独立项目 `cloudhelm-a00a` 启动 PostgreSQL `16.13`；固定镜像继承 [P1 Compose](infra/p1/compose.yaml)，新增[持久卷覆盖](infra/p1/compose.isolated.yaml)。连接配置只引用 WSL 私有目录中的 `0600` 文件。Windows 已核对 Node `24.13.0`、npm `11.6.2`、Cargo `1.97.1`、WebView2 `154.0.4258.62`；本步未构建或运行原生 Desktop。
+- **定向验证。** WSL 独立检出执行 `uv sync --locked --offline --python 3.12.13`。用本机忽略目录 `.thesis-work/a00a/prepare.py` 配置角色；`database.manage status` 先返回 `not_initialized`，`initialize --operation-id a00a-initialize-b226022483fc` 在 UTC `2026-11-19T04:37:24+00:00` 前返回 `ready`，安装 `69e168a64fe64110a66c4c0d78e7a143`、迁移 `0020_p2_previews`、工作流 `cloudhelm-hub/0.7.0`、DBOS SDK `3.2.0`。Compose 停启后状态及安装身份相同，实际库中 Task 和项目均为 0；持久卷为 `cloudhelm-a00a_postgres-data`。跨 WSL 会话首次启动因数据库容器已退出返回 `database_unavailable`；改在同一 WSL 会话先启动 Compose 并等待健康，再运行 `.thesis-work/a00a/smoke.py`，UTC `2026-11-19T04:39:31.120576+00:00` 获得同一安装的单 worker `ready`，API `GET /health/live` 返回 `200` 和 `alive`。随后两进程退出，API 端口关闭，保留新库和持久卷。后续启动见[隔离安装说明](docs/development/a00-isolated-install.md)。
+- **旧安装清理。** 按用户授权，确认旧容器已退出、对应端口无监听且网络无端点后，于 UTC `2026-11-19T04:39:00+00:00` 定向移除 Compose 项目 `cloudhelm-p1-b18622aa0ebd`、`cloudhelm-p1-e083a074a0d0`、`cloudhelm-p1-04fbf3c95167` 的三个容器、三个空网络，以及 `p1-fixtures` 下 `instance-ni1ope1q`、`instance-bq60y_sz` 的临时材料。`instance-cgn51uei` 仅清理连接配置、会话文件和闲置 socket，保留七份 E07d 证据。核查旧容器和网络已不存在；仍引用的制品 backing、旧资源账本、未确认归属的数据及外部交付目标均保留。
+- **文档检查。** 四个交付文件均为有效 UTF-8，新说明引用的六个本地文件均存在。本机安装和旧实例清理脚本保持在忽略目录。
+- **进行中：** 无。**阻塞与风险：** A00a 无阻塞。Runner/受管 Git 存储、原生联调和实际独立目标尚未配置或验收；无模型请求、真实构建、预览、远端部署或业务验收。**下一步：** 集成与独立验收负责人执行 A00b，使用隔离库和新 Git 来源固定目标独有文件与目标再次移动的样例；A00c 和 A01a 未执行，增量投入待估。
+
 ## 2026-11-19：R04 与 R05b 出口核对
 
 - 已实现：[工作区](modules/workspaces/operations.py)、[构建](modules/delivery/queries.py)、[资源](modules/collaboration/resource_facts.py)先用原回执认定收尾，只有未收尾操作计入上限；[远端轮询](modules/delivery/remote_application.py)先筛当前目标、绑定和适用批准，保留原在途操作的核对路径。无新迁移、依赖、HTTP 路由或工作流版本。远端轮询仍在同一函数内管理候选筛选和原预检，避免拆开当前事务的读取逻辑。
