@@ -89,7 +89,7 @@ API socket 的父目录为 `0700`，socket 为 `0600`，程序检查 Linux 原�
 
 worker 成功启动后输出带 UTC 时间的 `ready`。同一安装身份在受控本机账户下只允许一个 worker；第二实例拒绝，不通过删除锁或等待超时抢占。SIGTERM/SIGINT 提交停止请求后须等待 OS 进程实际退出；`--shutdown-grace-seconds` 只限定 SDK 收束等待。详细边界见 [worker 说明](../../services/hub-worker/README.md)。
 
-管理请求通过 `Authorization: Bearer` 头认证，客户端直接消费受保护凭据，不将它放入 URL、进程命令参数或日志。命令使用 `Idempotency-Key`；同键重投保留原请求体，改变输入须使用新键。JSON 请求需要 `Content-Type: application/json`，可带精确的 `X-CloudHelm-Api-Schema: p1-hub-api-r1`；未知修订、重复 JSON 键、未知字段和超限正文都会拒绝。
+管理请求通过 `Authorization: Bearer` 头认证，客户端直接消费受保护凭据，不将它放入 URL、进程命令参数或日志。命令使用 `Idempotency-Key`；同键重投保留原请求体，改变输入须使用新键。JSON 请求需要 `Content-Type: application/json`；当前管理 API 修订为 `X-CloudHelm-Api-Schema: p1-hub-api-r2`。携带旧修订的请求返回 `api_schema_not_supported`；重复 JSON 键、未知字段和超限正文也会拒绝。
 
 |用途|入口|
 |---|---|

@@ -238,17 +238,22 @@ export function useHub() {
       throw new HubError("session_changed");
     }
   };
-  const query = async <T,>(route: string): Promise<T> => {
+  const query = async <T,>(route: string, isCurrent?: () => boolean): Promise<T> => {
     const generation = renderedGeneration;
     const expected = epoch.current;
-    if (!generation || !matches(generation, expected)) throw new HubError("session_changed");
+    if (!generation) throw new HubError("session_changed");
+    const requestScope = scope.current;
+    const matchesQuery = () => matches(generation, expected)
+      && (!isCurrent || (scope.current === requestScope && isCurrent()));
+    if (!matchesQuery()) throw new HubError("session_changed");
     try {
       const value = await read<T>(generation, route);
-      if (!matches(generation, expected)) throw new HubError("session_changed");
+      if (!matchesQuery()) throw new HubError("session_changed");
       return value;
     } catch (reason) {
-      if (!matches(generation, expected)) throw new HubError("session_changed");
-      if (!sessionChanged(reason)) { denied(reason); setError(codeOf(reason)); }
+      if (!matchesQuery()) throw new HubError("session_changed");
+      // Scoped callers display their own errors; current authorization failures still revoke access here.
+      if (!sessionChanged(reason) && (denied(reason) || !isCurrent)) setError(codeOf(reason));
       throw reason;
     }
   };

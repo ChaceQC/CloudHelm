@@ -2,7 +2,7 @@ use reqwest::Url;
 use std::time::Duration;
 use tauri::WebviewWindow;
 
-pub const API_SCHEMA: &str = "p1-hub-api-r1";
+pub const API_SCHEMA: &str = "p1-hub-api-r2";
 pub const MAX_BYTES: usize = 2 * 1024 * 1024;
 
 pub fn trusted(window: &WebviewWindow) -> Result<(), String> {
@@ -69,7 +69,8 @@ pub fn route_allowed(method: &str, route: &str) -> bool {
         ("GET", ["", "api", "projects", _]) => true,
         ("GET", ["", "api", "projects", _, "snapshot"]) => true,
         ("GET", ["", "api", "tasks", _]) => true,
-        ("GET", ["", "api", "tasks", _, "agent"]) => true,
+        ("GET", ["", "api", "tasks", _, "agent-summary"]) => true,
+        ("GET", ["", "api", "tasks", _, "agent-runs", _]) => true,
         ("GET", ["", "api", "tasks", _, kind]) => matches!(*kind, "human-tests" | "human-test-options"),
         ("GET", ["", "api", kind, _]) => matches!(*kind, "human-tests" | "preview-environments"),
         ("GET", ["", "api", "tasks", _, "agent-diff", _]) => true,

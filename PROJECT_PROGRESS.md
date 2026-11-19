@@ -2,6 +2,13 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-19：C03 切换 Desktop 查询
+
+- **重构范围。** 从 `dev / 6a00233` 承接 C02。Desktop 列表只取摘要，打开 Run 时按当前范围请求单轮，删除原生桥和 Hub 的旧聚合入口。保留 Run 启动与续接、工作区差异、查询授权、同步协议及预览隔离边界；版本以配对的 HTTP schema 辨识。
+- **已实现 C03a/C03b。** 从固定 OpenAPI [生成 TypeScript](apps/desktop/scripts/generate-agent-contract.mjs)，[Rust 白名单](apps/desktop/src-tauri/src/security.rs)与 [Hub](services/hub-api/routes_agent.py)切到 `p1-hub-api-r2`。删除旧聚合投影、接口与类型。[Agent 面板](apps/desktop/src/AgentPanel.tsx)仅在展开 Run 时查询明细，按当前范围识别迟到响应；展示工作项能力、费用、等待和单轮证据。面板和事实组件为 154 与 75 物理行；现有连接控制只补范围判断，刷新合并留 C05。
+- **C03c 定向验证通过。** [Windows 原生与 WSL 隔离核对](docs/acceptance/c03.md)：生成一致、前端与含前端的 Tauri 构建通过，Hub/Remote OpenAPI 快照一致。主窗口折叠时仅发摘要，展开 Run 才取得明细，换 Task 后旧回包不回填；旧路径、旧修订和跨 Task 查询均拒绝。独立 WebView2 无管理 IPC，收窗后专用分区删除。未运行正式预览、真实模型、worker、部署或人工验收。
+- **进行中：** 无。**阻塞与风险：** C03 无剩余阻塞。**下一项：** C04a 接入原生持久回执。增量投入待估。
+
 ## 2026-11-19：C02 固定 Hub 查询契约
 
 - **重构范围。** 从 `dev / 6162d0a` 承接 B04，保留已有工作树改动。旧 Agent 面板查询在列举 Run 时加载 SDK 历史；本轮拆为不读 SDK 历史的摘要与按归属读取的单轮明细。沿用现有读授权、启动命令、工作区差异、持久历史与费用权威。旧聚合入口保留到 C03 同版切换。

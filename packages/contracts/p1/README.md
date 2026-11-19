@@ -23,7 +23,7 @@
 |`compose_contracts.py`|`p1-compose-parser-r1` 的受限 Compose Release、环境配置和 DeploymentPlan 结构；只保存参数契约与 secret 版本引用，不保存 secret 值或授予部署权限|
 |`delivery_records.py`、`delivery_requests.py`|`p1-release-manifest-r1`、`p1-environment-config-r1`、`p1-deployment-plan-r1`、人类批准与可信目标观察；运行验证用现有 Candidate EvidenceMetadata 的 fact_digest 固定构建/归档/测试配置。实际入口及边界见[交付说明](../../../docs/development/p1-delivery.md)|
 |`workspace_development_requests.py`|可变 Workspace 环境的申请、休眠、恢复、数据重建、处置与操作查询；公共请求不提交 Runner 就绪事实|
-|`hub-openapi.json`|由实际 FastAPI factory 导出的 HTTP 结构快照，与当前实现一致性单独核验|
+|`hub-openapi.json`|由实际 FastAPI factory 导出的 `p1-hub-api-r2` HTTP 结构快照；Agent 摘要与单轮明细取代旧聚合查询，与当前实现一致性单独核验|
 |`remote_delivery.py`、`remote-openapi.json`|执行器认证通道的完整计划、样本、具名许可及步骤事实；默认启动关闭，边界见 [Remote Agent 说明](../../../docs/development/p1-remote-agent.md)|
 |`closeout_contracts.py`|`p1-archive-closeout-r1` 的首装进入运行前封闭/停止/保留回执及唯一人类收尾事实；仅按原身份核对，不将步骤 unknown 改成成功|
 

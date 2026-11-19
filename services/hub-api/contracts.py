@@ -6,7 +6,7 @@ from pydantic import Field
 
 from packages.contracts.p0.decision_common import Contract, Identifier
 
-API_SCHEMA_REVISION = "p1-hub-api-r1"
+API_SCHEMA_REVISION = "p1-hub-api-r2"
 
 
 class ApiErrorResponse(Contract):

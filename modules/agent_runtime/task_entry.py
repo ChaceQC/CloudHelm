@@ -39,7 +39,6 @@ from .admission import check_new_run_budget
 from .operation_tables import agent_operation_waits
 from .registration import active_work_item_run, enqueue_prepared_run_in_uow, lock_run_work_item, read_agent_workspace
 from .tables import agent_runs, agent_sessions
-from .task_queries import query_agent_in_uow
 from .task_run_detail import query_agent_run_in_uow
 from .task_summary import query_agent_summary_in_uow
 from .work_item_capabilities import project_work_item_capabilities_in_uow, require_formal_preview_in_uow
@@ -91,13 +90,6 @@ class TaskAgentApplication:
                 save_result(uow.connection, envelope, result, status_code=error.status_code,
                             authorization=authorization.envelope)
                 return error.status_code, result
-
-    def query(self, actor, task_id):
-        validate_actor(actor)
-        with UnitOfWork(self.control_engine) as uow:
-            task, _ = lock_task_access(uow, actor, task_id, "resource.read")
-            authorize_current(uow, actor, task_resource(task), "operation.query")
-            return query_agent_in_uow(uow, task)
 
     def summary(self, actor, task_id):
         validate_actor(actor)

@@ -42,12 +42,6 @@ class TaskAgentCommandResult(Contract):
     workflow_id: Identifier | None = None
 
 
-class TaskAgentView(Contract):
-    task_id: Identifier
-    sessions: tuple[dict[str, JsonValue], ...] = Field(max_length=8)
-    truncated: bool
-
-
 class TaskAgentDiff(Contract):
     workspace_id: Identifier | None
     work_item_id: Identifier

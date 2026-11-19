@@ -134,5 +134,6 @@ jobs:
       - name: 构建基础 Desktop 前端
         working-directory: apps/desktop
         run: |
+          node scripts/generate-agent-contract.mjs --check
           npm ci --no-audit --no-fund
           npm run build

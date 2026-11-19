@@ -10028,145 +10028,6 @@
         }
       }
     },
-    "/api/tasks/{task_id}/agent": {
-      "get": {
-        "tags": [
-          "task-agent"
-        ],
-        "summary": "Query Agent",
-        "operationId": "query_agent_api_tasks__task_id__agent_get",
-        "security": [
-          {
-            "CloudHelmSession": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 160,
-              "title": "Task Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskAgentView"
-                }
-              }
-            }
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "413": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Request Entity Too Large"
-          },
-          "415": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Unsupported Media Type"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorResponse"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          }
-        }
-      }
-    },
     "/api/tasks/{task_id}/agent-summary": {
       "get": {
         "tags": [
@@ -24539,39 +24400,6 @@
         ],
         "title": "TaskAgentToolEvent"
       },
-      "TaskAgentView": {
-        "properties": {
-          "task_id": {
-            "type": "string",
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Task Id"
-          },
-          "sessions": {
-            "items": {
-              "additionalProperties": {
-                "$ref": "#/components/schemas/JsonValue"
-              },
-              "type": "object"
-            },
-            "type": "array",
-            "maxItems": 8,
-            "title": "Sessions"
-          },
-          "truncated": {
-            "type": "boolean",
-            "title": "Truncated"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "task_id",
-          "sessions",
-          "truncated"
-        ],
-        "title": "TaskAgentView"
-      },
       "AttachDevelopmentPreviewRequest": {
         "properties": {
           "expected_version": {
@@ -26163,5 +25991,5 @@
       }
     }
   },
-  "x-cloudhelm-schema-revision": "p1-hub-api-r1"
+  "x-cloudhelm-schema-revision": "p1-hub-api-r2"
 }

@@ -5,8 +5,7 @@ from starlette.responses import JSONResponse
 
 from packages.contracts.p0.decision_common import Identifier
 from packages.contracts.p2.task_agent import (
-    StartTaskAgentRequest, TaskAgentCommandResult, TaskAgentDiff, TaskAgentRunDetail,
-    TaskAgentSummary, TaskAgentView,
+    StartTaskAgentRequest, TaskAgentCommandResult, TaskAgentDiff, TaskAgentRunDetail, TaskAgentSummary,
 )
 from .auth import get_runtime
 from .contracts import ApiErrorResponse
@@ -22,11 +21,6 @@ def start_agent(request: Request, task_id: Identifier, actor: NormalActor, idemp
                 body: StartTaskAgentRequest = Depends(strict_body(StartTaskAgentRequest))):
     status, result = get_runtime(request).agents.start(actor, task_id, body, idempotency_key=idempotency_key)
     return JSONResponse(status_code=status, content=result.model_dump(mode="json"))
-
-
-@router.get("/{task_id}/agent", response_model=TaskAgentView)
-def query_agent(request: Request, task_id: Identifier, actor: ControlActor):
-    return get_runtime(request).agents.query(actor, task_id)
 
 
 @router.get("/{task_id}/agent-summary", response_model=TaskAgentSummary)
