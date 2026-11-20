@@ -19,7 +19,7 @@ export interface EngineeringRef {
 }
 export interface HumanTestOptions {
   candidates: { candidate_id: string; label: string; test_config_ref: EngineeringRef; dataset_ref: EngineeringRef }[];
-  tester_id: string; management_start_url: string | null;
+  tester_id: string | null;
 }
 export interface HumanTestSession {
   session_id: string; round_id: string; revision: number; task_version: number; control_revision: number;

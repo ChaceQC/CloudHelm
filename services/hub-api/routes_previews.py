@@ -4,11 +4,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
 
 from database.uow import UnitOfWork
 from modules.collaboration.command_support import lock_task_access
+from modules.collaboration.errors import TaskBoundaryError
+from modules.collaboration.guards import task_resource
+from modules.identity.authorization import authorize_current
+from modules.identity.errors import IdentityError
 from modules.integration.candidates import _read
+from modules.integration.merge_validity import require_merged_report
 from modules.integration.validity import selected_verification
 from modules.workspaces.preview_access import _environment
 from modules.workspaces.preview_profiles import fixed_preview_inputs
@@ -40,22 +44,31 @@ def human_options(request: Request, task_id: Identifier, actor: Control):
     runtime = get_runtime(request)
     with UnitOfWork(runtime.pools.control) as uow:
         task, _ = lock_task_access(uow, actor, task_id, "resource.read")
+        try:
+            authorize_current(uow, actor, task_resource(task), "human_test.enter")
+        except IdentityError as error:
+            if error.code != "permission_denied":
+                raise
+            tester_id = None
+        else:
+            tester_id = actor.principal.subject_id
         selected = selected_verification(uow.connection, task)
-        options = ()
-        if selected is not None and selected.usable:
+        if selected is None or not selected.usable:
+            return HumanTestOptions(tester_id=tester_id)
+        try:
+            require_merged_report(uow.connection, task, selected)
             candidate = _read(uow.connection, task, selected.report.candidate_id)
             config, dataset = fixed_preview_inputs(uow.connection, candidate)
-            options = (HumanTestOption(candidate_id=candidate.candidate_id, label=candidate.candidate_id,
-                test_config_ref=config.model_dump(mode="json"), dataset_ref=dataset.model_dump(mode="json")),)
-        from modules.integration.human_test_tables import human_test_sessions
-
-        latest = uow.connection.scalar(select(human_test_sessions.c.record_json).where(
-            human_test_sessions.c.task_id == task_id).order_by(human_test_sessions.c.created_at.desc()).limit(1))
-        environment_id = latest.get("environment_id") if latest else None
-        descriptor = runtime.preview_environments.installation
-        url = (descriptor.management_origin + "/preview/start/" + environment_id
-               if descriptor is not None and environment_id else None)
-        return HumanTestOptions(candidates=options, tester_id=actor.principal.subject_id, management_start_url=url)
+        except TaskBoundaryError as error:
+            if error.code not in {"project_integration_required", "project_integration_not_accepted",
+                                  "integration_attempt_not_current", "integration_final_candidate_required",
+                                  "integration_final_evidence_required", "verification_not_applicable",
+                                  "preview_profile_not_supported"}:
+                raise
+            return HumanTestOptions(tester_id=tester_id)
+        option = HumanTestOption(candidate_id=candidate.candidate_id, label=candidate.candidate_id,
+                                test_config_ref=config, dataset_ref=dataset)
+        return HumanTestOptions(candidates=(option,), tester_id=tester_id)
 
 
 @router.post("/tasks/{task_id}/human-tests", response_model=HumanTestCommandResult, status_code=202)
@@ -107,8 +120,8 @@ def development_preview(request: Request, task_id: Identifier, actor: Normal, id
 
 
 @router.get("/preview-environments/{environment_id}", response_model=PreviewEnvironmentView)
-def preview_environment(request: Request, environment_id: Identifier, actor: Control):
-    return get_runtime(request).preview_environments.query(actor, environment_id)
+def preview_environment(request: Request, environment_id: Identifier, actor: Control, for_open: bool = False):
+    return get_runtime(request).preview_environments.query(actor, environment_id, for_open=for_open)
 
 
 @router.post("/preview-environments/{environment_id}/stop", response_model=PreviewEnvironmentResult, status_code=202)

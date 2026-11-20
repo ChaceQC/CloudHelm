@@ -36,7 +36,7 @@ export default function App() {
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [projectInput, setProjectInput] = useState("");
-  const [previewCleanup, setPreviewCleanup] = useState(() => new Map<string, boolean>());
+  const [previewCleanup, setPreviewCleanup] = useState(() => new Map<string, { closed?: true; removed?: boolean }>());
   const snapshot = hub.snapshot;
   const scopeKey = snapshot ? JSON.stringify([hub.generation, snapshot.project.project_id, snapshot.stream_id,
     snapshot.project.permission_revision]) : "";
@@ -54,10 +54,13 @@ export default function App() {
   useEffect(() => { setTask(""); setPlan(""); setObject(""); setCreating(false); }, [scopeKey]);
   useEffect(() => { if (!hub.writable) setCreating(false); }, [hub.writable]);
   useEffect(() => {
-    const unlisten = listen<PreviewCleanup>("preview-cleanup", ({ payload: { label, removed } }) => {
-      setPreviewCleanup(previous => new Map(previous).set(label, removed));
+    const closed = listen<{ label: string }>("preview-closed", ({ payload: { label } }) => {
+      setPreviewCleanup(previous => new Map(previous).set(label, { ...previous.get(label), closed: true }));
     }, { target: "main" }).catch(() => undefined);
-    return () => { void unlisten.then(stop => stop?.()); };
+    const cleanup = listen<PreviewCleanup>("preview-cleanup", ({ payload: { label, removed } }) => {
+      setPreviewCleanup(previous => new Map(previous).set(label, { ...previous.get(label), removed }));
+    }, { target: "main" }).catch(() => undefined);
+    return () => { void closed.then(stop => stop?.()); void cleanup.then(stop => stop?.()); };
   }, []);
 
   const receipt = hub.receipt;
@@ -127,11 +130,14 @@ export default function App() {
           )}
         </div>
 
-        {[...previewCleanup].map(([label, removed]) => (
-          <div className={`${removed ? "notice" : "error"} pending-command`} key={label}>
-            <div role={removed ? "status" : "alert"}>
-              <strong>{removed ? "预览专用分区已删除。" : "预览专用分区清理失败，分区可能仍留在本机。"}</strong>
+        {[...previewCleanup].map(([label, facts]) => (
+          <div className={`${facts.removed === false ? "error" : "notice"} pending-command`} key={label}>
+            <div role={facts.removed === false ? "alert" : "status"}>
+              <strong>预览本机收尾</strong>
               <code>{label}</code>
+              <p>本机收窗：{facts.closed ? "已确认" : "待确认"}；专用分区删除：{facts.removed === undefined
+                ? "待确认" : facts.removed ? "已删除" : "清理失败，分区可能仍留在本机"}。</p>
+              <p className="muted">全部相关代理断开需查询对应轮次的环境撤销证据。</p>
             </div>
             <button aria-label={`关闭提示：${label}`} onClick={() => setPreviewCleanup(previous => {
               const next = new Map(previous);

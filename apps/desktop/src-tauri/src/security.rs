@@ -2,7 +2,7 @@ use reqwest::Url;
 use std::time::Duration;
 use tauri::WebviewWindow;
 
-pub const API_SCHEMA: &str = "p1-hub-api-r2";
+pub const API_SCHEMA: &str = "p1-hub-api-r3";
 pub const MAX_BYTES: usize = 2 * 1024 * 1024;
 
 pub fn trusted(window: &WebviewWindow) -> Result<(), String> {

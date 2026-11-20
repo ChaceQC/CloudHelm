@@ -48,5 +48,4 @@ class HumanTestOption(Contract):
 
 class HumanTestOptions(Contract):
     candidates: tuple[HumanTestOption, ...] = Field(default=(), max_length=128)
-    tester_id: Identifier
-    management_start_url: str | None = None
+    tester_id: Identifier | None

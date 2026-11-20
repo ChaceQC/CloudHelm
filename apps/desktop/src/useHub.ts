@@ -287,10 +287,11 @@ export function useHub() {
     try { await transition(forget); }
     catch (reason) { if (epoch.current === expected) setError(codeOf(reason)); }
   };
-  const openPreview = async (environmentId: string) => {
+  const openPreview = async (environmentId: string, expected: number) => {
     const generation = renderedGeneration;
-    if (!generation || generation !== active.current || !scope.current) throw new HubError("session_changed");
-    const expected = previewEpoch.current;
+    if (!generation || generation !== active.current || !scope.current || previewEpoch.current !== expected) {
+      throw new HubError("session_changed");
+    }
     const label = await invoke<string>("preview_open", { generation, environmentId }).catch(reason => {
       throw previewEpoch.current === expected ? reason : new HubError("session_changed");
     });
@@ -369,7 +370,7 @@ export function useHub() {
   }) ?? [];
   return { identity, projects, snapshot, tasks, connection, error, events, previewRevision,
     receipt: displayedReceipt?.receipt ?? null, pending, busy,
-    connect, disconnect, selectProject, refresh, query, command, openPreview, generation: renderedGeneration,
+    connect, disconnect, selectProject, refresh, query, command, openPreview, closePreviews, generation: renderedGeneration,
     retry: (original: PendingCommand) => {
       if (!busy && connection === "live") void execute(original, true, original.generation);
     },

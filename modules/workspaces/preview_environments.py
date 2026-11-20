@@ -20,7 +20,9 @@ from modules.execution.tables import resource_reservations
 from modules.integration.candidates import _read, _ref
 from modules.integration.human_test_records import now_utc
 from modules.sync.events import append_event
-from modules.workspaces.preview_access import _environment, revoke_environment_in_uow
+from modules.workspaces.preview_access import (
+    _environment, require_current_preview_access, require_preview_device, revoke_environment_in_uow,
+)
 from modules.workspaces.preview_access_tables import preview_authorizations, preview_environments
 from modules.workspaces.preview_environment_tables import preview_environment_intents as intents
 from modules.workspaces.preview_profiles import fixed_preview_inputs
@@ -198,22 +200,27 @@ class PreviewEnvironmentApplication:
             intents.c.environment_id == record.environment_id).order_by(intents.c.updated_at.desc()).limit(1))
         grants = uow.connection.scalars(select(preview_authorizations.c.record_json).where(
             preview_authorizations.c.environment_id == record.environment_id)).all()
-        statuses = [revocation_status(PreviewAuthorizationRecord.model_validate(value).revocation)
-                    for value in grants if value.get("revocation")]
+        statuses = {revocation_status(self.clock.observe(PreviewAuthorizationRecord.model_validate(value)).revocation)
+                    for value in grants if value.get("revocation")}
         return PreviewEnvironmentView(environment_id=record.environment_id, purpose=record.purpose,
             state=record.state, actual_revision=record.actual_revision,
             resource_reservation_id=record.resource_reservation_id, expires_at=record.expires_at.isoformat(),
-            reason=reason, revocation_status=",".join(sorted(set(statuses))) or None,
+            reason=reason, revocation_status=",".join(sorted(statuses)) or None,
             entry_origin=record.entry_origin,
             client_route=record.client_route.route if record.client_route else None,
             management_start_url=(self.installation.management_origin + "/preview/start/" + record.environment_id
                                   if self.installation else None))
 
-    def query(self, actor, environment_id):
+    def query(self, actor, environment_id, *, for_open=False):
+        if for_open:
+            require_preview_device(actor)
         with UnitOfWork(self.control_engine) as uow:
             initial = _environment(uow.connection, environment_id)
-            lock_task_access(uow, actor, initial.task_id, "resource.read")
-            return self.view(uow, self.refresh_in_uow(uow, environment_id))
+            task, _ = lock_task_access(uow, actor, initial.task_id, "resource.read")
+            record = self.refresh_in_uow(uow, environment_id)
+            if for_open:
+                require_current_preview_access(uow, actor, task, record)
+            return self.view(uow, record)
 
     def stop(self, actor, environment_id, request, *, idempotency_key):
         with UnitOfWork(self.control_engine) as uow:

@@ -20,6 +20,9 @@ static CLEANUPS: Mutex<Vec<thread::JoinHandle<()>>> = Mutex::new(Vec::new());
 #[derive(Clone, Serialize)]
 struct Cleanup { label: String, removed: bool }
 
+#[derive(Clone, Serialize)]
+struct Closed { label: String }
+
 fn remove_partition(app: AppHandle, label: String, directory: PathBuf) {
     let cleanup = thread::spawn(move || {
         // WebView2 releases its profile handles after controller.Close(), asynchronously.
@@ -43,6 +46,8 @@ fn dispose(app: &AppHandle, label: &str) {
         let _ = container.view.clear_all_browsing_data();
         let directory = container.directory.clone();
         drop(container);
+        // Report the disposed local WebView independently of partition removal or proxy revocation.
+        let _ = app.emit_to("main", "preview-closed", Closed { label: label.to_owned() });
         remove_partition(app.clone(), label.to_owned(), directory);
     }
 }

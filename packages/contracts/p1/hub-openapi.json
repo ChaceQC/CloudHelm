@@ -12951,6 +12951,16 @@
               "maxLength": 160,
               "title": "Environment Id"
             }
+          },
+          {
+            "name": "for_open",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "For Open"
+            }
           }
         ],
         "responses": {
@@ -24728,21 +24738,17 @@
             "default": []
           },
           "tester_id": {
-            "type": "string",
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Tester Id"
-          },
-          "management_start_url": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Management Start Url"
+            "title": "Tester Id"
           }
         },
         "additionalProperties": false,
@@ -25991,5 +25997,5 @@
       }
     }
   },
-  "x-cloudhelm-schema-revision": "p1-hub-api-r2"
+  "x-cloudhelm-schema-revision": "p1-hub-api-r3"
 }

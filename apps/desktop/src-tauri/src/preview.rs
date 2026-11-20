@@ -58,7 +58,7 @@ pub async fn preview_open(window: WebviewWindow, app: AppHandle, state: State<'_
     }
     let session = bridge::selected_session(&state, &generation)?;
     let reply = bridge::bounded_reply(session.client.get(format!(
-        "{}/api/preview-environments/{environment_id}", session.base))
+        "{}/api/preview-environments/{environment_id}?for_open=true", session.base))
         .bearer_auth(&session.token).header("X-CloudHelm-Api-Schema", security::API_SCHEMA)
         .timeout(Duration::from_secs(15)).send().await.map_err(|_| "hub_unreachable")?).await?;
     if reply.status != 200 { return Err("preview_route_unavailable".into()); }

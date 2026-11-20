@@ -121,7 +121,12 @@ def _binding(environment, authorization_id, subject_id):
     )
 
 
-def _current(uow, actor, task, environment, *, record=None):
+def require_preview_device(actor):
+    if actor.principal.kind != "human" or actor.authentication_source != "device_session":
+        raise WorkspaceError("preview_human_required", status_code=403)
+
+
+def require_current_preview_access(uow, actor, task, environment, *, record=None):
     connection = uow.connection
     now = _now(connection)
     if (actor.principal.kind != "human" or environment.project_id != task["project_id"]
@@ -200,8 +205,7 @@ class PreviewAccessApplication:
             return _environment(uow.connection, environment_id)
 
     def issue(self, actor, environment_id, request: PreviewAccessRequest, key, source_origin):
-        if actor.principal.kind != "human" or actor.authentication_source != "device_session":
-            raise WorkspaceError("preview_human_required", status_code=403)
+        require_preview_device(actor)
         with UnitOfWork(self.engine) as uow:
             initial = _environment(uow.connection, environment_id)
             task, authorization = lock_task_access(uow, actor, initial.task_id, "resource.read")
@@ -222,7 +226,7 @@ class PreviewAccessApplication:
             check_task_revisions(task, expected_version=request.expected_version,
                 expected_control_revision=request.expected_control_revision,
                 expected_input_validity_revision=request.expected_input_validity_revision)
-            now = _current(uow, actor, task, environment)
+            now = require_current_preview_access(uow, actor, task, environment)
             if (source_origin != environment.management_origin or environment.revision != request.expected_environment_revision
                     or not now < request.expires_at <= environment.expires_at):
                 raise WorkspaceError("preview_request_binding_invalid")
@@ -264,7 +268,7 @@ class PreviewAccessApplication:
             task, _ = lock_task_access(uow, actor, environment.task_id, "resource.read")
             environment = _environment(uow.connection, initial.environment_id, lock=True)
             _, record = _authorization(uow.connection, authorization_id, lock=True)
-            now = _current(uow, actor, task, environment, record=record)
+            now = require_current_preview_access(uow, actor, task, environment, record=record)
             if (origin != environment.management_origin or target_origin != environment.entry_origin
                     or record.ticket_state != "unused" or now >= record.ticket_expires_at):
                 raise WorkspaceError("preview_access_denied", status_code=403)
@@ -286,7 +290,7 @@ class PreviewAccessApplication:
             task, _ = lock_task_access(uow, actor, environment.task_id, "resource.read")
             environment = _environment(uow.connection, initial.environment_id, lock=True)
             _, record = _authorization(uow.connection, authorization_id, lock=True)
-            _current(uow, actor, task, environment, record=record)
+            require_current_preview_access(uow, actor, task, environment, record=record)
             if environment_id != environment.environment_id or record.ticket_state != "consumed":
                 raise WorkspaceError("preview_access_denied", status_code=403)
             return PreviewAuthenticated(record, environment)
@@ -301,8 +305,7 @@ class PreviewAccessApplication:
             return self.clock.observe(_authorization(uow.connection, authorization_id)[1])
 
     def revoke(self, actor, authorization_id, key):
-        if actor.principal.kind != "human" or actor.authentication_source != "device_session":
-            raise WorkspaceError("preview_human_required", status_code=403)
+        require_preview_device(actor)
         with UnitOfWork(self.engine) as uow:
             _, initial = _authorization(uow.connection, authorization_id)
             environment = _environment(uow.connection, initial.environment_id)

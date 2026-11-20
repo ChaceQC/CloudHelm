@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { codeOf, sessionChanged, taskPath } from "./api";
 import type { HumanTestEnvironment, HumanTestOptions, HumanTestSession, Task } from "./types";
 import type { Hub } from "./useHub";
@@ -9,6 +9,10 @@ const states: Record<HumanTestSession["state"], string> = {
   completed: "已记录结论", expired: "已到期", cancelled: "已取消",
 };
 const conclusions = { passed: "通过", changes_requested: "需要修改", skipped: "跳过 · 未完成人工验证" };
+const revocationStates: Record<string, string> = {
+  effective: "已确认", effective_late: "已确认 · 超时后完成", pending: "待确认",
+  pending_time_unknown: "待确认 · 时间未知", timed_out: "待确认 · 已超时",
+};
 const sessionPath = (id: string) => `/api/human-tests/${encodeURIComponent(id)}`;
 const taskGuard = (task: Task) => ({ expected_version: task.version, expected_control_revision: task.control_revision,
   expected_input_validity_revision: task.input_validity_revision });
@@ -29,6 +33,7 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
   const [actual, setActual] = useState("");
   const [skipReason, setSkipReason] = useState("");
   const query = useRef(0);
+  const environmentId = session.environment_id;
   const scope = JSON.stringify([hub.identity?.session_id, hub.previewRevision, session.session_id, session.revision, session.environment_id]);
   const environment = observedEnvironment?.scope === scope ? observedEnvironment.value : null;
   const scopeRef = useRef(scope);
@@ -39,10 +44,11 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
   }, [scope]);
 
   const loadEnvironment = () => {
-    if (!session.environment_id) return;
+    if (!environmentId) return;
     const request = ++query.current;
     setLoading(true);
-    void hub.query<HumanTestEnvironment>(`/api/preview-environments/${encodeURIComponent(session.environment_id)}`)
+    void hub.query<HumanTestEnvironment>(`/api/preview-environments/${encodeURIComponent(environmentId)}`,
+      () => scopeRef.current === scope && query.current === request)
       .then(value => {
         if (scopeRef.current === scope && query.current === request) { setEnvironment({ scope, value }); setEnvironmentError(""); }
       }).catch(reason => {
@@ -55,6 +61,10 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
   const current = latest && fresh && hub.writable && task.version >= session.task_version;
   const active = session.state === "awaiting_human" || session.state === "testing";
   const controllable = session.state === "preparing" || active;
+  const previewRound = latest && controllable;
+  useLayoutEffect(() => {
+    if (previewRound) return () => hub.closePreviews();
+  }, [session.session_id, environmentId, previewRound]);
   const guard = { ...taskGuard(task), expected_session_revision: session.revision };
   const route = sessionPath(session.session_id);
   const canEnter = current && assigned && hub.can("human_test.enter");
@@ -65,9 +75,8 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
     && (choice !== "skipped" || (session.policy.skip_allowed && !!skipReason.trim()))
     && (choice !== "changes_requested" || !!summary.trim())
     && (!(steps.trim() || expected.trim() || actual.trim()) || !!summary.trim());
-  const revocation = environment?.revocation_status;
-  const revocationLabel = revocation === "effective" ? "已确认" : revocation === "pending" ? "撤销待确认"
-    : revocation === "pending_time_unknown" ? "撤销待确认 · 时间未知" : revocation ?? "尚未确认";
+  const revocations = environment?.revocation_status?.split(",") ?? [];
+  const proxiesClosed = revocations.length > 0 && revocations.every(value => value === "effective" || value === "effective_late");
 
   return <div className="query-result">
     <div className="section-title"><h4>轮次 · {session.round_id}</h4><Status value={session.state}/></div>
@@ -105,15 +114,18 @@ function HumanTestRound({ hub, task, session, latest, fresh }: {
     {environmentError && <p className="error">环境查询：{environmentError}</p>}
     {environment ? <Facts values={{ "环境状态": environment.state, "实际运行修订": environment.actual_revision ?? "尚未确认",
       "资源占账": environment.resource_reservation_id, "环境期限 UTC": environment.expires_at,
-      "环境原因": environment.reason, "访问撤销确认": revocationLabel }}/>
+      "环境原因": environment.reason, "撤销请求": revocations.length ? "已请求" : "尚未取得请求事实",
+      "全部相关代理断开": proxiesClosed ? "已确认（已请求撤销的授权）" : "待确认",
+      "撤销证据": revocations.map(value => revocationStates[value] ?? `待确认 · ${value}`).join("；") || "尚未取得" }}/>
       : <p className="notice">实际运行修订和访问撤销确认尚未取得；需要时显式查询，不能由 Session 状态推断。</p>}
+    {environment && <p className="muted">代理断开证据仅覆盖已请求撤销的授权；本机收窗和分区删除分别显示在工作台提示中。</p>}
     {environment?.management_start_url && <p className="muted">在受信管理端打开资源查询地址：
       <code>{environment.management_start_url}</code></p>}
-    {environment?.client_route === "tauri_windows_webview2" && environment.state === "ready" &&
+    {previewRound && environmentId && environment?.client_route === "tauri_windows_webview2" && environment.state === "ready" &&
       <button type="button" disabled={!hub.generation || !canEnter || opening} onClick={() => {
         const expectedScope = scope;
         setOpening(true);
-        void hub.openPreview(environment.environment_id)
+        void hub.openPreview(environmentId, hub.previewRevision)
           .catch(reason => {
             if (scopeRef.current === expectedScope && !sessionChanged(reason)) setEnvironmentError(codeOf(reason));
           }).finally(() => {
@@ -169,17 +181,19 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
   const [options, setOptions] = useState<{ scope: string; value: HumanTestOptions } | null>(null);
   const [open, setOpen] = useState(false);
   const [candidate, setCandidate] = useState("");
+  const [selectedSessionId, setSelectedSession] = useState("");
   const [loading, setLoading] = useState(false);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [error, setError] = useState("");
   const [optionsError, setOptionsError] = useState("");
   const route = taskPath(task.task_id);
   const current = canRead && sessions?.scope === scope ? sessions.value : null;
+  const selectedSession = current?.find(session => session.session_id === selectedSessionId);
   const currentOptions = options?.scope === optionScope ? options.value : null;
   const selected = currentOptions?.candidates.find(item => item.candidate_id === candidate);
   const active = current?.some(item => ["preparing", "awaiting_human", "testing"].includes(item.state));
   const freshSessions = sessions?.scope === scope && sessions.captured === captured && sessions.task === task && !loading && !error;
-  const canStart = hub.can("task.command") && !!current && freshSessions && !active
+  const canStart = hub.can("task.command") && hub.can("human_test.enter") && !!current && freshSessions && !active
     && (task.state === "active" && !task.ordinary_progress_closed || task.state === "completed")
     && task.input_status === "valid" && !task.cancellation;
   const loadSessions = () => {
@@ -205,7 +219,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
     });
   };
   useEffect(() => {
-    setSessions(null); setOptions(null); setOpen(false); setCandidate(""); setError(""); setOptionsError("");
+    setSessions(null); setOptions(null); setOpen(false); setCandidate(""); setSelectedSession(""); setError(""); setOptionsError("");
     setLoading(false); setOptionsLoading(false);
     return () => { ++sessionQuery.current; ++optionsQuery.current; };
   }, [scope]);
@@ -218,7 +232,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
   }, [optionScope]);
   return <section><div className="section-title"><h3>可选人工测试</h3>
     <button type="button" disabled={!identity || !project || !canRead || loading} onClick={loadSessions}>查询人工测试</button></div>
-    <p className="notice">查询实际环境后，可打开安装方已验证的 Windows 隔离预览；管理端资源查询地址不授予预览访问能力。</p>
+    <p className="notice">先选择准确轮次，再查询该轮环境并打开 Windows 隔离预览。最新轮次可操作，历史轮次只读。</p>
     {!canRead && <p className="muted">当前权限不能读取人测事实。</p>}
     {loading && <p className="muted">正在查询人工测试…</p>}
     {error && <p className="error">人工测试查询：{error}</p>}
@@ -228,7 +242,7 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
     }}>选择候选并开启</button>{open && <button type="button" onClick={() => setOpen(false)}>收起</button>}</div>
     {open && <form onSubmit={e => {
       e.preventDefault();
-      if (!canStart || !selected || !currentOptions || optionsError) return;
+      if (!canStart || !selected || !currentOptions?.tester_id || optionsError) return;
       hub.command(`${route}/human-tests`, { ...taskGuard(task), candidate_id: selected.candidate_id,
         tester_id: currentOptions.tester_id, test_config_ref: selected.test_config_ref, dataset_ref: selected.dataset_ref });
     }}><h4>显式申请人工测试</h4>
@@ -236,19 +250,23 @@ export function HumanTestPanel({ hub, task }: { hub: Hub; task: Task }) {
       {optionsError && <p className="error">候选查询：{optionsError}</p>}
       {!currentOptions && !optionsLoading && !optionsError && <p className="muted">Task 版本已变化，请重新查询可用候选。</p>}
       {currentOptions && <>
-        <Facts values={{ "指定测试者": currentOptions.tester_id }}/>
+        <Facts values={{ "指定测试者": currentOptions.tester_id ?? "当前账户没有测试权限" }}/>
         <label>固定候选<select value={candidate} onChange={e => setCandidate(e.target.value)} required>
           <option value="">请选择</option>{currentOptions.candidates.map(item =>
             <option key={item.candidate_id} value={item.candidate_id}>{item.label} · {item.candidate_id}</option>)}
         </select></label>
         {!currentOptions.candidates.length && <p className="muted">没有满足当前条件的候选。</p>}
-        {currentOptions.management_start_url
-          ? <p className="muted">管理端资源查询地址（不授予访问权）：<code>{currentOptions.management_start_url}</code></p>
-          : <p className="muted">管理端资源查询地址尚未配置。</p>}
       </>}
-      <button className="primary" disabled={!canStart || optionsLoading || !!optionsError || !selected}>申请开启</button>
+      <button className="primary" disabled={!canStart || optionsLoading || !!optionsError || !selected || !currentOptions?.tester_id}>申请开启</button>
     </form>}
-    {current?.map((session, index) => <HumanTestRound key={session.session_id} hub={hub} task={task} session={session}
-      latest={index === 0} fresh={freshSessions}/>)}
+    {!!current?.length && <label>人工测试轮次<select value={selectedSession?.session_id ?? ""}
+      onChange={e => setSelectedSession(e.target.value)}>
+      <option value="">请选择准确轮次</option>{current.map((session, index) =>
+        <option key={session.session_id} value={session.session_id}>
+          {index === 0 ? "最新" : "历史 · 只读"} · {session.round_id} · 候选 {session.candidate_id} · 环境 {session.environment_id ?? "尚未分配"}
+        </option>)}
+    </select></label>}
+    {selectedSession && <HumanTestRound key={selectedSession.session_id} hub={hub} task={task} session={selectedSession}
+      latest={selectedSession === current?.[0]} fresh={freshSessions}/>}
   </section>;
 }
