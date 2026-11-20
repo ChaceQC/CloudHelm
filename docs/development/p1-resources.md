@@ -1,6 +1,6 @@
 # 共享宿主资源与 Runner 开发说明
 
-当前开发基线为 `0.9.0`，工作流应用单独为 `cloudhelm-hub/0.7.0`，业务迁移 `0010_p1_archive_closeout`。资源实现及既有证据仍按 `0.5.0` / `0006_p1_3_resource_lifecycle` 的固定输入理解，不追认新验证。原 scratch 的 `p1-resources-r1` 保留；分维释放和受管后端使用 r2。环境、锁定依赖和数据库角色使用 [Hub 开发说明](p1-hub.md)；使用新隔离库，`initialize` 不自动升级旧安装。远端执行组的独立门禁见 [Remote Agent 说明](p1-remote-agent.md)。
+本文的 P1 开发基线为 `0.9.0`、工作流应用 `cloudhelm-hub/0.7.0` 和业务迁移 `0010_p1_archive_closeout`。早期资源证据绑定 `0.5.0` / `0006_p1_3_resource_lifecycle`。scratch 使用 `p1-resources-r1`，分维释放和受管后端使用 r2。当前新安装的迁移目标、环境、依赖和数据库角色见 [Hub 开发说明](p1-hub.md)。宿主查询读数见 [D01 定向记录](../acceptance/d01.md)，远端执行组的准入见 [Remote Agent 说明](p1-remote-agent.md)。
 
 ## 1. 注册与申请
 

@@ -81,11 +81,14 @@ def _reserve_group(uow, task_id, command_id, request):
     if runner.backend == STORAGE_BACKEND:
         runner_json = resource_runners.c.registration_json
         disk_bytes = allocation_json[("accounted_vector", "disk_bytes")].astext.cast(BigInteger)
-        owner = connection.scalar(select(reservations.reservation_id).join(resource_runners).where(
-            *live, disk_bytes > 0, runner_json["backend"].astext == runner.backend,
-            runner_json["storage"] == runner.storage.model_dump(mode="json"),
-        ).limit(1))
-        if owner is not None:
+        # LIMIT 1 made PostgreSQL scan released history when the backing had no owner.
+        owners = connection.scalar(
+            select(func.count()).select_from(resource_reservations).join(resource_runners).where(
+                *live, disk_bytes > 0, runner_json["backend"].astext == runner.backend,
+                runner_json["storage"] == runner.storage.model_dump(mode="json"),
+            )
+        )
+        if owners:
             raise ValueError("resource_storage_backing_already_owned")
     allocations = tuple(ResourceAllocation.model_validate(value) for value in connection.scalars(
         select(allocation_json).where(*live),

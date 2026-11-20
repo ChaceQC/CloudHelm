@@ -38,7 +38,7 @@ $UV run --locked python -m database.manage status
 $UV run --locked python -m database.manage initialize
 ```
 
-新库的业务迁移目标是 [`0021_p2_work_item_run`](../../database/migrations/versions/0021_p2_work_item_run.py)，上一版为 `0020_p2_previews`。初始化先登记安装和原操作身份，再按顺序执行业务迁移和 DBOS 初始化。当前工作流应用为 `cloudhelm-hub/0.7.0`；它与[软件版本](../../pyproject.toml)分别管理。
+新库的业务迁移目标是 `0022_d01_live_reservations`，直接接在 `0021_p2_work_item_run` 之后，为仍占用宿主资源的预留建立部分索引。初始化先登记安装和原操作身份，再按顺序执行业务迁移和 DBOS 初始化。工作流应用版本 `cloudhelm-hub/0.7.0` 与软件版本分别管理。[迁移 0022](../../database/migrations/versions/0022_d01_live_reservations.py) · [软件版本](../../pyproject.toml)
 
 同版本的安装已是 `ready` 时，重复调用会返回已登记的基线。`initialize` 只用于首次准备和同版本核对；已有旧版本、来源不明、正在维护或恢复门禁关闭的安装会被拒绝。初始化中断后先查询状态；继续已登记的初始化时，将原操作 ID 传给 `initialize --operation-id`。固定 `0008` 快照只能在获授权的独立副本上按[受限维护说明](p1-delivery.md#31-独立恢复副本的受限维护)升级到 `0011`，副本仍不提供普通运行入口。
 

@@ -8,7 +8,8 @@
 - **D01a 已实现。** `modules/execution/commands.py` 保留命令重投与池行锁。新命令通过现有唯一键核对原 Operation 和预留身份，只解析本池未释放的 `allocation_json`。存储冲突按占有磁盘的分配关联 Runner 登记，同时匹配后端和完整存储引用。WSL 已核对生成的 PostgreSQL 查询形状。
 - **已验证 D01a 查询。** WSL PostgreSQL 16.13 在 6 条有效分配上加入 2048 条已释放历史。新容量查询两次均返回 6 行，原查询返回 6 / 2054 行。异 Runner 同一存储被拒，不同实例修订可预留。已有内存占账 1500 MiB，新申请 2000 MiB，容量 3600 MiB 时准入。加入 200 MiB 未知上界后拒绝。输入预期见 [A00c 操作账本断言](docs/acceptance/a00c/independent-assertions.md)。
 - **已验证 D01a 身份。** 在 `0021` 隔离库通过 `ResourceApplication.reserve` 取得原回执，释放前后用同一命令重投均返回原回执。同键修改期限、用新命令重用已释放的 Operation 或预留 ID 均被拒绝，命令、预留、事件和 outbox 计数均未增加。该次 `released` 由带原身份的合成 `closed_unstarted` 回执通过 `ResourceDispatcher.reconcile` 投影。方法为本机 `.thesis-work/d01/identity_probe.py`。
-- **进行中。** D01b 的无索引执行计划在大历史组中扫描 2054 行、过滤 2048 行。下一步由数据库负责人增加仅含未释放分配的宿主池索引，再按同一输入复核。增量投入待估。
+- **D01b 已实现并验证。** `0022_d01_live_reservations` 增加一个未释放预留的宿主池索引。在同一批数据上，容量查询的实际扫描从 2054 行降至 6 行。存储关联改用计数后，同一存储和不同实例修订两组都只扫描有效分配。最终 11 个准入断言通过，同时用正式初始化的 `0022` 新库复核了原回执重投和释放后身份拒绝。方法、执行计划读数、源码与回执摘要见 [D01 定向记录](docs/acceptance/d01.md)。
+- **交接。** 进行中任务与 D01 交付阻塞均无。本轮证据覆盖 WSL Hub 和隔离 PostgreSQL 的准入行为，整机容量按 G02 实测。下一项为 D02a，由 Worker/Runner 负责人接入绑定原 Operation 和资源预留的本机构建提交。增量投入待估。
 
 ## 2026-11-20：C06 预览入口
 

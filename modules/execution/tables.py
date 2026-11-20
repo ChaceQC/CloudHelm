@@ -1,6 +1,6 @@
 """Authoritative Hub resource ledgers; executors own their separate physical facts."""
 
-from sqlalchemy import BigInteger, CheckConstraint, Column, ForeignKey, String, Table, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, Column, ForeignKey, Index, String, Table, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 
 from database.metadata import metadata
@@ -33,6 +33,11 @@ resource_reservations = Table(
     Column("receipt_sequence", BigInteger, nullable=False, server_default="0"),
     UniqueConstraint("reservation_id", "host_resource_pool_id", name="uq_resource_reservation_pool"),
     CheckConstraint("receipt_sequence BETWEEN 0 AND 9007199254740991", name="receipt_sequence"),
+)
+Index(
+    "ix_resource_reservations_live_pool",
+    resource_reservations.c.host_resource_pool_id,
+    postgresql_where=text("(allocation_json ->> 'state') IS DISTINCT FROM 'released'"),
 )
 
 resource_adjustments = Table(
