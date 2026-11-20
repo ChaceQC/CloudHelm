@@ -19,8 +19,13 @@ class Agent:
     def __init__(self, ledger, channel, clock, backend, registration):
         self.ledger, self.channel, self.clock = ledger, channel, clock
         self.backend, self.registration = backend, registration
+        self._pending_result_operation_id: str | None = None
 
     def run_once(self) -> str:
+        if self._pending_result_operation_id is not None:
+            operation_id = self._pending_result_operation_id
+            self._pending_result_operation_id = None
+            return self.reconcile(operation_id)
         target = self.registration
         try:
             bindings = self.channel.bindings(target.executor_instance, target.generation)
@@ -62,7 +67,7 @@ class Agent:
                     result = self._original(deployment, step, existing)
                 else:
                     result = self._new_step(deployment, step)
-                self.channel.report(result)
+                self._report_result(result)
                 if result.status != "succeeded":
                     return "needs_reconciliation"
             self.ledger.complete(deployment, result.state)
@@ -101,7 +106,7 @@ class Agent:
                             or result.executor_instance != deployment.plan.executor_instance
                             or result.generation != deployment.plan.generation):
                         raise RemoteError("remote_result_binding_invalid")
-                    self.channel.report(result)
+                    self._report_result(result)
                 except RemoteChannelError:
                     raise
                 except Exception:
@@ -110,6 +115,14 @@ class Agent:
                     return "needs_reconciliation"
             self.ledger.complete(deployment, result.state)
             return "succeeded"
+
+    def _report_result(self, result):
+        try:
+            self.channel.report(result)
+        except RemoteChannelError as error:
+            if error.action == "reconnect":
+                self._pending_result_operation_id = result.operation_id
+            raise
 
     def _original(self, deployment, step, existing):
         if existing["digest"] != step.input_digest:
@@ -155,7 +168,7 @@ class Agent:
             existing = self.ledger.step(deployment.operation_id, step.step_id)
             result = self._original(deployment, step, existing)
             try:
-                self.channel.report(result)
+                self._report_result(result)
             except RemoteChannelError as report_error:
                 # Keep the download diagnosis unless the result channel also needs maintenance.
                 if download_error.action == "reconnect" and report_error.action != "reconnect":
