@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import BigInteger, func, insert, literal_column, select
 
 from database.commands import lock_and_get, save_result
 from database.readiness import assert_schema_ready
@@ -17,7 +17,7 @@ from packages.contracts.p1.resource_protocol import (
 )
 from .registry import lock_pool, read_runner
 from .preview_admission import require_resource_progress
-from .tables import resource_reservations
+from .tables import resource_reservations, resource_runners
 
 
 def reserve_in_uow(uow, actor, task_id, request: ReserveResourcesRequest, *, idempotency_key):
@@ -64,26 +64,41 @@ def _reserve_group(uow, task_id, command_id, request):
         raise ValueError("resource_control_generation_mismatch")
     runner = read_runner(uow, identity.executor_instance_id)
     match_runner(runner, resources, request.backend)
-    rows = uow.connection.execute(select(resource_reservations).where(
-        resource_reservations.c.host_resource_pool_id == identity.host_resource_pool_id,
-    )).mappings().all()
-    allocations = tuple(ResourceAllocation.model_validate(row["allocation_json"]) for row in rows)
-    if runner.backend == STORAGE_BACKEND:
-        for row, current in zip(rows, allocations):
-            previous = read_runner(uow, row["executor_instance_id"])
-            if (current.accounted_vector.disk_bytes and previous.backend == STORAGE_BACKEND
-                    and previous.storage == runner.storage):
-                raise ValueError("resource_storage_backing_already_owned")
-    if any(row["operation_id"] == identity.operation_id for row in rows):
+    connection = uow.connection
+    reservations = resource_reservations.c
+    operation_taken, reservation_taken = connection.execute(select(
+        select(1).where(reservations.operation_id == identity.operation_id).exists(),
+        select(1).where(reservations.reservation_id == identity.reservation_id).exists(),
+    )).one()
+    if operation_taken:
         raise ValueError("resource_operation_identity_already_reserved")
-    if any(a.identity.resource_group_id == identity.resource_group_id and a.state != "released"
-           for a in allocations):
+
+    allocation_json = reservations.allocation_json
+    # Keep the live predicate fixed so it can match a partial index in a generic plan.
+    state = allocation_json[literal_column("'state'")].astext
+    live = (reservations.host_resource_pool_id == identity.host_resource_pool_id,
+            state.is_distinct_from(literal_column("'released'")))
+    if runner.backend == STORAGE_BACKEND:
+        runner_json = resource_runners.c.registration_json
+        disk_bytes = allocation_json[("accounted_vector", "disk_bytes")].astext.cast(BigInteger)
+        owner = connection.scalar(select(reservations.reservation_id).join(resource_runners).where(
+            *live, disk_bytes > 0, runner_json["backend"].astext == runner.backend,
+            runner_json["storage"] == runner.storage.model_dump(mode="json"),
+        ).limit(1))
+        if owner is not None:
+            raise ValueError("resource_storage_backing_already_owned")
+    allocations = tuple(ResourceAllocation.model_validate(value) for value in connection.scalars(
+        select(allocation_json).where(*live),
+    ))
+    if any(a.identity.resource_group_id == identity.resource_group_id for a in allocations):
         raise ValueError("resource_group_already_reserved")
+    if reservation_taken:
+        raise ValueError("new_admission_requires_unique_reservation_identity_after_deduplication")
     validate_admission(registration.pool, allocations, resources)
     allocation = ResourceAllocation(identity=identity, creation_request_digest=resources.request_digest,
         allocation_revision=1, state="reserved", accounted_vector=resources.accounted_vector,
         hard_limits=resources.hard_limits)
-    uow.connection.execute(insert(resource_reservations).values(
+    connection.execute(insert(resource_reservations).values(
         reservation_id=identity.reservation_id, host_resource_pool_id=identity.host_resource_pool_id,
         executor_instance_id=identity.executor_instance_id, operation_id=identity.operation_id,
         task_id=task_id, command_id=command_id, request_json=request.model_dump(mode="json"),

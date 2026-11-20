@@ -2,6 +2,14 @@
 
 本文件记录实际开发、验证与交付状态。设计版本见[详细设计索引](docs/design/README.md#2-版本规则)；开发任务和负责人见[项目计划](PROJECT_PLAN.md)。
 
+## 2026-11-20：D01 共享宿主资源准入
+
+- **重构起点。** `dev / 90b95efdb886ae30f090b7927e1f3ab882c09a0b`，开工时工作树干净。原资源命令在池锁内加载全部历史分配，申请存储时还逐笔读取执行器登记。
+- **D01a 已实现。** `modules/execution/commands.py` 保留命令重投与池行锁。新命令通过现有唯一键核对原 Operation 和预留身份，只解析本池未释放的 `allocation_json`。存储冲突按占有磁盘的分配关联 Runner 登记，同时匹配后端和完整存储引用。WSL 已核对生成的 PostgreSQL 查询形状。
+- **已验证 D01a 查询。** WSL PostgreSQL 16.13 在 6 条有效分配上加入 2048 条已释放历史。新容量查询两次均返回 6 行，原查询返回 6 / 2054 行。异 Runner 同一存储被拒，不同实例修订可预留。已有内存占账 1500 MiB，新申请 2000 MiB，容量 3600 MiB 时准入。加入 200 MiB 未知上界后拒绝。输入预期见 [A00c 操作账本断言](docs/acceptance/a00c/independent-assertions.md)。
+- **已验证 D01a 身份。** 在 `0021` 隔离库通过 `ResourceApplication.reserve` 取得原回执，释放前后用同一命令重投均返回原回执。同键修改期限、用新命令重用已释放的 Operation 或预留 ID 均被拒绝，命令、预留、事件和 outbox 计数均未增加。该次 `released` 由带原身份的合成 `closed_unstarted` 回执通过 `ResourceDispatcher.reconcile` 投影。方法为本机 `.thesis-work/d01/identity_probe.py`。
+- **进行中。** D01b 的无索引执行计划在大历史组中扫描 2054 行、过滤 2048 行。下一步由数据库负责人增加仅含未释放分配的宿主池索引，再按同一输入复核。增量投入待估。
+
 ## 2026-11-20：C06 预览入口
 
 - **重构范围。** 以干净的 `dev / cc8bd48d652669f7e77ae8b5c08cf2ceee84823e` 为基线。旧候选表单拼接最近一轮的管理地址。本轮将候选选择与进入已选轮次分开，沿用既有的人测、预览访问和撤销权威。

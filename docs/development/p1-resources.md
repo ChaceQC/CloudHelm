@@ -26,6 +26,8 @@ $UV run --locked python -m modules.execution.cli register --registration-file /p
 
 HTTP `POST /api/tasks/{task_id}/resource-reservations` 接受 `ReserveResourcesRequest`，需要真实当前会话、显式 `operation.request` 及 `Idempotency-Key`。申请固定 Task 版本、控制/输入修订、UTC 期限、完整资源向量、预留/操作/组身份、目标池/执行器和冲突键；摘要用 `resource_request_digest` 按规范 JSON 计算。HTTP 202 返回可靠预留，不表示已经接受、启动或完成。`GET /api/resource-reservations/{reservation_id}` 经当前 `resource.read` 返回占账状态。
 
+重投时沿用原幂等键和请求可取回原命令回执。新命令不能重用已释放的 Operation ID 或预留 ID。Hub 在同一宿主池锁内计算 `reserved`、`active`、`releasing` 和 `orphaned` 分配，连同池登记的未知占用上界共同判断余量。存储 owner 即使已停止，只要仍有磁盘占账，同池另一个 Runner 就不能为同一份存储再预留。存储身份按完整登记引用匹配，包含存储 ID、实例修订和用途。
+
 ## 2. 受控执行与核对
 
 下列命令属于可信执行器控制进程，使用 worker 数据库角色；不是提供给模型或沙箱的 shell 工具。父级 systemd 资源组需要明确的本机特权控制器；工作负载本身仍为 UID65534。所有同机 Runner 使用同一服务账户及本地账本目录，不复制账本规避容量。
