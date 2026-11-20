@@ -11,6 +11,7 @@ from modules.delivery.deployment_tables import deployment_approvals
 from modules.delivery.release_recipe import delivery_digest
 from modules.delivery.remote_tables import remote_results
 from modules.identity.actors import actor_for_command
+from modules.identity.errors import IdentityError
 from packages.contracts.p1.remote_delivery import RemotePlan, RemoteStepResult
 
 
@@ -32,8 +33,11 @@ def approved_operation(uow, credential, operation):
     )).mappings().one_or_none()
     if row is None:
         raise TaskBoundaryError("deployment_operation_not_found", status_code=404)
-    actor = actor_for_command(uow, row["command_id"])
-    context = delivery_context(uow, actor, row["project_id"], "deployment.approve")
+    try:
+        actor = actor_for_command(uow, row["command_id"])
+        context = delivery_context(uow, actor, row["project_id"], "deployment.approve")
+    except IdentityError:
+        raise TaskBoundaryError("deployment_approval_credential_not_current") from None
     context.envelope = get_by_id(uow.connection, row["command_id"]).envelope
     plan = read_object(uow.connection, row["project_id"], "plan", row["plan_id"])
     binding = plan.value.binding

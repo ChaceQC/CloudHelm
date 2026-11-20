@@ -2,10 +2,11 @@
 
 from contextlib import asynccontextmanager
 from importlib import import_module
+from typing import BinaryIO
 import os
 import json
 
-from fastapi import FastAPI, Header, Request
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import SecretStr
 
@@ -122,14 +123,15 @@ def create_app(application=None):
     def closeout(body: RemoteCloseoutReceipt, authorization: str | None = Header(default=None)):
         return app.state.remote.closeout(token(authorization), body)
 
-    @app.get("/remote/v1/artifacts/{operation}/{storage_id}")
-    def artifact(operation: str, storage_id: str, authorization: str | None = Header(default=None)):
-        stream_context = app.state.remote.open_artifact(token(authorization), operation, storage_id)
+    def artifact_stream(operation: str, storage_id: str, authorization: str | None = Header(default=None)):
+        with app.state.remote.open_artifact(token(authorization), operation, storage_id) as stream:
+            yield stream
 
+    @app.get("/remote/v1/artifacts/{operation}/{storage_id}")
+    def artifact(stream: BinaryIO = Depends(artifact_stream, scope="request")):
         def chunks():
-            with stream_context as stream:
-                while block := stream.read(65536):
-                    yield block
+            while block := stream.read(65536):
+                yield block
 
         return StreamingResponse(chunks(), media_type="application/octet-stream")
 

@@ -8,7 +8,11 @@ from packages.contracts.p0.permit_contracts import PermitGate, accept_grant, che
 from packages.contracts.p1.delivery_records import TargetObservation
 from packages.contracts.p1.remote_delivery import RemotePermitRequest, RemoteStepResult
 from packages.contracts.p1.remote_delivery import RemotePlan
+from .channel import RemoteChannelError
 from .ledger import RemoteError
+
+
+BINDING_WAIT_CODES = ("delivery_target_unavailable", "remote_executor_stale")
 
 
 class Agent:
@@ -16,9 +20,15 @@ class Agent:
         self.ledger, self.channel, self.clock = ledger, channel, clock
         self.backend, self.registration = backend, registration
 
-    def run_once(self):
+    def run_once(self) -> str:
         target = self.registration
-        for binding in self.channel.bindings(target.executor_instance, target.generation).bindings:
+        try:
+            bindings = self.channel.bindings(target.executor_instance, target.generation)
+        except RemoteChannelError as error:
+            if error.code in BINDING_WAIT_CODES:
+                return error.code
+            raise
+        for binding in bindings.bindings:
             state = self.backend.observe_binding(binding)
             self.channel.observe(TargetObservation(observation_id="remote-observation-" + uuid4().hex,
                 binding_id=binding.binding_id, target_id=target.target_id, installation_id=target.installation_id,
@@ -92,6 +102,8 @@ class Agent:
                             or result.generation != deployment.plan.generation):
                         raise RemoteError("remote_result_binding_invalid")
                     self.channel.report(result)
+                except RemoteChannelError:
+                    raise
                 except Exception:
                     return "needs_reconciliation"
                 if result.status != "succeeded":
@@ -139,6 +151,16 @@ class Agent:
             # Recheck after the durable fsync; it cannot silently consume the start window.
             check_start(acceptance, mapping, self._gate(grant, mapping))
             outcome = self.backend.execute(deployment, step, permission.environment_revision)
+        except RemoteChannelError as download_error:
+            existing = self.ledger.step(deployment.operation_id, step.step_id)
+            result = self._original(deployment, step, existing)
+            try:
+                self.channel.report(result)
+            except RemoteChannelError as report_error:
+                # Keep the download diagnosis unless the result channel also needs maintenance.
+                if download_error.action == "reconnect" and report_error.action != "reconnect":
+                    raise
+            raise
         except Exception:
             outcome = self.backend.query(deployment, step)
         result = self._result(deployment, step, grant.grant_id, outcome)

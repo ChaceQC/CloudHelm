@@ -66,6 +66,8 @@ def run(end, request):
     Killing the worker's local process group is not evidence that Docker's daemon
     stopped a request; callers must keep that physical result unknown.
     """
+    from .channel import CHANNEL_ERROR_ACTIONS, RemoteChannelError
+
     if time.monotonic() >= end:
         raise RemoteError("remote_archive_deadline_exceeded")
     payload = json.dumps(request, separators=(",", ":")).encode("utf-8")
@@ -76,8 +78,12 @@ def run(end, request):
     )
     try:
         message = json.loads(output)
-        if not isinstance(message, dict) or message.get("ok") is not True:
-            raise ValueError("invalid result")
-        return message["value"]
+        if isinstance(message, dict):
+            if message.get("ok") is True:
+                return message["value"]
+            code = message.get("code")
+            if message.get("ok") is False and isinstance(code, str) and code in CHANNEL_ERROR_ACTIONS:
+                raise RemoteChannelError(code)
+        raise ValueError("invalid result")
     except (KeyError, UnicodeError, ValueError):
         raise RemoteError("remote_archive_supervisor_unresolved") from None

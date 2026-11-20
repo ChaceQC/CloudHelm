@@ -10,7 +10,7 @@ def main():
     parent_death_signal(int(sys.argv[1]))
     from packages.contracts.p1.remote_delivery import RemotePlan
     from . import archive_receipts, archives
-    from .channel import Channel
+    from .channel import Channel, RemoteChannelError
     from .docker_io import Docker
     from .ledger import private_directory
     from .resources import Resources
@@ -25,13 +25,16 @@ def main():
         facts = archives.prepare(channel, docker, deployment, directory,
             check_resources=lambda: resources.verify(deployment.plan.configuration.resources))
         archive_receipts.record_completed(deployment, directory, facts)
-        result = json.dumps({"ok": True, "value": facts}, separators=(",", ":")).encode("utf-8")
-        if len(result) > 131072:
-            raise ValueError("result too large")
-        sys.stdout.buffer.write(result)
-        sys.stdout.buffer.flush()
+        result = {"ok": True, "value": facts}
+    except RemoteChannelError as error:
+        result = {"ok": False, "code": error.code}
     finally:
         channel.close()
+    output = json.dumps(result, separators=(",", ":")).encode("utf-8")
+    if len(output) > 131072:
+        raise ValueError("result too large")
+    sys.stdout.buffer.write(output)
+    sys.stdout.buffer.flush()
 
 
 if __name__ == "__main__":

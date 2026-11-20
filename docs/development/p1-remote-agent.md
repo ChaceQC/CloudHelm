@@ -29,6 +29,22 @@
 HTTPS 和证书验证为必需，仅 loopback 允许 HTTP 调试。禁止重定向、URL 凭据和关闭证书验证；
 正文/响应有界，拒绝时不回显输入、异常、数据库诊断或秘密。
 
+### 1.1 根据远端响应处置
+
+Remote Agent 的维护输出包含 `status`。识别到通道拒绝或原计划等待原因时，还会给出固定的 `code` 和 `action`。例如 `remote_previous_execution_unresolved` 对应 `reconcile_original`。按下表处理后，再决定原操作能否继续。
+
+| `action` | 典型 `code` | 维护动作 |
+|---|---|---|
+| `check_registration` | `remote_authentication_failed`、`remote_executor_stale`、`delivery_target_unavailable` | 有权维护者核对当前安装的凭据、目标绑定和进程输出的实例标识、代次。登记生效前封闭新步骤。 |
+| `correct_request` | `remote_request_invalid`、`remote_message_too_large` | 修正输入或配对 Hub 与 Remote Agent 版本后再提交。保留原操作身份。 |
+| `reconcile_original` | `remote_gate_unavailable`、`remote_plan_digest_mismatch`、`remote_previous_execution_unresolved` | 核对可信时间、批准的计划摘要及原步骤账本。步骤已有 intent 时使用下文的 `--reconcile-operation` 补报。数据库迁移还须核对实际修订及后置条件。 |
+| `reconnect` | `remote_channel_unavailable`、`remote_connection_unavailable`、`remote_archive_transfer_unknown` | 恢复连接后按原身份查询或补报。已开始的步骤只取原结果。 |
+| `check_protocol` | `remote_response_invalid`、`remote_response_too_large` | 核对通道端点、代理及版本。客户端将未知正文、不匹配的确认和超限 JSON 收为固定诊断。 |
+
+HTTP 200 的观察、步骤结果和封闭回执均须匹配提交摘要。步骤结果还须匹配原状态，封闭回执须得到 `received`。封闭回执已在本地落盘但没有匹配确认时，维护输出为 `closeout_delivery_pending`，附原回执和摘要。使用原命令补报即可。
+
+常驻进程首次等待目标或实例登记时，每轮只查绑定并保留已打印的实例标识。已批准计划过期或等待原执行核对时，常驻进程显示 `waiting_authorization`，继续轮询后续可用计划。写请求遭拒且需要维护者介入时，进程输出动作后退出。`--once` 始终只推进一轮。
+
 ## 2. 维护与启动
 
 先按 [Hub 入口](p1-hub.md) 准备同版新隔离库；`initialize` 不升级旧安装。
