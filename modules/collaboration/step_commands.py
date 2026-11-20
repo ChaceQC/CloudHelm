@@ -111,6 +111,38 @@ def _apply_step(context, invocation):
         return rejected_result(context, error)
 
 
+def pending_cancellation_builds(engine, source_command_id: str) -> tuple[tuple[str, int], ...]:
+    """Select the original reservations, then release the Task lock before contacting the Runner."""
+    from modules.collaboration.resource_facts import merge_resource_operation_blockers
+    from modules.delivery.queries import pending_build_operations
+    from modules.delivery.tables import build_runs
+    from modules.execution.tables import resource_reservations
+
+    with UnitOfWork(engine) as uow:
+        binding, source, purpose = _source(uow, source_command_id, CONTROL_WORKFLOW)
+        if purpose != "cancellation":
+            return ()
+        actor = actor_for_command(uow, source_command_id)
+        task, _, _ = _context(uow, actor, binding, source.task_id, purpose)
+        if task["cancel_requested_at"] is None or task["state"] in {"completed", "cancelled"}:
+            return ()
+        builds = pending_build_operations(uow.connection, source.task_id)
+        # A business result can arrive while the original executor still holds resources.
+        pending = merge_resource_operation_blockers(uow.connection, source.task_id, builds)
+        if not pending:
+            return ()
+        reservations = resource_reservations.c
+        generation = reservations.request_json[("resources", "identity", "resource_generation")].as_integer()
+        attempts = select(build_runs.c.operation_id, generation).join(
+            resource_reservations, reservations.operation_id == build_runs.c.operation_id,
+        ).where(
+            build_runs.c.task_id == source.task_id,
+            reservations.task_id == source.task_id,
+            build_runs.c.operation_id.in_([fact.operation_ref.object_id for fact in pending]),
+        )
+        return tuple((operation_id, generation) for operation_id, generation in uow.connection.execute(attempts))
+
+
 def run_step(engine, source_command_id: str, workflow_name: str) -> TaskCommandResult:
     with UnitOfWork(engine) as uow:
         binding, original, purpose = _source(uow, source_command_id, workflow_name)

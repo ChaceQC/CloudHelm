@@ -2,8 +2,9 @@
 
 import importlib
 import json
-from contextlib import ExitStack, closing
+from contextlib import ExitStack, closing, contextmanager, nullcontext
 
+from database.commands import get_by_id
 from database.uow import UnitOfWork
 from modules.collaboration.command_support import lock_task_access
 from modules.delivery.commands import resolve_build_operation_in_uow
@@ -13,25 +14,37 @@ from modules.delivery.receipts import (
 )
 from modules.identity.actors import AuthoritativeResource, actor_for_command
 from modules.identity.authorization import authorize_current
+from modules.identity.errors import IdentityError
 from modules.integration.merge_builds import read_integration_bytes
 from modules.agent_runtime.source_context import safe_context_text
 from modules.workspaces.safe_paths import PrivateRoot, WorkspaceFileError, directory_at, exists_at, read_regular
 from modules.workspaces.workspace_views import observe
-from packages.contracts.p1.build_records import BuildArtifactLocator, BuildRunRecord
+from packages.contracts.p1.build_records import BuildArtifactLocator
+from packages.contracts.p1.task_results import TaskCommandResult
 from packages.contracts.p1.workspace_git import MAX_FILE_BYTES, content_digest
 
 
-def _record(runtime, operation_id, *, reconciliation):
+def _record(runtime, operation_id, *, control_command_id=None, stop=False):
+    if stop and control_command_id is None:
+        raise IdentityError("authorization_binding_mismatch")
     with UnitOfWork(runtime.control_engine) as uow:
-        if not reconciliation:
-            return resolve_build_operation_in_uow(uow, operation_id)
         _, record = read_build_intent(uow.connection, operation_id)
-        actor = actor_for_command(uow, record.command_id)
-        lock_task_access(uow, actor, record.task_id, "operation.request")
-        authorize_current(uow, actor, AuthoritativeResource(
-            record.project_id, "operation", operation_id, task_id=record.task_id,
-        ), "operation.query")
-        return record
+        actor = actor_for_command(uow, control_command_id or record.command_id)
+        task, _ = lock_task_access(uow, actor, record.task_id, "resource.read")
+        if control_command_id is not None:
+            command = get_by_id(uow.connection, control_command_id)
+            if task["cancel_requested_at"] is None or command.status_code != 202 or command.envelope.action != "task.cancel":
+                raise IdentityError("authorization_binding_mismatch")
+            result = TaskCommandResult.model_validate(command.result)
+            original = (result.outcome == "cancellation_requested" and task["cancel_command_id"] == control_command_id)
+            if (result.task_id != record.task_id or result.control_purpose != "cancellation"
+                    or not (original or result.outcome == "reconciliation_requested")):
+                raise IdentityError("authorization_binding_mismatch")
+        resource = AuthoritativeResource(record.project_id, "operation", operation_id, task_id=record.task_id)
+        authorize_current(uow, actor, resource, "operation.query")
+        if stop:
+            authorize_current(uow, actor, resource, "operation.stop")
+        return record, actor
 
 
 def _candidate_bytes(runtime, storage, record):
@@ -71,17 +84,18 @@ def definition_for_snapshot(runtime, snapshot, acceptance_ref):
 
 def read_build_result(runtime, record, *, log_role, log_offset, max_bytes):
     """Read the original private journal only; querying never creates a runner."""
-    with runtime.registry.admit(0) as storage, closing(PrivateRoot(storage.archive_root)) as archive, ExitStack() as stack:
+    runner_module = importlib.import_module("services.dev-runner.engineering_build_runner")
+    with runtime.registry.pin() as storage, closing(PrivateRoot(storage.archive_root)) as archive, ExitStack() as stack:
         if not exists_at(archive.fd, "build-operations"):
             return {"available": False, "failure": None, "log": None}
         operations = stack.enter_context(directory_at(archive.fd, "build-operations"))
         if not exists_at(operations, record.command_id):
             return {"available": False, "failure": None, "log": None}
         root = stack.enter_context(directory_at(operations, record.command_id))
-        if not exists_at(root, "intent.json"):
+        intent = runner_module.read_attempt_intent(root)
+        if intent is None:
             return {"available": False, "failure": None, "log": None}
-        intent = BuildRunRecord.model_validate_json(read_regular(root, "intent.json", 1024**2))
-        if intent != record:
+        if intent.record != record:
             raise WorkspaceFileError("build_result_binding_mismatch")
         result = json.loads(read_regular(root, "result.json", 1024**2)) if exists_at(root, "result.json") else {}
         report = json.loads(read_regular(root, log_role + ".json", 1024**2)) if exists_at(root, log_role + ".json") else {}
@@ -114,77 +128,114 @@ def read_build_result(runtime, record, *, log_role, log_offset, max_bytes):
 
 def execute_build(runtime, operation_id):
     runner_module = importlib.import_module("services.dev-runner.engineering_build_runner")
-    with runtime.registry.admit(0) as storage:
-        record = _record(runtime, operation_id, reconciliation=True)
-        journal = storage.archive_root / "build-operations" / record.command_id / "intent.json"
-        start = not journal.exists()
-        if start and storage.admission.snapshot.allocatable_bytes < 2 * 1024**3:
-            development_storage = importlib.import_module("services.dev-runner.development_storage")
-            raise development_storage.DevelopmentStorageError("storage_capacity_unavailable")
-
+    record, _ = _record(runtime, operation_id)
+    with runtime.registry.pin() as storage:
         def gate():
             storage.observe()
-            if _record(runtime, operation_id, reconciliation=False) != record:
+            with UnitOfWork(runtime.control_engine) as uow:
+                current = resolve_build_operation_in_uow(uow, operation_id)
+            if current != record:
                 raise WorkspaceFileError("build_operation_binding_changed")
 
-        prepared, frontend_bases = None, None
-        if start:
-            gate()
-
-            def registered(previous, observation):
-                with UnitOfWork(runtime.control_engine) as uow:
-                    _, original = read_build_intent(uow.connection, previous.operation_id)
-                    if original != previous:
-                        return False
-                    head = read_build_execution(uow.connection, previous)
-                    return head is not None and head.observation == observation
-
-            runner_module.check_previous_builds(storage, record, registered)
-            definitions = importlib.import_module("services.dev-runner.engineering_definition")
-            definition = record.fixed_inputs.definition
-            prepared = definitions.prepare_build(_candidate_bytes(runtime, storage, record),
-                                                 definition.acceptance_assets_ref)
-            if prepared.definition != definition:
-                raise runner_module.ProbeFailure("engineering_build_definition_mismatch")
-            images = importlib.import_module("services.dev-runner.frontend_images")
-            frontend_bases = images.verify_frontend_layouts()
-        with runtime.resources.build(record, storage, gate, start=prepared is not None) as group:
-            return _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group,
-                                     prepared=prepared, frontend_bases=frontend_bases)
+        with closing(runner_module.ControlledBuildRunner(storage, record, gate)) as runner:
+            group = runtime.resources.build(record)
+            prepared, frontend_bases = None, None
+            if not runner.exists():
+                if group is not None:
+                    raise WorkspaceFileError("engineering_build_acceptance_unconfirmed")
+                prepared, frontend_bases = _prepare_build(runtime, storage, record, gate, runner_module)
+                gate()
+                group = runtime.resources.reserve_build(record, storage)
+            with group.context() if group is not None else nullcontext():
+                inspection = runner.submit(prepared, frontend_bases,
+                    start_resource=lambda: runtime.resources.start_build(group, gate))
+                return _register_inspection(runtime, record, runner, group, inspection, finish=True)
 
 
-def _execute_admitted(runtime, operation_id, record, storage, gate, runner_module, group, *, prepared, frontend_bases):
-    runner = runner_module.ControlledBuildRunner(storage, record, gate)
-    try:
-        if prepared is not None:
-            gate()
-            runner.execute(prepared, frontend_bases)
+def _prepare_build(runtime, storage, record, gate, runner_module):
+    if storage.observe().allocatable_bytes < 2 * 1024**3:
+        development_storage = importlib.import_module("services.dev-runner.development_storage")
+        raise development_storage.DevelopmentStorageError("storage_capacity_unavailable")
+    gate()
+
+    def registered(previous, observation):
         with UnitOfWork(runtime.control_engine) as uow:
-            previous = read_build_execution(uow.connection, record)
-            runner.previous_observation = None if previous is None else previous.observation
-        physical = verify_build_observation(operation_id, runner)
-        observation = physical.observation
-        content = None
-        if len(observation.artifacts) == 3:
-            content = verify_build_content(record, runner.store, tuple(
-                BuildArtifactLocator(role=item.role, storage_id=item.storage_id) for item in observation.artifacts
-            ))
-        if (receipt := runner.recovered_stop_receipt) is not None:
-            allocation = group.dispatcher.reconcile(receipt.identity.reservation_id, receipt=receipt)
-            if allocation.state != "released":
-                raise WorkspaceFileError("engineering_resource_stop_unconfirmed")
-        elif group is not None and not group.stopped and observation.closure != "unknown":
-            group.stop()  # Whole daemon/descendants close before the business receipt.
-        with UnitOfWork(runtime.engine) as uow:
-            if content is not None:
-                register_verified_build_content(uow, operation_id, content)
-            register_verified_build_observation(uow, operation_id, physical)
-            if runtime.client is not None:
-                from modules.agent_runtime.operations import notify_operation_in_uow
+            _, original = read_build_intent(uow.connection, previous.operation_id)
+            if original != previous:
+                return False
+            head = read_build_execution(uow.connection, previous)
+            return head is not None and head.observation == observation
 
-                notify_operation_in_uow(uow, runtime.client, operation_id,
-                    engineering_registration=runtime.registry.registration,
-                    preview_installation=runtime.preview_installation)
+    runner_module.check_previous_builds(storage, record, registered)
+    definitions = importlib.import_module("services.dev-runner.engineering_definition")
+    definition = record.fixed_inputs.definition
+    prepared = definitions.prepare_build(_candidate_bytes(runtime, storage, record),
+                                         definition.acceptance_assets_ref)
+    if prepared.definition != definition:
+        raise runner_module.ProbeFailure("engineering_build_definition_mismatch")
+    images = importlib.import_module("services.dev-runner.frontend_images")
+    return prepared, images.verify_frontend_layouts()
+
+
+def _register_inspection(runtime, record, runner, group, inspection, *, actor=None, finish=False):
+    receipt = inspection and (runner.recovered_stop_receipt or inspection.resource_receipt)
+    physically_closed = receipt is not None and receipt.state in {"closed_unstarted", "stopped"}
+    if physically_closed:
+        group.dispatcher.reconcile(group.request.resources.identity.reservation_id, receipt=receipt)
+    if inspection is None or inspection.observation is None:
+        with UnitOfWork(runtime.control_engine) as uow:
             return build_view(uow.connection, record).model_dump(mode="json")
-    finally:
-        runner.close()
+    operation_id = record.operation_id
+    physical = verify_build_observation(operation_id, runner)
+    predecessor = None
+    if inspection.predecessor is not None:
+        predecessor = verify_build_observation(operation_id, runner, predecessor=True)
+    observation = physical.observation
+    content = None
+    if len(observation.artifacts) == 3:
+        content = verify_build_content(record, runner.store, tuple(
+            BuildArtifactLocator(role=item.role, storage_id=item.storage_id) for item in observation.artifacts
+        ))
+    if (finish and not group.stopped and not physically_closed and inspection.stop_requested_at is None
+            and observation.closure not in {"unknown", "running"}):
+        group.stop()  # Whole daemon/descendants close before the business receipt.
+    with UnitOfWork(runtime.engine) as uow:
+        if predecessor is not None:
+            register_verified_build_observation(uow, operation_id, predecessor, actor=actor)
+        if content is not None:
+            register_verified_build_content(uow, operation_id, content, actor=actor)
+        register_verified_build_observation(uow, operation_id, physical, actor=actor)
+        if runtime.client is not None:
+            from modules.agent_runtime.operations import notify_operation_in_uow
+
+            notify_operation_in_uow(uow, runtime.client, operation_id,
+                engineering_registration=runtime.registry.registration,
+                preview_installation=runtime.preview_installation)
+        return build_view(uow.connection, record).model_dump(mode="json")
+
+
+@contextmanager
+def _original_runner(runtime, record):
+    runner_module = importlib.import_module("services.dev-runner.engineering_build_runner")
+    with runtime.registry.pin() as storage:
+        group = runtime.resources.build(record)
+        with (
+            group.context() if group is not None else nullcontext(),
+            closing(runner_module.ControlledBuildRunner(storage, record, storage.observe)) as runner,
+        ):
+            yield runner, group
+
+
+def inspect_build(runtime, operation_id, *, control_command_id=None):
+    record, _ = _record(runtime, operation_id, control_command_id=control_command_id)
+    with _original_runner(runtime, record) as (runner, _):
+        return runner.inspect()
+
+
+def request_build_stop(runtime, operation_id, *, executor_generation, control_command_id):
+    record, actor = _record(runtime, operation_id, control_command_id=control_command_id, stop=True)
+    with _original_runner(runtime, record) as (runner, group):
+        inspection = runner.request_stop(operation_id, executor_generation)
+        if inspection is not None:
+            _register_inspection(runtime, record, runner, group, inspection, actor=actor)
+        return inspection

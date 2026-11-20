@@ -301,6 +301,17 @@ class EngineeringRuntime:
 
         return execute_build(self, operation_id)
 
+    def inspect_build(self, operation_id, *, control_command_id=None):
+        from .engineering_build import inspect_build
+
+        return inspect_build(self, operation_id, control_command_id=control_command_id)
+
+    def request_build_stop(self, operation_id, *, executor_generation, control_command_id):
+        from .engineering_build import request_build_stop
+
+        return request_build_stop(self, operation_id, executor_generation=executor_generation,
+                                  control_command_id=control_command_id)
+
     def build_definition(self, snapshot, acceptance_ref):
         from .engineering_build import definition_for_snapshot
 

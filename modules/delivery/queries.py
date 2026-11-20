@@ -6,8 +6,10 @@ from sqlalchemy import select
 from database.commands import get_by_id
 from database.uow import require_transaction
 from modules.collaboration.records import reference_key
+from modules.collaboration.tables import tasks
 from modules.delivery.errors import BuildBoundaryError
 from modules.delivery.tables import build_runs
+from modules.execution.tables import resource_reservations
 from modules.sync.tables import event_log
 from packages.contracts.p0.engineering_contracts import EngineeringRef
 from packages.contracts.p0.identity_contracts import request_digest
@@ -155,6 +157,19 @@ def observation_event_id(observation_id: str) -> str:
 def build_view(connection, record: BuildRunRecord) -> BuildView:
     content, execution = read_build_content(connection, record), read_build_execution(connection, record)
     state = "accepted"
+    if content is None and execution is None:
+        # Reservation and cancellation lock the same Task. After this fence an intent
+        # with no original reservation (including released ones) can never reach submit.
+        closed_before_submit = select(1).where(
+            tasks.c.task_id == record.task_id,
+            tasks.c.ordinary_progress_closed.is_(True),
+            tasks.c.cancel_requested_at.is_not(None),
+            tasks.c.cancel_control_revision > record.control_revision,
+            ~select(1).where(resource_reservations.c.task_id == record.task_id,
+                             resource_reservations.c.operation_id == record.operation_id).exists(),
+        ).exists()
+        if connection.scalar(select(closed_before_submit)):
+            state = "failed"
     if execution is not None:
         receipt = execution.observation
         state = "running" if receipt.closure == "running" else "unknown"

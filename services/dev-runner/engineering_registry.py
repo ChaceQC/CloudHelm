@@ -16,6 +16,7 @@ from packages.contracts.p0.decision_common import Contract, Identifier
 from packages.contracts.p1.development_storage import DevelopmentStorageRef
 
 from .development_storage import DevelopmentStorage
+from .development_storage_pin import pin_reference
 
 REGISTRY_ENV = "CLOUDHELM_ENGINEERING_REGISTRY_FILE"
 SCOPE = "cloudhelm-wsl-controlled-development-r1"
@@ -94,14 +95,24 @@ class EngineeringRegistry:
         self._active = ContextVar("cloudhelm_engineering_storage", default=None)
         self.endpoint_context = None
 
-    @contextmanager
     def admit(self, requested_bytes: int):
+        return self._storage(requested_bytes, build_pin=False)
+
+    def pin(self):
+        """Keep the build filesystem mounted while submit and control share its journal."""
+        return self._storage(0, build_pin=True)
+
+    @contextmanager
+    def _storage(self, requested_bytes: int, *, build_pin: bool):
         if self.registration is None:
             raise EngineeringRegistryError("engineering_execution_not_configured")
         if self._active.get() is not None:
             raise EngineeringRegistryError("engineering_storage_admission_nested")
         reference = self.registration.storage
-        with DevelopmentStorage(reference.storage_id).admit_ref(reference, requested_bytes=requested_bytes) as admitted:
+        owner = DevelopmentStorage(reference.storage_id)
+        admission = (pin_reference(owner, reference, 0, build_journal=True) if build_pin else
+                     owner.admit_ref(reference, requested_bytes=requested_bytes))
+        with admission as admitted:
             registration = admitted.snapshot.registration
             if (registration.scope != "local_controlled_development"
                     or not {"git", "workspace", "candidate", "cache", "archive"}.issubset(registration.allowed_purposes)):
@@ -121,7 +132,7 @@ class EngineeringRegistry:
             storage = EngineeringStorage(admitted, roots["git"], roots["workspace"], roots["cache"], roots["archive"])
             token = self._active.set(storage)
             try:
-                if self.endpoint_context is None:
+                if build_pin or self.endpoint_context is None:
                     yield storage
                 else:
                     with self.endpoint_context():

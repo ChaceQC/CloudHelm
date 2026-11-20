@@ -48,7 +48,7 @@ class BuildExecutionProducer(Protocol):
     an OCI DTO or a public allowed/passed flag cannot implement this boundary.
     """
 
-    def read_verified_build_observation(self, operation_id: str) -> BuildExecutionObservation: ...
+    def read_verified_build_observation(self, operation_id: str, *, predecessor: bool = False) -> BuildExecutionObservation: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,14 +78,16 @@ def verify_build_content(record: BuildRunRecord, store: ArtifactStore,
     return _VerifiedBuildContent(record.operation_id, record.build_input_digest, content, datetime.now(UTC), _CONTENT_PROOF)
 
 
-def verify_build_observation(operation_id: str, producer: BuildExecutionProducer) -> _VerifiedBuildObservation:
+def verify_build_observation(
+    operation_id: str, producer: BuildExecutionProducer, *, predecessor: bool = False,
+) -> _VerifiedBuildObservation:
     """Internal collector protocol; only a trusted adapter may supply producer.
 
     R7 binds the adapter to registered Runner operation identity and physical
     facts. This function has no API route and never accepts a raw observation.
     """
     try:
-        receipt = producer.read_verified_build_observation(operation_id)
+        receipt = producer.read_verified_build_observation(operation_id, predecessor=predecessor)
         if type(receipt) is not BuildExecutionObservation:
             raise ValueError
         receipt = BuildExecutionObservation.model_validate(receipt.model_dump(mode="python"))
@@ -96,10 +98,11 @@ def verify_build_observation(operation_id: str, producer: BuildExecutionProducer
     return _VerifiedBuildObservation(receipt, _EXECUTION_PROOF)
 
 
-def _archive_access(uow, operation_id):
+def _archive_access(uow, operation_id, actor):
     require_transaction(uow.connection)
     row, record = read_build_intent(uow.connection, operation_id)
-    actor = actor_for_command(uow, record.command_id)
+    if actor is None:
+        actor = actor_for_command(uow, record.command_id)
     task, _ = lock_task_access(uow, actor, record.task_id, "fact.archive")
     authorize_current(uow, actor, AuthoritativeResource(
         record.project_id, "operation", operation_id, task_id=record.task_id,
@@ -125,11 +128,11 @@ def _append(uow, record, *, event_id, event_type, schema, payload):
                  event_id=event_id, event_type=event_type, schema_version=schema, payload=payload)
 
 
-def register_verified_build_content(uow, operation_id: str, verified: _VerifiedBuildContent):
+def register_verified_build_content(uow, operation_id: str, verified: _VerifiedBuildContent, *, actor=None):
     """Reauthorize before replay; late content is archived without changing Task."""
     if type(verified) is not _VerifiedBuildContent or verified._proof is not _CONTENT_PROOF:
         raise BuildBoundaryError("verified_build_content_required")
-    record, applicable = _archive_access(uow, operation_id)
+    record, applicable = _archive_access(uow, operation_id, actor)
     if verified.operation_id != operation_id or verified.build_input_digest != record.build_input_digest:
         raise BuildBoundaryError("build_content_input_mismatch")
     existing = read_build_content(uow.connection, record)
@@ -146,11 +149,11 @@ def register_verified_build_content(uow, operation_id: str, verified: _VerifiedB
     return registration
 
 
-def register_verified_build_observation(uow, operation_id: str, verified: _VerifiedBuildObservation):
+def register_verified_build_observation(uow, operation_id: str, verified: _VerifiedBuildObservation, *, actor=None):
     """Archive trusted process facts; a successful exit still needs matching content."""
     if type(verified) is not _VerifiedBuildObservation or verified._proof is not _EXECUTION_PROOF:
         raise BuildBoundaryError("verified_build_observation_required")
-    record, applicable = _archive_access(uow, operation_id)
+    record, applicable = _archive_access(uow, operation_id, actor)
     receipt = verified.observation
     if (receipt.operation_id != operation_id or receipt.request_digest != record.request_digest
             or receipt.build_input_digest != record.build_input_digest):

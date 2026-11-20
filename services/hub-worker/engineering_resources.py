@@ -1,24 +1,29 @@
 """Task-owned admission, immutable operation bindings and shared backing ownership."""
 
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from importlib import import_module
 
 from sqlalchemy import select
 
 from database.uow import UnitOfWork
 from modules.collaboration.guards import read_task
-from modules.execution.application import ResourceApplication, read_reservation
+from modules.execution.application import ResourceApplication
 from modules.execution.dispatch import ResourceDispatcher
 from modules.execution.registry import read_runner
 from modules.execution.tables import resource_reservations
 from modules.identity.actors import actor_for_command
 from packages.contracts.p0.resource_contracts import AllocationIdentity, ResourceAllocation, ResourceRequest, ResourceVector
 from packages.contracts.p1.resource_protocol import (
-    DEVELOPMENT_BACKEND, STORAGE_BACKEND, ReserveResourcesRequest, canonical_digest, resource_request_digest,
+    DEVELOPMENT_BACKEND, STORAGE_BACKEND, ReserveResourcesRequest, canonical_digest, match_runner,
+    resource_request_digest,
 )
 
 runner_module = "services.dev-runner."
+
+
+def _reservation_id(key, storage):
+    return "engineering-resource-" + canonical_digest({"key": key, "storage": storage.model_dump(mode="json")})[7:47]
 
 
 class EngineeringResources:
@@ -114,10 +119,10 @@ class EngineeringResources:
 
     def binding(self, *, key, task_id, command_id, deadline, storage, start, preview=False):
         process, backing = self._configuration()
-        identity = "engineering-resource-" + canonical_digest({"key": key, "storage": process.storage.model_dump(mode="json")})[7:47]
+        identity = _reservation_id(key, process.storage)
         existing = self._existing(identity)
         if existing is None and not start:
-            return None  # Only queries/stops use this legacy compatibility route.
+            return None
         if existing is None:
             self._storage_owner(self.registry.registration, backing, storage, task_id, command_id, deadline)
         profiles = import_module(runner_module + "resource_development")
@@ -152,20 +157,52 @@ class EngineeringResources:
             deadline=environment["created_at"] + timedelta(hours=2), storage=storage, start=start,
             preview=preview)
 
-    @contextmanager
-    def build(self, record, storage, gate, *, start):
-        if not start and self.registry.registration.resource_runner_id is None:
-            yield None
-            return
-        if start:
+    def build(self, record):
+        """Find the original operation's group without admission or executor I/O."""
+        storage = self.registry.registration.storage
+        reservation_id = _reservation_id(record.operation_id, storage)
+        resource = resource_reservations.c
+        with UnitOfWork(self.application.control_engine) as uow:
+            row = uow.connection.execute(select(resource_reservations).where(
+                resource.operation_id == record.operation_id,
+            )).mappings().one_or_none()
+            if row is None:
+                return None
+            process = read_runner(uow, row["executor_instance_id"])
+        request = ReserveResourcesRequest.model_validate(row["request_json"])
+        allocation = ResourceAllocation.model_validate(row["allocation_json"])
+        bound = request.resources.identity
+        if (row["task_id"] != record.task_id or row["reservation_id"] != reservation_id
+                or bound.reservation_id != reservation_id or bound.resource_group_id != reservation_id
+                or bound.operation_id != record.operation_id
+                or allocation.identity != bound or allocation.creation_request_digest != request.resources.request_digest
+                or process.backend != DEVELOPMENT_BACKEND or process.storage != storage):
+            raise ValueError("engineering_build_resource_binding_mismatch")
+        match_runner(process, request.resources, request.backend)
+        context = import_module(runner_module + "resource_context")
+        return context.BoundGroup(request, process, self._dispatcher(process), stopped=allocation.state == "released")
+
+    def reserve_build(self, record, storage):
+        process, backing = self._configuration()
+        reservation_id = _reservation_id(record.operation_id, process.storage)
+        deadline = record.accepted_at + timedelta(hours=2)
+        self._storage_owner(self.registry.registration, backing, storage, record.task_id, record.command_id, deadline)
+        profiles = import_module(runner_module + "resource_development")
+        self._reserve(process, reservation_id, record.task_id, record.command_id, record.operation_id,
+                      profiles.ENVELOPE, deadline, ("engineering-storage-" + process.storage.storage_id,))
+        group = self.build(record)
+        if group is None:
+            raise ValueError("engineering_build_resource_binding_mismatch")
+        return group
+
+    def start_build(self, group, gate):
+        reservation_id = group.request.resources.identity.reservation_id
+        gate()
+        if group.dispatcher.deliver(reservation_id).state == "reserved":
             gate()
-        binding = self.binding(key=record.operation_id, task_id=record.task_id, command_id=record.command_id,
-            deadline=record.accepted_at + timedelta(hours=2), storage=storage, start=start)
-        if binding is None:
-            yield None
-        else:
-            with binding.context():
-                yield binding
+            if group.dispatcher.start(reservation_id).state == "active":
+                return
+        raise ValueError("engineering_resource_start_unconfirmed")
 
     @contextmanager
     def storage_context(self):

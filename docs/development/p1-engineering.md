@@ -47,6 +47,12 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 |可变开发环境申请、读取状态|`POST /api/workspaces/{workspace_id}/development-environments`；`GET /api/development-environments/{environment_id}`|
 |环境操作与生命周期|`GET /api/development-environments/{environment_id}/operations/{operation_id}`；`POST /api/development-environments/{environment_id}/suspend`、`/resume`、`/reset-data`、`/dispose`|
 
+本机 Worker 同步调用 Runner。Hub 返回的 `202` 表示构建命令已登记。Runner 单独保存原 Operation、规范请求摘要、固定构建输入、资源预留、执行器身份和代次。用同一命令核对时，读取原尝试和原制品。构建成功还需要同一输入的物理终态和三个角色的已核验制品。
+
+运行中取消 Task 使用 `POST /api/tasks/{task_id}/cancel`。控制队列按该 Task 拥有的原构建操作查询执行器，并使用当前控制主体的 `operation.stop` 权限请求停止。回执不明时，用 `/reconcile` 的 `cancellation` 用途继续核对同一操作。停止请求、进程退出和磁盘回收分别留证。核对期间相关占账继续阻止冲突构建。通过 `GET /api/tasks/{task_id}/builds/{operation_id}` 查看 Hub 已登记的业务结果。
+
+如果取消先于原资源预留，Hub 用当前 Task 的取消修订和原预留的完整历史确认构建已无法启动。此时构建结果显示 `failed`，执行观察和制品均为空。旧安装的在途操作在原安装核对收尾。[本机构建验证](../acceptance/d02.md)
+
 固定参照 Task 的独立检查项由 [版本化目录](../acceptance/reference/README.md) 登记：加载器核验固定目录摘要、50 个唯一 ID、脚本/方法及 bundle 绑定，直接生成既有 AcceptanceMetadata，不再用运行时 AST 推导。当前公开资产修订为 `reference-public-assets-r2`，将既有 README 摘要变化显式登记；目录本身纳入新 bundle，创建新的工程引用与 Task InputSet，旧记录及通过结果不自动适用新输入。该入口只登记方法，实际执行结果仍须另行绑定；旧冻结 InputSet 与 `r1/` 文件保持原字节。
 
 准确字段见 [HTTP 快照](../../packages/contracts/p1/hub-openapi.json)。修改入口接受至多 48KiB UTF-8 单文件内容，完整 JSON 请求仍受 64KiB 限制；请求包含 `request`（版本、路径、原内容与替换摘要）和 `content_utf8`，删除时内容为 null。内容在当前授权与版本预检后暂存到受控池，命令及 DBOS 只保留摘要与操作身份；正式接受时重新检查当前门禁。同键重投保留原请求，不用新键重放未知文件操作。
@@ -55,7 +61,7 @@ HTTP 工程命令由现有身份与 Task 门禁保护；API 只在业务事务�
 
 固定开发 profile 的镜像/命令、迁移、r1/r2 合成数据和业务 GET 探针统一维护在 [便签配方](../../services/dev-runner/workspace_development_recipe.py)，调用与观察字段见[职责对照](../implementation/p1-2-engineering.md#81-固定便签配方与执行职责)。配方没有配置或插件入口，秘密继续由 Runtime/Docker 私下注入；恢复和重建仍须提交原受控命令。查询只回读或观察原操作，不因缺少依赖、进程或数据而自动安装、启动或重置；停止未知仍阻止冲突推进及回收。旧 journal、环境/操作和依赖快照身份继续按原绑定核对。
 
-开发存储采用专用、完整分配的 loop/ext4 文件系统，Git、工作文件、候选、缓存和归档共用一个有界实例及排他准入。用途目录保持独立，候选与工作区共用一致性锁。操作全程持有实际准入，停止进程不等于释放保留字节；卸载和删除只有核对后才能清理本实例。维护包装核验 Docker daemon 身份并进入其挂载命名空间创建本项目专用池；消费者保持同一视图，Docker 使用受管路径，目录 FD 全程保持打开并在容器内核对 dev/ino。
+开发存储采用专用、完整分配的 loop/ext4 文件系统，Git、工作文件、候选、缓存和归档共用一个有界实例。普通工程命令使用排他准入，候选与工作区共用一致性锁。本机构建持有存储生命周期锁，控制队列可以同时打开同一尝试核对或请求停止。停止进程后保留的文件继续占用存储。维护包装核验 Docker daemon 身份并进入其挂载命名空间创建本项目专用池，卸载和删除前检查引用。消费者保持同一视图，Docker 使用受管路径，目录 FD 全程保持打开并在容器内核对 dev/ino。
 
 验证与收尾期间保持 WSL 发行版运行。发行版退出或挂载命名空间变化后，先按原实例注册、backing 身份和容器引用核对存储；目录仍在不代表专用文件系统仍挂载，不能直接另建操作覆盖原记录。
 

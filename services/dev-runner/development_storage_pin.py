@@ -2,7 +2,7 @@
 
 import fcntl
 import os
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 
 from . import development_storage as storage
 from packages.contracts.p1.development_storage import DevelopmentStorageRef
@@ -22,7 +22,7 @@ def backing_pin(instance, *, exclusive=False):
 
 
 @contextmanager
-def pin_reference(owner, reference, requested_bytes):
+def pin_reference(owner, reference, requested_bytes, *, build_journal=False):
     if (not isinstance(reference, DevelopmentStorageRef) or reference.storage_id != owner.storage_id
             or os.getuid() != storage.UID or type(requested_bytes) is not int or requested_bytes < 0
             or reference.purpose not in storage.PURPOSE_DIRECTORIES):
@@ -30,9 +30,9 @@ def pin_reference(owner, reference, requested_bytes):
     with storage.instance_descriptors(owner.storage_id) as (_, instance), backing_pin(instance) as image:
         data = selected = None
         try:
-            # Serialize admission checks, while the shared backing pin survives
-            # this short critical section. The whole filesystem remains charged.
-            with storage.instance_lock(instance):
+            # A build uses the charged backing and its own attempt lock. Its control
+            # path must be able to inspect that attempt during another storage command.
+            with nullcontext() if build_journal else storage.instance_lock(instance):
                 registration = storage.registration_at(instance, owner.storage_id)
                 if registration.instance_revision != reference.instance_revision:
                     raise storage.DevelopmentStorageError("storage_instance_revision_stale")

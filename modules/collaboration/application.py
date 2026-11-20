@@ -16,9 +16,10 @@ from modules.collaboration.guards import read_task
 from modules.collaboration.input_commands import bind_initial_input_in_uow, invalidate_input, register_write_intent
 from modules.collaboration.lifecycle_commands import create_task, start_task
 from modules.collaboration.queries import task_view
-from modules.collaboration.step_commands import run_step
+from modules.collaboration.step_commands import pending_cancellation_builds, run_step
 from modules.collaboration.work_item_acceptance import accept_work_item
 from modules.identity.actors import Actor, validate_actor
+from modules.identity.errors import IdentityError
 from modules.workflow.version import CONTROL_WORKFLOW, INITIAL_WORKFLOW
 from packages.contracts.p0.task_control_contracts import TaskCompletionReport
 from packages.contracts.p1.task_internal import (
@@ -32,10 +33,11 @@ from packages.contracts.p1.task_results import TaskCommandResult, TaskHttpResult
 
 
 class TaskApplication:
-    def __init__(self, engine: Engine, control_engine: Engine, dbos_client: DBOSClient) -> None:
+    def __init__(self, engine: Engine, control_engine: Engine, dbos_client: DBOSClient, *, build_control=None) -> None:
         self.engine = engine
         self.control_engine = control_engine
         self.dbos_client = dbos_client
+        self.build_control = build_control
 
     def create(self, actor: Actor, project_id: str, request: CreateTaskRequest, *, idempotency_key: str) -> TaskHttpResult:
         if type(request) is not CreateTaskRequest:
@@ -136,4 +138,12 @@ class TaskApplication:
         return run_step(self.engine, command_id, INITIAL_WORKFLOW)
 
     def run_control(self, command_id: str) -> TaskCommandResult:
+        if self.build_control is not None:
+            for operation_id, generation in pending_cancellation_builds(self.control_engine, command_id):
+                try:
+                    self.build_control.request_build_stop(operation_id, executor_generation=generation,
+                                                          control_command_id=command_id)
+                except (IdentityError, OSError):
+                    # Without authority or a reachable Runner the original build remains a blocker.
+                    continue
         return run_step(self.control_engine, command_id, CONTROL_WORKFLOW)
